@@ -1,0 +1,40 @@
+.env
+
+__pycache__/
+*.py[cod]
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.venv/
+venv/
+
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-data/
+
+# Node
+node_modules/
+
+# AI
+models/
+checkpoints/
+
+# Coverage
+.coverage
+htmlcov/
