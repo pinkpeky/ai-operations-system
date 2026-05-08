@@ -1,8 +1,11 @@
 services:
+  # FastAPI 主服务，负责承载后续 AI Operations System 的业务接口。
   api:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-public.ecr.aws/docker/library/python:3.12-slim}
     container_name: aiops-api
     environment:
       APP_NAME: ${APP_NAME:-AI Operations System}
@@ -28,6 +31,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
+      # API 依赖基础设施服务，等待数据库和缓存健康后再启动。
       postgres:
         condition: service_healthy
       redis:
@@ -40,8 +44,9 @@ services:
     networks:
       - aiops-network
 
+  # PostgreSQL 用于存储结构化业务数据。
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:16-alpine}
     container_name: aiops-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-aiops}
@@ -52,6 +57,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
+      # 使用 PostgreSQL 官方工具检查数据库是否已经可接受连接。
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
@@ -60,8 +66,9 @@ services:
     networks:
       - aiops-network
 
+  # Redis 用于缓存、任务状态和后续异步协作场景。
   redis:
-    image: ${REDIS_IMAGE:-redis:7-alpine}
+    image: ${REDIS_IMAGE:-public.ecr.aws/docker/library/redis:7-alpine}
     container_name: aiops-redis
     command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
     environment:
@@ -71,6 +78,7 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
+      # 使用 Redis ping 检查服务存活状态。
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
@@ -79,6 +87,7 @@ services:
     networks:
       - aiops-network
 
+  # Qdrant 用于向量检索和后续知识库/RAG 能力。
   qdrant:
     image: ${QDRANT_IMAGE:-ghcr.io/qdrant/qdrant/qdrant:v1.16.3}
     container_name: aiops-qdrant
@@ -94,10 +103,12 @@ services:
       - aiops-network
 
 volumes:
+  # 使用具名卷保存本地开发环境中的持久化数据。
   postgres-data:
   redis-data:
   qdrant-data:
 
 networks:
+  # 统一网络让容器之间可以通过服务名互相访问。
   aiops-network:
     driver: bridge

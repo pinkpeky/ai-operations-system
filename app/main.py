@@ -1,3 +1,9 @@
+# 导入必要的模块
+"""FastAPI 应用入口模块。
+
+该模块负责创建应用实例、注册路由、配置异常处理，并管理启动/关闭生命周期。
+"""
+
 import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
@@ -15,6 +21,7 @@ from app.db.redis import close_redis, init_redis
 logger = logging.getLogger(__name__)
 
 
+# 应用生命周期管理器，用于启动和关闭时的操作
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -22,6 +29,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info("Application startup started", extra={"app_env": settings.app_env})
 
     try:
+        # 初始化数据库连接
+        # 应用启动时统一初始化外部依赖，失败时阻止服务进入半可用状态。
         await init_postgres(settings)
         await init_redis(settings)
         await init_qdrant(settings)
@@ -31,7 +40,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.exception("Application startup failed")
         raise RuntimeError("Application startup failed") from exc
     finally:
+        # 关闭数据库连接
         shutdown_errors: list[str] = []
+        # 按依赖使用顺序反向释放资源，降低关闭阶段的连接残留风险。
         for name, closer in (
             ("qdrant", close_qdrant),
             ("redis", close_redis),
@@ -48,14 +59,17 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             logger.info("Application shutdown completed")
 
 
+# 创建 FastAPI 应用实例
 def create_app() -> FastAPI:
     try:
         settings = get_settings()
+        # 创建 FastAPI 实例，生命周期函数负责连接外部基础设施。
         app = FastAPI(
             title=settings.app_name,
             version="0.1.0",
             lifespan=lifespan,
         )
+        # 注册业务路由和统一异常处理器。
         app.include_router(create_api_router())
         app.add_exception_handler(AppError, app_error_handler)
         app.add_exception_handler(Exception, unhandled_error_handler)
@@ -66,4 +80,5 @@ def create_app() -> FastAPI:
         raise RuntimeError("FastAPI application creation failed") from exc
 
 
+# 创建应用实例
 app = create_app()

@@ -1,3 +1,8 @@
+"""PostgreSQL 连接管理模块。
+
+该模块负责初始化、健康检查和关闭 PostgreSQL 异步连接池。
+"""
+
 import logging
 import asyncio
 from typing import Optional
@@ -17,6 +22,7 @@ async def init_postgres(settings: Settings) -> None:
     global engine, async_session_factory
 
     try:
+        # 使用 SQLAlchemy 异步引擎，后续业务模块可复用统一连接池。
         engine = create_async_engine(
             settings.database_url,
             pool_size=settings.postgres_pool_size,
@@ -24,6 +30,7 @@ async def init_postgres(settings: Settings) -> None:
             pool_pre_ping=True,
         )
         async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        # 容器启动时数据库可能还在初始化，增加重试可以提升启动稳定性。
         for attempt in range(1, 11):
             try:
                 await check_postgres()
@@ -44,6 +51,7 @@ async def check_postgres() -> bool:
     try:
         if engine is None:
             raise RuntimeError("PostgreSQL engine is not initialized")
+        # SELECT 1 是轻量级探活语句，不依赖任何业务表结构。
         async with engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
         logger.debug("PostgreSQL health check passed")
@@ -58,6 +66,7 @@ async def close_postgres() -> None:
 
     try:
         if engine is not None:
+            # 应用关闭时释放连接池，避免连接泄漏。
             await engine.dispose()
             logger.info("PostgreSQL connection closed")
     except Exception as exc:

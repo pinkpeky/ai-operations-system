@@ -1,3 +1,8 @@
+"""应用配置模块。
+
+该模块从环境变量或 .env 文件读取配置，并生成 PostgreSQL、Redis、Qdrant 的连接地址。
+"""
+
 import logging
 from functools import lru_cache
 from urllib.parse import quote_plus
@@ -9,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
+    # 允许本地开发通过 .env 覆盖默认值，同时忽略暂未使用的扩展配置。
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -42,6 +48,7 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         try:
+            # 对用户名和密码进行 URL 编码，避免特殊字符破坏连接串。
             user = quote_plus(self.postgres_user)
             password = quote_plus(self.postgres_password)
             return (
@@ -55,6 +62,7 @@ class Settings(BaseSettings):
     @property
     def redis_url(self) -> str:
         try:
+            # Redis 密码同样需要 URL 编码，保证复杂密码可以正常使用。
             password = quote_plus(self.redis_password)
             return f"redis://:{password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
         except Exception as exc:
@@ -73,6 +81,7 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     try:
+        # 配置对象缓存后可被全局复用，避免重复解析环境变量。
         settings = Settings()
         logger.info("Settings loaded", extra={"app_env": settings.app_env})
         return settings

@@ -1,3 +1,8 @@
+"""统一异常处理模块。
+
+该模块定义业务异常和全局异常处理器，避免接口直接暴露内部错误细节。
+"""
+
 import logging
 
 from fastapi import Request
@@ -7,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class AppError(Exception):
+    """应用内可预期业务异常。"""
+
     def __init__(self, message: str, status_code: int = 500) -> None:
         try:
             super().__init__(message)
@@ -19,6 +26,7 @@ class AppError(Exception):
 
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     try:
+        # 可预期错误只记录警告，并按业务指定状态码返回。
         logger.warning(
             "Handled application error",
             extra={"path": request.url.path, "status_code": exc.status_code},
@@ -34,6 +42,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
     try:
+        # 未预期错误记录完整堆栈，但对外只返回通用错误信息。
         logger.exception(
             "Unhandled application error",
             extra={"path": request.url.path},
