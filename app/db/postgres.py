@@ -5,17 +5,18 @@
 
 import logging
 import asyncio
+from collections.abc import AsyncIterator
 from typing import Optional
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
 
 engine: Optional[AsyncEngine] = None
-async_session_factory: Optional[async_sessionmaker] = None
+async_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 
 async def init_postgres(settings: Settings) -> None:
@@ -75,3 +76,28 @@ async def close_postgres() -> None:
     finally:
         engine = None
         async_session_factory = None
+
+
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """获取全局数据库会话工厂。"""
+
+    try:
+        if async_session_factory is None:
+            raise RuntimeError("PostgreSQL session factory is not initialized")
+        return async_session_factory
+    except Exception as exc:
+        logger.exception("Failed to get PostgreSQL session factory")
+        raise RuntimeError("PostgreSQL session factory is unavailable") from exc
+
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    """FastAPI 依赖项：为每个请求提供独立数据库会话。"""
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        try:
+            yield session
+        except Exception:
+            # 保留上层异常类型，只在这里补充数据库会话上下文日志。
+            logger.exception("PostgreSQL session scope failed")
+            raise

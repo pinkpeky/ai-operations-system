@@ -39,11 +39,20 @@ class Settings(BaseSettings):
     redis_port: int = Field(default=6379, alias="REDIS_PORT")
     redis_db: int = Field(default=0, alias="REDIS_DB")
     redis_password: str = Field(default="change_me", alias="REDIS_PASSWORD")
+    redis_queue_name: str = Field(default="aiops:tasks", alias="REDIS_QUEUE_NAME")
 
     qdrant_host: str = Field(default="localhost", alias="QDRANT_HOST")
     qdrant_http_port: int = Field(default=6333, alias="QDRANT_HTTP_PORT")
     qdrant_grpc_port: int = Field(default=6334, alias="QDRANT_GRPC_PORT")
     qdrant_api_key: str = Field(default="change_me", alias="QDRANT_API_KEY")
+
+    scheduler_enabled: bool = Field(default=True, alias="SCHEDULER_ENABLED")
+    scheduler_interval_seconds: float = Field(default=5.0, alias="SCHEDULER_INTERVAL_SECONDS")
+    scheduler_batch_size: int = Field(default=20, alias="SCHEDULER_BATCH_SIZE")
+    scheduler_running_timeout_seconds: int = Field(
+        default=300,
+        alias="SCHEDULER_RUNNING_TIMEOUT_SECONDS",
+    )
 
     @property
     def database_url(self) -> str:

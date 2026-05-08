@@ -72,3 +72,15 @@ async def close_redis() -> None:
         raise RuntimeError("Redis shutdown failed") from exc
     finally:
         redis_client = None
+
+
+def get_redis_client() -> Redis:
+    """获取全局 Redis 客户端，供队列和业务模块复用。"""
+
+    try:
+        if redis_client is None:
+            raise RuntimeError("Redis client is not initialized")
+        return redis_client
+    except Exception as exc:
+        logger.exception("Failed to get Redis client")
+        raise RuntimeError("Redis client is unavailable") from exc
