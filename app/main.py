@@ -1,13 +1,12 @@
-# 导入必要的模块
 """FastAPI 应用入口模块。
 
-该模块负责创建应用实例、注册路由、配置异常处理，并管理启动/关闭生命周期。
+该模块负责创建应用、注册路由、配置异常处理，并管理启动和关闭生命周期。
 """
 
 import asyncio
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -20,26 +19,30 @@ from app.db.qdrant import close_qdrant, init_qdrant
 from app.db.redis import close_redis, init_redis
 from app.services.queue import RedisQueue
 from app.services.scheduler import TaskScheduler, run_scheduler_loop
+from app.workers.handlers.agentic_rag_handler import AgenticRAGHandler
+from app.workers.handlers.content_generation_handler import ContentGenerationHandler
+from app.workers.task_executor import TaskExecutor, run_task_executor_loop
 
 logger = logging.getLogger(__name__)
 
 
-# 应用生命周期管理器，用于启动和关闭时的操作
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """应用生命周期管理器。"""
+
     settings = get_settings()
     setup_logging(settings.log_level)
     logger.info("Application startup started", extra={"app_env": settings.app_env})
     scheduler_task: asyncio.Task[None] | None = None
+    task_executor_task: asyncio.Task[None] | None = None
 
     try:
-        # 初始化数据库连接
         # 应用启动时统一初始化外部依赖，失败时阻止服务进入半可用状态。
         await init_postgres(settings)
         await init_redis(settings)
         await init_qdrant(settings)
+
         if settings.scheduler_enabled:
-            # Scheduler 复用 Redis Queue 和数据库会话工厂，以后台任务形式持续运行。
             scheduler = TaskScheduler(
                 queue=RedisQueue(settings.redis_queue_name),
                 batch_size=settings.scheduler_batch_size,
@@ -53,22 +56,46 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
                 )
             )
             logger.info("Scheduler background task started")
+
+        if settings.task_executor_enabled:
+            # TaskExecutor 只消费 Scheduler 已经推入 Redis 的任务，不改变 Scheduler 的扫描和入队职责。
+            task_executor = TaskExecutor(
+                queue=RedisQueue(settings.redis_queue_name),
+                handlers=[
+                    AgenticRAGHandler(settings=settings),
+                    ContentGenerationHandler(),
+                ],
+                dequeue_timeout_seconds=settings.task_executor_dequeue_timeout_seconds,
+            )
+            task_executor_task = asyncio.create_task(
+                run_task_executor_loop(
+                    get_session_factory(),
+                    task_executor,
+                )
+            )
+            logger.info("Task executor background task started")
+
         logger.info("Application startup completed")
         yield
     except Exception as exc:
         logger.exception("Application startup failed")
         raise RuntimeError("Application startup failed") from exc
     finally:
-        # 关闭数据库连接
+        if task_executor_task is not None:
+            task_executor_task.cancel()
+            try:
+                await task_executor_task
+            except asyncio.CancelledError:
+                logger.info("Task executor background task stopped")
+
         if scheduler_task is not None:
-            # 服务关闭时先取消调度循环，避免关闭数据库连接后后台任务继续访问。
             scheduler_task.cancel()
             try:
                 await scheduler_task
             except asyncio.CancelledError:
                 logger.info("Scheduler background task stopped")
+
         shutdown_errors: list[str] = []
-        # 按依赖使用顺序反向释放资源，降低关闭阶段的连接残留风险。
         for name, closer in (
             ("qdrant", close_qdrant),
             ("redis", close_redis),
@@ -85,17 +112,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             logger.info("Application shutdown completed")
 
 
-# 创建 FastAPI 应用实例
 def create_app() -> FastAPI:
+    """创建 FastAPI 应用实例。"""
+
     try:
         settings = get_settings()
-        # 创建 FastAPI 实例，生命周期函数负责连接外部基础设施。
         app = FastAPI(
             title=settings.app_name,
             version="0.1.0",
             lifespan=lifespan,
         )
-        # 注册业务路由和统一异常处理器。
         app.include_router(create_api_router())
         app.add_exception_handler(AppError, app_error_handler)
         app.add_exception_handler(Exception, unhandled_error_handler)
@@ -106,5 +132,4 @@ def create_app() -> FastAPI:
         raise RuntimeError("FastAPI application creation failed") from exc
 
 
-# 创建应用实例
 app = create_app()

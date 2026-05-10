@@ -53,6 +53,28 @@ class Settings(BaseSettings):
         default=300,
         alias="SCHEDULER_RUNNING_TIMEOUT_SECONDS",
     )
+    task_executor_enabled: bool = Field(default=True, alias="TASK_EXECUTOR_ENABLED")
+    task_executor_dequeue_timeout_seconds: int = Field(default=5, alias="TASK_EXECUTOR_DEQUEUE_TIMEOUT_SECONDS")
+    llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
+    local_llm_base_url: str = Field(
+        default="http://host.docker.internal:11434",
+        alias="LOCAL_LLM_BASE_URL",
+    )
+    local_llm_model: str = Field(default="mistral", alias="LOCAL_LLM_MODEL")
+    server_llm_base_url: str = Field(
+        default="http://host.docker.internal:8001/v1",
+        alias="SERVER_LLM_BASE_URL",
+    )
+    server_llm_model: str = Field(default="llama-70b", alias="SERVER_LLM_MODEL")
+    llm_timeout_seconds: float = Field(default=120.0, alias="LLM_TIMEOUT_SECONDS")
+    embedding_provider: str = Field(default="mock", alias="EMBEDDING_PROVIDER")
+    embedding_dimension: int = Field(default=384, ge=1, alias="EMBEDDING_DIMENSION")
+    local_embedding_base_url: str = Field(
+        default="http://host.docker.internal:8002",
+        alias="LOCAL_EMBEDDING_BASE_URL",
+    )
+    local_embedding_model: str = Field(default="local-embedding-model", alias="LOCAL_EMBEDDING_MODEL")
+    qdrant_collection_name: str = Field(default="ai_knowledge_base", alias="QDRANT_COLLECTION_NAME")
 
     @property
     def database_url(self) -> str:

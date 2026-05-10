@@ -13,7 +13,15 @@ from app.core.errors import AppError
 from app.db.postgres import get_session
 from app.models.enums import TaskStatus
 from app.repositories.task_repository import TaskRepository
-from app.schemas.task import TaskCreateRequest, TaskListResponse, TaskResponse
+from app.schemas.task import (
+    AgenticRAGTaskCreateRequest,
+    ContentGenerationTaskCreateRequest,
+    TaskCreateRequest,
+    TaskListResponse,
+    TaskResponse,
+)
+from app.workers.handlers.agentic_rag_handler import AGENTIC_RAG_TASK_TYPE
+from app.workers.handlers.content_generation_handler import CONTENT_GENERATION_TASK_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +50,63 @@ async def create_task(
     except Exception as exc:
         logger.exception("Task API failed to create task")
         raise AppError("Failed to create task", status_code=500) from exc
+
+
+@router.post("/agentic-rag", response_model=TaskResponse, status_code=201)
+async def create_agentic_rag_task(
+    request: AgenticRAGTaskCreateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> TaskResponse:
+    """创建 Agentic RAG 查询任务。"""
+
+    try:
+        repository = TaskRepository(session)
+        payload = {
+            "query": request.query,
+            "collection_name": request.collection_name,
+            "top_k": request.top_k,
+            "debug": request.debug,
+        }
+        task = await repository.create_task(
+            title=request.title or f"Agentic RAG Query: {request.query[:80]}",
+            task_type=AGENTIC_RAG_TASK_TYPE,
+            payload=payload,
+            scheduled_at=request.scheduled_at,
+            max_retries=request.max_retries,
+        )
+        logger.info("Task API created Agentic RAG task", extra={"task_id": str(task.id)})
+        return TaskResponse.model_validate(task)
+    except Exception as exc:
+        logger.exception("Task API failed to create Agentic RAG task")
+        raise AppError("Failed to create Agentic RAG task", status_code=500) from exc
+
+
+@router.post("/content-generation", response_model=TaskResponse, status_code=201)
+async def create_content_generation_task(
+    request: ContentGenerationTaskCreateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> TaskResponse:
+    """创建内容生成任务。"""
+
+    try:
+        repository = TaskRepository(session)
+        payload = {
+            "topic": request.topic,
+            "platform": request.platform,
+            "style": request.style,
+        }
+        task = await repository.create_task(
+            title=request.title or f"Content Generation: {request.topic[:80]}",
+            task_type=CONTENT_GENERATION_TASK_TYPE,
+            payload=payload,
+            scheduled_at=request.scheduled_at,
+            max_retries=request.max_retries,
+        )
+        logger.info("Task API created content generation task", extra={"task_id": str(task.id)})
+        return TaskResponse.model_validate(task)
+    except Exception as exc:
+        logger.exception("Task API failed to create content generation task")
+        raise AppError("Failed to create content generation task", status_code=500) from exc
 
 
 @router.get("", response_model=TaskListResponse)

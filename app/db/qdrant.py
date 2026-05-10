@@ -69,3 +69,15 @@ async def close_qdrant() -> None:
         raise RuntimeError("Qdrant shutdown failed") from exc
     finally:
         qdrant_client = None
+
+
+def get_qdrant_client() -> AsyncQdrantClient:
+    """获取全局 Qdrant 客户端，供向量检索层复用。"""
+
+    try:
+        if qdrant_client is None:
+            raise RuntimeError("Qdrant client is not initialized")
+        return qdrant_client
+    except Exception as exc:
+        logger.exception("Failed to get Qdrant client")
+        raise RuntimeError("Qdrant client is unavailable") from exc
