@@ -6,6 +6,8 @@ Provider 层只负责文本向量化，不直接处理 Qdrant 写入和检索。
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
+from app.schemas.rag import EmbeddingHealthResponse
+
 
 class BaseEmbeddingProvider(ABC):
     """Embedding Provider 基类。"""
@@ -25,3 +27,14 @@ class BaseEmbeddingProvider(ABC):
 
         embeddings = await self.embed_texts([query])
         return embeddings[0]
+
+    async def health_check(self) -> EmbeddingHealthResponse:
+        """检查 Provider 是否可用。"""
+
+        return EmbeddingHealthResponse(
+            provider=self.provider_name,
+            model=self.model,
+            reachable=True,
+            dimension=self.dimension,
+            error=None,
+        )

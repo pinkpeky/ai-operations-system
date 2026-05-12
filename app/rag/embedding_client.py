@@ -9,6 +9,7 @@ from app.core.config import Settings, get_settings
 from app.rag.providers.base import BaseEmbeddingProvider
 from app.rag.providers.local_embedding_provider import LocalEmbeddingProvider
 from app.rag.providers.mock_embedding_provider import MockEmbeddingProvider
+from app.schemas.rag import EmbeddingHealthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class EmbeddingClient:
             raise RuntimeError(str(exc)) from exc
         except Exception as exc:
             logger.exception("Embedding generation failed")
-            raise RuntimeError("Embedding generation failed") from exc
+            raise RuntimeError(str(exc) or "Embedding generation failed") from exc
 
     async def embed_query(self, query: str) -> list[float]:
         """生成查询向量。"""
@@ -60,6 +61,30 @@ class EmbeddingClient:
         embedding = await self.provider.embed_query(query)
         self._validate_embeddings([embedding], 1)
         return embedding
+
+    async def health_check(self) -> EmbeddingHealthResponse:
+        """检查当前 Embedding Provider 是否可用。"""
+
+        try:
+            return await self.provider.health_check()
+        except Exception as exc:
+            logger.exception("Embedding health check failed")
+            return EmbeddingHealthResponse(
+                provider=self.provider.provider_name,
+                model=self.provider.model,
+                reachable=False,
+                dimension=getattr(self.provider, "dimension", None),
+                error=str(exc),
+            )
+
+    async def resolve_dimension(self) -> int:
+        """解析当前 Provider 的真实向量维度。"""
+
+        health = await self.health_check()
+        if not health.reachable or health.dimension is None:
+            raise RuntimeError(health.error or "Embedding provider is not reachable")
+        self.provider.dimension = health.dimension
+        return health.dimension
 
     def _create_provider(self, settings: Settings) -> BaseEmbeddingProvider:
         """根据配置创建 Embedding Provider。"""
@@ -73,7 +98,7 @@ class EmbeddingClient:
                     base_url=settings.local_embedding_base_url,
                     model=settings.local_embedding_model,
                     dimension=settings.embedding_dimension,
-                    timeout_seconds=60.0,
+                    timeout_seconds=settings.llm_timeout_seconds,
                 )
             raise ValueError(f"Unsupported embedding provider: {settings.embedding_provider}")
         except ValueError:

@@ -20,6 +20,8 @@ class TaskCreateRequest(BaseModel):
     task_type: str = Field(min_length=1, max_length=64, description="任务类型")
     payload: dict[str, Any] = Field(default_factory=dict, description="任务负载")
     account_id: UUID | None = Field(default=None, description="关联账号 ID")
+    workspace_id: str | None = Field(default=None, description="隔离工作区 ID，默认由 X-Workspace-Id 注入")
+    user_id: str | None = Field(default=None, description="任务创建用户 ID，默认由 X-User-Id 注入")
     scheduled_at: datetime | None = Field(default=None, description="计划执行时间")
     max_retries: int = Field(default=3, ge=0, le=20, description="最大重试次数")
 
@@ -57,6 +59,8 @@ class TaskResponse(BaseModel):
     task_type: str
     payload: dict[str, Any]
     account_id: UUID | None
+    workspace_id: str | None
+    user_id: str | None
     retry_count: int
     max_retries: int
     scheduled_at: datetime | None

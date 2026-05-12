@@ -27,6 +27,9 @@ class VectorSearchResult:
     raw_score: float
     metadata: dict[str, Any] = field(default_factory=dict)
     chunk_index: int | None = None
+    dense_score: float | None = None
+    keyword_score: float | None = None
+    hybrid_score: float | None = None
 
     @property
     def score(self) -> float:
@@ -92,6 +95,13 @@ class QdrantVectorStore:
 
         try:
             if await self.collection_exists():
+                info = await self.client.get_collection(self.collection_name)
+                existing_dimension = self._extract_embedding_dimension(info)
+                if existing_dimension is not None and existing_dimension != self.embedding_dimension:
+                    raise ValueError(
+                        "Qdrant collection embedding dimension mismatch: "
+                        f"{self.collection_name} existing={existing_dimension}, requested={self.embedding_dimension}"
+                    )
                 return
             await self.client.create_collection(
                 collection_name=self.collection_name,
@@ -104,6 +114,9 @@ class QdrantVectorStore:
                 "Qdrant collection created",
                 extra={"collection": self.collection_name, "dimension": self.embedding_dimension},
             )
+        except ValueError:
+            logger.exception("Qdrant collection validation failed", extra={"collection": self.collection_name})
+            raise
         except Exception as exc:
             logger.exception("Failed to ensure Qdrant collection", extra={"collection": self.collection_name})
             raise RuntimeError("Failed to ensure Qdrant collection") from exc
@@ -191,7 +204,12 @@ class QdrantVectorStore:
                         "text": chunk.text,
                         "metadata": chunk.metadata,
                         "chunk_index": chunk.chunk_index,
-                        "source_id": chunk.source_id,
+                        "document_id": chunk.metadata.get("document_id"),
+                        "source_id": chunk.metadata.get("source_id", chunk.source_id),
+                        "version": chunk.metadata.get("version"),
+                        "workspace_id": chunk.metadata.get("workspace_id"),
+                        "user_id": chunk.metadata.get("user_id"),
+                        "status": chunk.metadata.get("status", "active"),
                         "start_char": chunk.start_char,
                         "end_char": chunk.end_char,
                     },
@@ -212,7 +230,36 @@ class QdrantVectorStore:
             logger.exception("Failed to upsert Qdrant chunks", extra={"collection": self.collection_name})
             raise RuntimeError("Failed to upsert Qdrant chunks") from exc
 
-    async def similarity_search(self, query_embedding: list[float], top_k: int = 5) -> list[VectorSearchResult]:
+    async def delete_points(self, point_ids: list[str]) -> int:
+        """按 point ID 删除 Qdrant chunks。"""
+
+        try:
+            if not point_ids:
+                return 0
+            if not await self.collection_exists():
+                return 0
+            await self.client.delete(
+                collection_name=self.collection_name,
+                points_selector=models.PointIdsList(points=point_ids),
+                wait=True,
+            )
+            logger.info(
+                "Qdrant points deleted",
+                extra={"collection": self.collection_name, "count": len(point_ids)},
+            )
+            return len(point_ids)
+        except Exception as exc:
+            logger.exception("Failed to delete Qdrant points", extra={"collection": self.collection_name})
+            raise RuntimeError("Failed to delete Qdrant points") from exc
+
+    async def similarity_search(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        source_id: str | None = None,
+        workspace_id: str | None = None,
+        status: str = "active",
+    ) -> list[VectorSearchResult]:
         """执行相似度检索。"""
 
         try:
@@ -227,6 +274,11 @@ class QdrantVectorStore:
             response = await self.client.query_points(
                 collection_name=self.collection_name,
                 query=query_embedding,
+                query_filter=self._build_query_filter(
+                    status=status,
+                    source_id=source_id,
+                    workspace_id=workspace_id,
+                ),
                 limit=top_k,
                 with_payload=True,
                 with_vectors=False,
@@ -244,6 +296,32 @@ class QdrantVectorStore:
             logger.exception("Failed to search Qdrant collection", extra={"collection": self.collection_name})
             raise RuntimeError("Failed to search Qdrant collection") from exc
 
+    def _build_query_filter(
+        self,
+        *,
+        status: str | None,
+        source_id: str | None,
+        workspace_id: str | None,
+    ) -> models.Filter | None:
+        """构建 Qdrant 检索过滤器，默认只返回 active 文档 chunk。"""
+
+        conditions: list[models.FieldCondition] = []
+        if status is not None:
+            conditions.append(
+                models.FieldCondition(key="status", match=models.MatchValue(value=status))
+            )
+        if source_id is not None:
+            conditions.append(
+                models.FieldCondition(key="source_id", match=models.MatchValue(value=source_id))
+            )
+        if workspace_id is not None:
+            conditions.append(
+                models.FieldCondition(key="workspace_id", match=models.MatchValue(value=workspace_id))
+            )
+        if not conditions:
+            return None
+        return models.Filter(must=conditions)
+
     def _build_search_result(self, point: Any) -> VectorSearchResult:
         """将 Qdrant point 转换为业务检索结果。"""
 
@@ -257,6 +335,9 @@ class QdrantVectorStore:
             raw_score=normalized_score.raw_score,
             metadata=metadata,
             chunk_index=payload.get("chunk_index"),
+            dense_score=normalized_score.similarity_score,
+            keyword_score=None,
+            hybrid_score=normalized_score.similarity_score,
         )
 
     def _extract_embedding_dimension(self, collection_info: Any) -> int | None:

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
+from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
 from app.models.enums import TaskStatus
 from app.repositories.task_repository import TaskRepository
@@ -32,6 +33,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 async def create_task(
     request: TaskCreateRequest,
     session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ) -> TaskResponse:
     """创建中央任务。"""
 
@@ -42,6 +44,8 @@ async def create_task(
             task_type=request.task_type,
             payload=request.payload,
             account_id=request.account_id,
+            workspace_id=context.workspace_id,
+            user_id=context.user_id,
             scheduled_at=request.scheduled_at,
             max_retries=request.max_retries,
         )
@@ -56,6 +60,7 @@ async def create_task(
 async def create_agentic_rag_task(
     request: AgenticRAGTaskCreateRequest,
     session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ) -> TaskResponse:
     """创建 Agentic RAG 查询任务。"""
 
@@ -71,6 +76,8 @@ async def create_agentic_rag_task(
             title=request.title or f"Agentic RAG Query: {request.query[:80]}",
             task_type=AGENTIC_RAG_TASK_TYPE,
             payload=payload,
+            workspace_id=context.workspace_id,
+            user_id=context.user_id,
             scheduled_at=request.scheduled_at,
             max_retries=request.max_retries,
         )
@@ -85,6 +92,7 @@ async def create_agentic_rag_task(
 async def create_content_generation_task(
     request: ContentGenerationTaskCreateRequest,
     session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ) -> TaskResponse:
     """创建内容生成任务。"""
 
@@ -99,6 +107,8 @@ async def create_content_generation_task(
             title=request.title or f"Content Generation: {request.topic[:80]}",
             task_type=CONTENT_GENERATION_TASK_TYPE,
             payload=payload,
+            workspace_id=context.workspace_id,
+            user_id=context.user_id,
             scheduled_at=request.scheduled_at,
             max_retries=request.max_retries,
         )
@@ -114,12 +124,13 @@ async def list_tasks(
     status: TaskStatus = Query(default=TaskStatus.PENDING, description="任务状态"),
     limit: int = Query(default=50, ge=1, le=200, description="返回数量"),
     session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ) -> TaskListResponse:
     """按状态查询任务列表。"""
 
     try:
         repository = TaskRepository(session)
-        tasks = await repository.list_tasks_by_status(status=status, limit=limit)
+        tasks = await repository.list_tasks_by_status(status=status, limit=limit, workspace_id=context.workspace_id)
         logger.info("Task API listed tasks", extra={"status": status.value, "count": len(tasks)})
         return TaskListResponse(
             status=status,
@@ -134,12 +145,13 @@ async def list_tasks(
 async def get_task(
     task_id: UUID,
     session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ) -> TaskResponse:
     """按 ID 查询任务。"""
 
     try:
         repository = TaskRepository(session)
-        task = await repository.get_task(task_id)
+        task = await repository.get_task(task_id, workspace_id=context.workspace_id)
         if task is None:
             raise AppError("Task not found", status_code=404)
         logger.info("Task API loaded task", extra={"task_id": str(task_id)})

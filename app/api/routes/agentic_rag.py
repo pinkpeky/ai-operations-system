@@ -5,13 +5,17 @@
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.llm_client import LLMClient
-from app.api.routes.rag import create_retrieval_pipeline
+from app.api.routes.rag import create_hybrid_search_pipeline
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.core.workspace_context import WorkspaceContext, get_workspace_context
+from app.db.postgres import get_session
 from app.rag.agentic_orchestrator import AgenticRAGOrchestrator
+from app.reranker.reranker_client import RerankerClient
 from app.schemas.agentic_rag import AgenticRAGRequest, AgenticRAGResponse
 
 logger = logging.getLogger(__name__)
@@ -20,20 +24,30 @@ router = APIRouter(prefix="/agentic-rag", tags=["agentic-rag"])
 
 
 @router.post("/query", response_model=AgenticRAGResponse)
-async def query_agentic_rag(request: AgenticRAGRequest) -> AgenticRAGResponse:
+async def query_agentic_rag(
+    request: AgenticRAGRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> AgenticRAGResponse:
     """执行单一 Agentic RAG 查询。"""
 
     try:
         settings = get_settings()
-        retrieval_pipeline = create_retrieval_pipeline(
+        hybrid_search_pipeline = create_hybrid_search_pipeline(
             settings=settings,
+            session=session,
             collection_name=request.collection_name,
         )
         orchestrator = AgenticRAGOrchestrator(
             llm_client=LLMClient(settings=settings),
-            retrieval_pipeline=retrieval_pipeline,
+            hybrid_search_pipeline=hybrid_search_pipeline,
+            reranker_client=RerankerClient(settings=settings),
+            retrieval_top_k=settings.dense_top_k,
+            keyword_top_k=settings.keyword_top_k,
+            search_mode=settings.default_search_mode,  # type: ignore[arg-type]
+            rerank_top_n=settings.rerank_top_n,
         )
-        response = await orchestrator.query(request)
+        response = await orchestrator.query(request, workspace_id=context.workspace_id)
         logger.info(
             "Agentic RAG API completed",
             extra={

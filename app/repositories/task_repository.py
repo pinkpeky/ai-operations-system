@@ -30,6 +30,8 @@ class TaskRepository:
         task_type: str,
         payload: dict[str, Any] | None = None,
         account_id: UUID | None = None,
+        workspace_id: str | None = None,
+        user_id: str | None = None,
         scheduled_at: datetime | None = None,
         max_retries: int = 3,
     ) -> Task:
@@ -41,6 +43,8 @@ class TaskRepository:
                 task_type=task_type,
                 payload=payload or {},
                 account_id=account_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
                 scheduled_at=scheduled_at,
                 max_retries=max_retries,
                 status=TaskStatus.PENDING.value,
@@ -55,18 +59,28 @@ class TaskRepository:
             logger.exception("Failed to create task", extra={"task_type": task_type})
             raise RuntimeError("Failed to create task") from exc
 
-    async def get_task(self, task_id: UUID) -> Task | None:
+    async def get_task(self, task_id: UUID, workspace_id: str | None = None) -> Task | None:
         """按 ID 查询任务。"""
 
         try:
-            task = await self.session.get(Task, task_id)
+            if workspace_id is None:
+                task = await self.session.get(Task, task_id)
+            else:
+                statement = select(Task).where(Task.id == task_id, Task.workspace_id == workspace_id)
+                result = await self.session.execute(statement)
+                task = result.scalar_one_or_none()
             logger.debug("Task loaded", extra={"task_id": str(task_id), "found": task is not None})
             return task
         except Exception as exc:
             logger.exception("Failed to get task", extra={"task_id": str(task_id)})
             raise RuntimeError("Failed to get task") from exc
 
-    async def list_tasks_by_status(self, status: TaskStatus, limit: int = 50) -> list[Task]:
+    async def list_tasks_by_status(
+        self,
+        status: TaskStatus,
+        limit: int = 50,
+        workspace_id: str | None = None,
+    ) -> list[Task]:
         """按状态查询任务列表。"""
 
         try:
@@ -76,6 +90,8 @@ class TaskRepository:
                 .order_by(Task.created_at.desc())
                 .limit(limit)
             )
+            if workspace_id is not None:
+                statement = statement.where(Task.workspace_id == workspace_id)
             result = await self.session.execute(statement)
             tasks = list(result.scalars().all())
             logger.debug("Tasks listed by status", extra={"status": status.value, "count": len(tasks)})

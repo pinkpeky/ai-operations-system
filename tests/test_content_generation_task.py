@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes.tasks import router as tasks_router
 from app.db.postgres import get_session
+from app.middleware.workspace_middleware import WorkspaceContextMiddleware
 from app.models.enums import TaskStatus
 from app.services.queue import QueuedTask
 from app.workers.handlers.content_generation_handler import CONTENT_GENERATION_TASK_TYPE, ContentGenerationHandler
@@ -114,6 +115,7 @@ async def test_create_content_generation_task_api(session: AsyncSession) -> None
     """任务 API 应能创建 content_generation 类型任务。"""
 
     app = FastAPI()
+    app.add_middleware(WorkspaceContextMiddleware)
 
     async def override_get_session():  # type: ignore[no-untyped-def]
         yield session
@@ -124,6 +126,7 @@ async def test_create_content_generation_task_api(session: AsyncSession) -> None
 
     response = client.post(
         "/api/v1/tasks/content-generation",
+        headers={"X-Workspace-Id": "workspace-task", "X-User-Id": "user-task"},
         json={
             "topic": "AI 自动化运营",
             "platform": "tiktok",
@@ -137,3 +140,5 @@ async def test_create_content_generation_task_api(session: AsyncSession) -> None
     assert body["task_type"] == CONTENT_GENERATION_TASK_TYPE
     assert body["payload"]["topic"] == "AI 自动化运营"
     assert body["status"] == TaskStatus.PENDING.value
+    assert body["workspace_id"] == "workspace-task"
+    assert body["user_id"] == "user-task"

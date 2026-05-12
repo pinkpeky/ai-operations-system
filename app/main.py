@@ -17,6 +17,7 @@ from app.core.logging import setup_logging
 from app.db.postgres import close_postgres, get_session_factory, init_postgres
 from app.db.qdrant import close_qdrant, init_qdrant
 from app.db.redis import close_redis, init_redis
+from app.middleware.workspace_middleware import WorkspaceContextMiddleware
 from app.services.queue import RedisQueue
 from app.services.scheduler import TaskScheduler, run_scheduler_loop
 from app.workers.handlers.agentic_rag_handler import AgenticRAGHandler
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
             version="0.1.0",
             lifespan=lifespan,
         )
+        app.add_middleware(WorkspaceContextMiddleware)
         app.include_router(create_api_router())
         app.add_exception_handler(AppError, app_error_handler)
         app.add_exception_handler(Exception, unhandled_error_handler)

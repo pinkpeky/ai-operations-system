@@ -70,11 +70,37 @@ class Settings(BaseSettings):
     embedding_provider: str = Field(default="mock", alias="EMBEDDING_PROVIDER")
     embedding_dimension: int = Field(default=384, ge=1, alias="EMBEDDING_DIMENSION")
     local_embedding_base_url: str = Field(
-        default="http://host.docker.internal:8002",
+        default="http://host.docker.internal:11434",
         alias="LOCAL_EMBEDDING_BASE_URL",
     )
-    local_embedding_model: str = Field(default="local-embedding-model", alias="LOCAL_EMBEDDING_MODEL")
+    local_embedding_model: str = Field(default="bge-m3", alias="LOCAL_EMBEDDING_MODEL")
     qdrant_collection_name: str = Field(default="ai_knowledge_base", alias="QDRANT_COLLECTION_NAME")
+    reranker_provider: str = Field(default="mock", alias="RERANKER_PROVIDER")
+    local_reranker_base_url: str = Field(
+        default="http://host.docker.internal:11434",
+        alias="LOCAL_RERANKER_BASE_URL",
+    )
+    local_reranker_model: str = Field(default="local-reranker-model", alias="LOCAL_RERANKER_MODEL")
+    rerank_top_n: int = Field(default=5, ge=1, le=50, alias="RERANK_TOP_N")
+    default_search_mode: str = Field(default="hybrid", alias="DEFAULT_SEARCH_MODE")
+    dense_top_k: int = Field(default=20, ge=1, le=100, alias="DENSE_TOP_K")
+    keyword_top_k: int = Field(default=20, ge=1, le=100, alias="KEYWORD_TOP_K")
+    final_top_k: int = Field(default=5, ge=1, le=50, alias="FINAL_TOP_K")
+    max_upload_file_size_mb: int = Field(default=20, ge=1, le=1024, alias="MAX_UPLOAD_FILE_SIZE_MB")
+    upload_temp_dir: str = Field(default="/tmp/aiops_uploads", alias="UPLOAD_TEMP_DIR")
+    allowed_file_types: str = Field(default="pdf,docx,txt,md,csv", alias="ALLOWED_FILE_TYPES")
+
+    @property
+    def allowed_file_type_set(self) -> set[str]:
+        try:
+            return {
+                item.strip().lower().lstrip(".")
+                for item in self.allowed_file_types.split(",")
+                if item.strip()
+            }
+        except Exception as exc:
+            logger.exception("Failed to parse allowed file types")
+            raise RuntimeError("Invalid upload file type settings") from exc
 
     @property
     def database_url(self) -> str:

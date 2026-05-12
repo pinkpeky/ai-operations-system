@@ -67,6 +67,13 @@ class FakeQdrantClient:
         self.collections.pop(collection_name, None)
         return True
 
+    async def delete(self, collection_name: str, points_selector: Any, wait: bool = True) -> None:
+        """模拟按 point ID 删除。"""
+
+        points = self.collections[collection_name]["points"]
+        selected_ids = {str(point_id) for point_id in points_selector.points}
+        self.collections[collection_name]["points"] = [point for point in points if str(point.id) not in selected_ids]
+
     async def upsert(self, collection_name: str, points: list[Any], wait: bool = True) -> None:
         """模拟 upsert。"""
 
@@ -80,7 +87,8 @@ class FakeQdrantClient:
         self,
         collection_name: str,
         query: list[float],
-        limit: int,
+        query_filter: Any | None = None,
+        limit: int = 10,
         with_payload: bool = True,
         with_vectors: bool = False,
     ) -> SimpleNamespace:
@@ -89,10 +97,23 @@ class FakeQdrantClient:
         points = self.collections[collection_name]["points"]
         scored_points = []
         for point in points:
+            if not self._matches_filter(point.payload, query_filter):
+                continue
             score = sum(left * right for left, right in zip(point.vector, query, strict=True))
             scored_points.append(SimpleNamespace(id=point.id, payload=point.payload, score=score))
         scored_points.sort(key=lambda item: item.score, reverse=True)
         return SimpleNamespace(points=scored_points[:limit])
+
+    def _matches_filter(self, payload: dict[str, Any], query_filter: Any | None) -> bool:
+        """模拟 Qdrant must 过滤。"""
+
+        if query_filter is None:
+            return True
+        for condition in getattr(query_filter, "must", []) or []:
+            expected = getattr(condition.match, "value", None)
+            if payload.get(condition.key) != expected:
+                return False
+        return True
 
 
 @pytest.mark.asyncio
@@ -137,6 +158,27 @@ async def test_collection_creation_is_idempotent() -> None:
     await store.ensure_collection()
 
     assert client.create_count == 1
+
+
+@pytest.mark.asyncio
+async def test_collection_dimension_mismatch_raises_error() -> None:
+    """已存在 collection 维度不一致时必须报错，避免向量混写。"""
+
+    client = FakeQdrantClient()
+    store = QdrantVectorStore(
+        collection_name="dimension_collection",
+        embedding_dimension=3,
+        client=client,  # type: ignore[arg-type]
+    )
+    await store.ensure_collection()
+    mismatched_store = QdrantVectorStore(
+        collection_name="dimension_collection",
+        embedding_dimension=4,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(ValueError):
+        await mismatched_store.ensure_collection()
 
 
 @pytest.mark.asyncio

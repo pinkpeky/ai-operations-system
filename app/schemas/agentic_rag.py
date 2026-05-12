@@ -21,12 +21,36 @@ class AgenticRAGDebugInfo(BaseModel):
     """Agentic RAG 调试信息。"""
 
     query: str
+    workspace_id: str | None = None
     query_analysis: str
     retrieval_decision: str
     collection_name: str
     top_k: int
     retrieved_count: int
     prompt_preview: str
+    retrieved_chunks: list[RetrievedChunk] = Field(default_factory=list)
+    similarity_scores: list[float] = Field(default_factory=list)
+    search_mode: str = "hybrid"
+    dense_results_count: int = 0
+    keyword_results_count: int = 0
+    merged_results_count: int = 0
+    final_results_count: int = 0
+    dense_scores: list[float] = Field(default_factory=list)
+    keyword_scores: list[float] = Field(default_factory=list)
+    hybrid_scores: list[float] = Field(default_factory=list)
+    reranker_provider: str | None = None
+    reranker_model: str | None = None
+    reranked_chunks: list[RetrievedChunk] = Field(default_factory=list)
+    rerank_scores: list[float] = Field(default_factory=list)
+    retrieval_before_rerank: list[RetrievedChunk] = Field(default_factory=list)
+    retrieval_after_rerank: list[RetrievedChunk] = Field(default_factory=list)
+    final_prompt: str
+    final_answer: str
+    llm_provider: str
+    llm_model: str
+    embedding_provider: str | None = None
+    embedding_model_name: str | None = None
+    latency_ms: int
 
 
 class AgenticRAGResponse(BaseModel):
