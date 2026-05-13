@@ -1,5 +1,4 @@
 services:
-  # FastAPI 主服务，负责承载后续 AI Operations System 的业务接口。
   api:
     build:
       context: .
@@ -57,25 +56,90 @@ services:
       MAX_UPLOAD_FILE_SIZE_MB: ${MAX_UPLOAD_FILE_SIZE_MB:-20}
       UPLOAD_TEMP_DIR: ${UPLOAD_TEMP_DIR:-/tmp/aiops_uploads}
       ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-pdf,docx,txt,md,csv}
+      BROWSER_PROVIDER: ${BROWSER_PROVIDER:-mock}
+      BROWSER_TIMEOUT_SECONDS: ${BROWSER_TIMEOUT_SECONDS:-30}
+      BROWSER_HEADLESS: ${BROWSER_HEADLESS:-true}
+      BROWSER_TYPE: ${BROWSER_TYPE:-chromium}
+      BROWSER_VIEWPORT_WIDTH: ${BROWSER_VIEWPORT_WIDTH:-1280}
+      BROWSER_VIEWPORT_HEIGHT: ${BROWSER_VIEWPORT_HEIGHT:-720}
+      BROWSER_SCREENSHOT_DIR: ${BROWSER_SCREENSHOT_DIR:-screenshots}
+      BROWSER_PROFILE_ROOT: ${BROWSER_PROFILE_ROOT:-worker/profiles}
+      BROWSER_PROFILE_LOCK_TIMEOUT_SECONDS: ${BROWSER_PROFILE_LOCK_TIMEOUT_SECONDS:-1800}
+      BROWSER_PROFILE_BACKUP_ENABLED: ${BROWSER_PROFILE_BACKUP_ENABLED:-true}
+      BROWSER_PROFILE_MAX_BACKUPS: ${BROWSER_PROFILE_MAX_BACKUPS:-3}
+      BROWSER_PROFILE_UNUSED_DAYS: ${BROWSER_PROFILE_UNUSED_DAYS:-30}
+      BROWSER_PROFILE_BACKUP_ROOT: ${BROWSER_PROFILE_BACKUP_ROOT:-worker/profile_backups}
+      BROWSER_HUMAN_CONTROL_TIMEOUT_SECONDS: ${BROWSER_HUMAN_CONTROL_TIMEOUT_SECONDS:-900}
+      BROWSER_UI_ACCESS_TIMEOUT_SECONDS: ${BROWSER_UI_ACCESS_TIMEOUT_SECONDS:-900}
+      BROWSER_WORKER_AUTH_ENABLED: ${BROWSER_WORKER_AUTH_ENABLED:-true}
+      BROWSER_WORKER_AUTH_STRICT: ${BROWSER_WORKER_AUTH_STRICT:-false}
+      BROWSER_ALLOWED_DOMAINS: ${BROWSER_ALLOWED_DOMAINS:-example.com,localhost,127.0.0.1}
+      BROWSER_BLOCKED_DOMAINS: ${BROWSER_BLOCKED_DOMAINS:-}
+      BROWSER_ALLOW_EXTERNAL_DOMAINS: ${BROWSER_ALLOW_EXTERNAL_DOMAINS:-false}
+      BROWSER_WORKER_DEFAULT_TIMEOUT_SECONDS: ${BROWSER_WORKER_DEFAULT_TIMEOUT_SECONDS:-30}
+      BROWSER_WORKER_RETRY_COUNT: ${BROWSER_WORKER_RETRY_COUNT:-2}
+      BROWSER_WORKER_DEFAULT_URL: ${BROWSER_WORKER_DEFAULT_URL:-http://browser-worker:9100}
+      BROWSER_WORKER_HEARTBEAT_TIMEOUT_SECONDS: ${BROWSER_WORKER_HEARTBEAT_TIMEOUT_SECONDS:-60}
+      BROWSER_WORKER_HEALTH_CHECK_INTERVAL_SECONDS: ${BROWSER_WORKER_HEALTH_CHECK_INTERVAL_SECONDS:-30}
+      BROWSER_SESSION_TIMEOUT_SECONDS: ${BROWSER_SESSION_TIMEOUT_SECONDS:-1800}
+      BROWSER_SESSION_CLEANUP_INTERVAL_SECONDS: ${BROWSER_SESSION_CLEANUP_INTERVAL_SECONDS:-300}
+      BROWSER_ACTION_TIMEOUT_SECONDS: ${BROWSER_ACTION_TIMEOUT_SECONDS:-60}
+      BROWSER_ACTION_RETRY_COUNT: ${BROWSER_ACTION_RETRY_COUNT:-2}
+      BROWSER_ACTION_RETRY_BACKOFF_SECONDS: ${BROWSER_ACTION_RETRY_BACKOFF_SECONDS:-2}
+      SCREENSHOT_RETENTION_DAYS: ${SCREENSHOT_RETENTION_DAYS:-7}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
-      # API 依赖基础设施服务，等待数据库和缓存健康后再启动。
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       qdrant:
         condition: service_started
+      browser-worker:
+        condition: service_started
     volumes:
       - ./app:/app/app
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+      - ./screenshots:/app/screenshots
+      - ./worker/screenshots:/app/worker/screenshots
+      - ./worker/profiles:/app/worker/profiles
+      - ./worker/profile_backups:/app/worker/profile_backups
     restart: unless-stopped
     networks:
       - aiops-network
 
-  # PostgreSQL 用于存储结构化业务数据。
+  browser-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-public.ecr.aws/docker/library/python:3.12-slim}
+    container_name: aiops-browser-worker
+    command: ["uvicorn", "worker.main:app", "--host", "0.0.0.0", "--port", "9100"]
+    environment:
+      WORKER_HOST: ${WORKER_HOST:-0.0.0.0}
+      WORKER_PORT: ${WORKER_PORT:-9100}
+      WORKER_TIMEOUT_SECONDS: ${WORKER_TIMEOUT_SECONDS:-30}
+      WORKER_HEADLESS: ${WORKER_HEADLESS:-true}
+      WORKER_BROWSER_TYPE: ${WORKER_BROWSER_TYPE:-chromium}
+      WORKER_SCREENSHOT_DIR: ${WORKER_SCREENSHOT_DIR:-worker/screenshots}
+      WORKER_PROFILE_DIR: ${WORKER_PROFILE_DIR:-worker/profiles}
+      BROWSER_WORKER_AUTH_ENABLED: ${BROWSER_WORKER_AUTH_ENABLED:-true}
+      BROWSER_WORKER_AUTH_STRICT: ${BROWSER_WORKER_AUTH_STRICT:-false}
+      BROWSER_WORKER_SECRET: ${BROWSER_WORKER_SECRET:-}
+      WORKER_VIEWPORT_WIDTH: ${WORKER_VIEWPORT_WIDTH:-1280}
+      WORKER_VIEWPORT_HEIGHT: ${WORKER_VIEWPORT_HEIGHT:-720}
+    ports:
+      - "${BROWSER_WORKER_PORT:-9100}:9100"
+    volumes:
+      - ./worker:/app/worker
+      - ./worker/profiles:/app/worker/profiles
+    restart: unless-stopped
+    networks:
+      - aiops-network
+
   postgres:
     image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:16-alpine}
     container_name: aiops-postgres
@@ -88,7 +152,6 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      # 使用 PostgreSQL 官方工具检查数据库是否已经可接受连接。
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
@@ -97,7 +160,6 @@ services:
     networks:
       - aiops-network
 
-  # Redis 用于缓存、任务状态和后续异步协作场景。
   redis:
     image: ${REDIS_IMAGE:-public.ecr.aws/docker/library/redis:7-alpine}
     container_name: aiops-redis
@@ -109,7 +171,6 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      # 使用 Redis ping 检查服务存活状态。
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
@@ -118,7 +179,6 @@ services:
     networks:
       - aiops-network
 
-  # Qdrant 用于向量检索和后续知识库/RAG 能力。
   qdrant:
     image: ${QDRANT_IMAGE:-ghcr.io/qdrant/qdrant/qdrant:v1.16.3}
     container_name: aiops-qdrant
@@ -134,12 +194,10 @@ services:
       - aiops-network
 
 volumes:
-  # 使用具名卷保存本地开发环境中的持久化数据。
   postgres-data:
   redis-data:
   qdrant-data:
 
 networks:
-  # 统一网络让容器之间可以通过服务名互相访问。
   aiops-network:
     driver: bridge

@@ -1,12 +1,12 @@
 # Project Status
 
-Last updated: 2026-05-12
+Last updated: 2026-05-13
 
 This document summarizes the current engineering status of `E:\ai-operations-system`.
 
 ## Overall Status
 
-Phase 1 through Phase 11 are complete.
+Phase 1 through Phase 27 are complete.
 
 The system currently includes:
 
@@ -27,6 +27,22 @@ The system currently includes:
 - Hybrid Search.
 - File Upload Pipeline.
 - Docs Runtime Verification.
+- Task Reliability & Observability.
+- Tool Calling Foundation.
+- Memory Foundation.
+- Multi-Agent Foundation.
+- Agent Planning Foundation.
+- Browser Automation Adapter Foundation.
+- Playwright Local Provider Integration.
+- Remote Browser Worker Foundation.
+- Real Browser Worker Service.
+- Browser Worker Reliability.
+- Persistent Browser Profile Foundation.
+- Browser Profile Health & Recovery.
+- Human-in-the-loop Browser Control.
+- Browser Worker UI Access Placeholder.
+- Browser Worker Security & Access Control.
+- Customer Machine Worker Bootstrap.
 
 ## Completed Phases
 
@@ -49,6 +65,22 @@ The system currently includes:
 | Phase 10 | Complete | Hybrid Search: Dense + Keyword -> Merge -> Rerank -> LLM. |
 | Phase 10.5 | Complete | Bilingual docs system and docs SSOT. |
 | Phase 11 | Complete | File Upload Pipeline and Docs Runtime Verification. |
+| Phase 12 | Complete | Task Reliability & Observability with task_events, task_logs, cancel/retry, timeout, duration_ms, and summary API. |
+| Phase 13 | Complete | Tool Calling Foundation with BaseTool, ToolRegistry, builtin tools, tool_call_logs, Tool API, and manual Agent tool calls. |
+| Phase 14 | Complete | Memory Foundation with conversation_sessions, conversation_messages, agent_memories, memory_operation_logs, Memory API, BaseAgent memory hooks, and Agentic RAG memory_trace. |
+| Phase 15 | Complete | Multi-Agent Foundation with AgentRegistry, agent_runs, agent_messages, agent_handoffs, fixed Agent Chain execution, ToolAgent, and memory-aware run metadata. |
+| Phase 16 | Complete | Agent Planning Foundation with plans, plan_steps, plan_reviews, SimplePlannerAgent, bounded Plan Execution Flow, step duration/error tracking, cancellation, and planning memory_trace. |
+| Phase 17 | Complete | Browser Automation Adapter Foundation with browser_sessions, browser_actions, browser_action_logs, BrowserProvider, MockBrowserProvider, PlaywrightBrowserProvider placeholder, BrowserService, browser_tool, and Browser APIs. |
+| Phase 18 | Complete | Playwright Local Provider Integration with `PlaywrightLocalProvider`, `BROWSER_PROVIDER=playwright_local`, local headless Chromium, `browser_id`, `page_id`, `provider_session_metadata`, `selector`, `target_url`, `screenshot_path`, `page_title`, Screenshot System, and `get_page_content`. |
+| Phase 19 | Complete | Remote Browser Worker Foundation with `RemoteBrowserProvider`, `BrowserWorkerClient`, `browser_workers`, `browser_worker_sessions`, `browser_worker_actions`, Worker Registration, Worker Heartbeat, Worker Runtime Mock, and `BROWSER_PROVIDER=remote`. |
+| Phase 20 | Complete | Real Browser Worker Service with independent `browser-worker` Docker service, `worker/main.py`, `worker/browser_worker/playwright_runtime.py`, Playwright Chromium, `http://browser-worker:9100`, and `worker/screenshots`. |
+| Phase 21 | Complete | Browser Worker Reliability with `BrowserWorkerHealthService`, `BrowserWorkerSelector`, `BrowserSessionCleanupService`, `ScreenshotCleanupService`, capacity fields, least loaded worker selection, action retry, and screenshot cleanup. |
+| Phase 22 | Complete | Persistent Browser Profile Foundation with `browser_profiles`, `BrowserProfileService`, Profile Lock / Profile Release, `profile_id`, `profile_path`, `persistent_context_enabled`, `launch_persistent_context`, and `worker/profiles`. |
+| Phase 23 | Complete | Browser Profile Health & Recovery with `BrowserProfileHealthService`, `BrowserProfileBackupService`, `BrowserProfileCleanupService`, `browser_profile_usage_logs`, `health_status`, `usage_count`, `health/summary`, stale lock recovery, profile backup, and profile cleanup. |
+| Phase 24 | Complete | Human-in-the-loop Browser Control with `BrowserHumanControlService`, `browser_human_control_sessions`, `browser_human_control_events`, session paused/resumed flow, `request_human_control`, and `complete_human_control`. |
+| Phase 25 | Complete | Browser Worker UI Access Placeholder with `BrowserUIAccessService`, `browser_ui_access_sessions`, `access_token_hash`, placeholder URL generation, token validate/revoke/expire, `/ui-access/capabilities`, `create_ui_access`, and `revoke_ui_access`. |
+| Phase 26 | Complete | Browser Worker Security & Access Control with `BrowserWorkerAuthService`, `worker_secret_hash`, signed worker request headers, UI Access Scope, `BrowserActionPolicyService`, and `browser_security_audit_logs`. |
+| Phase 27 | Complete | Customer Machine Worker Bootstrap with `worker_client`, `worker_config.example.yaml`, local `worker_config.yaml`, local-only `worker_state.json`, CLI register/heartbeat/serve/start, registration flow, heartbeat flow, and local worker runtime. |
 
 ## Phase 11 Summary
 
@@ -72,6 +104,180 @@ Docs Runtime Verification:
 - Checks config, docker-compose, OpenAPI routes, runtime docs, overview docs, API reference, and phase status.
 - Outputs `PASS`, `WARNING`, and `ERROR`.
 
+## Phase 12 Summary
+
+Task Reliability & Observability:
+
+- Adds `task_events` for task lifecycle events.
+- Adds `task_logs` for structured task logs.
+- Adds `tasks.duration_ms`.
+- Extends task status values to `pending`, `running`, `retry`, `failed`, `completed`, `cancelled`, and `timeout`.
+- Adds `POST /api/v1/tasks/{task_id}/cancel`.
+- Adds `POST /api/v1/tasks/{task_id}/retry`.
+- Adds `GET /api/v1/tasks/{task_id}/events`.
+- Adds `GET /api/v1/tasks/{task_id}/logs`.
+- Adds `GET /api/v1/observability/summary`.
+- TaskExecutor records started/completed/failed/retry_scheduled/cancelled_skipped/timeout events and logs.
+- Scheduler only receives minimal timeout-state adaptation.
+- Agent / RAG / LLM logs include provider, model, latency_ms, error, workspace_id, and task_id when available.
+
+## Phase 13 Summary
+
+Tool Calling Foundation:
+- Added `app/tools/` with `base`, `registry`, and `builtin`.
+- Added `BaseTool` with `name`, `description`, `input_schema`, `output_schema`, and `execute()`.
+- Added `ToolRegistry` with `register_tool`, `get_tool`, `list_tools`, and `validate_tool_input`.
+- Registry includes enable/disable flags, permission scope placeholders, and workspace isolation hooks.
+- Added `tool_call_logs` with `workspace_id`, `agent_name`, `tool_name`, `tool_input`, `tool_output`, `success`, `error`, `latency_ms`.
+- Added APIs: `GET /api/v1/tools`, `GET /api/v1/tools/{tool_name}`, `POST /api/v1/tools/{tool_name}/execute`, and `GET /api/v1/tool-calls`.
+- Builtin tools: `rag_search_tool`, `file_search_tool`, `create_task_tool`, `get_task_status_tool`, `current_runtime_tool`.
+- `BaseAgent` now supports `available_tools`, `tool_call_trace`, and `execute_tool()`.
+- This phase does not implement Browser Agent, OpenClaw, Playwright, Selenium, autonomous planning, ReAct, or Multi-Agent orchestration.
+
+## Phase 14 Summary
+
+Memory Foundation:
+- Added `app/memory/` with repositories and `MemoryService`.
+- Added `conversation_sessions`, `conversation_messages`, `agent_memories`, and `memory_operation_logs`.
+- Added APIs: `POST /api/v1/memory/sessions`, `GET /api/v1/memory/sessions`, `GET /api/v1/memory/sessions/{session_id}`, `POST /api/v1/memory/messages`, `GET /api/v1/memory/messages/{session_id}`, `POST /api/v1/memory/memories`, `GET /api/v1/memory/memories`, and `DELETE /api/v1/memory/memories/{memory_id}`.
+- Current memory retrieval uses PostgreSQL text search, scoped by workspace.
+- `BaseAgent` now supports `session_id`, `memory_context`, `load_memory()`, `save_memory()`, and `memory_trace`.
+- Agentic RAG debug trace now includes `session_id`, `recent_messages_count`, `retrieved_memories_count`, `recent_messages`, `retrieved_memories`, and `memory_trace`.
+- This phase does not implement vector memory, graph memory, personality memory, or autonomous memory planning.
+
+## Phase 15 Summary
+
+Multi-Agent Foundation:
+- Added `app/multi_agent/` with `AgentRegistry`, `MultiAgentService`, and `AgentRunRepository`.
+- Added `agent_runs`, `agent_messages`, and `agent_handoffs`.
+- Added APIs: `GET /api/v1/agents/registry`, `POST /api/v1/multi-agent/runs`, `GET /api/v1/multi-agent/runs`, `GET /api/v1/multi-agent/runs/{run_id}`, `POST /api/v1/multi-agent/runs/{run_id}/execute-chain`, `GET /api/v1/multi-agent/runs/{run_id}/messages`, and `GET /api/v1/multi-agent/runs/{run_id}/handoffs`.
+- Registered agents: `content_planner`, `rag_agent`, `content_agent`, `review_agent`, `runtime_agent`, and `tool_agent`.
+- The fixed Agent Chain is `content_planner -> rag_agent -> content_agent -> review_agent`.
+- `ToolAgent` can call existing builtin tools through `ToolRegistry`: `rag_search_tool`, `file_search_tool`, `create_task_tool`, `get_task_status_tool`, and `current_runtime_tool`.
+- Run output includes `agents_involved`, message history, handoff records, and `handoff_trace`.
+- Memory integration supports `session_id`, recent messages, and memory context where the underlying Agent or Agentic RAG path already supports memory.
+- This phase does not implement autonomous planning, ReAct, Browser Agent, Playwright, OpenClaw, Selenium, or external platform automation.
+
+## Phase 16 Summary
+
+Agent Planning Foundation:
+- Added `app/planning/` with repositories and services.
+- Added `plans`, `plan_steps`, and `plan_reviews`.
+- Added `SimplePlannerAgent`, a rule-based planner that emits a bounded plan for content/RAG/review workflows.
+- Added APIs: `POST /api/v1/plans`, `GET /api/v1/plans`, `GET /api/v1/plans/{plan_id}`, `POST /api/v1/plans/{plan_id}/execute`, `POST /api/v1/plans/{plan_id}/cancel`, `GET /api/v1/plans/{plan_id}/steps`, and `GET /api/v1/plans/{plan_id}/reviews`.
+- Plan Execution Flow: plan -> steps -> AgentRegistry or ToolRegistry -> step output/duration/error -> review -> final status.
+- Step execution stores `duration_ms`, `error`, and status. Service-level retry and skip are available for steps.
+- Planning supports `session_id` and returns `memory_trace`.
+- This phase does not implement autonomous AGI planning, tree-of-thought, recursive planning, infinite Agent loops, ReAct, Browser Agent, Playwright, OpenClaw, Selenium, or external platform automation.
+
+## Phase 17 Summary
+
+Browser Automation Adapter Foundation:
+
+- Added `app/browser/` with providers, repositories, and services.
+- Added runtime tables: `browser_sessions`, `browser_actions`, and `browser_action_logs`.
+- Added `BrowserProvider` interface with `create_session`, `close_session`, `navigate`, `click`, `type_text`, `scroll`, `screenshot`, and `get_page_content`.
+- Added `MockBrowserProvider`, the active default provider. It never starts a real browser.
+- Added `PlaywrightBrowserProvider` as a placeholder only. It returns clear non-execution responses.
+- Added `BrowserService` with workspace-scoped session creation, action execution, session/action listing, log listing, `duration_ms`, and error recording.
+- Added APIs: `POST /api/v1/browser/sessions`, `GET /api/v1/browser/sessions`, `POST /api/v1/browser/actions`, `GET /api/v1/browser/actions/{session_id}`, and `GET /api/v1/browser/logs/{session_id}`.
+- Added builtin `browser_tool` for `navigate`, `click`, `type_text`, and `screenshot`.
+- Planning can execute a step with `tool_name=browser_tool`.
+- This phase does not implement Browser Agent, autonomous browser planning, Playwright execution, Selenium, OpenClaw, OCR, visual AI, TikTok, YouTube, X, or real platform automation.
+
+## Phase 18 Summary
+
+Playwright Local Provider Integration:
+
+- Added `app/browser/providers/playwright_provider.py` with `PlaywrightLocalProvider`, provider name `playwright_local`.
+- Implemented `create_session`, `close_session`, `navigate`, `click`, `type_text`, `screenshot`, and `get_page_content`.
+- Extended `BrowserSession` with `browser_id`, `page_id`, and `provider_session_metadata`.
+- Extended `BrowserAction` with `selector`, `target_url`, `screenshot_path`, and `page_title`.
+- Added Screenshot System: `screenshots/{workspace_id}/{session_id}/{filename}.png`.
+- Added `GET /api/v1/browser/screenshot/{session_id}/{filename}`.
+- Extended `browser_tool` with `get_page_content` while preserving `tool_call_logs`.
+- Updated Docker image setup to install Playwright Python and Chromium only.
+
+Phase 18 safety boundary:
+
+- Default remains `BROWSER_PROVIDER=mock`.
+- `BROWSER_PROVIDER=playwright_local` only allows `example.com`, local test pages, and static `file://` pages.
+- No TikTok / YouTube / X automation.
+- No automatic login, cookie injection, fingerprint bypass, proxy pools, or captcha automation.
+- No OCR, visual AI, autonomous browser planning, Browser Worker, or real platform automation.
+
+## Phase 19 Summary
+
+Remote Browser Worker Foundation:
+
+- Added `app/browser/remote/` with `client`, `schemas`, and `services`.
+- Added `BrowserWorkerClient` with `create_session`, `close_session`, `execute_action`, and `health_check`.
+- Added `RemoteBrowserProvider`, provider name `remote`, which dispatches browser actions through registered worker `base_url` values.
+- Added runtime tables: `browser_workers`, `browser_worker_sessions`, and `browser_worker_actions`.
+- Added APIs: `POST /api/v1/browser-workers/register`, `POST /api/v1/browser-workers/{worker_id}/heartbeat`, and `GET /api/v1/browser-workers`.
+- Added mock worker runtime: `GET /api/v1/browser-worker-runtime/health`, `POST /api/v1/browser-worker-runtime/sessions`, `POST /api/v1/browser-worker-runtime/actions`, and `POST /api/v1/browser-worker-runtime/sessions/{session_id}/close`.
+- `BrowserService` supports `BROWSER_PROVIDER=remote`.
+- `browser_tool` still executes through `BrowserService`, so remote provider mode preserves `tool_call_logs` and `browser_action_logs`.
+
+Phase 19 explicitly does not include:
+
+- Real external Worker deployment.
+- TikTok / YouTube / X automation.
+- Account login, auto-publishing, cookie injection, fingerprint bypass, proxy pools, or captcha automation.
+- Autonomous browser agents.
+
+## Phase 20 Summary
+
+Real Browser Worker Service:
+
+- Added the standalone `worker/` FastAPI service package.
+- Added `worker/main.py` with `GET /health`, `POST /sessions`, `POST /actions`, and `POST /sessions/{session_id}/close`.
+- Added `worker/browser_worker/playwright_runtime.py` for headless Playwright Chromium execution.
+- Docker Compose now runs an independent `browser-worker` service on port `9100`.
+- API Server calls `RemoteBrowserProvider -> BrowserWorkerClient -> http://browser-worker:9100`.
+- Added `BROWSER_WORKER_DEFAULT_URL=http://browser-worker:9100`.
+- Screenshots are saved under `worker/screenshots/{workspace_id}/{remote_session_id}/{filename}.png`.
+
+Phase 20 explicitly does not include:
+
+- TikTok / YouTube / X automation.
+- Account login, cookie injection, proxy pools, fingerprint bypass, captcha automation, OCR, visual AI, OpenClaw, or autonomous browser agents.
+- Production external worker fleet management, scheduling, or autoscaling.
+
+## Phase 21 Summary
+
+Browser Worker Reliability:
+
+- Added `BrowserWorkerHealthService` for stale worker detection, `offline` marking, `last_seen`, and `error_message`.
+- Added `BrowserWorkerSelector` for workspace-scoped, capability-aware, least loaded worker selection.
+- Added capacity fields on `browser_workers`: `max_sessions`, `active_sessions`, `max_actions_per_minute`, `current_load`, and `priority`.
+- Added retry fields on `browser_worker_actions`: `retry_count` and `max_retries`.
+- Added `BrowserSessionCleanupService` for stale sessions and worker offline/error recovery.
+- Added `ScreenshotCleanupService` for manual workspace-scoped screenshot cleanup with dry-run by default.
+- Added reliability APIs for health summary, available workers, manual offline marking, session cleanup, worker sessions, and screenshot cleanup.
+
+Phase 21 explicitly does not include:
+
+- TikTok / YouTube / X automation.
+- Account login, cookie injection, proxy pools, fingerprint bypass, captcha automation, OCR, visual AI, OpenClaw, real platform automation, or autonomous browser planning.
+
+## Phase 22 Summary
+
+Persistent Browser Profile Foundation:
+
+- Added `browser_profiles` for persistent browser state lifecycle metadata.
+- Added `BrowserProfileService` for create/list/get/lock/release/mark corrupted/delete/get available profile flows.
+- Added `profile_id`, `profile_path`, and `persistent_context_enabled` to `browser_sessions`.
+- Extended `POST /api/v1/browser/sessions` with `profile_id` and `use_persistent_profile=true`.
+- Added `POST /api/v1/browser/sessions/{session_id}/close` to close a session and release the profile lock.
+- Added worker-side Playwright `launch_persistent_context` support for profile-backed sessions.
+- Stores profile data under `worker/profiles/{workspace_id}/{profile_id}`.
+
+Phase 22 explicitly does not include:
+
+- TikTok / YouTube / X automation.
+- Account login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real social platform automation, or OpenClaw.
+
 ## Current Defaults
 
 ```text
@@ -79,6 +285,7 @@ LLM_PROVIDER=mock
 EMBEDDING_PROVIDER=mock
 RERANKER_PROVIDER=mock
 DEFAULT_SEARCH_MODE=hybrid
+BROWSER_PROVIDER=mock
 ```
 
 Supported local models:
@@ -119,12 +326,70 @@ ALLOWED_FILE_TYPES=pdf,docx,txt,md,csv
 
 - Real reranker integration.
 - Real BM25 or external search engine.
-- Memory.
-- Tool Calling.
-- Multi-Agent orchestration.
+- Vector memory and graph memory.
+- Advanced Tool Calling planner / function calling / ReAct.
+- Advanced Multi-Agent orchestration with autonomous planning and dynamic handoff policy.
 - Browser Agent / OpenClaw / Playwright.
 - Grafana / Prometheus.
 - Full RBAC / JWT / OAuth.
+
+## Phase 24 Summary
+
+Human-in-the-loop Browser Control:
+
+- Added `browser_human_control_sessions` and `browser_human_control_events`.
+- Extended `browser_sessions` with `human_control_status`, `human_control_session_id`, `paused_at`, and `resumed_at`.
+- Added `BrowserHumanControlService` for request, approve, start, complete, cancel, expire, list, get, and event recording.
+- Added browser human-control APIs and worker metadata-level `/human-control/*` endpoints.
+- Added `browser_tool` actions `request_human_control` and `complete_human_control`.
+
+Phase 24 explicitly does not include VNC, noVNC, Chrome DevTools remote UI, platform login, captcha handling, social-platform automation, proxies, cookie injection, or fingerprint bypass.
+
+## Phase 25 Summary
+
+Browser Worker UI Access Placeholder:
+
+- Added `browser_ui_access_sessions`.
+- Added `BrowserUIAccessService` for create, get, revoke, expire, token generation, and token validation.
+- Stored only `access_token_hash`; plaintext token is returned only once by create.
+- Added placeholder `remote_control_url`, `live_view_url`, and `devtools_url=null`.
+- Added API routes for create, get, revoke, expire, and validate.
+- Added worker `/ui-access/capabilities` with `vnc=false`, `novnc=false`, `devtools=false`, `placeholder=true`.
+- Added `browser_tool` actions `create_ui_access` and `revoke_ui_access`.
+
+Phase 25 explicitly does not include real VNC, noVNC, Chrome DevTools remote UI, live browser video, platform login, captcha handling, social-platform automation, proxies, cookie injection, or fingerprint bypass.
+
+## Phase 26 Summary
+
+Browser Worker Security & Access Control:
+
+- Extended `browser_workers` with `worker_secret_hash`, `api_key_hash`, `last_auth_at`, `auth_status`, `allowed_actions`, and `allowed_domains`.
+- Added `BrowserWorkerAuthService` for worker secret generation, hashing, verification, request signing, and signature verification.
+- Added signed worker request headers: `X-Worker-Signature`, `X-Worker-Timestamp`, `X-Worker-Nonce`, and request body hash validation.
+- Extended worker runtime auth so `/sessions`, `/actions`, and `/sessions/{session_id}/close` can require signed requests; `/health` stays unauthenticated.
+- Extended `browser_ui_access_sessions` with `scopes`, `one_time`, `used_at`, `revoked_reason`, `client_ip`, and `user_agent`.
+- Added UI Access Scope validation for `view`, `control`, `screenshot`, and `devtools_placeholder`.
+- Added `BrowserActionPolicyService` for action type, target domain, profile access, worker capability, and UI scope checks.
+- Added `BrowserSecurityAuditLog` and `browser_security_audit_logs` for worker auth, UI token, policy block, and profile access audit records.
+- Added APIs for worker secret rotation, worker revoke, security audit logs, and browser policy checks.
+
+Phase 26 explicitly does not implement real social-platform account security, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha handling, or full RBAC/JWT/OAuth.
+
+## Phase 27 Summary
+
+Customer Machine Worker Bootstrap:
+
+- Added `worker_client/` as a standalone customer-machine bootstrap package.
+- Added `worker_client/worker_config.example.yaml`; operators copy it to `worker_config.yaml`.
+- Added YAML config loading with environment overrides.
+- Added local `worker_state.json` persistence for `worker_id` and one-time `worker_secret`; this file is ignored by Git.
+- Added CLI commands: `python -m worker_client.cli register`, `heartbeat`, `serve`, and `start`.
+- Registration calls `POST /api/v1/browser-workers/register` and stores returned `worker_id` / `worker_secret` locally.
+- Heartbeat reads `worker_state.json`, uses `worker_secret`, and sends Phase 26 signed headers.
+- Local runtime server exposes `GET /health`, `POST /sessions`, `POST /actions`, `POST /sessions/{session_id}/close`, and `GET /ui-access/capabilities`.
+- Runtime reuses the existing Playwright Worker schema/runtime contract so customer-machine workers and Docker `browser-worker` use the same protocol.
+
+Phase 27 explicitly does not implement OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha handling, or real platform automation.
 
 ## Current Limitations
 

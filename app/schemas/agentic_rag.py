@@ -1,10 +1,8 @@
-"""Agentic RAG API 数据模型模块。
-
-该模块定义单一 Agentic RAG 编排器的请求、响应和 debug 信息结构。
-"""
+"""Agentic RAG API 数据模型。"""
 
 from pydantic import BaseModel, Field
 
+from app.schemas.memory import AgentMemoryResponse, ConversationMessageResponse, MemoryTraceItem
 from app.schemas.rag import RetrievedChunk
 
 
@@ -13,8 +11,9 @@ class AgenticRAGRequest(BaseModel):
 
     query: str = Field(min_length=1, description="用户问题")
     collection_name: str | None = Field(default=None, min_length=1, max_length=128, description="可选知识库 collection")
-    top_k: int = Field(default=3, ge=1, le=20, description="检索返回 chunk 数量")
+    top_k: int = Field(default=3, ge=1, le=20, description="兼容旧接口的返回 chunk 数量")
     debug: bool = Field(default=False, description="是否返回调试信息")
+    session_id: str | None = Field(default=None, description="可选 conversation session ID，用于加载最近消息")
 
 
 class AgenticRAGDebugInfo(BaseModel):
@@ -51,6 +50,12 @@ class AgenticRAGDebugInfo(BaseModel):
     embedding_provider: str | None = None
     embedding_model_name: str | None = None
     latency_ms: int
+    session_id: str | None = None
+    recent_messages_count: int = 0
+    retrieved_memories_count: int = 0
+    recent_messages: list[ConversationMessageResponse] = Field(default_factory=list)
+    retrieved_memories: list[AgentMemoryResponse] = Field(default_factory=list)
+    memory_trace: list[MemoryTraceItem] = Field(default_factory=list)
 
 
 class AgenticRAGResponse(BaseModel):

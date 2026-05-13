@@ -92,4 +92,5 @@ async def test_scheduler_retries_or_fails_stale_running_tasks(session: AsyncSess
     assert count == 2
     assert tasks["retryable"].status == TaskStatus.RETRY.value
     assert tasks["retryable"].retry_count == 1
-    assert tasks["exhausted"].status == TaskStatus.FAILED.value
+    assert tasks["exhausted"].status == TaskStatus.TIMEOUT.value
+    assert tasks["exhausted"].completed_at is not None

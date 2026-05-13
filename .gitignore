@@ -32,9 +32,20 @@ docker-data/
 node_modules/
 
 # AI
-models/
+/models/
 checkpoints/
 
 # Coverage
 .coverage
 htmlcov/
+
+# Browser screenshots
+/screenshots/*
+!/screenshots/.gitkeep
+/worker/screenshots/*
+!/worker/screenshots/.gitkeep
+
+# Customer machine worker local secrets/state
+/worker_client/worker_config.yaml
+/worker_client/worker_state.json
+worker_state.json

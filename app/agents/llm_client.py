@@ -4,6 +4,7 @@
 """
 
 import logging
+import time
 
 from app.agents.providers.base import BaseLLMProvider
 from app.agents.providers.local_provider import LocalProvider
@@ -33,6 +34,7 @@ class LLMClient:
         """执行一次 LLM 调用。"""
 
         try:
+            started_at = time.perf_counter()
             prompt = self.prompt_manager.build_prompt(
                 system_prompt=request.system_prompt,
                 user_prompt=request.user_prompt,
@@ -44,9 +46,10 @@ class LLMClient:
                 extra={"provider": self.provider.provider_name, "model": self.provider.model},
             )
             response = await self.provider.generate(request=request, prompt=prompt)
+            latency_ms = int((time.perf_counter() - started_at) * 1000)
             logger.info(
                 "LLM generation completed",
-                extra={"provider": response.provider, "model": response.model},
+                extra={"provider": response.provider, "model": response.model, "latency_ms": latency_ms, "error": None},
             )
             return response
         except ValueError:
@@ -56,7 +59,10 @@ class LLMClient:
             logger.exception("LLM provider is not implemented")
             raise RuntimeError(str(exc)) from exc
         except Exception as exc:
-            logger.exception("LLM generation failed")
+            logger.exception(
+                "LLM generation failed",
+                extra={"provider": self.provider.provider_name, "model": self.provider.model, "error": str(exc)},
+            )
             raise RuntimeError(str(exc) or "LLM generation failed") from exc
 
     async def health_check(self) -> LLMHealthResponse:

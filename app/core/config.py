@@ -89,6 +89,89 @@ class Settings(BaseSettings):
     max_upload_file_size_mb: int = Field(default=20, ge=1, le=1024, alias="MAX_UPLOAD_FILE_SIZE_MB")
     upload_temp_dir: str = Field(default="/tmp/aiops_uploads", alias="UPLOAD_TEMP_DIR")
     allowed_file_types: str = Field(default="pdf,docx,txt,md,csv", alias="ALLOWED_FILE_TYPES")
+    browser_provider: str = Field(default="mock", alias="BROWSER_PROVIDER")
+    browser_timeout_seconds: float = Field(default=30.0, ge=1.0, le=300.0, alias="BROWSER_TIMEOUT_SECONDS")
+    browser_headless: bool = Field(default=True, alias="BROWSER_HEADLESS")
+    browser_type: str = Field(default="chromium", alias="BROWSER_TYPE")
+    browser_viewport_width: int = Field(default=1280, ge=320, le=3840, alias="BROWSER_VIEWPORT_WIDTH")
+    browser_viewport_height: int = Field(default=720, ge=240, le=2160, alias="BROWSER_VIEWPORT_HEIGHT")
+    browser_screenshot_dir: str = Field(default="screenshots", alias="BROWSER_SCREENSHOT_DIR")
+    browser_profile_root: str = Field(default="worker/profiles", alias="BROWSER_PROFILE_ROOT")
+    browser_profile_lock_timeout_seconds: int = Field(
+        default=1800,
+        ge=1,
+        le=86400,
+        alias="BROWSER_PROFILE_LOCK_TIMEOUT_SECONDS",
+    )
+    browser_profile_backup_enabled: bool = Field(default=True, alias="BROWSER_PROFILE_BACKUP_ENABLED")
+    browser_profile_max_backups: int = Field(default=3, ge=1, le=100, alias="BROWSER_PROFILE_MAX_BACKUPS")
+    browser_profile_unused_days: int = Field(default=30, ge=1, le=3650, alias="BROWSER_PROFILE_UNUSED_DAYS")
+    browser_profile_backup_root: str = Field(default="worker/profile_backups", alias="BROWSER_PROFILE_BACKUP_ROOT")
+    browser_human_control_timeout_seconds: int = Field(
+        default=900,
+        ge=1,
+        le=86400,
+        alias="BROWSER_HUMAN_CONTROL_TIMEOUT_SECONDS",
+    )
+    browser_ui_access_timeout_seconds: int = Field(
+        default=900,
+        ge=1,
+        le=86400,
+        alias="BROWSER_UI_ACCESS_TIMEOUT_SECONDS",
+    )
+    browser_worker_auth_enabled: bool = Field(default=True, alias="BROWSER_WORKER_AUTH_ENABLED")
+    browser_worker_auth_strict: bool = Field(default=False, alias="BROWSER_WORKER_AUTH_STRICT")
+    browser_allowed_domains: str = Field(default="example.com,localhost,127.0.0.1", alias="BROWSER_ALLOWED_DOMAINS")
+    browser_blocked_domains: str = Field(default="", alias="BROWSER_BLOCKED_DOMAINS")
+    browser_allow_external_domains: bool = Field(default=False, alias="BROWSER_ALLOW_EXTERNAL_DOMAINS")
+    browser_worker_default_timeout_seconds: float = Field(
+        default=30.0,
+        ge=1.0,
+        le=300.0,
+        alias="BROWSER_WORKER_DEFAULT_TIMEOUT_SECONDS",
+    )
+    browser_worker_retry_count: int = Field(default=2, ge=0, le=10, alias="BROWSER_WORKER_RETRY_COUNT")
+    browser_worker_default_url: str = Field(default="http://browser-worker:9100", alias="BROWSER_WORKER_DEFAULT_URL")
+    browser_worker_heartbeat_timeout_seconds: int = Field(
+        default=60,
+        ge=1,
+        le=3600,
+        alias="BROWSER_WORKER_HEARTBEAT_TIMEOUT_SECONDS",
+    )
+    browser_worker_health_check_interval_seconds: int = Field(
+        default=30,
+        ge=1,
+        le=3600,
+        alias="BROWSER_WORKER_HEALTH_CHECK_INTERVAL_SECONDS",
+    )
+    browser_session_timeout_seconds: int = Field(default=1800, ge=1, le=86400, alias="BROWSER_SESSION_TIMEOUT_SECONDS")
+    browser_session_cleanup_interval_seconds: int = Field(
+        default=300,
+        ge=1,
+        le=86400,
+        alias="BROWSER_SESSION_CLEANUP_INTERVAL_SECONDS",
+    )
+    browser_action_timeout_seconds: float = Field(default=60.0, ge=1.0, le=600.0, alias="BROWSER_ACTION_TIMEOUT_SECONDS")
+    browser_action_retry_count: int = Field(default=2, ge=0, le=10, alias="BROWSER_ACTION_RETRY_COUNT")
+    browser_action_retry_backoff_seconds: float = Field(
+        default=2.0,
+        ge=0.0,
+        le=60.0,
+        alias="BROWSER_ACTION_RETRY_BACKOFF_SECONDS",
+    )
+    screenshot_retention_days: int = Field(default=7, ge=1, le=3650, alias="SCREENSHOT_RETENTION_DAYS")
+
+    @property
+    def browser_allowed_domain_set(self) -> set[str]:
+        """Parse browser allowed-domain policy from CSV config."""
+
+        return {item.strip().lower() for item in self.browser_allowed_domains.split(",") if item.strip()}
+
+    @property
+    def browser_blocked_domain_set(self) -> set[str]:
+        """Parse browser blocked-domain policy from CSV config."""
+
+        return {item.strip().lower() for item in self.browser_blocked_domains.split(",") if item.strip()}
 
     @property
     def allowed_file_type_set(self) -> set[str]:

@@ -92,7 +92,9 @@ class TaskScheduler:
                     task.status = TaskStatus.RETRY.value
                     task.last_error = "Task running timeout, scheduled for retry"
                 else:
-                    task.status = TaskStatus.FAILED.value
+                    task.status = TaskStatus.TIMEOUT.value
+                    task.completed_at = datetime.now(UTC)
+                    task.duration_ms = self._calculate_duration_ms(task.started_at, task.completed_at)
                     task.last_error = "Task running timeout, max retries reached"
 
             await session.commit()
@@ -134,6 +136,17 @@ class TaskScheduler:
             await session.rollback()
             logger.exception("Failed to mark task failed", extra={"task_id": str(task_id)})
             raise RuntimeError("Failed to mark task failed") from exc
+
+    def _calculate_duration_ms(self, started_at: datetime | None, completed_at: datetime | None) -> int | None:
+        """计算任务运行耗时，供 stale running timeout 记录使用。"""
+
+        if started_at is None or completed_at is None:
+            return None
+        if started_at.tzinfo is None and completed_at.tzinfo is not None:
+            started_at = started_at.replace(tzinfo=completed_at.tzinfo)
+        if completed_at.tzinfo is None and started_at.tzinfo is not None:
+            completed_at = completed_at.replace(tzinfo=started_at.tzinfo)
+        return max(0, int((completed_at - started_at).total_seconds() * 1000))
 
     async def run_once(self, session: AsyncSession) -> dict[str, int]:
         """执行一轮调度，便于 API 启动循环和单元测试复用。"""

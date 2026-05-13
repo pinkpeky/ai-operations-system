@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
+from app.memory.services import MemoryService
 from app.rag.agentic_orchestrator import AgenticRAGOrchestrator
 from app.reranker.reranker_client import RerankerClient
 from app.schemas.agentic_rag import AgenticRAGRequest, AgenticRAGResponse
@@ -38,10 +39,14 @@ async def query_agentic_rag(
             session=session,
             collection_name=request.collection_name,
         )
+        # 部分单元测试会用轻量 fake session 替代真实 AsyncSession；此时跳过 MemoryService，
+        # 以保持旧 Agentic RAG API 的兼容性，生产环境仍会启用 memory retrieval。
+        memory_service = MemoryService(session) if hasattr(session, "execute") else None
         orchestrator = AgenticRAGOrchestrator(
             llm_client=LLMClient(settings=settings),
             hybrid_search_pipeline=hybrid_search_pipeline,
             reranker_client=RerankerClient(settings=settings),
+            memory_service=memory_service,
             retrieval_top_k=settings.dense_top_k,
             keyword_top_k=settings.keyword_top_k,
             search_mode=settings.default_search_mode,  # type: ignore[arg-type]

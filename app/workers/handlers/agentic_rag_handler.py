@@ -5,6 +5,7 @@
 
 import logging
 from collections.abc import Callable
+from inspect import signature
 from typing import Any
 
 from app.agents.llm_client import LLMClient
@@ -41,7 +42,14 @@ class AgenticRAGHandler(BaseTaskHandler):
         try:
             request = AgenticRAGRequest.model_validate(payload)
             orchestrator = self.orchestrator_factory(request)
-            response = await orchestrator.query(request)
+            workspace_id = payload.get("workspace_id")
+            task_id = payload.get("task_id")
+            response = await self._query_orchestrator(
+                orchestrator=orchestrator,
+                request=request,
+                workspace_id=str(workspace_id) if workspace_id is not None else None,
+                task_id=str(task_id) if task_id is not None else None,
+            )
             logger.info(
                 "Agentic RAG task handled",
                 extra={
@@ -49,6 +57,10 @@ class AgenticRAGHandler(BaseTaskHandler):
                     "used_retrieval": response.used_retrieval,
                     "provider": response.provider,
                     "model": response.model,
+                    "latency_ms": response.debug.latency_ms if response.debug is not None else None,
+                    "error": None,
+                    "workspace_id": workspace_id,
+                    "task_id": task_id,
                 },
             )
             return TaskExecutionResult(
@@ -56,7 +68,10 @@ class AgenticRAGHandler(BaseTaskHandler):
                 data=response.model_dump(),
             )
         except Exception as exc:
-            logger.exception("Agentic RAG task handler failed")
+            logger.exception(
+                "Agentic RAG task handler failed",
+                extra={"workspace_id": payload.get("workspace_id"), "task_id": payload.get("task_id"), "error": str(exc)},
+            )
             return TaskExecutionResult(success=False, error=str(exc))
 
     def _create_orchestrator(self, request: AgenticRAGRequest) -> AgenticRAGOrchestrator:
@@ -76,3 +91,21 @@ class AgenticRAGHandler(BaseTaskHandler):
             llm_client=LLMClient(settings=self.settings),
             retrieval_pipeline=retrieval_pipeline,
         )
+
+    async def _query_orchestrator(
+        self,
+        *,
+        orchestrator: AgenticRAGOrchestrator,
+        request: AgenticRAGRequest,
+        workspace_id: str | None,
+        task_id: str | None,
+    ):
+        """兼容旧测试替身和真实 orchestrator 的 query 签名。"""
+
+        parameters = signature(orchestrator.query).parameters
+        kwargs: dict[str, str | None] = {}
+        if "workspace_id" in parameters:
+            kwargs["workspace_id"] = workspace_id
+        if "task_id" in parameters:
+            kwargs["task_id"] = task_id
+        return await orchestrator.query(request, **kwargs)

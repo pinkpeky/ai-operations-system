@@ -66,6 +66,7 @@ class TaskResponse(BaseModel):
     scheduled_at: datetime | None
     started_at: datetime | None
     completed_at: datetime | None
+    duration_ms: int | None
     last_error: str | None
 
 
@@ -74,3 +75,50 @@ class TaskListResponse(BaseModel):
 
     status: TaskStatus
     items: list[TaskResponse]
+
+
+class TaskControlResponse(BaseModel):
+    """任务控制操作响应。"""
+
+    task: TaskResponse
+    message: str
+
+
+class TaskEventResponse(BaseModel):
+    """任务事件响应。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    task_id: UUID
+    workspace_id: str | None
+    event_type: str
+    message: str
+    payload: dict[str, Any]
+    created_at: datetime
+
+
+class TaskEventListResponse(BaseModel):
+    """任务事件列表响应。"""
+
+    task_id: UUID
+    items: list[TaskEventResponse]
+
+
+class TaskLogResponse(BaseModel):
+    """任务日志响应。"""
+
+    id: UUID
+    task_id: UUID
+    workspace_id: str | None
+    level: str
+    message: str
+    metadata: dict[str, Any]
+    created_at: datetime
+
+
+class TaskLogListResponse(BaseModel):
+    """任务日志列表响应。"""
+
+    task_id: UUID
+    items: list[TaskLogResponse]

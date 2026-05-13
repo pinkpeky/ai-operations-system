@@ -4,7 +4,7 @@
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -99,3 +99,62 @@ class TaskRepository:
         except Exception as exc:
             logger.exception("Failed to list tasks by status", extra={"status": status.value})
             raise RuntimeError("Failed to list tasks by status") from exc
+
+    async def cancel_task(self, task_id: UUID, workspace_id: str) -> Task | None:
+        """取消尚未终止的任务。"""
+
+        task = await self.get_task(task_id=task_id, workspace_id=workspace_id)
+        if task is None:
+            return None
+        terminal_statuses = {
+            TaskStatus.COMPLETED.value,
+            TaskStatus.FAILED.value,
+            TaskStatus.CANCELLED.value,
+            TaskStatus.TIMEOUT.value,
+        }
+        if task.status in terminal_statuses and task.status != TaskStatus.CANCELLED.value:
+            raise ValueError(f"Cannot cancel terminal task with status: {task.status}")
+        task.status = TaskStatus.CANCELLED.value
+        now = datetime.now(UTC)
+        task.completed_at = now
+        task.duration_ms = self._calculate_duration_ms(task.started_at, task.completed_at)
+        task.last_error = "Task cancelled by user"
+        await self.session.commit()
+        await self.session.refresh(task)
+        return task
+
+    async def retry_task(self, task_id: UUID, workspace_id: str) -> Task | None:
+        """手动重试 failed/cancelled/timeout 任务。"""
+
+        task = await self.get_task(task_id=task_id, workspace_id=workspace_id)
+        if task is None:
+            return None
+        if task.status not in {
+            TaskStatus.FAILED.value,
+            TaskStatus.CANCELLED.value,
+            TaskStatus.TIMEOUT.value,
+        }:
+            raise ValueError(f"Task with status {task.status} cannot be retried manually")
+        payload = dict(task.payload or {})
+        payload.pop("execution_error", None)
+        task.payload = payload
+        task.status = TaskStatus.RETRY.value
+        task.retry_count = 0
+        task.started_at = None
+        task.completed_at = None
+        task.duration_ms = None
+        task.last_error = None
+        await self.session.commit()
+        await self.session.refresh(task)
+        return task
+
+    def _calculate_duration_ms(self, started_at: datetime | None, completed_at: datetime | None) -> int | None:
+        """计算任务耗时，缺少开始或结束时间时返回 None。"""
+
+        if started_at is None or completed_at is None:
+            return None
+        if started_at.tzinfo is None and completed_at.tzinfo is not None:
+            started_at = started_at.replace(tzinfo=completed_at.tzinfo)
+        if completed_at.tzinfo is None and started_at.tzinfo is not None:
+            completed_at = completed_at.replace(tzinfo=started_at.tzinfo)
+        return max(0, int((completed_at - started_at).total_seconds() * 1000))

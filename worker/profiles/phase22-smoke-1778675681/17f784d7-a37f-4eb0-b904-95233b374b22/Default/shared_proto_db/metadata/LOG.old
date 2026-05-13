@@ -1,0 +1,2 @@
+2026/05/13-12:34:42.419 24 Creating DB /app/worker/profiles/phase22-smoke-1778675681/17f784d7-a37f-4eb0-b904-95233b374b22/Default/shared_proto_db/metadata since it was missing.
+2026/05/13-12:34:42.431 24 Reusing MANIFEST /app/worker/profiles/phase22-smoke-1778675681/17f784d7-a37f-4eb0-b904-95233b374b22/Default/shared_proto_db/metadata/MANIFEST-000001

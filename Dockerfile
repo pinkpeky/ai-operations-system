@@ -10,13 +10,16 @@ WORKDIR /app
 
 # 先安装依赖，再复制业务代码，方便 Docker 构建缓存复用。
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && python -m playwright install --with-deps chromium
 
 COPY app ./app
+COPY worker ./worker
+COPY docs/CURRENT_RUNTIME.md ./docs/CURRENT_RUNTIME.md
 COPY alembic.ini .
 COPY alembic ./alembic
 
-EXPOSE 8000
+EXPOSE 8000 9100
 
 # 容器启动时先执行数据库迁移，再启动 FastAPI 应用服务。
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

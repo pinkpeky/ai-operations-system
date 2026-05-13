@@ -31,12 +31,26 @@ class ContentGenerationHandler(BaseTaskHandler):
         try:
             request = ContentAgentRequest.model_validate(payload)
             agent = self.agent_factory()
-            result = await agent.run(request.model_dump())
+            agent_input = {
+                **request.model_dump(),
+                "workspace_id": payload.get("workspace_id"),
+                "task_id": payload.get("task_id"),
+            }
+            result = await agent.run(agent_input)
             logger.info(
                 "Content generation task handled",
-                extra={"topic": request.topic, "platform": request.platform},
+                extra={
+                    "topic": request.topic,
+                    "platform": request.platform,
+                    "workspace_id": payload.get("workspace_id"),
+                    "task_id": payload.get("task_id"),
+                    "error": None,
+                },
             )
             return TaskExecutionResult(success=True, data=result)
         except Exception as exc:
-            logger.exception("Content generation task handler failed")
+            logger.exception(
+                "Content generation task handler failed",
+                extra={"workspace_id": payload.get("workspace_id"), "task_id": payload.get("task_id"), "error": str(exc)},
+            )
             return TaskExecutionResult(success=False, error=str(exc))

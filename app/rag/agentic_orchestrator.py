@@ -7,8 +7,10 @@ import logging
 import time
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import UUID
 
 from app.agents.llm_client import LLMClient
+from app.memory.services import MemoryService
 from app.rag.hybrid_search import HybridSearchBundle, SearchMode
 from app.rag.retrieval import RetrievalPipeline
 from app.rag.vector_store import VectorSearchResult
@@ -16,6 +18,7 @@ from app.reranker.providers.base import RerankedChunk
 from app.reranker.reranker_client import RerankerClient
 from app.schemas.agentic_rag import AgenticRAGDebugInfo, AgenticRAGRequest, AgenticRAGResponse
 from app.schemas.llm import LLMRequest, LLMResponse
+from app.schemas.memory import AgentMemoryResponse, ConversationMessageResponse, MemoryTraceItem
 from app.schemas.rag import RetrievedChunk
 
 logger = logging.getLogger(__name__)
@@ -96,6 +99,7 @@ class AgenticRAGOrchestrator:
         retrieval_pipeline: RetrievalPipelineProtocol | None = None,
         hybrid_search_pipeline: HybridSearchPipelineProtocol | None = None,
         reranker_client: RerankerClientProtocol | None = None,
+        memory_service: MemoryService | None = None,
         retrieval_top_k: int = 20,
         keyword_top_k: int = 20,
         search_mode: SearchMode = "hybrid",
@@ -105,6 +109,7 @@ class AgenticRAGOrchestrator:
         self.retrieval_pipeline = retrieval_pipeline
         self.hybrid_search_pipeline = hybrid_search_pipeline
         self.reranker_client = reranker_client or RerankerClient()
+        self.memory_service = memory_service
         self.retrieval_top_k = retrieval_top_k
         self.keyword_top_k = keyword_top_k
         self.search_mode: SearchMode = search_mode
@@ -112,12 +117,57 @@ class AgenticRAGOrchestrator:
         configured_top_n = getattr(settings, "rerank_top_n", 5)
         self.rerank_top_n = rerank_top_n or int(configured_top_n)
 
-    async def query(self, request: AgenticRAGRequest, workspace_id: str | None = None) -> AgenticRAGResponse:
+    async def query(
+        self,
+        request: AgenticRAGRequest,
+        workspace_id: str | None = None,
+        task_id: str | None = None,
+    ) -> AgenticRAGResponse:
         """执行 Agentic RAG 查询流程。"""
 
         try:
             started_at = time.perf_counter()
             analysis = self.analyze_query(request.query)
+            recent_messages = []
+            retrieved_memories = []
+            memory_trace: list[MemoryTraceItem] = []
+            memory_started_at = time.perf_counter()
+            if self.memory_service is not None and workspace_id:
+                try:
+                    session_uuid = UUID(request.session_id) if request.session_id else None
+                    if session_uuid is not None:
+                        recent_messages = await self.memory_service.get_recent_messages(
+                            workspace_id=workspace_id,
+                            session_id=session_uuid,
+                            limit=10,
+                        )
+                    retrieved_memories = await self.memory_service.search_memory(
+                        workspace_id=workspace_id,
+                        query=request.query,
+                        agent_name="AgenticRAGOrchestrator",
+                        limit=5,
+                    )
+                    memory_trace.append(
+                        MemoryTraceItem(
+                            operation="agentic_rag_memory_retrieval",
+                            session_id=request.session_id,
+                            recent_messages_count=len(recent_messages),
+                            retrieved_memories_count=len(retrieved_memories),
+                            latency_ms=int((time.perf_counter() - memory_started_at) * 1000),
+                            success=True,
+                        )
+                    )
+                except Exception as exc:
+                    memory_trace.append(
+                        MemoryTraceItem(
+                            operation="agentic_rag_memory_retrieval",
+                            session_id=request.session_id,
+                            latency_ms=int((time.perf_counter() - memory_started_at) * 1000),
+                            success=False,
+                            error=str(exc),
+                        )
+                    )
+                    raise
             retrieved_results: list[VectorSearchResult] = []
             dense_results: list[VectorSearchResult] = []
             keyword_results: list[VectorSearchResult] = []
@@ -160,6 +210,8 @@ class AgenticRAGOrchestrator:
                 query=request.query,
                 context_chunks=context_chunks,
                 used_retrieval=analysis.needs_retrieval,
+                recent_messages=recent_messages,
+                retrieved_memories=retrieved_memories,
             )
             llm_response = await self.llm_client.generate(
                 LLMRequest(
@@ -202,6 +254,12 @@ class AgenticRAGOrchestrator:
                     embedding_provider=self._get_embedding_provider_name(),
                     embedding_model_name=self._get_embedding_model_name(),
                     latency_ms=latency_ms,
+                    session_id=request.session_id,
+                    recent_messages_count=len(recent_messages),
+                    retrieved_memories_count=len(retrieved_memories),
+                    recent_messages=[ConversationMessageResponse.from_model(message) for message in recent_messages],
+                    retrieved_memories=[AgentMemoryResponse.from_model(memory) for memory in retrieved_memories],
+                    memory_trace=memory_trace,
                 )
                 if request.debug
                 else None
@@ -217,6 +275,10 @@ class AgenticRAGOrchestrator:
                     "reranked_count": len(reranked_results),
                     "provider": llm_response.provider,
                     "model": llm_response.model,
+                    "latency_ms": latency_ms,
+                    "error": None,
+                    "workspace_id": workspace_id,
+                    "task_id": task_id,
                 },
             )
             return AgenticRAGResponse(
@@ -231,7 +293,10 @@ class AgenticRAGOrchestrator:
             logger.exception("Agentic RAG request validation failed")
             raise
         except Exception as exc:
-            logger.exception("Agentic RAG query failed")
+            logger.exception(
+                "Agentic RAG query failed",
+                extra={"workspace_id": workspace_id, "task_id": task_id, "error": str(exc)},
+            )
             raise RuntimeError(str(exc) or "Agentic RAG query failed") from exc
 
     def analyze_query(self, query: str) -> QueryAnalysis:
@@ -261,11 +326,17 @@ class AgenticRAGOrchestrator:
         query: str,
         context_chunks: list[RetrievedChunk],
         used_retrieval: bool,
+        recent_messages: list[object] | None = None,
+        retrieved_memories: list[object] | None = None,
     ) -> str:
         """构建带检索上下文的 LLM Prompt。"""
 
+        memory_context = self._format_memory_context(
+            recent_messages=recent_messages or [],
+            retrieved_memories=retrieved_memories or [],
+        )
         if not used_retrieval:
-            return f"用户问题：\n{query}\n\n请直接简洁回答。"
+            return f"用户问题：\n{query}\n\n{memory_context}\n\n请直接简洁回答。"
 
         context_blocks = []
         for index, result in enumerate(context_chunks, start=1):
@@ -285,7 +356,26 @@ class AgenticRAGOrchestrator:
         return (
             "请基于以下检索上下文回答用户问题。如果上下文不足，请说明信息不足。\n\n"
             f"用户问题：\n{query}\n\n"
+            f"{memory_context}\n\n"
             f"检索上下文：\n{context}"
+        )
+
+    def _format_memory_context(self, *, recent_messages: list[object], retrieved_memories: list[object]) -> str:
+        """格式化 Memory 上下文。"""
+
+        message_lines = [
+            f"{getattr(message, 'role', 'unknown')}: {getattr(message, 'content', '')}"
+            for message in recent_messages
+        ]
+        memory_lines = [
+            f"{getattr(memory, 'memory_type', 'memory')}: {getattr(memory, 'content', '')}"
+            for memory in retrieved_memories
+        ]
+        return (
+            "会话最近消息：\n"
+            f"{message_lines or ['无']}\n\n"
+            "检索到的 Agent Memory：\n"
+            f"{memory_lines or ['无']}"
         )
 
     def _to_retrieved_chunk(self, result: VectorSearchResult) -> RetrievedChunk:
