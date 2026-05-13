@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
@@ -54,7 +55,7 @@ class WorkerClientConfig:
     heartbeat_interval_seconds: int = 30
     capabilities: dict[str, Any] = field(default_factory=dict)
     worker_base_url: str | None = None
-    runtime_host: str = "0.0.0.0"
+    runtime_host: str = "127.0.0.1"
     runtime_port: int = 9100
     state_path: Path = DEFAULT_STATE_PATH
     max_sessions: int = 5
@@ -69,6 +70,7 @@ class WorkerClientConfig:
     timeout_seconds: float = 30.0
     screenshot_dir: str = "worker/screenshots"
     profile_dir: str = "worker/profiles"
+    openclaw: dict[str, Any] = field(default_factory=lambda: {"enabled": True, "provider": "mock"})
 
     @property
     def normalized_server_url(self) -> str:
@@ -81,6 +83,18 @@ class WorkerClientConfig:
         """返回注册到 AI Server 的本机 worker runtime URL。"""
 
         return (self.worker_base_url or f"http://localhost:{self.runtime_port}").rstrip("/")
+
+    @property
+    def openclaw_enabled(self) -> bool:
+        """返回本地 OpenClaw mock runtime 是否启用。"""
+
+        return _to_bool(self.openclaw.get("enabled"), True)
+
+    @property
+    def openclaw_provider(self) -> str:
+        """返回本地 OpenClaw provider 名称；当前默认 mock。"""
+
+        return str(self.openclaw.get("provider") or "mock")
 
     def headers(self) -> dict[str, str]:
         """构造 AI Server workspace header。"""
@@ -95,6 +109,43 @@ class WorkerClientConfig:
         if data.get("worker_secret"):
             data["worker_secret"] = "***"
         return data
+
+    def validate_server_url(self) -> None:
+        """校验 AI Server URL，启动前给出清晰错误。"""
+
+        parsed = urlparse(self.server_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Invalid worker config: server_url must be an http(s) URL")
+
+    def validate_workspace_id(self) -> None:
+        """校验 workspace_id，避免无隔离上下文启动。"""
+
+        if not self.workspace_id or not self.workspace_id.strip():
+            raise ValueError("Invalid worker config: workspace_id is required")
+        if any(char.isspace() for char in self.workspace_id):
+            raise ValueError("Invalid worker config: workspace_id must not contain whitespace")
+
+    def validate_runtime_port(self) -> None:
+        """校验 runtime_port 是否在合法端口范围内。"""
+
+        if not isinstance(self.runtime_port, int) or not 1 <= self.runtime_port <= 65535:
+            raise ValueError("Invalid worker config: runtime_port must be between 1 and 65535")
+
+    def validate_worker_name(self) -> None:
+        """校验 worker_name，便于 Server 端识别客户机。"""
+
+        if not self.worker_name or not self.worker_name.strip():
+            raise ValueError("Invalid worker config: worker_name is required")
+        if len(self.worker_name) > 128:
+            raise ValueError("Invalid worker config: worker_name must be 128 characters or fewer")
+
+    def validate_config(self) -> None:
+        """校验 Worker Client 启动所需配置。"""
+
+        self.validate_server_url()
+        self.validate_worker_name()
+        self.validate_workspace_id()
+        self.validate_runtime_port()
 
 
 @dataclass(slots=True)
@@ -134,6 +185,11 @@ def load_worker_client_config(config_path: str | Path | None = None) -> WorkerCl
     env_capabilities = _env("CAPABILITIES")
     if env_capabilities:
         capabilities = json.loads(env_capabilities)
+    openclaw = raw.get("openclaw") or {"enabled": True, "provider": "mock"}
+    if _env("OPENCLAW_ENABLED") is not None:
+        openclaw["enabled"] = _to_bool(_env("OPENCLAW_ENABLED"), True)
+    if _env("OPENCLAW_PROVIDER") is not None:
+        openclaw["provider"] = _env("OPENCLAW_PROVIDER")
 
     state_path = Path(_env("STATE_PATH") or raw.get("state_path") or DEFAULT_STATE_PATH)
     config = WorkerClientConfig(
@@ -145,7 +201,7 @@ def load_worker_client_config(config_path: str | Path | None = None) -> WorkerCl
         heartbeat_interval_seconds=_to_int(_env("HEARTBEAT_INTERVAL_SECONDS") or raw.get("heartbeat_interval_seconds"), 30),
         capabilities=dict(capabilities),
         worker_base_url=_env("WORKER_BASE_URL") or raw.get("worker_base_url"),
-        runtime_host=_env("RUNTIME_HOST") or str(raw.get("runtime_host") or "0.0.0.0"),
+        runtime_host=_env("RUNTIME_HOST") or str(raw.get("runtime_host") or "127.0.0.1"),
         runtime_port=_to_int(_env("RUNTIME_PORT") or raw.get("runtime_port"), 9100),
         state_path=state_path,
         max_sessions=_to_int(_env("MAX_SESSIONS") or raw.get("max_sessions"), 5),
@@ -158,6 +214,7 @@ def load_worker_client_config(config_path: str | Path | None = None) -> WorkerCl
         timeout_seconds=float(_env("TIMEOUT_SECONDS") or raw.get("timeout_seconds") or 30.0),
         screenshot_dir=str(raw.get("screenshot_dir") or "worker/screenshots"),
         profile_dir=str(raw.get("profile_dir") or "worker/profiles"),
+        openclaw=dict(openclaw),
     )
     return config
 
@@ -193,4 +250,3 @@ def save_worker_state(path: str | Path, state: WorkerClientState) -> None:
     except OSError:
         # Windows 上 chmod 语义有限，失败时不影响功能；不要打印 secret。
         pass
-

@@ -267,3 +267,41 @@ python scripts/verify_docs_runtime.py
 ```powershell
 python scripts/verify_docs_runtime.py
 ```
+
+## Phase 29 Worker Client Runtime Verification
+
+Docs verification now also checks Worker Console Foundation files: `worker_client/runtime_manager.py`, `worker_client/status.py`, `worker_client/logging.py`, `worker_client/local_api_client.py`, `packaging/windows_start_worker.ps1`, `packaging/mac_start_worker.sh`, and Worker Client install docs.
+
+After any Worker Client runtime change, run:
+
+```powershell
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+The local runtime API is documented as local-only: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, `GET /local/logs`.
+
+## Phase 30 Worker Console Docs Verification
+
+Docs verifier checks `worker_console`, `worker_console/src/api/localWorkerClient.ts`, `VITE_LOCAL_WORKER_API`, `http://127.0.0.1:9100`, Worker Console GUI Foundation docs, and the explicit no system tray / no exe / dmg boundary.
+## Phase 31 校验补充
+
+Docs Runtime Verification 现在覆盖 Worker Console Desktop App Foundation。校验项包括：
+
+- `worker_console_desktop/package.json`
+- `worker_console_desktop/src/api/localWorkerClient.ts`
+- `worker_console_desktop/src-tauri/tauri.conf.json`
+- `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`
+- `npm run tauri dev`
+- `Worker Console Desktop App Foundation`
+
+Phase 31 完成后仍必须执行：
+
+```powershell
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+当前桌面端只是 Tauri 基础壳：没有正式安装包、no exe / dmg、no system tray、no auto update。

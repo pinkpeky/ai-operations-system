@@ -1,6 +1,6 @@
 # Current Runtime
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 This document records the current real runtime defaults for `E:\ai-operations-system`. Values are based on `app/core/config.py`, `.env.example`, and `docker-compose.yml`.
 
@@ -51,6 +51,9 @@ The repository currently has no committed `.env` file. Without local overrides, 
 | `BROWSER_ACTION_RETRY_COUNT` | `2` | Remote browser action retry count. |
 | `BROWSER_ACTION_RETRY_BACKOFF_SECONDS` | `2.0` | Remote browser action retry backoff seconds. |
 | `SCREENSHOT_RETENTION_DAYS` | `7` | Default screenshot cleanup retention. |
+| `OPENCLAW_PROVIDER` | `mock` | OpenClaw worker adapter provider. Current default is mock only. |
+| `OPENCLAW_ENABLED` | `True` | Enables the OpenClaw adapter foundation APIs and tool. |
+| `OPENCLAW_ACTION_TIMEOUT_SECONDS` | `60.0` | Timeout for OpenClaw worker runtime calls. |
 
 ## Search Defaults
 
@@ -146,13 +149,15 @@ Builtin tools:
 | `create_task_tool` | completed | Creates a task in the current workspace. |
 | `get_task_status_tool` | completed | Reads task status in the current workspace. |
 | `current_runtime_tool` | completed | Returns provider/search/upload settings and reads `CURRENT_RUNTIME.md` when available. |
+| `openclaw_tool` | completed foundation | Calls the mock OpenClaw worker adapter through registered Browser Workers. |
 
 All tool execution and tool call log APIs require `X-Workspace-Id`.
 
 Current limitations:
 
 - `browser_tool` is available and can use the configured BrowserProvider.
-- No OpenClaw, Selenium, or external API tools.
+- `openclaw_tool` is available as a mock/placeholder worker adapter only; it does not call real OpenClaw.
+- No Selenium or external API tools.
 - No autonomous planner, ReAct loop, or LLM-native function calling.
 - Tool enable/disable and permission scopes exist at Registry level, but no management API or full RBAC is implemented yet.
 
@@ -330,6 +335,7 @@ Phase 24 adds Human-in-the-loop Browser Control: `BrowserHumanControlService`, `
 Phase 25 adds Browser Worker UI Access Placeholder: `BrowserUIAccessService`, `browser_ui_access_sessions`, access token hash storage, placeholder URL generation, `/ui-access/capabilities`, and `browser_tool` actions `create_ui_access` / `revoke_ui_access`. It does not provide real VNC, noVNC, DevTools UI, live browser video, login, captcha handling, or platform automation.
 Phase 26 adds Browser Worker Security & Access Control: `BrowserWorkerAuthService`, signed worker request headers, worker secret hash storage, UI Access Scope validation, `BrowserActionPolicyService`, `BrowserSecurityAuditLog`, and `browser_security_audit_logs`. It does not provide real social-platform account security, login, proxy, fingerprint, captcha, or platform automation.
 Phase 27 adds Customer Machine Worker Bootstrap through the local `worker_client` package. It does not add new API Server environment variables; it adds customer-machine config, CLI, registration, heartbeat, and local runtime behavior.
+Phase 28 adds OpenClaw Worker Adapter Foundation: `worker_client/openclaw`, `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, server-side `OpenClawWorkerClient`, `openclaw_tool`, `openclaw_action_logs`, and `/api/v1/openclaw/*` APIs. It is mock/placeholder only and does not call real OpenClaw or perform platform automation.
 
 Runtime setting:
 
@@ -370,6 +376,9 @@ BROWSER_ACTION_TIMEOUT_SECONDS=60.0
 BROWSER_ACTION_RETRY_COUNT=2
 BROWSER_ACTION_RETRY_BACKOFF_SECONDS=2.0
 SCREENSHOT_RETENTION_DAYS=7
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=True
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60.0
 ```
 
 Phase 20 worker service runtime:
@@ -448,6 +457,12 @@ Core APIs:
 - `POST /api/v1/browser-worker-runtime/human-control/complete`
 - `GET /api/v1/browser-worker-runtime/human-control/status/{session_id}`
 - `GET /api/v1/browser-worker-runtime/ui-access/capabilities`
+- `GET /api/v1/browser-worker-runtime/openclaw/health`
+- `GET /api/v1/browser-worker-runtime/openclaw/capabilities`
+- `POST /api/v1/browser-worker-runtime/openclaw/actions`
+- `GET /api/v1/openclaw/health`
+- `GET /api/v1/openclaw/capabilities`
+- `POST /api/v1/openclaw/actions`
 
 Current browser provider state:
 
@@ -608,6 +623,32 @@ heartbeat flow
 local worker runtime
 ```
 
+Phase 28 OpenClaw Worker Adapter runtime:
+
+```text
+worker_client/openclaw
+BaseOpenClawProvider
+MockOpenClawProvider
+OpenClawRuntime
+OpenClawWorkerClient
+openclaw_tool
+openclaw_action_logs
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=True
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60.0
+```
+
+OpenClaw flow:
+
+```text
+API Server / openclaw_tool
+-> OpenClawService
+-> BrowserWorkerSelector capability=openclaw
+-> OpenClawWorkerClient
+-> worker_client /openclaw/* mock runtime
+-> openclaw_action_logs + browser_security_audit_logs
+```
+
 `worker_client/worker_config.example.yaml` defaults:
 
 ```yaml
@@ -617,7 +658,7 @@ worker_type: playwright
 workspace_id: demo-workspace
 worker_secret: null
 worker_base_url: http://localhost:9100
-runtime_host: 0.0.0.0
+runtime_host: 127.0.0.1
 runtime_port: 9100
 state_path: worker_client/worker_state.json
 heartbeat_interval_seconds: 30
@@ -660,6 +701,7 @@ Remote Browser Worker tables:
 - `browser_workers`
 - `browser_worker_sessions`
 - `browser_worker_actions`
+- `openclaw_action_logs`
 
 Phase 21 worker reliability fields:
 
@@ -720,6 +762,9 @@ BROWSER_ACTION_TIMEOUT_SECONDS=60
 BROWSER_ACTION_RETRY_COUNT=2
 BROWSER_ACTION_RETRY_BACKOFF_SECONDS=2
 SCREENSHOT_RETENTION_DAYS=7
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
 ```
 
 Real Browser Worker Service:
@@ -824,6 +869,8 @@ GET /api/v1/reranker/health
 GET /api/v1/observability/summary
 GET /api/v1/tools
 GET /api/v1/tool-calls
+GET /api/v1/openclaw/health
+GET /api/v1/openclaw/capabilities
 POST /api/v1/memory/sessions
 POST /api/v1/memory/messages
 POST /api/v1/memory/memories
@@ -876,6 +923,9 @@ BROWSER_ACTION_TIMEOUT_SECONDS=60
 BROWSER_ACTION_RETRY_COUNT=2
 BROWSER_ACTION_RETRY_BACKOFF_SECONDS=2
 SCREENSHOT_RETENTION_DAYS=7
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
 ```
 
 Restart:
@@ -918,6 +968,9 @@ BROWSER_ACTION_TIMEOUT_SECONDS=60
 BROWSER_ACTION_RETRY_COUNT=2
 BROWSER_ACTION_RETRY_BACKOFF_SECONDS=2
 SCREENSHOT_RETENTION_DAYS=7
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
 ```
 
 Restart:
@@ -939,3 +992,79 @@ Expected final line:
 ```text
 SUMMARY: PASS
 ```
+
+## Phase 29 Worker Client Local Runtime
+
+Current customer-machine Worker Client defaults:
+
+```text
+worker_client runtime_host=127.0.0.1
+worker_client runtime_port=9100
+worker_client status=worker_client/runtime_state/status.json
+worker_client logs=worker_client/logs/worker.log
+```
+
+Completed Phase 29 runtime files:
+
+- `Worker Runtime Manager`: `worker_client/runtime_manager.py`
+- local status: `worker_client/status.py`
+- local logging: `worker_client/logging.py`
+- local API client: `worker_client/local_api_client.py`
+- status file: `worker_client/runtime_state/status.json`
+- log file: `worker_client/logs/worker.log`
+- packaging scripts: `packaging/windows_start_worker.ps1`, `packaging/mac_start_worker.sh`
+- desktop placeholder: `worker_client/desktop/README.md`
+
+Local management API exposed by `worker_client.runtime`:
+
+- `GET /local/status`
+- `GET /local/health`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+- `GET /local/logs`
+
+Phase 29 is `Worker Console Foundation` only: no GUI, no Electron, no Tauri, no PySide, no system tray, no EXE/DMG packaging, and no real platform automation.
+
+## Phase 30 Worker Console Runtime
+
+Worker Console frontend defaults:
+
+```text
+worker_console stack=Vite + React + TypeScript + Tailwind
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+worker_console dev_url=http://localhost:5173
+```
+
+Runtime relationship:
+
+- `worker_console` calls the local Worker Client API from Phase 29.
+- Default local status URL: `http://127.0.0.1:9100/local/status`.
+- Frontend client: `worker_console/src/api/localWorkerClient.ts`.
+- If the API is down, the UI shows `Worker API unreachable`, `请确认 worker_client 是否启动`, and `请确认端口是否为 9100`.
+
+Current boundary: Worker Console GUI Foundation only; no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg packaging.
+
+## Phase 31 Worker Console Desktop Runtime
+
+Worker Console Desktop defaults:
+
+```text
+worker_console_desktop stack=Tauri + React + Vite + TypeScript + Tailwind
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+worker_console_desktop dev_url=http://127.0.0.1:5174
+worker_console_desktop status_url=http://127.0.0.1:9100/local/status
+```
+
+Runtime relationship:
+
+- `worker_console_desktop` calls the same local Worker Client API as `worker_console`.
+- Desktop local API client: `worker_console_desktop/src/api/localWorkerClient.ts`.
+- Tauri config: `worker_console_desktop/src-tauri/tauri.conf.json`.
+- Development command: `npm run tauri dev`.
+- Frontend validation command: `npm run build`.
+- If the local Worker API is down, the UI shows `Worker API unreachable`, `Worker Runtime 未启动`, `请先启动 worker_client`, and `packaging 脚本启动`.
+
+Current boundary: Worker Console Desktop App Foundation only; no exe / dmg, no system tray, no auto update, no autostart, and no formal installer release.

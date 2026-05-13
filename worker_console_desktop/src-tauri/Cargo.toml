@@ -1,0 +1,15 @@
+[package]
+name = "aiops-worker-console-desktop"
+version = "31.0.0"
+description = "AI Ops Worker Console Desktop App Foundation"
+authors = ["AI Ops"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

@@ -9,6 +9,135 @@ X-Workspace-Id: demo-workspace
 X-User-Id: demo-user
 ```
 
+## Phase 28 OpenClaw Worker Adapter Foundation
+
+状态：生产基础 / mock placeholder。Phase 28 在客户机 Browser Worker 协议上新增 OpenClaw Adapter Foundation。当前只实现 `MockOpenClawProvider`、`OpenClawRuntime`、服务端 `OpenClawWorkerClient`、`openclaw_tool`、`openclaw_action_logs` 和 mock runtime routes，不调用真实 OpenClaw，不做 TikTok / YouTube / X 自动化、自动登录、Cookie 注入、代理池、指纹绕过或验证码自动化。
+
+核心配置：`OPENCLAW_PROVIDER=mock`、`OPENCLAW_ENABLED=true`、`OPENCLAW_ACTION_TIMEOUT_SECONDS=60`。
+
+数据表：`openclaw_action_logs`；安全审计继续写入 `browser_security_audit_logs`。
+
+Worker Client 文件：`worker_client/openclaw/provider.py`、`worker_client/openclaw/mock_provider.py`、`worker_client/openclaw/schemas.py`、`worker_client/openclaw/runtime.py`。
+
+### GET `/api/v1/openclaw/health`
+
+Required headers：`X-Workspace-Id`，可选 `X-User-Id`。
+
+Response JSON：
+
+```json
+{
+  "success": true,
+  "provider": "mock",
+  "enabled": true,
+  "reachable": true,
+  "worker_id": "WORKER_ID",
+  "worker_name": "local-windows-worker-1",
+  "mock": true,
+  "version": "mock-openclaw-0.1",
+  "error": null,
+  "raw": {
+    "real_openclaw_called": false
+  }
+}
+```
+
+### GET `/api/v1/openclaw/capabilities`
+
+Required headers：`X-Workspace-Id`，可选 `X-User-Id`。
+
+Response JSON：
+
+```json
+{
+  "success": true,
+  "provider": "mock",
+  "enabled": true,
+  "worker_id": "WORKER_ID",
+  "worker_name": "local-windows-worker-1",
+  "mock": true,
+  "capabilities": {
+    "openclaw": true,
+    "real_openclaw": false,
+    "platform_automation": false
+  },
+  "actions": ["health_check", "list_capabilities", "execute_action"],
+  "error": null,
+  "raw": {}
+}
+```
+
+### POST `/api/v1/openclaw/actions`
+
+Required headers：`X-Workspace-Id`，可选 `X-User-Id`。
+
+Request JSON：
+
+```json
+{
+  "action_type": "mock_inspect",
+  "target": "https://example.com",
+  "input_payload": {
+    "note": "phase28 smoke"
+  },
+  "profile_id": null,
+  "browser_session_id": null,
+  "metadata": {
+    "phase": "28"
+  }
+}
+```
+
+Response JSON：
+
+```json
+{
+  "success": true,
+  "action_type": "mock_inspect",
+  "output_payload": {
+    "message": "mock openclaw action success",
+    "real_openclaw_called": false
+  },
+  "error": null,
+  "duration_ms": 0,
+  "provider": "mock",
+  "mock": true,
+  "worker_id": "WORKER_ID",
+  "log_id": "OPENCLAW_ACTION_LOG_ID"
+}
+```
+
+### Worker Runtime OpenClaw Mock Routes
+
+Worker Runtime 协议端点：
+
+- `GET /api/v1/browser-worker-runtime/openclaw/health`
+- `GET /api/v1/browser-worker-runtime/openclaw/capabilities`
+- `POST /api/v1/browser-worker-runtime/openclaw/actions`
+- `GET /openclaw/health`（worker_client runtime）
+- `GET /openclaw/capabilities`（worker_client runtime）
+- `POST /openclaw/actions`（worker_client runtime）
+
+### `openclaw_tool`
+
+Tool Registry 已注册 `openclaw_tool`，支持 `health_check`、`list_capabilities`、`execute_action`。
+
+Tool input：
+
+```json
+{
+  "action_type": "execute_action",
+  "openclaw_action_type": "mock_inspect",
+  "target": "https://example.com",
+  "input_payload": {},
+  "metadata": {
+    "phase": "28"
+  }
+}
+```
+
+边界：`openclaw_tool` 只调用 mock worker adapter，会写 `tool_call_logs`、`openclaw_action_logs` 和 `browser_security_audit_logs`。它不是 Browser Agent，不做 autonomous planning，不调用真实 OpenClaw，不执行真实平台动作。
+
 ## Phase 27 Customer Machine Worker Bootstrap
 
 状态：生产基础 / 客户机 Worker Bootstrap。Phase 27 新增本地 `worker_client` 包，让 Windows、Mac 或真实客户机可以注册为 Browser Worker，并暴露与 Docker `browser-worker` 服务兼容的 Worker Runtime 协议。本阶段不实现 OpenClaw、真实社媒平台自动化、自动登录、Cookie 注入、代理池、指纹绕过、验证码处理或 TikTok / YouTube / X 自动化。
@@ -647,7 +776,7 @@ Eval 支持 `retrieval only` 与 `retrieval + rerank` 对比记录，但尚未�
 
 ## Tool Calling
 
-状态：生产基础。当前仅实现内部 Tool Framework 和手动工具调用，不包含 Browser Agent、OpenClaw、Playwright、Selenium、autonomous planner 或 ReAct。
+状态：生产基础。当前仅实现内部 Tool Framework 和手动工具调用；`openclaw_tool` 是 Phase 28 mock/placeholder adapter，不包含 Browser Agent、真实 OpenClaw、Playwright、Selenium、autonomous planner 或 ReAct。
 
 数据表：
 
@@ -1809,3 +1938,104 @@ BROWSER_PROFILE_BACKUP_ROOT=worker/profile_backups
   ]
 }
 ```
+
+`BaseOpenClawProvider`
+
+## Phase 29 Worker Client Local Management API
+
+Status: completed runtime foundation. These endpoints are exposed by the customer-machine `worker_client.runtime` service, not by the central AI Server OpenAPI.
+
+Required local host: default `runtime_host: 127.0.0.1`, `runtime_port: 9100`.
+
+- `GET /local/status`
+  - response: local runtime state from `worker_client/status.py`, backed by `worker_client/runtime_state/status.json`.
+  - fields: `worker_id`, `worker_name`, `workspace_id`, `server_url`, `runtime_running`, `heartbeat_running`, `registered`, `last_heartbeat_at`, `last_error`, `current_status`, `openclaw_enabled`, `browser_enabled`.
+- `GET /local/health`
+  - response: `Worker Runtime Manager` health with `runtime_running`, `heartbeat_running`, `host`, `port`, and `localhost_only`.
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+- `GET /local/logs`
+  - response: recent lines from `worker_client/logs/worker.log`.
+
+Implementation files:
+
+- `worker_client/runtime_manager.py`
+- `worker_client/status.py`
+- `worker_client/logging.py`
+- `worker_client/local_api_client.py`
+- `worker_client/runtime_state/status.json`
+- `worker_client/logs/worker.log`
+
+Packaging Scripts:
+
+- `packaging/windows_start_worker.ps1`
+- `packaging/mac_start_worker.sh`
+
+Worker Console Foundation:
+
+- `Desktop Runtime Placeholder` exists under `worker_client/desktop/`.
+- Current state is `no GUI`; no Electron, no Tauri, no PySide, no system tray, no exe/dmg packaging.
+
+## Phase 30 Worker Console Local Web API Usage
+
+Worker Console frontend calls the local worker client API through `worker_console/src/api/localWorkerClient.ts`.
+
+Config:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+Used local endpoints:
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+UI unreachable state: `Worker API unreachable`, `请确认 worker_client 是否启动`, `请确认端口是否为 9100`.
+
+Phase 30 API doc marker: Worker Console GUI Foundation uses Vite, React, TypeScript, and Tailwind. Runtime Control is local-only. Current boundary: no exe / dmg.
+## Phase 31：Worker Console Desktop Local API
+
+状态：已完成，本地桌面壳能力。范围名称：Worker Console Desktop App Foundation。
+
+`worker_console_desktop` 不新增 AI Server API。它复用客户机本地 `worker_client` API：
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+默认配置：
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+status_url=http://127.0.0.1:9100/local/status
+tauri_config=worker_console_desktop/src-tauri/tauri.conf.json
+src-tauri/tauri.conf.json
+```
+
+不可达提示：`Worker Runtime 未启动`。
+
+开发命令：
+
+```powershell
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+当前边界：no exe / dmg、no system tray、no auto update、无正式安装包。

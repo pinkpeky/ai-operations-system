@@ -1,5 +1,26 @@
 # 部署与本地验证
 
+## Phase 28 OpenClaw Adapter Smoke Test
+
+?? OpenClaw runtime ??? mock?
+
+```env
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
+```
+
+Docker / ?? smoke flow?
+
+1. ?? `docker compose up --build -d`?
+2. ????? capabilities ?? `"openclaw": true` ? worker?
+3. ? `X-Workspace-Id` ?? `GET /api/v1/openclaw/health`?
+4. ?? `GET /api/v1/openclaw/capabilities`?
+5. ?? `POST /api/v1/openclaw/actions`??? `mock_inspect`?
+6. ?? `openclaw_action_logs`????? `openclaw_tool` ??????? `tool_call_logs` ? `browser_security_audit_logs`?
+
+?????????? OpenClaw???? TikTok / YouTube / X????Cookie?????????????????????????
+
 ## Phase 20 browser-worker 启动与验证
 
 Docker Compose 现在包含独立服务：
@@ -809,3 +830,72 @@ python scripts/verify_docs_runtime.py
 - `heartbeat flow` 会发送 `X-Worker-Secret` 与 Phase 26 签名请求头。
 
 边界：Phase 27 只是 Customer Machine Worker Bootstrap，不接 OpenClaw，不做 TikTok / YouTube / X 自动化、自动登录、Cookie 注入、代理池、指纹绕过、验证码处理或真实平台自动化。
+
+## Phase 29 Worker Client Packaging
+
+Windows:
+
+```powershell
+copy worker_client\worker_config.example.yaml worker_client\worker_config.yaml
+.\packaging\windows_install_requirements.ps1
+.\packaging\windows_register_worker.ps1
+.\packaging\windows_start_worker.ps1
+```
+
+Mac:
+
+```bash
+cp worker_client/worker_config.example.yaml worker_client/worker_config.yaml
+bash packaging/mac_install_requirements.sh
+bash packaging/mac_register_worker.sh
+bash packaging/mac_start_worker.sh
+```
+
+Local verification:
+
+```text
+GET http://127.0.0.1:9100/local/status
+GET http://127.0.0.1:9100/local/health
+GET http://127.0.0.1:9100/local/logs
+```
+
+Scripts include `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`. Runtime writes `worker_client/runtime_state/status.json` and `worker_client/logs/worker.log`; both are ignored by Git. This is Worker Console Foundation only: no GUI, no exe/dmg packaging.
+
+## Phase 30 Worker Console Deployment
+
+Local development:
+
+```powershell
+python -m worker_client.cli start
+cd worker_console
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The console uses `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`. Build with `npm run build`.
+
+This is Web GUI Foundation only: no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg packaging.
+## Phase 31：Worker Console Desktop 本地运行
+
+桌面端仍依赖客户机本地 Worker API。先启动 `worker_client`：
+
+```powershell
+python -m worker_client.cli start
+```
+
+再启动 Tauri 桌面壳：
+
+```powershell
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+默认连接：
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+如果当前机器缺少 Rust 或 Tauri 系统依赖，可以先以 `npm run build` 作为前端构建验证，并检查 `worker_console_desktop/src-tauri/tauri.conf.json`。当前没有正式 exe / dmg，没有系统托盘，没有自动更新。

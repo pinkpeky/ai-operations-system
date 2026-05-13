@@ -115,7 +115,7 @@ capabilities:
         async def serve(self) -> None:
             served["called"] = True
 
-    monkeypatch.setattr("worker_client.cli.create_worker_client_app", lambda config, state=None: object())
+    monkeypatch.setattr("worker_client.cli.create_worker_client_app", lambda config, state=None, manager=None: object())
     monkeypatch.setattr("worker_client.cli.uvicorn.Server", FakeServer)
 
     assert main(["--config", str(config_path), "serve", "--host", "127.0.0.1", "--port", "9109"]) == 0

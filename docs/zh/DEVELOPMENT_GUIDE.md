@@ -1,5 +1,23 @@
 # 开发指南
 
+## Phase 28 ????
+
+?? OpenClaw Worker Adapter Foundation ???????????? docs ???
+
+- `worker_client/openclaw/` ????? OpenClaw phase ????? mock-only?
+- `OpenClawWorkerClient` ??????? Browser Worker ? `base_url` ??????? Workspace Isolation?
+- `openclaw_tool` ?????? `tool_call_logs`?OpenClaw action ?????? `openclaw_action_logs` ? `browser_security_audit_logs`?
+- ?? OpenClaw runtime routes ????????? `API_REFERENCE.md`?
+- ??????? TikTok / YouTube / X ?????????Cookie ???????????????????????????
+
+???????
+
+```powershell
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
 ## Phase 20 开发规则
 
 `worker/` 是独立 Browser Worker 服务，和 `app/` API Server 共享同一个仓库但运行在独立容器中。修改远程浏览器链路时必须同时检查：
@@ -350,3 +368,32 @@ python -m pytest
 docker compose up --build -d
 python scripts/verify_docs_runtime.py
 ```
+
+## Phase 29 Development Notes
+
+When changing Worker Client runtime behavior, update these together: `worker_client/runtime_manager.py`, `worker_client/status.py`, `worker_client/logging.py`, `worker_client/runtime.py`, `worker_client/local_api_client.py`, packaging scripts, and docs. Run `python -m pytest`, `docker compose up --build -d`, and `python scripts/verify_docs_runtime.py`.
+
+Do not log `worker_secret`. Do not commit `worker_client/runtime_state/status.json`, `worker_client/logs/worker.log`, `worker_client/worker_config.yaml`, or `worker_client/worker_state.json`.
+
+Phase 29 remains Worker Console Foundation only: no GUI, no Electron/Tauri/PySide, no system tray, and no exe/dmg packaging.
+
+## Phase 30 Worker Console Development Guide
+
+When changing `worker_console`, run `npm install` when dependencies change, then `npm run build`. Keep `worker_console/src/api/localWorkerClient.ts`, docs, and `scripts/verify_docs_runtime.py` synchronized. Do not add Electron, Tauri, PySide, system tray, auto update, exe / dmg packaging, or platform automation in Phase 30.
+## Phase 31：Worker Console Desktop 开发规则
+
+桌面壳位于 `worker_console_desktop`，使用 Tauri + React + Vite + TypeScript + Tailwind。新增桌面端能力时必须保持 Local API 契约稳定，优先复用 `worker_console_desktop/src/api/localWorkerClient.ts`。
+
+固定验证流程：
+
+```powershell
+cd worker_console_desktop
+npm install
+npm run build
+cd ..
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+当前不允许加入正式安装包、exe / dmg、system tray、autostart、auto update 或真实平台自动化能力。相关能力只能作为规划中路线写入 docs，不能写成已完成。

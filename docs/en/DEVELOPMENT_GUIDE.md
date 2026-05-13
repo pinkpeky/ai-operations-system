@@ -1,5 +1,23 @@
 # Development Guide
 
+## Phase 28 Development Rules
+
+When changing OpenClaw Worker Adapter Foundation, keep code, tests, and docs aligned:
+
+- `worker_client/openclaw/` must remain mock-only until a future real OpenClaw phase explicitly changes it.
+- `OpenClawWorkerClient` must call registered Browser Worker `base_url` values and must not bypass Workspace Isolation.
+- `openclaw_tool` must continue to write `tool_call_logs`; OpenClaw actions must continue to write `openclaw_action_logs` and `browser_security_audit_logs`.
+- New OpenClaw runtime routes must be documented in both `docs/zh/API_REFERENCE.md` and `docs/en/API_REFERENCE.md`.
+- Do not add TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation in this phase.
+
+Required verification flow:
+
+```powershell
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
 ## Phase 20 Development Rules
 
 `worker/` is the standalone Browser Worker service. It shares the repository with the API Server but runs as a separate container. Remote browser work must check:
@@ -505,3 +523,32 @@ python -m pytest
 docker compose up --build -d
 python scripts/verify_docs_runtime.py
 ```
+
+## Phase 29 Development Notes
+
+When changing Worker Client runtime behavior, update these together: `worker_client/runtime_manager.py`, `worker_client/status.py`, `worker_client/logging.py`, `worker_client/runtime.py`, `worker_client/local_api_client.py`, packaging scripts, and docs. Run `python -m pytest`, `docker compose up --build -d`, and `python scripts/verify_docs_runtime.py`.
+
+Do not log `worker_secret`. Do not commit `worker_client/runtime_state/status.json`, `worker_client/logs/worker.log`, `worker_client/worker_config.yaml`, or `worker_client/worker_state.json`.
+
+Phase 29 remains Worker Console Foundation only: no GUI, no Electron/Tauri/PySide, no system tray, and no exe/dmg packaging.
+
+## Phase 30 Worker Console Development Guide
+
+When changing `worker_console`, run `npm install` when dependencies change, then `npm run build`. Keep `worker_console/src/api/localWorkerClient.ts`, docs, and `scripts/verify_docs_runtime.py` synchronized. Do not add Electron, Tauri, PySide, system tray, auto update, exe / dmg packaging, or platform automation in Phase 30.
+## Phase 31: Worker Console Desktop Development Rules
+
+The desktop shell lives in `worker_console_desktop` and uses Tauri + React + Vite + TypeScript + Tailwind. New desktop features must keep the Local API contract stable and should reuse `worker_console_desktop/src/api/localWorkerClient.ts`.
+
+Required verification flow:
+
+```bash
+cd worker_console_desktop
+npm install
+npm run build
+cd ..
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+Do not add formal installers, exe / dmg packaging, system tray, autostart, auto update, or real platform automation in this phase. These capabilities may be documented only as planned roadmap items.

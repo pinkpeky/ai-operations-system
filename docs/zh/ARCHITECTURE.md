@@ -1,5 +1,23 @@
 # 架构说明
 
+## Phase 28 OpenClaw Worker Adapter Foundation
+
+Phase 28 在 Browser Worker 协议之上新增 mock OpenClaw 适配层：
+
+```text
+API Server / openclaw_tool
+-> OpenClawService
+-> BrowserWorkerSelector capability=openclaw
+-> OpenClawWorkerClient
+-> worker_client /openclaw/* mock runtime
+-> MockOpenClawProvider
+-> openclaw_action_logs + browser_security_audit_logs
+```
+
+服务端 `app/openclaw/` 负责 OpenClaw schemas、`OpenClawWorkerClient`、repository 和 service；客户机 `worker_client/openclaw/` 负责 `BaseOpenClawProvider`、`MockOpenClawProvider`、`OpenClawRuntime` 与 worker runtime routes。内置 `openclaw_tool` 复用同一服务路径，并记录 `tool_call_logs`。
+
+边界：当前只是 placeholder foundation，不调用真实 OpenClaw，不做社媒平台自动化、登录、Cookie 注入、代理池、指纹绕过或验证码自动化。
+
 ## Phase 20 Real Browser Worker Service
 
 Phase 20 在 Phase 19 Remote Browser Worker Foundation 之上新增真实独立 Worker 服务。当前浏览器远程执行链路为：
@@ -703,3 +721,50 @@ customer machine
 - `worker_config.yaml` 与 `worker_state.json` 只保存在客户机本地，并已加入 `.gitignore`。
 - 明文 `worker_secret` 只由服务端返回一次，之后仅保存在客户机 `worker_state.json`。
 - Phase 27 不接 OpenClaw，不做账号登录、Cookie 注入、代理池、指纹绕过、验证码处理、社媒平台自动化或托管式 Worker 集群。
+
+## Phase 29 Worker Runtime Manager Architecture
+
+`worker_client/runtime_manager.py` is the local control layer for customer-machine workers. It coordinates runtime lifecycle, heartbeat thread, runtime health, and `runtime_state`. Local state is written through `worker_client/status.py` to `worker_client/runtime_state/status.json`; local logs are written through `worker_client/logging.py` to `worker_client/logs/worker.log` with secret redaction. `worker_client/local_api_client.py` is the future Worker Console Foundation client.
+
+Local management API exposed by `worker_client/runtime.py`: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, `GET /local/logs`.
+
+`Desktop Runtime Placeholder` lives in `worker_client/desktop/`; Phase 29 has no GUI, no Electron, no Tauri, no PySide, no system tray, and no exe/dmg packaging.
+
+## Phase 30 Worker Console GUI Foundation
+
+`worker_console` is an independent local Web GUI project built with Vite, React, TypeScript, and Tailwind. It is not served by the central API container. Operators run it locally during worker-machine operation.
+
+Architecture:
+
+```text
+Worker Console Web UI
+↓
+worker_console/src/api/localWorkerClient.ts
+↓
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+↓
+worker_client.runtime /local/* API
+↓
+Worker Runtime Manager
+```
+
+Pages: Dashboard, Runtime Control, Logs, Connection Info. Current boundary: no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg.
+## Phase 31：Worker Console Desktop 架构
+
+`worker_console_desktop` 是 Tauri 桌面壳基础，运行在客户机本地，调用 `http://127.0.0.1:9100` 上的 `worker_client` Local API。
+
+流程：
+
+```text
+Tauri Window
+↓
+React Worker Console UI
+↓
+worker_console_desktop/src/api/localWorkerClient.ts
+↓
+worker_client local API
+↓
+runtime_manager / status / logging
+```
+
+当前桌面端只负责显示状态、日志和发起 runtime/heartbeat 控制请求；不包含系统托盘、开机自启、自动更新、正式安装包或真实平台自动化。

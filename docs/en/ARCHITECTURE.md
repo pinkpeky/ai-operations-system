@@ -1,5 +1,23 @@
 # Architecture
 
+## Phase 28 OpenClaw Worker Adapter Foundation
+
+Phase 28 adds a mock OpenClaw adapter on top of the Browser Worker protocol:
+
+```text
+API Server / openclaw_tool
+-> OpenClawService
+-> BrowserWorkerSelector capability=openclaw
+-> OpenClawWorkerClient
+-> worker_client /openclaw/* mock runtime
+-> MockOpenClawProvider
+-> openclaw_action_logs + browser_security_audit_logs
+```
+
+The server-side `app/openclaw/` package owns OpenClaw schemas, `OpenClawWorkerClient`, repository, and service logic. The customer-machine `worker_client/openclaw/` package owns `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, and worker runtime routes. The builtin `openclaw_tool` calls the same service path and records `tool_call_logs`.
+
+Boundary: this is a placeholder foundation only. It does not call real OpenClaw, automate social platforms, log in, inject cookies, use proxy pools, bypass fingerprints, or automate captchas.
+
 ## Phase 20 Real Browser Worker Service
 
 Phase 20 adds a real independent worker service on top of the Phase 19 Remote Browser Worker protocol. The current remote browser execution path is:
@@ -931,3 +949,50 @@ Security boundary:
 - `worker_config.yaml` and `worker_state.json` are local-only and ignored by Git.
 - The plaintext `worker_secret` is returned once by the server and stored only in customer-machine `worker_state.json`.
 - Phase 27 does not add OpenClaw integration, browser account login, cookie injection, proxy pools, fingerprint bypass, captcha handling, social-platform automation, or a hosted worker fleet.
+
+## Phase 29 Worker Runtime Manager Architecture
+
+`worker_client/runtime_manager.py` is the local control layer for customer-machine workers. It coordinates runtime lifecycle, heartbeat thread, runtime health, and `runtime_state`. Local state is written through `worker_client/status.py` to `worker_client/runtime_state/status.json`; local logs are written through `worker_client/logging.py` to `worker_client/logs/worker.log` with secret redaction. `worker_client/local_api_client.py` is the future Worker Console Foundation client.
+
+Local management API exposed by `worker_client/runtime.py`: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, `GET /local/logs`.
+
+`Desktop Runtime Placeholder` lives in `worker_client/desktop/`; Phase 29 has no GUI, no Electron, no Tauri, no PySide, no system tray, and no exe/dmg packaging.
+
+## Phase 30 Worker Console GUI Foundation
+
+`worker_console` is an independent local Web GUI project built with Vite, React, TypeScript, and Tailwind. It is not served by the central API container. Operators run it locally during worker-machine operation.
+
+Architecture:
+
+```text
+Worker Console Web UI
+↓
+worker_console/src/api/localWorkerClient.ts
+↓
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+↓
+worker_client.runtime /local/* API
+↓
+Worker Runtime Manager
+```
+
+Pages: Dashboard, Runtime Control, Logs, Connection Info. Current boundary: no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg.
+## Phase 31: Worker Console Desktop Architecture
+
+`worker_console_desktop` is the Tauri desktop shell foundation. It runs on the customer machine and calls the `worker_client` Local API on `http://127.0.0.1:9100`.
+
+Flow:
+
+```text
+Tauri Window
+↓
+React Worker Console UI
+↓
+worker_console_desktop/src/api/localWorkerClient.ts
+↓
+worker_client local API
+↓
+runtime_manager / status / logging
+```
+
+The desktop app only displays status/logs and sends runtime/heartbeat control requests. It does not include a system tray, autostart, auto update, formal installer, or real platform automation.

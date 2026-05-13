@@ -20,6 +20,7 @@ from app.api.routes.llm import router as llm_router
 from app.api.routes.memory import router as memory_router
 from app.api.routes.multi_agent import router as multi_agent_router
 from app.api.routes.observability import router as observability_router
+from app.api.routes.openclaw import router as openclaw_router
 from app.api.routes.planning import router as planning_router
 from app.api.routes.rag import router as rag_router
 from app.api.routes.rag_eval import router as rag_eval_router
@@ -49,6 +50,7 @@ def create_api_router() -> APIRouter:
         router.include_router(memory_router)
         router.include_router(multi_agent_router)
         router.include_router(observability_router)
+        router.include_router(openclaw_router)
         router.include_router(planning_router)
         router.include_router(rag_router)
         router.include_router(rag_eval_router)

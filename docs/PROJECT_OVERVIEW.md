@@ -1,18 +1,18 @@
 # AI Operations System Project Overview
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 This is the entry point for `E:\ai-operations-system`. After Phase 10.5, `docs/` is the project Single Source of Truth. After Phase 27, this source of truth is also verified by runtime checks through `scripts/verify_docs_runtime.py`.
 
 ## Project Summary
 
-AI Operations System is a backend-first AI automation platform. It combines task orchestration, Agentic RAG, workspace isolation, knowledge lifecycle management, hybrid retrieval, reranking, evaluation trace storage, content generation, file-based knowledge ingestion, task reliability observability, foundational internal Tool Calling, Agent Memory foundation, fixed-chain Multi-Agent foundation, Agent Planning Foundation, Browser Adapter Foundation, Playwright Local Provider Integration, Remote Browser Worker Foundation, Real Browser Worker Service, Browser Worker Reliability, Persistent Browser Profile Foundation, Browser Profile Health & Recovery, Human-in-the-loop Browser Control, Browser Worker UI Access Placeholder, Browser Worker Security & Access Control, and Customer Machine Worker Bootstrap.
+AI Operations System is a backend-first AI automation platform. It combines task orchestration, Agentic RAG, workspace isolation, knowledge lifecycle management, hybrid retrieval, reranking, evaluation trace storage, content generation, file-based knowledge ingestion, task reliability observability, foundational internal Tool Calling, Agent Memory foundation, fixed-chain Multi-Agent foundation, Agent Planning Foundation, Browser Adapter Foundation, Playwright Local Provider Integration, Remote Browser Worker Foundation, Real Browser Worker Service, Browser Worker Reliability, Persistent Browser Profile Foundation, Browser Profile Health & Recovery, Human-in-the-loop Browser Control, Browser Worker UI Access Placeholder, Browser Worker Security & Access Control, Customer Machine Worker Bootstrap, and OpenClaw Worker Adapter Foundation.
 
 The project is not a frontend dashboard. It is a backend foundation for future content agents, support agents, data analysis agents, tool-calling agents, browser automation, monitoring, and more advanced multi-agent workflows.
 
 ## Current Status
 
-Phase 1 through Phase 27 are completed.
+Phase 1 through Phase 28 are completed.
 
 Completed capabilities:
 
@@ -47,6 +47,7 @@ Completed capabilities:
 - Phase 25 Browser Worker UI Access Placeholder with `BrowserUIAccessService`, `browser_ui_access_sessions`, `access_token_hash`, placeholder URL generation, `remote_control_url`, `live_view_url`, `devtools_url=null`, token validation/revoke/expire APIs, worker `/ui-access/capabilities`, and `browser_tool` actions `create_ui_access` / `revoke_ui_access`.
 - Phase 26 Browser Worker Security & Access Control with `BrowserWorkerAuthService`, `worker_secret_hash`, `api_key_hash`, `last_auth_at`, `auth_status`, `allowed_actions`, `allowed_domains`, signed worker request headers (`X-Worker-Signature`, `X-Worker-Timestamp`, `X-Worker-Nonce`), UI Access Scope fields (`scopes`, `one_time`, `used_at`, `revoked_reason`, `client_ip`, `user_agent`), `BrowserActionPolicyService`, `browser_security_audit_logs`, and security policy / audit APIs.
 - Phase 27 Customer Machine Worker Bootstrap with `worker_client`, `worker_config.example.yaml`, local `worker_config.yaml`, local-only `worker_state.json`, CLI commands `python -m worker_client.cli register`, `heartbeat`, `serve`, and `start`, customer machine registration flow, heartbeat flow, local worker runtime, and compatibility with the existing Browser Worker protocol.
+- Phase 28 OpenClaw Worker Adapter Foundation with `worker_client/openclaw`, `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, server-side `OpenClawWorkerClient`, `openclaw_tool`, `openclaw_action_logs`, OpenClaw mock worker runtime routes, and `/api/v1/openclaw/*` APIs.
 
 Experimental capabilities:
 
@@ -63,7 +64,7 @@ Planned capabilities:
 - Vector memory and graph memory.
 - Autonomous memory planning and summarization with real LLM.
 - Advanced Multi-Agent orchestration with autonomous planner, dynamic handoff policy, and ReAct-style loops.
-- Browser Agent, OpenClaw, and platform-specific automation.
+- Real OpenClaw integration, Browser Agent, and platform-specific automation.
 - Prometheus, Grafana, and production observability.
 - Full RBAC, JWT, OAuth, and external identity providers.
 
@@ -114,6 +115,20 @@ multipart upload
  -> embedding + Qdrant + DB lifecycle records
  -> temp cleanup
 ```
+
+OpenClaw Worker Adapter Foundation:
+
+```text
+API Server / openclaw_tool
+ -> OpenClawService
+ -> BrowserWorkerSelector capability=openclaw
+ -> OpenClawWorkerClient
+ -> worker_client /openclaw/* mock runtime
+ -> MockOpenClawProvider
+ -> openclaw_action_logs + browser_security_audit_logs
+```
+
+Current OpenClaw boundary: `OPENCLAW_PROVIDER=mock`, `OPENCLAW_ENABLED=True`, and `OPENCLAW_ACTION_TIMEOUT_SECONDS=60.0`. The adapter is a placeholder for future OpenClaw execution. It does not call real OpenClaw, does not automate TikTok / YouTube / X, and does not implement login, cookie injection, proxy pools, fingerprint bypass, or captcha automation.
 
 Docs Runtime Verification Architecture:
 
@@ -412,7 +427,7 @@ Phase 27 adds the `worker_client` package so a real customer machine, Windows PC
 
 The CLI commands are `python -m worker_client.cli register`, `python -m worker_client.cli heartbeat`, `python -m worker_client.cli serve`, and `python -m worker_client.cli start`. `start` reuses an existing worker state unless `--force-register` is passed. `worker_state.json` and local `worker_config.yaml` are ignored by Git and must not be committed.
 
-Phase 27 is a bootstrap foundation only. It does not implement OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
+Phase 27 is a bootstrap foundation only. Phase 28 adds a mock OpenClaw adapter on top of that worker protocol, but it still does not implement real OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
 
 ## Project Structure
 
@@ -427,6 +442,7 @@ app/
   middleware/     Workspace context middleware.
   memory/         Conversation sessions, messages, Agent Memory repositories, and MemoryService.
   multi_agent/    AgentRegistry, MultiAgentService, fixed chain orchestration, run/message/handoff repositories.
+  openclaw/       Server-side OpenClawWorkerClient, schemas, repository, service, and action logs.
   planning/       SimplePlannerAgent, PlanningService, plan/step/review repositories.
   rag/            Embedding, chunking, vector store, retrieval, hybrid search, and Agentic RAG.
   reranker/       Reranker provider abstraction and mock/local providers.
@@ -446,6 +462,7 @@ worker_client/
   registration.py                  AI Server worker registration client.
   heartbeat.py                     Signed heartbeat client and loop.
   runtime.py                       Customer machine Worker Runtime API.
+  openclaw/                       Mock OpenClaw provider, schemas, and runtime routes.
   cli.py                           register / heartbeat / serve / start CLI.
   worker_config.example.yaml       Safe example config; copy to worker_config.yaml locally.
 tests/            Unit and integration-style tests.
@@ -649,8 +666,9 @@ Not supported in Phase 11:
 - `browser-worker` is an independent local Docker service, but production-grade external worker fleets, scheduling, autoscaling, and remote machine deployment are not implemented yet.
 - Browser UI Access is a placeholder only: no real VNC, noVNC, Chrome DevTools remote UI, or live browser screen stream exists yet.
 - Browser Worker Security is a foundation layer only: it adds worker secret hashes, signed request plumbing, UI Access Scope checks, Browser Action Policy, and audit logs, but it is not a full RBAC/JWT/OAuth or real platform account security system.
-- Customer Machine Worker Bootstrap provides `worker_client` only; it does not ship a managed remote worker fleet, OpenClaw integration, platform account automation, or a hosted customer-machine installer.
-- No OpenClaw, Selenium, TikTok, YouTube, X, OCR, visual AI, login automation, cookie injection, fingerprint bypass, proxy pool, captcha automation, real external Browser Worker deployment, or real platform automation.
+- Customer Machine Worker Bootstrap provides `worker_client` only; it does not ship a managed remote worker fleet, platform account automation, or a hosted customer-machine installer.
+- OpenClaw is currently a mock adapter foundation only through `MockOpenClawProvider`; no real OpenClaw runtime is called.
+- No Selenium, TikTok, YouTube, X, OCR, visual AI, login automation, cookie injection, fingerprint bypass, proxy pool, captcha automation, real external Browser Worker deployment, or real platform automation.
 - No Grafana or Prometheus.
 - No frontend observability dashboard.
 - No full RBAC, JWT, OAuth, or third-party login.
@@ -679,7 +697,83 @@ Suggested next phases:
 4. Tool Calling advanced planning, function calling compatibility, and permission controls.
 5. Dynamic Multi-Agent orchestration and policy-driven handoff.
 6. Real noVNC / DevTools UI access and production Browser Worker fleet management after the placeholder protocol and safety model are hardened.
-7. OpenClaw Worker route after worker bootstrap, profile safety, and human takeover boundaries are production-hardened.
+7. Real OpenClaw Worker route after worker bootstrap, profile safety, and human takeover boundaries are production-hardened.
 8. Harder security policy management for worker fleets, scoped browser profiles, and production identity integration.
 9. External observability with Prometheus and Grafana.
 10. Full authentication and authorization.
+
+## Phase 29: Worker Client Packaging & Worker Console Foundation
+
+Phase 29 is completed. It upgrades the customer-machine `worker_client` from a set of CLI scripts into a locally manageable runtime foundation. This is not a GUI phase; it is the base layer that a future Worker Console GUI can call.
+
+Completed runtime foundation:
+
+- `Worker Runtime Manager` in `worker_client/runtime_manager.py` controls `start_runtime`, `stop_runtime`, `restart_runtime`, `runtime_health`, `start_heartbeat`, `stop_heartbeat`, and `runtime_state`.
+- `worker_client/status.py` manages local `worker_client/runtime_state/status.json` with `worker_id`, `worker_name`, `workspace_id`, `server_url`, `runtime_running`, `heartbeat_running`, `registered`, `last_heartbeat_at`, `last_error`, `current_status`, `openclaw_enabled`, and `browser_enabled`.
+- `worker_client/logging.py` writes local logs to `worker_client/logs/worker.log` with simple rotation and worker secret redaction.
+- `worker_client/runtime.py` exposes local management routes: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, and `GET /local/logs`.
+- `worker_client/local_api_client.py` provides a Python client for future Worker Console Foundation integration.
+- `Packaging Scripts` live under `packaging/`, including `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`.
+- `Desktop Runtime Placeholder` lives under `worker_client/desktop/` and documents future Tauri, Electron, PySide, system tray, auto start, Worker Console GUI, and embedded browser control routes.
+
+Current Phase 29 limits:
+
+- no GUI
+- no system tray
+- no Electron
+- no Tauri
+- no PySide
+- no EXE / DMG packaging
+- no embedded browser-control UI
+- no TikTok, YouTube, X, login automation, cookie injection, fingerprint bypass, proxy pool, captcha automation, or real platform automation
+
+## Phase 30: Worker Console GUI Foundation
+
+Phase 30 is completed. `worker_console` is an independent Vite + React + TypeScript + Tailwind local Web GUI for customer-machine Worker management. It connects to `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100` by default and calls the Worker Client Local API from Phase 29.
+
+Completed Worker Console GUI Foundation:
+
+- Dashboard for `worker_name`, `worker_id`, `workspace_id`, `server_url`, `registered`, `runtime_running`, `heartbeat_running`, `current_status`, `last_heartbeat_at`, and `last_error`.
+- Runtime Control for `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, and `POST /local/heartbeat/stop`.
+- Logs view backed by `GET /local/logs`, with refresh and error highlighting.
+- Connection Info for `server_url`, `worker_base_url`, `runtime_port`, `openclaw_enabled`, and `browser_enabled`.
+- Frontend Local API client: `worker_console/src/api/localWorkerClient.ts`.
+- Error state: `Worker API unreachable`, `请确认 worker_client 是否启动`, and `请确认端口是否为 9100`.
+
+Phase 30 current boundary: local Web GUI Foundation only, no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg, no TikTok / YouTube / X automation, no login automation, no proxy pools, no fingerprint bypass, no captcha automation, and no real platform automation.
+
+## Phase 31: Worker Console Desktop App Foundation
+
+Phase 31 is completed. `worker_console_desktop` upgrades the Phase 30 web console into a Tauri desktop shell foundation while preserving the same local Worker API contract. It is a desktop app foundation, not a production installer release.
+
+Completed Worker Console Desktop App Foundation:
+
+- Desktop shell project: `worker_console_desktop`.
+- Tauri configuration: `worker_console_desktop/src-tauri/tauri.conf.json`.
+- React + Vite + TypeScript + Tailwind frontend reused from the Worker Console workflow.
+- Default local Worker API: `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`.
+- Default status check: `http://127.0.0.1:9100/local/status`.
+- Desktop window shows Worker status, runtime state, heartbeat state, connection info, and logs.
+- Runtime controls call `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, and `POST /local/heartbeat/stop`.
+- Local API client: `worker_console_desktop/src/api/localWorkerClient.ts`.
+- Development command: `npm run tauri dev`.
+- Frontend build command: `npm run build`.
+- Worker API unreachable state explicitly says the Worker Runtime is not started, asks the operator to start `worker_client`, or to use the packaging scripts.
+- UI text includes `Worker Runtime 未启动` for local runtime detection failures.
+
+Current Phase 31 boundary:
+
+- no exe / dmg
+- no system tray
+- no auto update
+- no autostart
+- no formal installer release
+- no TikTok / YouTube / X automation
+- no login automation
+- no cookie injection
+- no proxy pool
+- no fingerprint bypass
+- no captcha automation
+- no real platform automation
+
+Future Worker Console Desktop roadmap: tray / autostart / installer can be layered on top of this Tauri shell after Worker security, profile safety, and human-control boundaries remain stable.

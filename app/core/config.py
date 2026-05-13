@@ -160,6 +160,9 @@ class Settings(BaseSettings):
         alias="BROWSER_ACTION_RETRY_BACKOFF_SECONDS",
     )
     screenshot_retention_days: int = Field(default=7, ge=1, le=3650, alias="SCREENSHOT_RETENTION_DAYS")
+    openclaw_provider: str = Field(default="mock", alias="OPENCLAW_PROVIDER")
+    openclaw_enabled: bool = Field(default=True, alias="OPENCLAW_ENABLED")
+    openclaw_action_timeout_seconds: float = Field(default=60.0, ge=1.0, le=600.0, alias="OPENCLAW_ACTION_TIMEOUT_SECONDS")
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:

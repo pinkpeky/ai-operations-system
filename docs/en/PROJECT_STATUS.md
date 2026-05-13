@@ -1,12 +1,12 @@
 # Project Status
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 This document summarizes the current engineering status of `E:\ai-operations-system`.
 
 ## Overall Status
 
-Phase 1 through Phase 27 are complete.
+Phase 1 through Phase 28 are complete.
 
 The system currently includes:
 
@@ -43,6 +43,7 @@ The system currently includes:
 - Browser Worker UI Access Placeholder.
 - Browser Worker Security & Access Control.
 - Customer Machine Worker Bootstrap.
+- OpenClaw Worker Adapter Foundation.
 
 ## Completed Phases
 
@@ -81,6 +82,21 @@ The system currently includes:
 | Phase 25 | Complete | Browser Worker UI Access Placeholder with `BrowserUIAccessService`, `browser_ui_access_sessions`, `access_token_hash`, placeholder URL generation, token validate/revoke/expire, `/ui-access/capabilities`, `create_ui_access`, and `revoke_ui_access`. |
 | Phase 26 | Complete | Browser Worker Security & Access Control with `BrowserWorkerAuthService`, `worker_secret_hash`, signed worker request headers, UI Access Scope, `BrowserActionPolicyService`, and `browser_security_audit_logs`. |
 | Phase 27 | Complete | Customer Machine Worker Bootstrap with `worker_client`, `worker_config.example.yaml`, local `worker_config.yaml`, local-only `worker_state.json`, CLI register/heartbeat/serve/start, registration flow, heartbeat flow, and local worker runtime. |
+| Phase 28 | Complete | OpenClaw Worker Adapter Foundation with `worker_client/openclaw`, `MockOpenClawProvider`, `OpenClawRuntime`, server-side `OpenClawWorkerClient`, `openclaw_tool`, `openclaw_action_logs`, and mock `/openclaw/*` runtime routes. |
+
+## Phase 28 Summary
+
+OpenClaw Worker Adapter Foundation:
+
+- Adds `worker_client/openclaw/` with `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, and action schemas.
+- Adds worker_client runtime routes: `GET /openclaw/health`, `GET /openclaw/capabilities`, and `POST /openclaw/actions`.
+- Adds server-side `app/openclaw/` with `OpenClawWorkerClient`, schemas, repository, and service.
+- Adds `openclaw_action_logs`.
+- Adds `GET /api/v1/openclaw/health`, `GET /api/v1/openclaw/capabilities`, and `POST /api/v1/openclaw/actions`.
+- Adds builtin `openclaw_tool`, which writes `tool_call_logs`, `openclaw_action_logs`, and `browser_security_audit_logs`.
+- Adds `OPENCLAW_PROVIDER=mock`, `OPENCLAW_ENABLED=true`, and `OPENCLAW_ACTION_TIMEOUT_SECONDS=60`.
+
+Boundary: Phase 28 is an adapter foundation only. It does not call real OpenClaw, integrate TikTok / YouTube / X, perform account login, auto-publish, automate captchas, use proxy pools, bypass fingerprints, or run real platform automation.
 
 ## Phase 11 Summary
 
@@ -412,3 +428,53 @@ python scripts/verify_docs_runtime.py
 ```
 
 Docs are considered synchronized only when the docs verifier returns `SUMMARY: PASS`.
+
+## Phase 29 Worker Client Packaging & Worker Console Foundation
+
+Completed:
+
+- Added `Worker Runtime Manager` in `worker_client/runtime_manager.py` with `start_runtime`, `stop_runtime`, `restart_runtime`, `runtime_health`, `start_heartbeat`, `stop_heartbeat`, and `runtime_state`.
+- Added local status in `worker_client/status.py`; runtime writes `worker_client/runtime_state/status.json` with `worker_id`, `worker_name`, `workspace_id`, `server_url`, `runtime_running`, `heartbeat_running`, `registered`, `last_heartbeat_at`, `last_error`, `current_status`, `openclaw_enabled`, and `browser_enabled`.
+- Added local logging in `worker_client/logging.py`; logs go to `worker_client/logs/worker.log` with simple rotation and secret redaction.
+- Extended `worker_client/runtime.py` with local management API: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, and `GET /local/logs`.
+- Added `worker_client/local_api_client.py` as the Python client for future Worker Console Foundation / GUI work.
+- Added Packaging Scripts such as `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`.
+- Added `Desktop Runtime Placeholder` in `worker_client/desktop/README.md` and `placeholder.py`.
+
+Explicitly not included: GUI, system tray, Electron, Tauri, PySide, exe/dmg packaging, real remote browser screen, real platform automation, TikTok / YouTube / X automation, login automation, cookie injection, fingerprint bypass, proxy pools, or captcha automation.
+
+## Phase 30 Worker Console GUI Foundation
+
+Completed:
+
+- Added `worker_console` as an independent frontend project using Vite, React, TypeScript, and Tailwind.
+- Default local API: `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`.
+- Added Dashboard, Runtime Control, Logs, and Connection Info sections.
+- Added `worker_console/src/api/localWorkerClient.ts` with `getStatus`, `getHealth`, `getLogs`, `startRuntime`, `stopRuntime`, `restartRuntime`, `startHeartbeat`, and `stopHeartbeat`.
+- When the local API is unavailable, the UI shows `Worker API unreachable`, `请确认 worker_client 是否启动`, and `请确认端口是否为 9100`.
+
+Explicitly not included: system tray, auto update, Electron, Tauri, PySide, no exe / dmg, TikTok / YouTube / X automation, login automation, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
+## Phase 31: Worker Console Desktop App Foundation
+
+Status: completed.
+
+This phase adds `worker_console_desktop`, a Tauri + React + Vite + TypeScript + Tailwind desktop shell foundation for the local Worker Console. The desktop app defaults to `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100` and calls the Phase 29 Local API for Worker status, runtime state, heartbeat state, connection info, and logs.
+
+Key files:
+
+- `worker_console_desktop/package.json`
+- `worker_console_desktop/src/api/localWorkerClient.ts`
+- `worker_console_desktop/src/main.tsx`
+- `worker_console_desktop/src-tauri/tauri.conf.json`
+- `worker_console_desktop/src-tauri/src/main.rs`
+
+Development commands:
+
+```bash
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+Boundary: no formal installer, no exe / dmg, no system tray, no auto update, no autostart, and no real platform automation.

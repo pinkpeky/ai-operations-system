@@ -1,6 +1,6 @@
 # API Reference
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 All current APIs are mounted under `/api/v1`.
 
@@ -12,6 +12,135 @@ Workspace-scoped APIs require:
 X-Workspace-Id: <workspace id>
 X-User-Id: <optional user id>
 ```
+
+## Phase 28 OpenClaw Worker Adapter Foundation
+
+Status: production foundation / mock placeholder. Phase 28 adds an OpenClaw Adapter Foundation on top of the customer-machine Browser Worker protocol. It implements `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, server-side `OpenClawWorkerClient`, `openclaw_tool`, `openclaw_action_logs`, and mock worker runtime routes. It does not call real OpenClaw, automate TikTok / YouTube / X, perform automatic login, inject cookies, use proxy pools, bypass fingerprints, or automate captchas.
+
+Runtime config: `OPENCLAW_PROVIDER=mock`, `OPENCLAW_ENABLED=true`, `OPENCLAW_ACTION_TIMEOUT_SECONDS=60`.
+
+Tables: `openclaw_action_logs`; security audit events continue to use `browser_security_audit_logs`.
+
+Worker Client files: `worker_client/openclaw/provider.py`, `worker_client/openclaw/mock_provider.py`, `worker_client/openclaw/schemas.py`, and `worker_client/openclaw/runtime.py`.
+
+### GET `/api/v1/openclaw/health`
+
+Required headers: `X-Workspace-Id`, optional `X-User-Id`.
+
+Response JSON:
+
+```json
+{
+  "success": true,
+  "provider": "mock",
+  "enabled": true,
+  "reachable": true,
+  "worker_id": "WORKER_ID",
+  "worker_name": "local-windows-worker-1",
+  "mock": true,
+  "version": "mock-openclaw-0.1",
+  "error": null,
+  "raw": {
+    "real_openclaw_called": false
+  }
+}
+```
+
+### GET `/api/v1/openclaw/capabilities`
+
+Required headers: `X-Workspace-Id`, optional `X-User-Id`.
+
+Response JSON:
+
+```json
+{
+  "success": true,
+  "provider": "mock",
+  "enabled": true,
+  "worker_id": "WORKER_ID",
+  "worker_name": "local-windows-worker-1",
+  "mock": true,
+  "capabilities": {
+    "openclaw": true,
+    "real_openclaw": false,
+    "platform_automation": false
+  },
+  "actions": ["health_check", "list_capabilities", "execute_action"],
+  "error": null,
+  "raw": {}
+}
+```
+
+### POST `/api/v1/openclaw/actions`
+
+Required headers: `X-Workspace-Id`, optional `X-User-Id`.
+
+Request JSON:
+
+```json
+{
+  "action_type": "mock_inspect",
+  "target": "https://example.com",
+  "input_payload": {
+    "note": "phase28 smoke"
+  },
+  "profile_id": null,
+  "browser_session_id": null,
+  "metadata": {
+    "phase": "28"
+  }
+}
+```
+
+Response JSON:
+
+```json
+{
+  "success": true,
+  "action_type": "mock_inspect",
+  "output_payload": {
+    "message": "mock openclaw action success",
+    "real_openclaw_called": false
+  },
+  "error": null,
+  "duration_ms": 0,
+  "provider": "mock",
+  "mock": true,
+  "worker_id": "WORKER_ID",
+  "log_id": "OPENCLAW_ACTION_LOG_ID"
+}
+```
+
+### Worker Runtime OpenClaw Mock Routes
+
+Worker Runtime protocol endpoints:
+
+- `GET /api/v1/browser-worker-runtime/openclaw/health`
+- `GET /api/v1/browser-worker-runtime/openclaw/capabilities`
+- `POST /api/v1/browser-worker-runtime/openclaw/actions`
+- `GET /openclaw/health` on worker_client runtime
+- `GET /openclaw/capabilities` on worker_client runtime
+- `POST /openclaw/actions` on worker_client runtime
+
+### `openclaw_tool`
+
+The Tool Registry now includes `openclaw_tool`, supporting `health_check`, `list_capabilities`, and `execute_action`.
+
+Tool input:
+
+```json
+{
+  "action_type": "execute_action",
+  "openclaw_action_type": "mock_inspect",
+  "target": "https://example.com",
+  "input_payload": {},
+  "metadata": {
+    "phase": "28"
+  }
+}
+```
+
+Boundary: `openclaw_tool` only calls the mock worker adapter and writes `tool_call_logs`, `openclaw_action_logs`, and `browser_security_audit_logs`. It is not a Browser Agent, does not do autonomous planning, does not call real OpenClaw, and does not execute real platform actions.
 
 ## Phase 27 Customer Machine Worker Bootstrap
 
@@ -1078,7 +1207,7 @@ Task observability tables:
 
 ## Tool Calling
 
-Status: production foundation. The current implementation is an internal Tool Framework with manual tool calls only. It does not include Browser Agent, OpenClaw, Playwright, Selenium, autonomous planner, or ReAct.
+Status: production foundation. The current implementation is an internal Tool Framework with manual tool calls only. `openclaw_tool` is a Phase 28 mock/placeholder adapter; this layer does not include Browser Agent, real OpenClaw, Playwright, Selenium, autonomous planner, or ReAct.
 
 ### GET `/api/v1/tools`
 
@@ -2379,3 +2508,102 @@ Response:
   ]
 }
 ```
+
+## Phase 29 Worker Client Local Management API
+
+Status: completed runtime foundation. These endpoints are exposed by the customer-machine `worker_client.runtime` service, not by the central AI Server OpenAPI.
+
+Required local host: default `runtime_host: 127.0.0.1`, `runtime_port: 9100`.
+
+- `GET /local/status`
+  - response: local runtime state from `worker_client/status.py`, backed by `worker_client/runtime_state/status.json`.
+  - fields: `worker_id`, `worker_name`, `workspace_id`, `server_url`, `runtime_running`, `heartbeat_running`, `registered`, `last_heartbeat_at`, `last_error`, `current_status`, `openclaw_enabled`, `browser_enabled`.
+- `GET /local/health`
+  - response: `Worker Runtime Manager` health with `runtime_running`, `heartbeat_running`, `host`, `port`, and `localhost_only`.
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+- `GET /local/logs`
+  - response: recent lines from `worker_client/logs/worker.log`.
+
+Implementation files:
+
+- `worker_client/runtime_manager.py`
+- `worker_client/status.py`
+- `worker_client/logging.py`
+- `worker_client/local_api_client.py`
+- `worker_client/runtime_state/status.json`
+- `worker_client/logs/worker.log`
+
+Packaging Scripts:
+
+- `packaging/windows_start_worker.ps1`
+- `packaging/mac_start_worker.sh`
+
+Worker Console Foundation:
+
+- `Desktop Runtime Placeholder` exists under `worker_client/desktop/`.
+- Current state is `no GUI`; no Electron, no Tauri, no PySide, no system tray, no exe/dmg packaging.
+
+## Phase 30 Worker Console Local Web API Usage
+
+Worker Console frontend calls the local worker client API through `worker_console/src/api/localWorkerClient.ts`.
+
+Config:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+Used local endpoints:
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+UI unreachable state: `Worker API unreachable`, `请确认 worker_client 是否启动`, `请确认端口是否为 9100`.
+
+Phase 30 API doc marker: Worker Console GUI Foundation uses Vite, React, TypeScript, and Tailwind. Runtime Control is local-only. Current boundary: no exe / dmg.
+## Phase 31: Worker Console Desktop Local API
+
+Status: completed, local desktop shell capability. Scope name: Worker Console Desktop App Foundation.
+
+`worker_console_desktop` does not add new AI Server APIs. It reuses the customer-machine `worker_client` Local API:
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+Default configuration:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+status_url=http://127.0.0.1:9100/local/status
+tauri_config=worker_console_desktop/src-tauri/tauri.conf.json
+src-tauri/tauri.conf.json
+```
+
+Unreachable-state text includes `Worker Runtime 未启动`.
+
+Development commands:
+
+```bash
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+Current boundary: no exe / dmg, no system tray, no auto update, and no formal installer.

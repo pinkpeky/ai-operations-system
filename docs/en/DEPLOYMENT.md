@@ -1,5 +1,26 @@
 # Deployment
 
+## Phase 28 OpenClaw Adapter Smoke Test
+
+Current OpenClaw runtime is mock only:
+
+```env
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
+```
+
+Docker / local smoke flow:
+
+1. Start the API stack with `docker compose up --build -d`.
+2. Start or register a worker that advertises `"openclaw": true` in capabilities.
+3. Call `GET /api/v1/openclaw/health` with `X-Workspace-Id`.
+4. Call `GET /api/v1/openclaw/capabilities`.
+5. Call `POST /api/v1/openclaw/actions` with a mock action such as `mock_inspect`.
+6. Confirm `openclaw_action_logs`, `tool_call_logs` when using `openclaw_tool`, and `browser_security_audit_logs`.
+
+Boundary: this does not call real OpenClaw and must not be used for TikTok / YouTube / X, login, cookies, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
+
 ## Phase 20 browser-worker Startup and Verification
 
 Docker Compose now includes an independent service:
@@ -975,3 +996,72 @@ Security notes:
 - The heartbeat flow sends `X-Worker-Secret` plus Phase 26 signed request headers.
 
 Boundary: Phase 27 is Customer Machine Worker Bootstrap only. It does not implement OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha handling, or real platform automation.
+
+## Phase 29 Worker Client Packaging
+
+Windows:
+
+```powershell
+copy worker_client\worker_config.example.yaml worker_client\worker_config.yaml
+.\packaging\windows_install_requirements.ps1
+.\packaging\windows_register_worker.ps1
+.\packaging\windows_start_worker.ps1
+```
+
+Mac:
+
+```bash
+cp worker_client/worker_config.example.yaml worker_client/worker_config.yaml
+bash packaging/mac_install_requirements.sh
+bash packaging/mac_register_worker.sh
+bash packaging/mac_start_worker.sh
+```
+
+Local verification:
+
+```text
+GET http://127.0.0.1:9100/local/status
+GET http://127.0.0.1:9100/local/health
+GET http://127.0.0.1:9100/local/logs
+```
+
+Scripts include `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`. Runtime writes `worker_client/runtime_state/status.json` and `worker_client/logs/worker.log`; both are ignored by Git. This is Worker Console Foundation only: no GUI, no exe/dmg packaging.
+
+## Phase 30 Worker Console Deployment
+
+Local development:
+
+```powershell
+python -m worker_client.cli start
+cd worker_console
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The console uses `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`. Build with `npm run build`.
+
+This is Web GUI Foundation only: no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg packaging.
+## Phase 31: Worker Console Desktop Local Run
+
+The desktop app still depends on the local customer-machine Worker API. Start `worker_client` first:
+
+```bash
+python -m worker_client.cli start
+```
+
+Then start the Tauri desktop shell:
+
+```bash
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+Default connection:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+If the machine lacks Rust or Tauri platform dependencies, use `npm run build` for frontend validation and inspect `worker_console_desktop/src-tauri/tauri.conf.json`. This phase does not ship a formal exe / dmg, system tray, or auto update.

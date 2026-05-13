@@ -35,6 +35,7 @@ from app.browser.remote.services import BrowserSessionCleanupService, BrowserWor
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
+from app.openclaw.schemas import OpenClawActionRequest, OpenClawActionResponse, OpenClawCapabilitiesResponse, OpenClawHealthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +270,7 @@ async def browser_worker_runtime_health() -> BrowserWorkerRuntimeHealthResponse:
             "persistent_profile": True,
             "human_control": True,
             "ui_access_placeholder": True,
+            "openclaw": True,
         },
         message="mock browser worker runtime reachable",
     )
@@ -279,6 +281,69 @@ async def mock_worker_ui_access_capabilities() -> BrowserWorkerUIAccessCapabilit
     """Mock worker runtime UI access placeholder capabilities."""
 
     return BrowserWorkerUIAccessCapabilitiesResponse(vnc=False, novnc=False, devtools=False, placeholder=True)
+
+
+@runtime_router.get("/openclaw/health", response_model=OpenClawHealthResponse)
+async def mock_worker_openclaw_health() -> OpenClawHealthResponse:
+    """Mock worker runtime OpenClaw health。"""
+
+    return OpenClawHealthResponse(
+        success=True,
+        provider="mock",
+        enabled=True,
+        reachable=True,
+        mock=True,
+        version="mock-openclaw-0.1",
+        error=None,
+        raw={"real_openclaw_called": False},
+    )
+
+
+@runtime_router.get("/openclaw/capabilities", response_model=OpenClawCapabilitiesResponse)
+async def mock_worker_openclaw_capabilities() -> OpenClawCapabilitiesResponse:
+    """Mock worker runtime OpenClaw capabilities。"""
+
+    return OpenClawCapabilitiesResponse(
+        success=True,
+        provider="mock",
+        enabled=True,
+        mock=True,
+        capabilities={
+            "openclaw": True,
+            "provider": "mock",
+            "real_openclaw": False,
+            "platform_automation": False,
+            "browser_worker_adapter": True,
+        },
+        actions=["health_check", "list_capabilities", "execute_action"],
+        error=None,
+        raw={"real_openclaw_called": False},
+    )
+
+
+@runtime_router.post("/openclaw/actions", response_model=OpenClawActionResponse)
+async def mock_worker_openclaw_action(request: OpenClawActionRequest) -> OpenClawActionResponse:
+    """Mock worker runtime OpenClaw action。"""
+
+    return OpenClawActionResponse(
+        success=True,
+        action_type=request.action_type,
+        output_payload={
+            "message": "mock openclaw action success",
+            "target": request.target,
+            "profile_id": request.profile_id,
+            "browser_session_id": request.browser_session_id,
+            "input_payload": request.input_payload,
+            "metadata": request.metadata,
+            "real_openclaw_called": False,
+        },
+        error=None,
+        duration_ms=0,
+        provider="mock",
+        mock=True,
+        worker_id=None,
+        log_id=None,
+    )
 
 
 @runtime_router.post("/sessions", response_model=BrowserWorkerRuntimeSessionResponse, status_code=201)

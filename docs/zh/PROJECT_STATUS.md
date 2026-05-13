@@ -1,5 +1,21 @@
 # 项目状态
 
+## Phase 28 OpenClaw Worker Adapter Foundation
+
+状态：已完成。
+
+Phase 28 在客户机 Browser Worker 侧预留 OpenClaw 执行适配层：
+
+- 新增 `worker_client/openclaw/`，包含 `BaseOpenClawProvider`、`MockOpenClawProvider`、`OpenClawRuntime`、OpenClaw action schemas。
+- `worker_client runtime` 新增 `GET /openclaw/health`、`GET /openclaw/capabilities`、`POST /openclaw/actions`，当前全部返回 mock。
+- 主应用新增 `app/openclaw/`，包含 `OpenClawWorkerClient`、schemas、repository、service。
+- 新增 `openclaw_action_logs` 表，用于记录 workspace、worker、action、payload、provider、mock、duration 与 error。
+- 新增 API：`GET /api/v1/openclaw/health`、`GET /api/v1/openclaw/capabilities`、`POST /api/v1/openclaw/actions`。
+- 新增内置工具 `openclaw_tool`，通过已注册 Browser Worker 调用 mock OpenClaw runtime，并写入 `tool_call_logs`、`openclaw_action_logs`、`browser_security_audit_logs`。
+- 新增配置：`OPENCLAW_PROVIDER=mock`、`OPENCLAW_ENABLED=true`、`OPENCLAW_ACTION_TIMEOUT_SECONDS=60`。
+
+边界：Phase 28 只做 OpenClaw Adapter Foundation，不调用真实 OpenClaw，不接 TikTok / YouTube / X，不做账号登录、自动发布、验证码、代理池、指纹绕过或真实平台自动化。
+
 ## Phase 27 Customer Machine Worker Bootstrap
 
 状态：已完成。
@@ -14,7 +30,7 @@ Phase 27 建立客户机 / Windows / Mac 机器作为 Browser Worker 接入 AI S
 - `local worker runtime` 复用现有 browser-worker 协议，支持 `GET /health`、`POST /sessions`、`POST /actions`、`POST /sessions/{session_id}/close`、`GET /ui-access/capabilities`。
 - `worker_config.yaml` 与 `worker_state.json` 已加入 `.gitignore`；`worker_secret` 只允许保存在客户机本地，不写入日志和 docs。
 
-边界：Phase 27 只是 Customer Machine Worker Bootstrap，不接 OpenClaw，不做 TikTok / YouTube / X 自动化、自动登录、Cookie 注入、代理池、指纹绕过、验证码处理或真实平台自动化。
+边界：Phase 27 只是 Customer Machine Worker Bootstrap；Phase 28 在此基础上增加 mock OpenClaw Adapter，但仍不调用真实 OpenClaw，不做 TikTok / YouTube / X 自动化、自动登录、Cookie 注入、代理池、指纹绕过、验证码处理或真实平台自动化。
 
 ## Phase 26 Browser Worker Security & Access Control
 
@@ -121,7 +137,7 @@ Phase 20 新增真正独立运行的 `browser-worker` 服务：
 
 更新日期：2026-05-12
 
-本文是中文主开发状态文档，记录 `E:\ai-operations-system` 的真实工程状态。当前状态：Phase 1 到 Phase 27 已完成。
+本文是中文主开发状态文档，记录 `E:\ai-operations-system` 的真实工程状态。当前状态：Phase 1 到 Phase 28 已完成。
 
 ## 总体状态
 
@@ -180,6 +196,7 @@ Phase 20 新增真正独立运行的 `browser-worker` 服务：
 | Phase 25 | 已完成 | Browser Worker UI Access Placeholder，`BrowserUIAccessService`、`browser_ui_access_sessions`、`access_token_hash`、placeholder URL、token validate/revoke/expire、`/ui-access/capabilities`、`create_ui_access`、`revoke_ui_access`。 |
 | Phase 26 | 已完成 | Browser Worker Security & Access Control，`BrowserWorkerAuthService`、`worker_secret_hash`、signed worker request、UI Access Scope、`BrowserActionPolicyService`、`browser_security_audit_logs`。 |
 | Phase 27 | 已完成 | Customer Machine Worker Bootstrap，`worker_client`、`worker_config.example.yaml`、本地 `worker_config.yaml`、本地 `worker_state.json`、`python -m worker_client.cli register`、`heartbeat`、`serve`、`start`、registration flow、heartbeat flow、local worker runtime。 |
+| Phase 28 | 已完成 | OpenClaw Worker Adapter Foundation，`worker_client/openclaw`、`MockOpenClawProvider`、`OpenClawRuntime`、服务端 `OpenClawWorkerClient`、`openclaw_tool`、`openclaw_action_logs`、mock `/openclaw/*` runtime routes。 |
 
 ## Phase 15 完成内容
 
@@ -328,3 +345,53 @@ python scripts/verify_docs_runtime.py
 ```
 
 只有 docs verifier 输出 `SUMMARY: PASS` 后，docs 才视为与当前 runtime 同步。
+
+## Phase 29 Worker Client Packaging & Worker Console Foundation
+
+已完成：
+
+- 新增 `Worker Runtime Manager`：`worker_client/runtime_manager.py`，支持 `start_runtime`、`stop_runtime`、`restart_runtime`、`runtime_health`、`start_heartbeat`、`stop_heartbeat`、`runtime_state`。
+- 新增本地状态层：`worker_client/status.py`，运行时写入 `worker_client/runtime_state/status.json`，记录 `worker_id`、`worker_name`、`workspace_id`、`server_url`、`runtime_running`、`heartbeat_running`、`registered`、`last_heartbeat_at`、`last_error`、`current_status`、`openclaw_enabled`、`browser_enabled`。
+- 新增本地日志层：`worker_client/logging.py`，写入 `worker_client/logs/worker.log`，支持简单轮转和 secret 脱敏。
+- 扩展 `worker_client/runtime.py` 本地管理 API：`GET /local/status`、`GET /local/health`、`POST /local/runtime/start`、`POST /local/runtime/stop`、`POST /local/runtime/restart`、`POST /local/heartbeat/start`、`POST /local/heartbeat/stop`、`GET /local/logs`。
+- 新增 `worker_client/local_api_client.py`，作为未来 Worker Console Foundation / GUI 的 Python client。
+- 新增 Packaging Scripts：`packaging/windows_start_worker.ps1`、`packaging/mac_start_worker.sh` 等 Windows/Mac 基础脚本。
+- 新增 `Desktop Runtime Placeholder`：`worker_client/desktop/README.md` 与 `placeholder.py`。
+
+明确不包含：GUI、系统托盘、Electron、Tauri、PySide、exe/dmg 打包、真实浏览器远程画面、真实平台自动化、TikTok / YouTube / X 自动化、登录自动化、Cookie 注入、指纹绕过、代理池或验证码自动化。
+
+## Phase 30 Worker Console GUI Foundation
+
+已完成：
+
+- 新增 `worker_console` 独立前端项目，技术栈为 Vite、React、TypeScript、Tailwind。
+- 默认本地 API：`VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`。
+- 新增 Dashboard、Runtime Control、Logs、Connection Info 页面区域。
+- 新增 `worker_console/src/api/localWorkerClient.ts`，支持 `getStatus`、`getHealth`、`getLogs`、`startRuntime`、`stopRuntime`、`restartRuntime`、`startHeartbeat`、`stopHeartbeat`。
+- 本地 API 不可用时显示 `Worker API unreachable`、`请确认 worker_client 是否启动`、`请确认端口是否为 9100`。
+
+明确不包含：system tray、auto update、Electron、Tauri、PySide、no exe / dmg、TikTok / YouTube / X 自动化、登录自动化、Cookie 注入、代理池、指纹绕过、验证码自动化或真实平台自动化。
+## Phase 31：Worker Console Desktop App Foundation
+
+状态：已完成。
+
+本阶段新增 `worker_console_desktop`，使用 Tauri + React + Vite + TypeScript + Tailwind 建立本地 Worker Console 桌面壳基础。桌面端默认通过 `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100` 调用 Phase 29 的 Local API，并显示 Worker status、runtime state、heartbeat state、connection info 和 logs。
+
+关键文件：
+
+- `worker_console_desktop/package.json`
+- `worker_console_desktop/src/api/localWorkerClient.ts`
+- `worker_console_desktop/src/main.tsx`
+- `worker_console_desktop/src-tauri/tauri.conf.json`
+- `worker_console_desktop/src-tauri/src/main.rs`
+
+开发命令：
+
+```powershell
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+边界：当前没有正式安装包、no exe / dmg、no system tray、no auto update、无开机自启、无真实平台自动化。

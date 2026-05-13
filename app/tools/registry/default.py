@@ -6,6 +6,7 @@ from app.tools.builtin import (
     CurrentRuntimeTool,
     FileSearchTool,
     GetTaskStatusTool,
+    OpenClawTool,
     RagSearchTool,
 )
 from app.tools.registry.tool_registry import ToolRegistry
@@ -21,4 +22,5 @@ def build_default_tool_registry() -> ToolRegistry:
     registry.register_tool(GetTaskStatusTool())
     registry.register_tool(CurrentRuntimeTool())
     registry.register_tool(BrowserTool())
+    registry.register_tool(OpenClawTool())
     return registry

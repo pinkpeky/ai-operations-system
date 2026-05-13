@@ -30,6 +30,15 @@ docker-data/
 
 # Node
 node_modules/
+worker_console/.env
+worker_console/.env.local
+worker_console/dist/
+worker_console/tsconfig.tsbuildinfo
+worker_console_desktop/.env
+worker_console_desktop/.env.local
+worker_console_desktop/dist/
+worker_console_desktop/tsconfig.tsbuildinfo
+worker_console_desktop/src-tauri/target/
 
 # AI
 /models/
@@ -48,4 +57,6 @@ htmlcov/
 # Customer machine worker local secrets/state
 /worker_client/worker_config.yaml
 /worker_client/worker_state.json
+/worker_client/runtime_state/
+/worker_client/logs/
 worker_state.json

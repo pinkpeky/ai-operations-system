@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import httpx
 
 from worker_client.config import WorkerClientConfig, WorkerClientState, load_worker_state, save_worker_state
+from worker_client.logging import log_event
+from worker_client.status import update_status
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +32,21 @@ async def register_worker(
 ) -> WorkerRegistrationResult:
     """注册客户机 worker；已有 state 且未 force 时直接复用。"""
 
+    config.validate_config()
     existing = load_worker_state(config.state_path)
     if existing is not None and not force:
         logger.info("Worker already registered; reusing local state", extra={"worker_id": existing.worker_id})
+        update_status(
+            {
+                "worker_id": existing.worker_id,
+                "worker_name": existing.worker_name,
+                "workspace_id": existing.workspace_id,
+                "server_url": existing.server_url,
+                "registered": True,
+                "current_status": "registered",
+            }
+        )
+        log_event("worker registration reused", extra={"worker_id": existing.worker_id})
         return WorkerRegistrationResult(registered=False, worker_id=existing.worker_id, state=existing, message="existing worker state reused")
 
     payload = {
@@ -69,8 +83,20 @@ async def register_worker(
         )
         save_worker_state(config.state_path, state)
         logger.info("Worker registered", extra={"worker_id": worker_id, "workspace_id": config.workspace_id})
+        update_status(
+            {
+                "worker_id": worker_id,
+                "worker_name": config.worker_name,
+                "workspace_id": config.workspace_id,
+                "server_url": config.normalized_server_url,
+                "registered": True,
+                "current_status": "registered",
+                "openclaw_enabled": config.openclaw_enabled,
+                "browser_enabled": True,
+            }
+        )
+        log_event("worker registered", extra={"worker_id": worker_id, "workspace_id": config.workspace_id})
         return WorkerRegistrationResult(registered=True, worker_id=worker_id, state=state, message="worker registered")
     finally:
         if close_client:
             await client.aclose()
-
