@@ -96,12 +96,14 @@ def fake_playwright(monkeypatch):  # type: ignore[no-untyped-def]
     class FakeChromium:
         async def launch(self, headless: bool, **_: object) -> FakeBrowser:
             self.headless = headless
+            self.launch_options = _
             return FakeBrowser()
 
         async def launch_persistent_context(self, user_data_dir: str, headless: bool, viewport: dict[str, int], **_: object) -> FakeContext:
             self.user_data_dir = user_data_dir
             self.headless = headless
             self.viewport = viewport
+            self.launch_options = _
             return FakeContext()
 
     class FakePlaywright:
@@ -113,7 +115,9 @@ def fake_playwright(monkeypatch):  # type: ignore[no-untyped-def]
 
     class FakeStarter:
         async def start(self) -> FakePlaywright:
-            return FakePlaywright()
+            playwright = FakePlaywright()
+            fake_async_api.last_playwright = playwright
+            return playwright
 
     fake_async_api = types.ModuleType("playwright.async_api")
     fake_async_api.async_playwright = lambda: FakeStarter()

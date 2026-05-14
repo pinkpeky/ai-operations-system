@@ -30,3 +30,22 @@ async def test_playwright_browser_runtime_basic_flow(fake_playwright, tmp_path) 
     assert shot.data["screenshot_base64"]
     assert "Example Domain" in (page.content or "")
     assert closed.success is True
+
+
+@pytest.mark.asyncio
+async def test_playwright_browser_runtime_uses_configured_executable_path(fake_playwright, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    executable = tmp_path / "chrome.exe"
+    executable.write_text("", encoding="utf-8")
+    provider = PlaywrightBrowserRuntimeProvider(
+        headless=True,
+        browser_executable_path=str(executable),
+        screenshot_dir=str(tmp_path / "screenshots"),
+        profile_dir=str(tmp_path / "profiles"),
+    )
+
+    created = await provider.create_session(
+        BrowserRuntimeCreateSessionRequest(workspace_id="workspace-playwright-runtime", browser="chromium")
+    )
+
+    assert created.success is True
+    assert fake_playwright.last_playwright.chromium.launch_options["executable_path"] == str(executable)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import os
 import re
 import time
 from datetime import UTC, datetime
@@ -33,6 +34,7 @@ class PlaywrightBrowserRuntimeProvider:
         screenshot_dir: str = "worker/screenshots",
         profile_dir: str = "worker/profiles",
         session_manager: BrowserRuntimeSessionManager | None = None,
+        browser_executable_path: str | None = None,
     ) -> None:
         self.timeout_ms = int(timeout_seconds * 1000)
         self.headless = headless
@@ -40,6 +42,7 @@ class PlaywrightBrowserRuntimeProvider:
         self.screenshot_dir = Path(screenshot_dir)
         self.profile_dir = Path(profile_dir)
         self.sessions = session_manager or BrowserRuntimeSessionManager()
+        self.browser_executable_path = browser_executable_path or self._discover_browser_executable_path()
 
     async def create_session(self, request: BrowserRuntimeCreateSessionRequest) -> BrowserRuntimeSessionResponse:
         """Create a Chromium session, optionally using a persistent context."""
@@ -67,13 +70,12 @@ class PlaywrightBrowserRuntimeProvider:
                 browser_instance = None
                 context = await playwright.chromium.launch_persistent_context(
                     user_data_dir=str(profile_path),
-                    headless=self.headless,
                     viewport=self.viewport,
-                    args=["--no-sandbox"],
+                    **self._launch_options(),
                 )
                 page = context.pages[0] if getattr(context, "pages", []) else await context.new_page()
             else:
-                browser_instance = await playwright.chromium.launch(headless=self.headless, args=["--no-sandbox"])
+                browser_instance = await playwright.chromium.launch(**self._launch_options())
                 context = await browser_instance.new_context(viewport=self.viewport)
                 page = await context.new_page()
             session_id = f"browser-runtime-session-{uuid4()}"
@@ -86,6 +88,7 @@ class PlaywrightBrowserRuntimeProvider:
                 "persistent_context_enabled": persistent,
                 "profile_id": request.profile_id,
                 "profile_path": str(profile_path) if profile_path is not None else request.profile_path,
+                "browser_executable_path": self.browser_executable_path,
                 "started_at": datetime.now(UTC).isoformat(),
                 "startup_latency_ms": self._elapsed_ms(started_at),
             }
@@ -230,6 +233,40 @@ class PlaywrightBrowserRuntimeProvider:
 
         for session_id in list(self.sessions.sessions.keys()):
             await self.close_session(session_id=session_id)
+
+    def _launch_options(self) -> dict[str, Any]:
+        options: dict[str, Any] = {"headless": self.headless, "args": ["--no-sandbox"]}
+        if self.browser_executable_path:
+            options["executable_path"] = self.browser_executable_path
+        return options
+
+    @staticmethod
+    def _discover_browser_executable_path() -> str | None:
+        for env_name in (
+            "WORKER_CLIENT_BROWSER_EXECUTABLE_PATH",
+            "BROWSER_EXECUTABLE_PATH",
+            "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
+        ):
+            configured = os.getenv(env_name)
+            if configured:
+                return configured
+
+        candidates = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/usr/bin/google-chrome",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/microsoft-edge",
+        ]
+        for candidate in candidates:
+            if Path(candidate).exists():
+                return candidate
+        return None
 
     def _require_session(self, session_id: str) -> BrowserRuntimeSessionRecord:
         record = self.sessions.get(session_id)
