@@ -39,7 +39,7 @@ def test_worker_console_desktop_package_scripts_and_deps() -> None:
 
     package = json.loads((DESKTOP_ROOT / "package.json").read_text(encoding="utf-8"))
 
-    assert package["version"] == "31.0.0"
+    assert package["version"] == "32.0.0"
     assert package["scripts"]["build"] == "tsc -b && vite build"
     assert package["scripts"]["tauri:dev"] == "tauri dev"
     assert package["dependencies"]["@tauri-apps/api"].startswith("^2")

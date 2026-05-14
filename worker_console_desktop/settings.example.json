@@ -1,0 +1,5 @@
+{
+  "localWorkerApi": "http://127.0.0.1:9100",
+  "minimizeToTray": true,
+  "refreshIntervalMs": 5000
+}

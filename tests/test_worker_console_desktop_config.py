@@ -14,7 +14,7 @@ def test_tauri_config_is_desktop_shell_foundation() -> None:
     config = json.loads((DESKTOP_ROOT / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
 
     assert config["productName"] == "AI Ops Worker Console"
-    assert config["version"] == "31.0.0"
+    assert config["version"] == "32.0.0"
     assert config["identifier"] == "com.aiops.workerconsole"
     assert config["build"]["devUrl"] == "http://127.0.0.1:5174"
     assert config["build"]["frontendDist"] == "../dist"
@@ -35,7 +35,6 @@ def test_tauri_rust_shell_is_minimal() -> None:
     cargo = (DESKTOP_ROOT / "src-tauri/Cargo.toml").read_text(encoding="utf-8")
 
     assert "tauri::Builder::default()" in main_rs
-    assert "system_tray" not in main_rs.lower()
     assert "autostart" not in main_rs.lower()
     assert "updater" not in main_rs.lower()
     assert "tauri = { version = \"2\"" in cargo

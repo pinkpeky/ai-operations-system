@@ -13,14 +13,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.browser.providers import (
-    BaseBrowserProvider,
-    BrowserProviderResult,
-    MockBrowserProvider,
-    PlaywrightBrowserProvider,
-    PlaywrightLocalProvider,
-    RemoteBrowserProvider,
-)
+from app.browser.providers.base import BaseBrowserProvider, BrowserProviderResult
+from app.browser.providers.mock_browser_provider import MockBrowserProvider
+from app.browser.providers.playwright_browser_provider import PlaywrightBrowserProvider
+from app.browser.providers.playwright_provider import PlaywrightLocalProvider
+from app.browser.providers.remote_browser_provider import RemoteBrowserProvider
 from app.browser.repositories import BrowserRepository
 from app.browser.services.browser_action_policy_service import BrowserActionPolicyService
 from app.browser.services.browser_profile_health_service import BrowserProfileHealthService

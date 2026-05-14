@@ -50,11 +50,17 @@ class ConversationMessage(Base):
     __tablename__ = "conversation_messages"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4, comment="消息 ID")
-    session_id: Mapped[UUID] = mapped_column(
+    session_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("conversation_sessions.id", ondelete="CASCADE"),
         index=True,
-        nullable=False,
+        nullable=True,
         comment="会话 ID",
+    )
+    thread_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("conversation_threads.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+        comment="Conversation Runtime thread ID",
     )
     workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="工作区 ID")
     role: Mapped[str] = mapped_column(
@@ -80,7 +86,8 @@ class ConversationMessage(Base):
         comment="创建时间",
     )
 
-    session: Mapped[ConversationSession] = relationship(back_populates="messages")
+    session: Mapped[ConversationSession | None] = relationship(back_populates="messages")
+    thread: Mapped["ConversationThread | None"] = relationship(back_populates="messages")
 
 
 class AgentMemory(Base):

@@ -1,4 +1,4 @@
-# Development Guide
+﻿# Development Guide
 
 ## Phase 28 Development Rules
 
@@ -552,3 +552,151 @@ python scripts/verify_docs_runtime.py
 ```
 
 Do not add formal installers, exe / dmg packaging, system tray, autostart, auto update, or real platform automation in this phase. These capabilities may be documented only as planned roadmap items.
+
+## Phase 32: System Tray Development Rules
+
+Phase 32 allows System Tray, Minimize To Tray, and local runtime controls in Tauri, but still forbids:
+
+- formal installer
+- exe / dmg release
+- real autostart registration
+- auto-update
+- arbitrary shell
+- remote shell
+- remote command execution
+
+Tray menu actions must emit `tray-control` events to the frontend. The frontend then calls local HTTP APIs through `localWorkerClient.ts`. Do not add `std::process`, shell plugins, process plugins, or arbitrary command execution logic in Rust or TypeScript.
+
+## Phase 33: Conversation Runtime Foundation
+
+Status: completed.
+
+Completed: `conversation_threads`, `conversation_events`, extended `conversation_messages.thread_id`, `ConversationService`, `run_conversation_turn`, Conversation APIs, Worker Console Chat Panel Foundation, Event Timeline, and polling event feed.
+
+Events include `message_received`, `planning_started`, `plan_created`, `agent_started`, `tool_called`, `worker_action_started`, `worker_action_completed`, `assistant_response`, and `error`.
+
+Boundary: this is Conversation Runtime Foundation only. It is not real WebSocket/SSE streaming, not real OpenClaw, not ComfyUI, and not TikTok / YouTube / X automation, login automation, cookie injection, proxy pool, fingerprint bypass, captcha automation, or real platform automation.
+
+## Phase 34 Remote Browser Runtime Development Notes
+
+Remote browser runtime development must keep the dispatch boundary clear:
+
+- API orchestration belongs in `BrowserRuntimeSessionService`.
+- Remote worker calls belong in `app/browser/providers/remote_provider.py` and `BrowserWorkerClient`.
+- Customer-machine execution belongs in `worker_client/browser_runtime`.
+- Do not add platform automation, stealth behavior, proxy logic, cookie injection, or captcha bypass.
+- Do not bypass workspace isolation when querying `browser_runtime_sessions`.
+- Do not store screenshot base64 in database metadata; store files under `storage/browser_screenshots` and keep metadata paths.
+
+Required verification after changes:
+
+```bash
+python -m pytest
+python scripts/verify_docs_runtime.py
+```
+
+For real customer-machine runtime checks, install Chromium with:
+
+```bash
+playwright install chromium
+```
+
+## Phase 35B Real Client Worker E2E Development Rule
+
+When changing `scripts/validate_real_client_worker_e2e.py`, preserve these rules:
+
+- Missing `expected_worker_name` returns `SKIPPED`, not PASS.
+- Browser actions are executed only after the expected worker is online and available.
+- JSON output must include checks, warnings, summary, and exit code.
+- `BROWSER_PROVIDER=remote` mismatch is a WARNING only.
+- Never fabricate a real customer-machine E2E result.
+
+Required tests:
+
+```bash
+python -m pytest tests/test_real_client_worker_e2e_script.py tests/test_real_client_worker_e2e_docs.py
+```
+
+## Phase 35A Development Rule: Browser Runtime Observability
+
+When adding or changing Browser Runtime actions, keep these artifacts synchronized:
+
+- `BrowserRuntimeObservabilityService`
+- `browser_runtime_events`
+- `browser_runtime_snapshots`
+- `browser_runtime_replays`
+- `docs/zh/API_REFERENCE.md`
+- `docs/en/API_REFERENCE.md`
+- Worker Console Timeline / Snapshots / Replay metadata panels
+
+Required verification flow:
+
+```powershell
+python -m pytest
+cd worker_console
+npm install
+npm run build
+cd ..\worker_console_desktop
+npm install
+npm run build
+cd ..
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+Boundary: replay must remain metadata-only replay. Do not re-run browser actions, and do not add live stream, VNC/noVNC, DevTools remote control, or real platform automation.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+`admin_dashboard` is now part of the docs SSOT. It is a read-only monitoring foundation for Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings. Runtime config is `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, and `VITE_USER_ID=demo-user`. The API client lives at `admin_dashboard/src/api/client.ts` and exports `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`. Current boundaries: no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Status: completed, Phase 37.
+
+Phase 37 connects the Conversation Runtime to Server Admin Dashboard, Worker Console Web, and Worker Console Desktop. The current scope is Conversation frontend integration and a basic conversation entrypoint. It is not a full ChatGPT UI and it is not WebSocket / SSE streaming.
+
+Completed:
+
+- Admin Dashboard Conversation page: `admin_dashboard` Conversations supports create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` supports `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: `worker_console` supports AI Server URL, Workspace ID, User ID settings, create thread, send and run, Polling Event Timeline, and AI Server connected / disconnected / unreachable state.
+- Desktop Chat Panel: `worker_console_desktop` mirrors the Chat Panel foundation. Tauri native validation still depends on the customer machine Rust/MSVC environment.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds and show `event_type`, `message`, `created_at`, and `payload JSON`.
+- Frontend config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- Development CORS: backend `CORS_ALLOWED_ORIGINS` allows `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5180`, `http://127.0.0.1:5180`, `tauri://localhost`, and related local development origins.
+
+Boundaries: current implementation is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real platform automation, real OpenClaw, or ComfyUI.
+## Phase 38 Development Rule
+
+When adding a Conversation bridge route, extend `ConversationToolRouter` Routing Rules first, then implement the bounded bridge in `ConversationService`. Every execution must record `route_selected`, `tool_execution_started` / `tool_execution_completed` / `tool_execution_failed`, or the matching agent / planning event, and store full structured output in `result_metadata`. Do not describe this foundation as autonomous agent, WebSocket, SSE, or real platform publishing.
+
+## Phase 39 Development Rules
+
+When adding a Conversation route that can trigger Tool / Browser / OpenClaw / Task execution, update `ConversationRiskPolicy`. Medium/high risk routes must not bypass `ConversationApprovalService` or the Tool Execution Gate.
+
+Fixed checks:
+
+- Confirm whether the route creates `conversation_approvals` or is clearly low risk and auto-safe.
+- Record approval events.
+- Ensure rejected / cancelled / expired / executed approvals cannot execute.
+- Update Admin Dashboard, Worker Console, and Worker Console Desktop pending approvals panel.
+- Update docs and `scripts/verify_docs_runtime.py`.
+
+Do not describe Phase 39 as a full permission system, real platform publishing, or autonomous agent.
+## Phase 40 Development Rule: Playbooks
+
+When adding a Playbook, update:
+
+- `app/conversation/playbook_definitions.py`
+- `ConversationPlaybookService`
+- API_REFERENCE
+- Admin Dashboard / Worker Console Playbook UI
+- pytest
+- `python scripts/verify_docs_runtime.py`
+
+Playbook steps must not bypass `ConversationRiskPolicy` or `ConversationApprovalService`. New high-risk steps may create approvals only; they must not execute directly.
+
+## Phase 41 Development Rule
+
+When adding Conversation / Playbook / Tool outputs, prefer `OutputArtifactService` and `output_artifacts`. Do not store oversized raw payloads in `content`. File artifacts should keep paths and metadata; text artifacts may store bounded content. Every phase must keep Output Library API docs, frontend pages, pytest, frontend builds, Docker smoke, and docs verifier synchronized.

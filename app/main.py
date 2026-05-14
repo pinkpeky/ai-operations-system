@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import create_api_router
 from app.core.config import get_settings
@@ -122,6 +123,13 @@ def create_app() -> FastAPI:
             title=settings.app_name,
             version="0.1.0",
             lifespan=lifespan,
+        )
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_allowed_origin_list,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
         )
         app.add_middleware(WorkspaceContextMiddleware)
         app.include_router(create_api_router())

@@ -23,6 +23,14 @@ from worker.browser_worker.schemas import (
     WorkerUIAccessCapabilitiesResponse,
 )
 from worker_client.config import WorkerClientConfig, WorkerClientState, load_worker_state
+from worker_client.browser_runtime import (
+    BrowserRuntime,
+    BrowserRuntimeCreateSessionRequest,
+    BrowserRuntimeNavigateRequest,
+    BrowserRuntimePageResponse,
+    BrowserRuntimeScreenshotRequest,
+    BrowserRuntimeSessionResponse,
+)
 from worker_client.logging import get_recent_logs, log_event
 from worker_client.openclaw import (
     OpenClawActionRequest,
@@ -68,6 +76,7 @@ def create_worker_client_app(
     if worker_secret:
         worker_settings.browser_worker_secret = worker_secret
     runtime_instance = runtime or PlaywrightBrowserWorkerRuntime(settings=worker_settings)
+    browser_runtime = BrowserRuntime.from_worker_client_config(config)
     openclaw_runtime = OpenClawRuntime(
         provider_name=config.openclaw_provider,
         enabled=config.openclaw_enabled,
@@ -92,6 +101,7 @@ def create_worker_client_app(
             yield
         finally:
             await runtime_instance.close_all()
+            await browser_runtime.close_all()
 
     app = FastAPI(title="AI Ops Customer Machine Worker", version="30.0.0", lifespan=lifespan)
     app.add_middleware(
@@ -139,6 +149,7 @@ def create_worker_client_app(
             capabilities={
                 **config.capabilities,
                 "headless": True,
+                "browser_runtime": True,
                 "click": True,
                 "type_text": True,
                 "scroll": True,
@@ -257,6 +268,58 @@ def create_worker_client_app(
         """关闭 browser session。"""
 
         return await runtime_instance.close_session(remote_session_id=session_id)
+
+    @app.post("/browser/session/create", response_model=BrowserRuntimeSessionResponse, status_code=status.HTTP_201_CREATED)
+    async def create_browser_runtime_session(
+        request: BrowserRuntimeCreateSessionRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> BrowserRuntimeSessionResponse:
+        """Create a Phase 34 Playwright browser runtime session."""
+
+        log_event("browser runtime session create requested")
+        return await browser_runtime.create_session(request)
+
+    @app.post("/browser/session/{session_id}/navigate")
+    async def navigate_browser_runtime_session(
+        session_id: str,
+        request: BrowserRuntimeNavigateRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> dict[str, Any]:
+        """Navigate a Phase 34 browser runtime session."""
+
+        log_event(f"browser runtime navigate requested session={session_id}")
+        return (await browser_runtime.navigate(session_id=session_id, request=request)).model_dump()
+
+    @app.post("/browser/session/{session_id}/screenshot")
+    async def screenshot_browser_runtime_session(
+        session_id: str,
+        request: BrowserRuntimeScreenshotRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> dict[str, Any]:
+        """Capture a Phase 34 browser runtime screenshot."""
+
+        log_event(f"browser runtime screenshot requested session={session_id}")
+        return (await browser_runtime.screenshot(session_id=session_id, request=request)).model_dump()
+
+    @app.get("/browser/session/{session_id}/page", response_model=BrowserRuntimePageResponse)
+    async def get_browser_runtime_page(
+        session_id: str,
+        _: None = Depends(verify_worker_request),
+    ) -> BrowserRuntimePageResponse:
+        """Return current Phase 34 browser runtime page content."""
+
+        log_event(f"browser runtime page requested session={session_id}")
+        return await browser_runtime.get_page(session_id=session_id)
+
+    @app.post("/browser/session/{session_id}/close", response_model=BrowserRuntimeSessionResponse)
+    async def close_browser_runtime_session(
+        session_id: str,
+        _: None = Depends(verify_worker_request),
+    ) -> BrowserRuntimeSessionResponse:
+        """Close a Phase 34 browser runtime session."""
+
+        log_event(f"browser runtime close requested session={session_id}")
+        return await browser_runtime.close_session(session_id=session_id)
 
     @app.post("/human-control/start", response_model=WorkerHumanControlResponse)
     async def start_human_control(request: WorkerHumanControlRequest) -> WorkerHumanControlResponse:

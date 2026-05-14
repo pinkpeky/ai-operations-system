@@ -17,7 +17,15 @@ from app.models.browser import (
     BrowserUIAccessSession,
 )
 from app.models.browser_worker import BrowserWorker, BrowserWorkerAction, BrowserWorkerSession
+from app.models.browser_runtime import BrowserRuntimeEvent, BrowserRuntimeReplay, BrowserRuntimeSession, BrowserRuntimeSnapshot
 from app.models.collection_metadata import CollectionMetadata
+from app.models.conversation import (
+    ConversationApproval,
+    ConversationEvent,
+    ConversationPlaybook,
+    ConversationPlaybookRun,
+    ConversationThread,
+)
 from app.models.document import Document, DocumentChunk
 from app.models.enums import (
     AccountStatus,
@@ -30,6 +38,7 @@ from app.models.enums import (
     BrowserHumanControlStatus,
     BrowserProfileHealthStatus,
     BrowserProfileStatus,
+    BrowserRuntimeSessionStatus,
     BrowserSessionStatus,
     BrowserUIAccessStatus,
     BrowserWorkerActionStatus,
@@ -37,10 +46,19 @@ from app.models.enums import (
     BrowserWorkerSessionStatus,
     BrowserWorkerStatus,
     CollectionMetadataStatus,
+    ConversationApprovalRiskLevel,
+    ConversationApprovalStatus,
+    ConversationPlaybookRunStatus,
+    ConversationPlaybookStatus,
+    ConversationRunMode,
     ConversationRole,
     ConversationSessionStatus,
+    ConversationThreadStatus,
     DocumentIngestStatus,
     DocumentStatus,
+    OutputArtifactSourceType,
+    OutputArtifactStatus,
+    OutputArtifactType,
     PublishLogStatus,
     PlanStatus,
     PlanStepStatus,
@@ -53,6 +71,7 @@ from app.models.enums import (
 from app.models.memory import AgentMemory, ConversationMessage, ConversationSession, MemoryOperationLog
 from app.models.multi_agent import AgentHandoff, AgentMessage, AgentRun
 from app.models.openclaw import OpenClawActionLog
+from app.models.output_artifact import OutputArtifact
 from app.models.planning import Plan, PlanReview, PlanStep
 from app.models.publish_log import PublishLog
 from app.models.rag_eval import RAGEvalItem, RAGEvalRun
@@ -85,6 +104,11 @@ __all__ = [
     "BrowserProfileHealthStatus",
     "BrowserProfileStatus",
     "BrowserProfileUsageLog",
+    "BrowserRuntimeEvent",
+    "BrowserRuntimeReplay",
+    "BrowserRuntimeSession",
+    "BrowserRuntimeSessionStatus",
+    "BrowserRuntimeSnapshot",
     "BrowserSecurityAuditLog",
     "BrowserSession",
     "BrowserSessionStatus",
@@ -99,16 +123,31 @@ __all__ = [
     "BrowserWorkerStatus",
     "CollectionMetadata",
     "CollectionMetadataStatus",
+    "ConversationApproval",
+    "ConversationApprovalRiskLevel",
+    "ConversationApprovalStatus",
     "ConversationMessage",
+    "ConversationEvent",
+    "ConversationPlaybook",
+    "ConversationPlaybookRun",
+    "ConversationPlaybookRunStatus",
+    "ConversationPlaybookStatus",
     "ConversationRole",
+    "ConversationRunMode",
     "ConversationSession",
     "ConversationSessionStatus",
+    "ConversationThread",
+    "ConversationThreadStatus",
     "Document",
     "DocumentChunk",
     "DocumentIngestStatus",
     "DocumentStatus",
     "MemoryOperationLog",
     "OpenClawActionLog",
+    "OutputArtifact",
+    "OutputArtifactSourceType",
+    "OutputArtifactStatus",
+    "OutputArtifactType",
     "Plan",
     "PlanReview",
     "PlanStatus",

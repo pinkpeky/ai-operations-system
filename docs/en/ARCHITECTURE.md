@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
 
@@ -996,3 +996,219 @@ runtime_manager / status / logging
 ```
 
 The desktop app only displays status/logs and sends runtime/heartbeat control requests. It does not include a system tray, autostart, auto update, formal installer, or real platform automation.
+
+## Phase 32: System Tray Desktop Runtime Architecture
+
+After Phase 32, the desktop runtime architecture is:
+
+```text
+Tauri System Tray
+↓
+tray-control event
+↓
+React Desktop Console
+↓
+localWorkerClient.ts
+↓
+worker_client Local API
+↓
+runtime_manager / heartbeat / status / logging
+```
+
+The close-window event is intercepted by Tauri. When `minimize_to_tray=true`, the window is hidden instead of exiting the process. Tray Runtime Control uses only the local HTTP API for runtime / heartbeat control; it does not execute shell commands or remote commands.
+
+Desktop Status Sync periodically calls `GET /local/status` and `GET /local/health`, then updates the tray tooltip through a Tauri command.
+
+## Phase 33 Conversation Runtime Architecture
+
+Flow:
+
+```text
+user message
+-> ConversationService
+-> MemoryService lightweight lookup
+-> PlanningService plan placeholder
+-> ToolRegistry / ContentAgent / OpenClaw mock routing
+-> assistant response
+-> conversation_events polling timeline
+```
+
+Core files:
+
+- `app/models/conversation.py`
+- `app/schemas/conversation.py`
+- `app/conversation/repositories/conversation_repository.py`
+- `app/conversation/services/conversation_service.py`
+- `app/api/routes/conversations.py`
+- `worker_console/src/api/conversationClient.ts`
+- `worker_console_desktop/src/api/conversationClient.ts`
+
+Conversation Runtime does not replace Memory Foundation. It reuses `conversation_messages` by adding nullable `thread_id`; Phase 14 Memory session messages continue to use nullable-compatible `session_id`.
+
+## Phase 34 Remote Browser Runtime Architecture
+
+Remote Browser Runtime Foundation adds a real dispatch path from AI Server to customer-machine Worker:
+
+```text
+AI Server
+-> BrowserRuntimeSessionService
+-> RemoteBrowserProvider
+-> BrowserWorkerSelector
+-> BrowserWorkerClient
+-> worker_client/browser_runtime
+-> Playwright Chromium
+-> storage/browser_screenshots
+```
+
+Core files:
+
+- `app/models/browser_runtime.py` for `browser_runtime_sessions`
+- `app/browser/services/browser_runtime_session_service.py`
+- `app/browser/providers/remote_provider.py`
+- `worker_client/browser_runtime/runtime.py`
+- `worker_client/browser_runtime/session_manager.py`
+- `worker_client/browser_runtime/playwright_provider.py`
+- `worker_client/browser_runtime/schemas.py`
+
+Worker Runtime API:
+
+- `/browser/session/create`
+- `/browser/session/{session_id}/navigate`
+- `/browser/session/{session_id}/screenshot`
+- `/browser/session/{session_id}/page`
+- `/browser/session/{session_id}/close`
+
+The runtime supports basic Chromium create / navigate / screenshot / page content / close. It does not support stealth browser, proxy rotation, cookie injection, login cloning, captcha bypass, remote desktop streaming, or DevTools remote control.
+
+## Phase 35B Real Client Worker E2E Validation Architecture
+
+Phase 35B adds validation capability rather than new runtime execution primitives.
+
+```text
+validate_real_client_worker_e2e.py
+-> API health
+-> worker health summary
+-> available workers
+-> expected_worker_name online check
+-> browser runtime create / navigate / screenshot / page / close
+-> JSON summary
+```
+
+If `expected_worker_name` is unavailable, the validator returns `SKIPPED` and does not call browser runtime action APIs. This preserves the distinction between validation readiness and a real customer-machine E2E result.
+
+## Phase 35A: Browser Runtime Observability & Replay
+
+```text
+BrowserRuntimeSessionService
+ -> BrowserRuntimeObservabilityService
+ -> browser_runtime_events
+ -> browser_runtime_snapshots
+ -> browser_runtime_replays
+ -> storage/browser_runtime_snapshots/{workspace_id}/{session_id}
+ -> Worker Console Timeline / Snapshots / Replay metadata
+```
+
+Timeline Event Flow:
+
+- create session -> `session_created`
+- navigate -> `navigate_started` / `navigate_completed` / `action_failed`
+- screenshot -> `screenshot_started` / `screenshot_completed`
+- get page -> `page_snapshot_captured`
+- close -> `session_closed`
+- replay -> `replay_requested`
+
+Snapshot Storage saves page HTML, page TXT, error JSON, and replay JSON. Screenshots still use `storage/browser_screenshots`. Replay Metadata Flow exports readable metadata only; it does not re-run browser actions. Failure Debug records action_type, target/url, worker_id, error, duration_ms, last known URL, and last page title.
+
+Boundary: Phase 35A is not live stream, not VNC/noVNC, not DevTools remote control, and not replay re-execution. It does not implement real platform automation.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+`admin_dashboard` is now part of the docs SSOT. It is a read-only monitoring foundation for Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings. Runtime config is `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, and `VITE_USER_ID=demo-user`. The API client lives at `admin_dashboard/src/api/client.ts` and exports `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`. Current boundaries: no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Status: completed, Phase 37.
+
+Phase 37 connects the Conversation Runtime to Server Admin Dashboard, Worker Console Web, and Worker Console Desktop. The current scope is Conversation frontend integration and a basic conversation entrypoint. It is not a full ChatGPT UI and it is not WebSocket / SSE streaming.
+
+Completed:
+
+- Admin Dashboard Conversation page: `admin_dashboard` Conversations supports create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` supports `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: `worker_console` supports AI Server URL, Workspace ID, User ID settings, create thread, send and run, Polling Event Timeline, and AI Server connected / disconnected / unreachable state.
+- Desktop Chat Panel: `worker_console_desktop` mirrors the Chat Panel foundation. Tauri native validation still depends on the customer machine Rust/MSVC environment.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds and show `event_type`, `message`, `created_at`, and `payload JSON`.
+- Frontend config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- Development CORS: backend `CORS_ALLOWED_ORIGINS` allows `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5180`, `http://127.0.0.1:5180`, `tauri://localhost`, and related local development origins.
+
+Boundaries: current implementation is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real platform automation, real OpenClaw, or ComfyUI.
+## Phase 38: Conversation Tool Execution Bridge Architecture
+
+Completed: `ConversationToolRouter` owns the Routing Rules and maps a user message to Browser Bridge, OpenClaw mock bridge, RAG bridge, Content bridge, Planning bridge, or fallback. `ConversationService.run_conversation_turn` records `route_selected`, `tool_execution_started`, `tool_execution_completed`, `agent_execution_started`, `planning_execution_started`, `bridge_fallback`, `bridge_error`, and returns `route_name`, `selected_tool`, `events_created`, `success`, `summary`, and `result_metadata`.
+
+Boundaries: this is not autonomous agent, not WebSocket, not SSE, no real platform publishing, no real OpenClaw, and no ComfyUI.
+
+## Phase 39: Conversation Approval Flow Architecture
+
+Phase 39 adds an approval gate between Conversation Runtime and the Tool Execution Bridge:
+
+```text
+user message
+-> ConversationToolRouter
+-> ConversationRiskPolicy
+-> conversation_approvals
+-> pending approvals panel
+-> approve / reject / cancel
+-> execute_after_approval
+-> Tool Execution Gate
+-> Tool / Agent / Planning
+-> conversation_events
+```
+
+Core components:
+
+- `ConversationRiskPolicy`: assigns `risk_level` from route/tool/action.
+- `ConversationApprovalService`: owns `approval_status` transitions.
+- `conversation_approvals`: stores `proposed_action` and `proposed_payload` so unreviewed actions do not execute directly.
+- Tool Execution Gate: `auto_safe` executes low risk only; `review_first` creates approval for every route; `execute_after_approval` executes approved approval only.
+- Frontends: Admin Dashboard, Worker Console, and Worker Console Desktop show a pending approvals panel.
+
+Boundaries: this is not a full permission system, not WebSocket/SSE, and does not implement real platform publishing, login, captcha, proxy, fingerprint bypass, real OpenClaw, or ComfyUI.
+## Phase 40: Conversation Playbook Architecture
+
+Conversation Runtime now has three layers:
+
+1. `ConversationToolRouter`: one-off rule-based routing.
+2. `ConversationApprovalService` / `ConversationRiskPolicy`: review and safety gate.
+3. `ConversationPlaybookService` / `ConversationPlaybookExecutor`: reusable template execution.
+
+Playbook Run Flow:
+
+`conversation_playbooks` -> `conversation_playbook_runs` -> step executor -> existing Tool / Agent / Planning bridge -> approval gate when needed -> `conversation_events` timeline -> assistant message.
+
+Step details do not use a separate table in this phase. They are stored in `conversation_playbook_runs.output_payload.steps` with `step_index`, `step_type`, `status`, `input`, `output`, `error`, and `duration_ms`.
+
+This is not a full workflow builder and not an autonomous agent. It is a Playbook Foundation.
+
+## Phase 41 Output Library Architecture
+
+Output Library sits after Conversation / Playbook / Tool execution:
+
+```text
+Conversation / Playbook / Tool / Browser Runtime
+-> OutputArtifactService
+-> output_artifacts
+-> storage/output_artifacts/{workspace_id}/{artifact_id}/
+-> Admin Dashboard / Worker Console / Desktop preview and export
+```
+
+`output_artifacts` is workspace-scoped and can link to `thread_id` and `playbook_run_id`. File artifacts such as screenshots and HTML snapshots keep `file_path` references and metadata instead of copying large files. Text artifacts such as `content_draft`, `rag_answer`, `report`, and `plan` can store bounded content directly.
+
+Playbook artifact generation:
+- `content_generation` -> `content_draft`
+- `browser_screenshot_report` -> `screenshot` + `report`
+- `rag_answer` -> `rag_answer`
+- `trend_research_draft` -> `report` + `content_draft`
+- `openclaw_mock_device_check` -> `json`
+
+This is not a full DAM, not S3 / MinIO, and not production publishing asset management.

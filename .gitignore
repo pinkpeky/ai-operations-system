@@ -39,6 +39,10 @@ worker_console_desktop/.env.local
 worker_console_desktop/dist/
 worker_console_desktop/tsconfig.tsbuildinfo
 worker_console_desktop/src-tauri/target/
+admin_dashboard/.env
+admin_dashboard/.env.local
+admin_dashboard/dist/
+admin_dashboard/tsconfig.tsbuildinfo
 
 # AI
 /models/
@@ -51,6 +55,12 @@ htmlcov/
 # Browser screenshots
 /screenshots/*
 !/screenshots/.gitkeep
+/storage/browser_screenshots/*
+!/storage/browser_screenshots/.gitkeep
+/storage/browser_runtime_snapshots/*
+!/storage/browser_runtime_snapshots/.gitkeep
+/storage/output_artifacts/*
+!/storage/output_artifacts/.gitkeep
 /worker/screenshots/*
 !/worker/screenshots/.gitkeep
 

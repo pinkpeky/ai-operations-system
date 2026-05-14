@@ -1,4 +1,4 @@
-# Docs Runtime Verification
+﻿# Docs Runtime Verification
 
 ## Phase 20 校验范围
 
@@ -305,3 +305,142 @@ python scripts/verify_docs_runtime.py
 ```
 
 当前桌面端只是 Tauri 基础壳：没有正式安装包、no exe / dmg、no system tray、no auto update。
+
+## Phase 32 校验补充
+
+Docs Runtime Verification 现在覆盖 Worker Console System Tray & Desktop Runtime Foundation。校验项包括：
+
+- `worker_console_desktop/src-tauri/src/main.rs`
+- `worker_console_desktop/src-tauri/desktop-runtime.json`
+- `worker_console_desktop/src/settings.ts`
+- `worker_console_desktop/src/desktopBridge.ts`
+- `worker_console_desktop/settings.example.json`
+- `worker_console_desktop/autostart/README.md`
+- `System Tray`
+- `Minimize To Tray`
+- `Tray Runtime Control`
+- `Desktop Status Sync`
+- `AutoStart Placeholder`
+
+仍必须区分已完成与未完成：当前没有 formal installer、没有 auto-update、没有真正开机自启。
+
+## Phase 33?Conversation Runtime Foundation
+
+???????
+
+????`conversation_threads`?`conversation_events`??? `conversation_messages.thread_id`?`ConversationService`?`run_conversation_turn`?Conversation APIs?Worker Console Chat Panel Foundation?Event Timeline?polling event feed?
+
+???????`message_received`?`planning_started`?`plan_created`?`agent_started`?`tool_called`?`worker_action_started`?`worker_action_completed`?`assistant_response`?`error`?
+
+??????? Conversation Runtime Foundation???? WebSocket/SSE????? OpenClaw??? ComfyUI??? TikTok / YouTube / X??????Cookie ????????????????????????
+
+## Phase 34 Docs Runtime Verification
+
+The verifier now checks that Phase 34 Remote Browser Runtime Foundation is reflected in runtime docs:
+
+- `browser_runtime_sessions`
+- `BrowserRuntimeSessionService`
+- `app/browser/providers/remote_provider.py`
+- `worker_client/browser_runtime`
+- `/browser/session/create`
+- `/browser/session/{session_id}/navigate`
+- `/browser/session/{session_id}/screenshot`
+- `/browser/session/{session_id}/page`
+- `/browser/session/{session_id}/close`
+- `storage/browser_screenshots`
+- `BROWSER_RUNTIME_SCREENSHOT_DIR`
+- `Browser Sessions Panel`
+- `playwright install chromium`
+
+Run:
+
+```powershell
+python scripts/verify_docs_runtime.py
+```
+
+The expected result is `SUMMARY: PASS`.
+
+## Phase 35B Docs Runtime Verification
+
+The verifier now requires:
+
+- `scripts/validate_real_client_worker_e2e.py`
+- `docs/zh/REAL_CLIENT_WORKER_E2E.md`
+- `docs/en/REAL_CLIENT_WORKER_E2E.md`
+- `Real Client Worker E2E Validation Plan`
+- `expected_worker_name`
+- `SKIPPED`
+- `real client worker not online`
+- `do not expose port 9100 to the public internet`
+- `Tailscale`
+- `VPN`
+
+This keeps docs honest: Phase 35B prepares validation ability and does not claim a real customer-machine E2E pass until the customer machine is actually online.
+
+## Phase 35A 校验项
+
+Docs Runtime Verification 现在检查 Browser Runtime Observability & Replay 是否与 runtime 一致，包括：
+
+- `BrowserRuntimeObservabilityService`
+- `browser_runtime_events`
+- `browser_runtime_snapshots`
+- `browser_runtime_replays`
+- `BROWSER_RUNTIME_SNAPSHOT_DIR=storage/browser_runtime_snapshots`
+- events / snapshots / replay / replay export API
+- API_REFERENCE 中的 metadata-only replay、Snapshot Storage、Timeline Event Flow、Failure Debug 说明
+
+运行：
+
+```powershell
+python scripts/verify_docs_runtime.py
+```
+
+必须返回 `SUMMARY: PASS`。Replay 当前不是 live stream，不是 VNC/noVNC，不是 DevTools remote control，也不会重新执行浏览器动作。
+
+## Phase 36：Server Admin Dashboard Foundation
+
+`admin_dashboard` 已加入 docs SSOT。它是 read-only monitoring foundation，用于查看 Overview、Workers、Browser Runtime、Conversations、Tasks、OpenClaw、Audit Logs、RAG / Documents、Settings。运行配置为 `VITE_AI_SERVER_API=http://localhost:8000`、`VITE_WORKSPACE_ID=demo-workspace`、`VITE_USER_ID=demo-user`，API client 位于 `admin_dashboard/src/api/client.ts`，包含 `workersApi`、`browserRuntimeApi`、`conversationsApi`、`tasksApi`、`openclawApi`、`auditApi`、`ragApi`。当前 no login UI、no permission UI、no publishing business flow、no real social platform control、no production-grade operations backend。
+
+## Phase 37：Conversation Runtime Frontend Integration
+
+状态：已完成，Phase 37。
+
+Phase 37 将 Conversation Runtime 接入 Server Admin Dashboard、Worker Console Web 与 Worker Console Desktop。当前能力是 Conversation frontend integration 和基础对话入口，不是完整 ChatGPT UI，也不是 WebSocket / SSE streaming。
+
+已完成：
+
+- Admin Dashboard Conversation page：`admin_dashboard` 的 Conversations 页面支持 create thread、thread list、thread detail、message list、event timeline、send message、run conversation、refresh messages、refresh events。
+- Admin Dashboard client：新增 `admin_dashboard/src/api/conversationClient.ts`，支持 `createThread`、`listThreads`、`getThread`、`sendMessage`、`listMessages`、`listEvents`、`runConversation`。
+- Worker Console Chat Panel：`worker_console` 支持 AI Server URL、Workspace ID、User ID 配置，支持 create thread、send and run、Polling Event Timeline、AI Server connected / disconnected / unreachable 状态。
+- Desktop Chat Panel：`worker_console_desktop` 同步 Chat Panel 基础能力；Tauri native validation 仍取决于客户机 Rust/MSVC 环境。
+- Polling Event Timeline：前端通过 `GET /api/v1/conversations/{thread_id}/events` 手动刷新或 5 秒 polling，展示 `event_type`、`message`、`created_at`、`payload JSON`。
+- Frontend config：`VITE_AI_SERVER_API=http://localhost:8000`，`VITE_WORKSPACE_ID=demo-workspace`，`VITE_USER_ID=demo-user`。
+- Development CORS：后端通过 `CORS_ALLOWED_ORIGINS` 允许 `http://localhost:5173`、`http://127.0.0.1:5173`、`http://localhost:5180`、`http://127.0.0.1:5180`、`tauri://localhost` 等开发来源。
+
+边界：当前不是 WebSocket，not WebSocket；当前不是 SSE，not SSE；当前不是完整 ChatGPT UI，not a full ChatGPT UI；不做 TikTok / YouTube / X 自动化，不做登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实平台自动化、真实 OpenClaw 或 ComfyUI。
+## Phase 38 Docs Runtime Verification 补充
+
+`scripts/verify_docs_runtime.py` 现在检查 `app/conversation/tool_router.py`、`Conversation Runtime Tool Execution Bridge`、`ConversationToolRouter`、`route_selected`、`tool_execution_started`、`route_name`、`selected_tool`、`events_created`、`success`、`summary`、`result_metadata` 以及 not autonomous agent / not WebSocket / not SSE 边界说明。
+
+Phase 39 后，verifier 还检查 `app/conversation/risk_policy.py`、`app/conversation/services/approval_service.py`、`app/api/routes/conversation_approvals.py`、`conversation_approvals`、`ConversationApprovalService`、`ConversationRiskPolicy`、`review_first`、`auto_safe`、`execute_after_approval`、approval events、pending approvals panel 与 not a full permission system 边界说明。
+## Phase 40 Docs Runtime Verification
+
+Verifier 检查项新增：
+
+- `app/conversation/services/playbook_service.py`
+- `app/conversation/playbook_definitions.py`
+- `app/api/routes/conversation_playbooks.py`
+- OpenAPI Playbook routes
+- `conversation_playbooks`
+- `conversation_playbook_runs`
+- `playbook_name`
+- `playbook_run_id`
+- `playbook_step_started`
+- `playbook_waiting_approval`
+- `playbook_completed`
+
+如果新增或删除 Playbook API，必须同步 `scripts/verify_docs_runtime.py`。
+
+## Phase 41 验证补充
+
+Docs verifier 现在检查 Output Library：`output_artifacts`、`OutputArtifactService`、`/api/v1/output-artifacts`、artifact events、Save as Artifact、Export markdown、S3 / MinIO 边界和 not a full DAM 声明。新增或删除 Output Artifact API、字段或前端入口时，必须同步 `scripts/verify_docs_runtime.py`。

@@ -1,4 +1,4 @@
-# 项目状态
+﻿# 项目状态
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
 
@@ -395,3 +395,199 @@ npm run tauri dev
 ```
 
 边界：当前没有正式安装包、no exe / dmg、no system tray、no auto update、无开机自启、无真实平台自动化。
+
+## Phase 32：Worker Console System Tray & Desktop Runtime Foundation
+
+状态：已完成。
+
+本阶段将 `worker_console_desktop` 升级为桌面 Runtime 基础，新增 Tauri System Tray、Minimize To Tray、Tray Runtime Control、Desktop Status Sync 和 AutoStart Placeholder。
+
+已完成：
+
+- `worker_console_desktop/src-tauri/src/main.rs` 中接入 System Tray。
+- 托盘菜单：Show Console、Hide Window、Start Runtime、Stop Runtime、Restart Runtime、Start Heartbeat、Stop Heartbeat、Refresh Status、Quit。
+- `worker_console_desktop/src-tauri/desktop-runtime.json` 默认 `minimize_to_tray=true`。
+- `worker_console_desktop/src/settings.ts` 和 `settings.example.json` 支持 `localWorkerApi`、`minimizeToTray`、`refreshIntervalMs`。
+- UI 显示 connected、reconnecting、disconnected、online、offline、error、last successful sync 和 last error。
+- Logs Panel 支持 auto refresh、manual refresh、error highlight、clear display 和 last updated time。
+- `worker_console_desktop/autostart/` 仅作为 AutoStart Placeholder。
+
+边界：当前没有正式 installer、没有 exe / dmg、没有真正开机自启、没有 auto-update、没有远程 shell、没有任意命令执行、没有真实平台自动化。
+
+## Phase 33?Conversation Runtime Foundation
+
+???????
+
+????`conversation_threads`?`conversation_events`??? `conversation_messages.thread_id`?`ConversationService`?`run_conversation_turn`?Conversation APIs?Worker Console Chat Panel Foundation?Event Timeline?polling event feed?
+
+???????`message_received`?`planning_started`?`plan_created`?`agent_started`?`tool_called`?`worker_action_started`?`worker_action_completed`?`assistant_response`?`error`?
+
+??????? Conversation Runtime Foundation???? WebSocket/SSE????? OpenClaw??? ComfyUI??? TikTok / YouTube / X??????Cookie ????????????????????????
+
+## Phase 34: Remote Browser Runtime Foundation
+
+状态：已完成。
+
+Phase 34 建立真正的远程浏览器运行时基础。AI Server 现在可以通过 `app/browser/providers/remote_provider.py` 选择远程 Worker，把 Browser Action 分发给客户机 Worker，由 `worker_client/browser_runtime` 里的 Playwright Runtime 执行基础浏览器动作。
+
+已完成：
+
+- 新增数据库表和模型：`browser_runtime_sessions`。
+- 新增服务：`BrowserRuntimeSessionService`，负责远程 session 创建、查询、导航、截图、页面内容获取、关闭和 activity 更新。
+- 新增 API：`/api/v1/browser-runtime/sessions` 及 navigate / screenshot / page / close 子接口。
+- 新增 Worker Runtime API：`/browser/session/create`、`/browser/session/{session_id}/navigate`、`/browser/session/{session_id}/screenshot`、`/browser/session/{session_id}/page`、`/browser/session/{session_id}/close`。
+- 新增截图存储：`storage/browser_screenshots`，由 `BROWSER_RUNTIME_SCREENSHOT_DIR` 配置。
+- Worker Console Web / Desktop 新增 Browser Sessions Panel。
+- 客户机安装文档新增 `playwright install chromium`。
+
+边界：当前不做 stealth browser、代理池、Cookie 注入、验证码绕过、TikTok / YouTube / X 自动化、远程桌面流、DevTools 远程控制、真实 OpenClaw 或 ComfyUI。
+
+## Phase 35B: Real Client Worker E2E Validation Plan
+
+状态：已完成验证计划与脚本。
+
+本阶段新增 `scripts/validate_real_client_worker_e2e.py`，用于真实客户机 Worker 在线后验证完整链路：AI Server -> RemoteBrowserProvider -> BrowserWorkerSelector -> 真实客户机 `worker_client` -> 本地 `browser_runtime` -> 本地 Playwright Chromium -> 截图 / 页面内容 / 状态回传。
+
+已完成：
+
+- E2E 验证脚本，支持 `server_url`、`workspace_id`、`user_id`、`expected_worker_name`。
+- JSON 输出和 exit code：`0=PASS`、`1=FAIL`、`2=SKIPPED`。
+- 找不到 `expected_worker_name` 时返回 `SKIPPED`，原因是 `real client worker not online`，不会执行浏览器动作。
+- 新增 `docs/zh/REAL_CLIENT_WORKER_E2E.md` 与 `docs/en/REAL_CLIENT_WORKER_E2E.md`。
+- Swagger validation flow 和 Worker Console validation checklist 已文档化。
+
+边界：当前不伪造真实客户机 E2E 成功，不做 TikTok / YouTube / X 自动化、登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实平台自动化、OpenClaw real device 或 ComfyUI。
+
+## Phase 35A: Browser Runtime Observability & Replay
+
+状态：已完成。
+
+Phase 35A 增强 Phase 34 Remote Browser Runtime 的可观测性和调试能力，新增 `browser_runtime_events`、`browser_runtime_snapshots`、`browser_runtime_replays`，并新增 `BrowserRuntimeObservabilityService`。
+
+已完成：
+
+- Timeline Event Flow：`session_created`、`navigate_started`、`navigate_completed`、`screenshot_started`、`screenshot_completed`、`page_snapshot_captured`、`action_failed`、`session_closed`、`replay_requested`。
+- Snapshot Storage：页面 HTML/TXT、错误 JSON 和 replay JSON 写入 `BROWSER_RUNTIME_SNAPSHOT_DIR=storage/browser_runtime_snapshots`；截图继续使用 `storage/browser_screenshots`。
+- Replay Metadata Flow：只生成 metadata-only replay，不重新执行浏览器动作。
+- Failure Debug：失败动作记录 worker_id、action_type、target/url、error、duration_ms、last known url、last page title。
+- 新增 API：events、snapshots、replay、replay export。
+- Worker Console Web/Desktop Browser Sessions Panel 新增 Timeline、Screenshot history、Page snapshots、Replay metadata、Refresh events、Refresh snapshots。
+
+边界：当前不是 live stream，不是 VNC/noVNC，不是 DevTools remote control，不重新执行 replay，不做 TikTok / YouTube / X、登录、Cookie 注入、代理池、指纹绕过、验证码或真实平台自动化。
+
+## Phase 36: Server Admin Dashboard Foundation
+
+Status: completed.
+
+Phase 36 新增 `admin_dashboard`，这是一个独立的 Vite + React + TypeScript + Tailwind Admin Dashboard Foundation，用于 read-only monitoring AI Server、Browser Workers、Browser Runtime、Timeline、Snapshots、Replay metadata、Tasks、Conversation、OpenClaw mock、Audit Logs、RAG / Documents。
+
+Completed:
+
+- `admin_dashboard/package.json`
+- `admin_dashboard/src/main.tsx`
+- `admin_dashboard/src/styles.css`
+- `admin_dashboard/src/api/client.ts`
+- `docs/zh/ADMIN_DASHBOARD.md`
+- `docs/en/ADMIN_DASHBOARD.md`
+
+Pages: Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, Settings.
+
+API modules: `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, `ragApi`.
+
+Runtime config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+
+Boundary: read-only monitoring foundation, no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37：Conversation Runtime Frontend Integration
+
+状态：已完成，Phase 37。
+
+Phase 37 将 Conversation Runtime 接入 Server Admin Dashboard、Worker Console Web 与 Worker Console Desktop。当前能力是 Conversation frontend integration 和基础对话入口，不是完整 ChatGPT UI，也不是 WebSocket / SSE streaming。
+
+已完成：
+
+- Admin Dashboard Conversation page：`admin_dashboard` 的 Conversations 页面支持 create thread、thread list、thread detail、message list、event timeline、send message、run conversation、refresh messages、refresh events。
+- Admin Dashboard client：新增 `admin_dashboard/src/api/conversationClient.ts`，支持 `createThread`、`listThreads`、`getThread`、`sendMessage`、`listMessages`、`listEvents`、`runConversation`。
+- Worker Console Chat Panel：`worker_console` 支持 AI Server URL、Workspace ID、User ID 配置，支持 create thread、send and run、Polling Event Timeline、AI Server connected / disconnected / unreachable 状态。
+- Desktop Chat Panel：`worker_console_desktop` 同步 Chat Panel 基础能力；Tauri native validation 仍取决于客户机 Rust/MSVC 环境。
+- Polling Event Timeline：前端通过 `GET /api/v1/conversations/{thread_id}/events` 手动刷新或 5 秒 polling，展示 `event_type`、`message`、`created_at`、`payload JSON`。
+- Frontend config：`VITE_AI_SERVER_API=http://localhost:8000`，`VITE_WORKSPACE_ID=demo-workspace`，`VITE_USER_ID=demo-user`。
+- Development CORS：后端通过 `CORS_ALLOWED_ORIGINS` 允许 `http://localhost:5173`、`http://127.0.0.1:5173`、`http://localhost:5180`、`http://127.0.0.1:5180`、`tauri://localhost` 等开发来源。
+
+边界：当前不是 WebSocket，not WebSocket；当前不是 SSE，not SSE；当前不是完整 ChatGPT UI，not a full ChatGPT UI；不做 TikTok / YouTube / X 自动化，不做登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实平台自动化、真实 OpenClaw 或 ComfyUI。
+
+## Phase 38：Conversation Runtime Tool Execution Bridge（已完成）
+
+已完成：
+- 新增 `ConversationToolRouter`（`app/conversation/tool_router.py`），按用户消息进行 deterministic rule-based routing，不是 autonomous agent。
+- Conversation run 支持 `route_selected`、`tool_execution_started`、`tool_execution_completed`、`tool_execution_failed`、`agent_execution_started`、`agent_execution_completed`、`planning_execution_started`、`planning_execution_completed`、`bridge_fallback`、`bridge_error` 等事件。
+- `POST /api/v1/conversations/{thread_id}/run` 返回 `route_name`、`selected_tool`、`events_created`、`success`、`summary`、`result_metadata`。
+- Browser Bridge 支持把“打开网页并截图”组合为 `browser_tool` create session -> navigate -> screenshot -> get page -> close session。
+- OpenClaw mock bridge 只调用 `openclaw_tool` mock，不调用真实 OpenClaw 或真实设备。
+- RAG bridge 调用 `rag_search_tool`，缺少 `collection_name` 时返回清晰提示。
+- Content bridge 调用 `ContentAgent`。
+- Planning bridge 调用 `PlanningService` 创建 plan 和 steps，不自动执行真实平台发布。
+- Admin Dashboard、Worker Console、Worker Console Desktop 均展示 route selected、selected tool、tool status、result summary、metadata panel。
+
+边界：当前不是 autonomous agent，not autonomous agent；不是 WebSocket，not WebSocket；不是 SSE，not SSE；不做 TikTok / YouTube / X 自动化、登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实平台发布、真实 OpenClaw 或 ComfyUI。
+
+## Phase 39：Conversation Execution Review & Approval Flow（已完成）
+
+状态：已完成。
+
+Phase 39 为 Conversation Runtime 增加执行前审核 / 人工确认 / 修改 / 取消的基础门禁，避免一句话直接触发高风险 Tool、Browser、OpenClaw mock 或未来平台动作。
+
+已完成：
+
+- 新增 `conversation_approvals` 表，记录 `route_name`、`selected_tool`、`risk_level`、`approval_status`、`proposed_action`、`proposed_payload`、reviewer 信息和状态时间。
+- 新增 `ConversationApprovalService`，支持 create approval、approve、reject、cancel、expire pending、mark executed。
+- 新增 `ConversationRiskPolicy`，支持 low / medium / high 风险策略。
+- `POST /api/v1/conversations/{thread_id}/run` 支持 `auto_safe`、`review_first`、`execute_after_approval`。
+- Tool Execution Gate：medium/high risk 未审批时不得执行；approved 后通过 execute API 执行；executed 后不能重复执行。
+- 新增 approval events：`approval_required`、`approval_created`、`approval_approved`、`approval_rejected`、`approval_cancelled`、`approval_expired`、`approval_executed`、`execution_blocked_pending_approval`、`execution_after_approval_started`、`execution_after_approval_completed`、`execution_after_approval_failed`。
+- 新增 Approval API：`GET /api/v1/conversations/{thread_id}/approvals`、`GET /api/v1/conversation-approvals/{approval_id}`、approve、reject、cancel、execute。
+- Admin Dashboard、Worker Console、Worker Console Desktop 增加 pending approvals panel，展示 proposed action preview、proposed payload JSON、risk badge、approve / reject / cancel / execute approved action。
+
+边界：当前不是完整权限系统，not a full permission system；不是 WebSocket/SSE；不做真实平台发布、TikTok / YouTube / X 自动化、登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实 OpenClaw 或 ComfyUI。
+## Phase 40：Conversation Execution Templates & Playbooks
+
+状态：已完成。
+
+本阶段新增 `conversation_playbooks` 与 `conversation_playbook_runs`，把常见 Conversation 执行流程沉淀为可复用模板。核心实现包括 `ConversationPlaybookService`、`ConversationPlaybookExecutor`、内置 Playbooks、Playbook Runs、Step Timeline 和 Approval integration。
+
+已完成内置模板：
+- `browser_search_summary`
+- `browser_screenshot_report`
+- `rag_answer`
+- `content_generation`
+- `trend_research_draft`
+- `openclaw_mock_device_check`
+
+安全边界：
+- medium / high risk step 必须继续走 Phase 39 approval gate。
+- `review_first`、`auto_safe`、`execute_after_approval` 继续生效。
+- 当前不是完整 workflow builder。
+- Current boundary marker: not a full workflow builder.
+- 当前不是 autonomous agent。
+- 当前不做真实社媒发布、登录、验证码、代理、指纹或真实 OpenClaw。
+
+## Phase 41：Playbook Run Artifacts & Output Library
+
+状态：已完成。
+
+Phase 41 新增 `output_artifacts`，把 Conversation、Playbook、Tool、Browser Runtime、RAG、ContentAgent、Planning 和 OpenClaw mock 的执行结果沉淀为 Output Library。
+
+已完成：
+- `OutputArtifactService`：支持 create / list / get / update / soft delete / export / create from Playbook Run / create from Conversation message / create from Browser Runtime snapshot。
+- Playbook 完成后自动生成 artifact：`content_generation` 生成 `content_draft`，`browser_screenshot_report` 生成 `screenshot` 和 `report`，`rag_answer` 生成 `rag_answer`，planning 生成 `plan`，OpenClaw mock 生成 `json`。
+- Conversation assistant message 支持 Save as Artifact。
+- 导出支持 markdown / json / txt。
+- 输出文件写入 `storage/output_artifacts/{workspace_id}/{artifact_id}/`。
+- 事件包括 `artifact_created`、`artifact_exported`、`artifact_deleted`、`artifact_linked_to_playbook_run`。
+- Admin Dashboard / Worker Console / Worker Console Desktop 增加 Output Library / generated artifacts 展示。
+
+边界：
+- 当前不是完整素材管理系统，not a full DAM。
+- 不接 S3 / MinIO。
+- 不做真实平台发布资产管理。
+- 不做 TikTok / YouTube / X、登录、验证码、代理、指纹、真实 OpenClaw 或 ComfyUI。

@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.browser.providers.base import BaseBrowserProvider, BrowserProviderResult
 from app.browser.remote.client import BrowserWorkerClient
 from app.browser.remote.services.browser_worker_auth_service import BrowserWorkerAuthService
-from app.browser.remote.services import BrowserWorkerRepository, BrowserWorkerSelector
+from app.browser.remote.services.browser_worker_repository import BrowserWorkerRepository
+from app.browser.remote.services.browser_worker_selector import BrowserWorkerSelector
 from app.core.config import Settings
 from app.models.browser_worker import BrowserWorker
 

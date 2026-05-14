@@ -1,4 +1,4 @@
-# Worker Console GUI Foundation
+﻿# Worker Console GUI Foundation
 
 Status: completed, Phase 30.
 
@@ -127,3 +127,207 @@ npm run tauri dev
 This is only the Worker Console Desktop App Foundation. There is no formal installer, no exe / dmg, no system tray, no autostart, and no auto update. Future phases may add tray / autostart / installer support.
 
 It still does not include TikTok / YouTube / X automation, account login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
+
+## Phase 32: Worker Console System Tray & Desktop Runtime Foundation
+
+Status: completed, Phase 32.
+
+`worker_console_desktop` now moves from a desktop shell foundation to a desktop runtime foundation with Tauri System Tray, Minimize To Tray, Tray Runtime Control, and Desktop Status Sync.
+
+### System Tray
+
+Tray menu entries:
+
+- Show Console
+- Hide Window
+- Start Runtime
+- Stop Runtime
+- Restart Runtime
+- Start Heartbeat
+- Stop Heartbeat
+- Refresh Status
+- Quit
+
+Show Console displays the window, Hide Window hides the window, and Quit is the only action that exits the process.
+
+### Minimize To Tray
+
+Default configuration:
+
+```json
+{
+  "minimize_to_tray": true
+}
+```
+
+Configuration file: `worker_console_desktop/src-tauri/desktop-runtime.json`. Closing the window hides it to the tray by default instead of exiting the app.
+
+### Tray Runtime Control
+
+Tray actions do not execute shell commands and do not perform remote command execution. Tray actions emit frontend events and the frontend calls the local Worker API:
+
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+### Desktop Status Sync
+
+The desktop app periodically calls:
+
+- `GET /local/status`
+- `GET /local/health`
+
+The tray tooltip shows `worker_name`, `current_status`, `runtime_running`, and `heartbeat_running`. The UI shows connected, reconnecting, disconnected, online, offline, error, last successful sync, and last error.
+
+### AutoStart Placeholder
+
+Placeholder docs live under `worker_console_desktop/autostart/`. They describe future Windows registry startup, macOS LaunchAgent, and start on login support. This phase does not register real autostart behavior.
+
+### Current Boundary
+
+There is no formal installer, no exe / dmg release, no real autostart registration, no auto-update, no remote shell, and no arbitrary command execution. The system still does not include TikTok / YouTube / X automation, account login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
+
+## Phase 33 Chat Panel Foundation
+
+Worker Console Web and Desktop now include a Chat Panel Foundation:
+
+- input box
+- Send button
+- Message list
+- Event Timeline
+- Refresh events
+- route display for planning / tool / worker status
+- `conversationClient.ts` for AI Server conversation APIs
+
+Configuration:
+
+```text
+VITE_AI_SERVER_API=http://localhost:8000/api/v1
+VITE_WORKSPACE_ID=demo-workspace
+VITE_USER_ID=demo-user
+```
+
+The Event Timeline uses polling. It is not a ChatGPT-level UI, not WebSocket streaming, and not SSE streaming.
+
+## Phase 34 Browser Sessions Panel
+
+Worker Console Web and Worker Console Desktop now include a Browser Sessions Panel for Remote Browser Runtime Foundation.
+
+The panel shows:
+
+- active sessions
+- worker id
+- browser
+- status
+- created_at
+- current_url
+
+Supported actions:
+
+- refresh active sessions
+- close a runtime session through `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+Client files:
+
+- `worker_console/src/api/browserRuntimeClient.ts`
+- `worker_console_desktop/src/api/browserRuntimeClient.ts`
+
+This is not live streaming, not VNC, not noVNC, not DevTools remote UI, and not a browser-control visual stream.
+
+## Phase 35B Worker Console Validation Checklist
+
+Web Console:
+
+```bash
+cd worker_console
+npm run dev
+```
+
+Open `http://localhost:5173` and check:
+
+- `registered=true`
+- `runtime_running=true`
+- `heartbeat_running=true`
+- `current_status=online`
+- logs include heartbeat success
+- Browser Sessions Panel can refresh sessions
+
+Desktop Console:
+
+```bash
+cd worker_console_desktop
+npm run tauri dev
+```
+
+If Rust/MSVC is not ready, mark `desktop native validation pending` and do not report native desktop validation as passed.
+
+## Phase 35A Browser Runtime Timeline / Snapshots / Replay
+
+Worker Console Web and Worker Console Desktop Browser Sessions Panel now includes:
+
+- Timeline: calls `GET /api/v1/browser-runtime/sessions/{session_id}/events`
+- Screenshot history: reads `snapshot_type=screenshot` from `browser_runtime_snapshots`
+- Page snapshots: reads `snapshot_type=page` from `browser_runtime_snapshots`
+- Replay metadata: calls `POST /api/v1/browser-runtime/sessions/{session_id}/replay`
+- Replay export: calls `GET /api/v1/browser-runtime/replays/{replay_id}/export`
+- Refresh events / Refresh snapshots: polling only, not live stream
+
+Replay is metadata-only replay and does not re-run browser actions. There is no VNC, noVNC, DevTools remote control, live browser stream, TikTok / YouTube / X, login automation, cookie injection, proxy pool, fingerprint bypass, captcha automation, or real platform automation.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+`admin_dashboard` is now part of the docs SSOT. It is a read-only monitoring foundation for Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings. Runtime config is `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, and `VITE_USER_ID=demo-user`. The API client lives at `admin_dashboard/src/api/client.ts` and exports `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`. Current boundaries: no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Status: completed, Phase 37.
+
+Phase 37 connects the Conversation Runtime to Server Admin Dashboard, Worker Console Web, and Worker Console Desktop. The current scope is Conversation frontend integration and a basic conversation entrypoint. It is not a full ChatGPT UI and it is not WebSocket / SSE streaming.
+
+Completed:
+
+- Admin Dashboard Conversation page: `admin_dashboard` Conversations supports create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` supports `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: `worker_console` supports AI Server URL, Workspace ID, User ID settings, create thread, send and run, Polling Event Timeline, and AI Server connected / disconnected / unreachable state.
+- Desktop Chat Panel: `worker_console_desktop` mirrors the Chat Panel foundation. Tauri native validation still depends on the customer machine Rust/MSVC environment.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds and show `event_type`, `message`, `created_at`, and `payload JSON`.
+- Frontend config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- Development CORS: backend `CORS_ALLOWED_ORIGINS` allows `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5180`, `http://127.0.0.1:5180`, `tauri://localhost`, and related local development origins.
+
+Boundaries: current implementation is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real platform automation, real OpenClaw, or ComfyUI.
+## Phase 38: Worker Console Chat Panel Bridge
+
+Worker Console and Worker Console Desktop Chat Panels now display `route_name`, `selected_tool`, run status, result summary, `result_metadata`, and event payload. Browser Bridge, OpenClaw mock bridge, RAG bridge, Content bridge, and Planning bridge are shown through Conversation Runtime polling events. This is not WebSocket, not SSE, and not real platform automation.
+
+## Phase 39: Conversation Approval Panel
+
+Worker Console Web and Worker Console Desktop now show a pending approvals panel in the Chat Panel. The panel displays proposed action preview, proposed payload JSON, risk badge, approval_status, and approve / reject / cancel / execute approved action controls.
+
+The Chat Panel uses `review_first` by default for user-triggered runs so Browser/OpenClaw style actions are visible before execution. It calls `GET /api/v1/conversations/{thread_id}/approvals` and the `/api/v1/conversation-approvals/{approval_id}` approve / reject / cancel / execute endpoints.
+
+Current boundaries: not a full permission system, not WebSocket/SSE, no real platform publishing, no real OpenClaw, no login, no captcha, no proxy, and no fingerprint bypass.
+## Phase 40: Worker Console Playbook Entry
+
+Worker Console Web and Desktop Chat Panel now include a Playbook selector, Run playbook action, Playbook runs list, and Step timeline display.
+
+This entrypoint is for customer-machine operators to trigger standardized Conversation Playbooks, while still keeping these limits:
+
+- Polling only, not WebSocket/SSE.
+- Pending approvals panel remains active.
+- Medium/high risk steps require approval before execution.
+- No full workflow builder.
+- No real social publishing, login, captcha, proxy, fingerprint handling, or real OpenClaw execution.
+
+## Phase 41: Worker Console Output Library
+
+Worker Console Web and Desktop Chat Panel now include Output Library foundation views:
+
+- generated artifacts list
+- Save as Artifact for assistant messages
+- artifact type / source type badges
+- related `playbook_run_id`
+- Export markdown
+
+This lets operators inspect reusable `content_draft`, `report`, `rag_answer`, `screenshot`, `html_snapshot`, `plan`, and `json` outputs from Playbook / Conversation runs. It is an Output Library Foundation, not a full DAM, has no S3 / MinIO integration, and is not production publishing asset management.

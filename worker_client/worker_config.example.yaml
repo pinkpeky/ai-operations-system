@@ -18,6 +18,7 @@ screenshot_dir: worker/screenshots
 profile_dir: worker/profiles
 capabilities:
   browser: chromium
+  browser_runtime: true
   screenshot: true
   page_content: true
   persistent_profile: true

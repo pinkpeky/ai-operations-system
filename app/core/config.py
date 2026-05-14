@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
+    cors_allowed_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5180,http://127.0.0.1:5180,tauri://localhost",
+        alias="CORS_ALLOWED_ORIGINS",
+    )
 
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
@@ -96,6 +100,15 @@ class Settings(BaseSettings):
     browser_viewport_width: int = Field(default=1280, ge=320, le=3840, alias="BROWSER_VIEWPORT_WIDTH")
     browser_viewport_height: int = Field(default=720, ge=240, le=2160, alias="BROWSER_VIEWPORT_HEIGHT")
     browser_screenshot_dir: str = Field(default="screenshots", alias="BROWSER_SCREENSHOT_DIR")
+    browser_runtime_screenshot_dir: str = Field(
+        default="storage/browser_screenshots",
+        alias="BROWSER_RUNTIME_SCREENSHOT_DIR",
+    )
+    browser_runtime_snapshot_dir: str = Field(
+        default="storage/browser_runtime_snapshots",
+        alias="BROWSER_RUNTIME_SNAPSHOT_DIR",
+    )
+    output_artifact_dir: str = Field(default="storage/output_artifacts", alias="OUTPUT_ARTIFACT_DIR")
     browser_profile_root: str = Field(default="worker/profiles", alias="BROWSER_PROFILE_ROOT")
     browser_profile_lock_timeout_seconds: int = Field(
         default=1800,
@@ -187,6 +200,12 @@ class Settings(BaseSettings):
         except Exception as exc:
             logger.exception("Failed to parse allowed file types")
             raise RuntimeError("Invalid upload file type settings") from exc
+
+    @property
+    def cors_allowed_origin_list(self) -> list[str]:
+        """Parse development CORS origins from CSV config."""
+
+        return [item.strip() for item in self.cors_allowed_origins.split(",") if item.strip()]
 
     @property
     def database_url(self) -> str:
