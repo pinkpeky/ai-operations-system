@@ -545,3 +545,8 @@ Playbook step 不允许绕过 `ConversationRiskPolicy` 和 `ConversationApproval
 ## Phase 41 开发规则
 
 新增 Conversation / Playbook / Tool 产物时，优先通过 `OutputArtifactService` 写入 `output_artifacts`，不要把超大 raw payload 直接塞进 `content`。文件型 artifact 保存路径和 metadata；文本型 artifact 可保存 bounded content。每个 Phase 完成后必须同步 Output Library API、前端页面、pytest、前端 build、Docker smoke 和 docs verifier。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

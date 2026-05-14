@@ -35,6 +35,12 @@ class OutputArtifact(IdTimestampMixin, Base):
         nullable=True,
         comment="Related playbook run ID",
     )
+    task_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("task_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Related task orchestration run ID",
+    )
     source_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Artifact source type")
     artifact_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Artifact type")
     title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Artifact title")

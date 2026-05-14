@@ -1078,3 +1078,8 @@ Conversation Tool Execution Bridge 不新增独立服务。部署后使用已有
 ## Phase 41 部署补充
 
 Output Library 需要 API 容器可写 `OUTPUT_ARTIFACT_DIR=storage/output_artifacts`。本阶段导出 markdown/json/txt 到本地磁盘；截图和 HTML snapshot 只引用既有路径。当前不接 S3 / MinIO，不是完整 DAM，也不做真实平台发布资产管理。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

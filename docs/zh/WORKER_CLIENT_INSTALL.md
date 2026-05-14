@@ -211,3 +211,8 @@ Phase 38 不改变 worker_client 安装流程。Conversation Runtime 通过 Brow
 ## Phase 41 对 worker_client 的影响
 
 Phase 41 不改变 worker_client 安装流程。Output Library 在 AI Server 侧保存 artifacts；worker_client 仍只负责 Browser Runtime / Playwright 执行和结果回传。截图文件仍由既有 screenshot storage 管理，Output Library 只保存引用路径。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

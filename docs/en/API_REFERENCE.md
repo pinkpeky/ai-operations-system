@@ -3288,3 +3288,69 @@ Export files are written under `storage/output_artifacts/{workspace_id}/{artifac
 Frontend: Admin Dashboard has an Output Library page with artifact list/detail, type badge, source type, related thread, related Playbook Run, preview content, Export markdown/json/txt, and filters. Conversation pages show generated artifacts and Save as Artifact.
 
 Boundary: this is not a full DAM, not S3, not MinIO, and not production publishing asset management.
+## Phase 42 API: Task Orchestration & Background Execution
+
+### `GET /api/v1/task-runs`
+Required headers: `X-Workspace-Id`, `X-User-Id`. Query filters: `status`, `task_type`, `source_type`, `created_from`, `created_to`, `limit`.
+
+Response JSON:
+```json
+{
+  "items": [
+    {
+      "id": "TASK_RUN_ID",
+      "workspace_id": "demo-workspace",
+      "task_type": "playbook",
+      "source_type": "conversation",
+      "source_id": "THREAD_ID",
+      "status": "queued",
+      "priority": "normal",
+      "retry_count": 0,
+      "max_retries": 3,
+      "scheduled_at": null,
+      "current_step": 0,
+      "input_payload": {},
+      "output_payload": {},
+      "metadata": {},
+      "created_by": "demo-user"
+    }
+  ]
+}
+```
+
+### `GET /api/v1/task-runs/{task_run_id}`
+Returns one `task_runs` record with queued, running, waiting_approval, retrying, completed, failed, cancelled, or expired status.
+
+### `GET /api/v1/task-runs/{task_run_id}/events`
+Returns the `task_run_events` timeline, including `task_queued`, `task_started`, `task_step_started`, `task_step_completed`, `task_waiting_approval`, `task_retry_scheduled`, `task_completed`, `task_cancelled`, and `artifact_created`.
+
+### `POST /api/v1/task-runs/{task_run_id}/retry`
+```json
+{ "reason": "manual retry" }
+```
+Only failed / retryable tasks can retry. `TaskRetryPolicy` uses exponential backoff. `approval rejected` and validation errors are not retried.
+
+### `POST /api/v1/task-runs/{task_run_id}/cancel`
+```json
+{ "reason": "manual cancel" }
+```
+Cancels unfinished task runs and writes task timeline events.
+
+### `POST /api/v1/task-runs/{task_run_id}/resume`
+Only `waiting_approval` tasks with an approved linked approval can resume. Resume re-queues the task and does not bypass the Phase 39 Approval Gate.
+
+### Conversation Background Run
+`POST /api/v1/conversations/{thread_id}/run` adds:
+```json
+{
+  "input": { "message": "Open https://example.com, take a screenshot, and generate a report." },
+  "playbook_name": "browser_screenshot_report",
+  "mode": "review_first",
+  "execution_mode": "background"
+}
+```
+The response includes `task_run_id`, `task_status`, and `execution_mode`. `scheduled` mode requires `scheduled_at`.
+
+Current boundary: Task Orchestration is a Background Execution foundation, not Celery / RabbitMQ / Kubernetes / production HA queue.
+
+Phase 42 verifier markers: `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, artifact linkage, not Celery, not Kubernetes, not production HA.

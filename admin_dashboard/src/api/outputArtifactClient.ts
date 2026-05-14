@@ -5,6 +5,7 @@ export interface OutputArtifact {
   workspace_id: string;
   thread_id: string | null;
   playbook_run_id: string | null;
+  task_run_id: string | null;
   source_type: string;
   artifact_type: string;
   title: string;
@@ -29,13 +30,14 @@ export interface OutputArtifactExport {
 export const outputArtifactClient = {
   listArtifacts: (
     settings: AdminSettings = readAdminSettings(),
-    filters: { artifactType?: string; sourceType?: string; threadId?: string; playbookRunId?: string } = {},
+    filters: { artifactType?: string; sourceType?: string; threadId?: string; playbookRunId?: string; taskRunId?: string } = {},
   ) => {
     const params = new URLSearchParams();
     if (filters.artifactType) params.set("artifact_type", filters.artifactType);
     if (filters.sourceType) params.set("source_type", filters.sourceType);
     if (filters.threadId) params.set("thread_id", filters.threadId);
     if (filters.playbookRunId) params.set("playbook_run_id", filters.playbookRunId);
+    if (filters.taskRunId) params.set("task_run_id", filters.taskRunId);
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return requestJson<ApiList<OutputArtifact>>(`/output-artifacts${suffix}`, {}, settings);
   },

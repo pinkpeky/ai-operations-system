@@ -331,3 +331,8 @@ Worker Console Web 和 Desktop Chat Panel 增加 Output Library 基础展示：
 - Export markdown
 
 该能力用于查看 Playbook / Conversation 生成的 `content_draft`、`report`、`rag_answer`、`screenshot`、`html_snapshot`、`plan`、`json` 等产物。当前只是 Output Library Foundation，不是完整 DAM，不接 S3 / MinIO，也不做真实平台发布资产管理。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

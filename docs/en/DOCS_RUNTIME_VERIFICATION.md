@@ -469,3 +469,8 @@ If Playbook APIs are added or removed, update `scripts/verify_docs_runtime.py` i
 ## Phase 41 Verification Addendum
 
 The docs verifier now checks Output Library coverage: `output_artifacts`, `OutputArtifactService`, `/api/v1/output-artifacts`, artifact events, Save as Artifact, Export markdown, S3 / MinIO boundaries, and the not a full DAM statement. When Output Artifact APIs, fields, or frontend entry points change, update `scripts/verify_docs_runtime.py` in the same phase.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

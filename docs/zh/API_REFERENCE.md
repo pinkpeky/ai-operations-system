@@ -2720,3 +2720,69 @@ Export files are written under `storage/output_artifacts/{workspace_id}/{artifac
 Frontend: Admin Dashboard has an Output Library page with artifact list/detail, type badge, source type, related thread, related Playbook Run, preview content, Export markdown/json/txt, and filters. Conversation pages show generated artifacts and Save as Artifact.
 
 Boundary: this is not a full DAM, not S3, not MinIO, and not production publishing asset management.
+## Phase 42 API?Task Orchestration & Background Execution
+
+### `GET /api/v1/task-runs`
+Required headers: `X-Workspace-Id`, `X-User-Id`. Query filters: `status`, `task_type`, `source_type`, `created_from`, `created_to`, `limit`.
+
+Response JSON:
+```json
+{
+  "items": [
+    {
+      "id": "TASK_RUN_ID",
+      "workspace_id": "demo-workspace",
+      "task_type": "playbook",
+      "source_type": "conversation",
+      "source_id": "THREAD_ID",
+      "status": "queued",
+      "priority": "normal",
+      "retry_count": 0,
+      "max_retries": 3,
+      "scheduled_at": null,
+      "current_step": 0,
+      "input_payload": {},
+      "output_payload": {},
+      "metadata": {},
+      "created_by": "demo-user"
+    }
+  ]
+}
+```
+
+### `GET /api/v1/task-runs/{task_run_id}`
+???? `task_runs` ????? `queued`?`running`?`waiting_approval`?`retrying`?`completed`?`failed`?`cancelled`?`expired` ???
+
+### `GET /api/v1/task-runs/{task_run_id}/events`
+?? `task_run_events` timeline??? `task_queued`?`task_started`?`task_step_started`?`task_step_completed`?`task_waiting_approval`?`task_retry_scheduled`?`task_completed`?`task_cancelled`?`artifact_created`?
+
+### `POST /api/v1/task-runs/{task_run_id}/retry`
+```json
+{ "reason": "manual retry" }
+```
+? failed / retryable task ? retry?`TaskRetryPolicy` ?? exponential backoff?`approval rejected` ? validation error ? retry?
+
+### `POST /api/v1/task-runs/{task_run_id}/cancel`
+```json
+{ "reason": "manual cancel" }
+```
+?????????? task timeline?
+
+### `POST /api/v1/task-runs/{task_run_id}/resume`
+? `waiting_approval` ??? approval ? approved ?????????? queued???? Phase 39 Approval Gate?
+
+### Conversation Background Run
+`POST /api/v1/conversations/{thread_id}/run` ???
+```json
+{
+  "input": { "message": "??? https://example.com ????????" },
+  "playbook_name": "browser_screenshot_report",
+  "mode": "review_first",
+  "execution_mode": "background"
+}
+```
+???? `task_run_id`?`task_status`?`execution_mode`?`scheduled` ???? `scheduled_at`?
+
+?????Task Orchestration ? Background Execution foundation??? Celery / RabbitMQ / Kubernetes / production HA queue?
+
+Phase 42 verifier markers: `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, artifact linkage, not Celery, not Kubernetes, not production HA.

@@ -12,6 +12,7 @@ from app.models.memory import ConversationMessage
 
 ConversationRoleLiteral = Literal["user", "assistant", "system", "tool", "event"]
 ConversationRunModeLiteral = Literal["auto_safe", "review_first", "execute_after_approval"]
+ConversationExecutionModeLiteral = Literal["immediate", "background", "scheduled"]
 
 
 class ConversationThreadCreateRequest(BaseModel):
@@ -138,6 +139,11 @@ class ConversationRunRequest(BaseModel):
         default="auto_safe",
         description="auto_safe / review_first / execute_after_approval",
     )
+    execution_mode: ConversationExecutionModeLiteral = Field(
+        default="immediate",
+        description="immediate / background / scheduled",
+    )
+    scheduled_at: datetime | None = Field(default=None, description="Required for scheduled background execution")
 
 
 class ConversationRunResponse(BaseModel):
@@ -164,6 +170,9 @@ class ConversationRunResponse(BaseModel):
     playbook_run_id: UUID | None = None
     playbook_name: str | None = None
     playbook_status: str | None = None
+    task_run_id: UUID | None = None
+    task_status: str | None = None
+    execution_mode: str = "immediate"
     websocket_placeholder: bool = True
     sse_placeholder: bool = True
 

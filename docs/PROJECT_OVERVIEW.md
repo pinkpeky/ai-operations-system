@@ -1074,3 +1074,12 @@ Source types: `conversation`, `playbook`, `tool`, `browser_runtime`, `rag`, `con
 Storage: exported files are written under `storage/output_artifacts/{workspace_id}/{artifact_id}/`. The system does not use S3 or MinIO.
 
 Current limitation: this is not a full DAM, not a production file manager, not cloud storage, not real publishing asset management, and not a complete material management system.
+## Phase 42?Task Orchestration & Background Execution
+
+Phase 42 is completed. The system now has `task_runs` and `task_run_events` as a dedicated background execution timeline for Conversation and Playbook work. `TaskOrchestratorService` creates, queues, starts, completes, fails, retries, cancels, schedules, and resumes task runs. `BackgroundTaskExecutor` is a lightweight in-process polling loop started by FastAPI when `TASK_ORCHESTRATOR_ENABLED=true`. `TaskRetryPolicy` provides exponential backoff and keeps approval rejected / validation errors non-retryable.
+
+Conversation Runtime now supports `execution_mode=immediate|background|scheduled`; background responses include `task_run_id`, `task_status`, and `execution_mode`. Scheduled Tasks use `scheduled_at`. Waiting approval runs pause as `waiting_approval` and resume only after Phase 39 approval is approved. Output Library now stores `task_run_id` on artifacts for Artifact linkage.
+
+Current limits: this is not Celery, not RabbitMQ, not Kubernetes scheduler, and not production HA distributed queue. It does not add TikTok / YouTube / X automation, real publishing, login, CAPTCHA handling, proxy rotation, fingerprint bypass, real OpenClaw, or ComfyUI.
+
+Phase 42 marker: Approval resume is supported for approved waiting_approval task runs.

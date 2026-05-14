@@ -211,3 +211,8 @@ Phase 38 does not change the worker_client installation flow. When Conversation 
 ## Phase 41 Worker Client Impact
 
 Phase 41 does not change worker_client installation. Output Library stores artifacts on the AI Server side; worker_client still only handles Browser Runtime / Playwright execution and result return. Screenshot files remain managed by the existing screenshot storage, while Output Library stores path references.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

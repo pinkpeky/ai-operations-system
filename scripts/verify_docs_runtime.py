@@ -156,9 +156,15 @@ class DocsRuntimeVerifier:
             "app/conversation/playbook_definitions.py",
             "app/conversation/services/conversation_service.py",
             "app/models/output_artifact.py",
+            "app/models/task_run.py",
             "app/schemas/output_artifact.py",
+            "app/schemas/task_run.py",
             "app/services/output_artifact_service.py",
+            "app/task_orchestration/service.py",
+            "app/task_orchestration/background_executor.py",
+            "app/task_orchestration/retry_policy.py",
             "app/api/routes/output_artifacts.py",
+            "app/api/routes/task_runs.py",
             "app/schemas/conversation.py",
             "app/schemas/conversation_playbook.py",
             "app/api/routes/conversations.py",
@@ -166,8 +172,10 @@ class DocsRuntimeVerifier:
             "app/api/routes/conversation_playbooks.py",
             "worker_console/src/api/conversationClient.ts",
             "worker_console/src/api/outputArtifactClient.ts",
+            "worker_console/src/api/taskRunClient.ts",
             "worker_console_desktop/src/api/conversationClient.ts",
             "worker_console_desktop/src/api/outputArtifactClient.ts",
+            "worker_console_desktop/src/api/taskRunClient.ts",
             "admin_dashboard/package.json",
             "admin_dashboard/index.html",
             "admin_dashboard/vite.config.ts",
@@ -177,6 +185,7 @@ class DocsRuntimeVerifier:
             "admin_dashboard/src/api/client.ts",
             "admin_dashboard/src/api/conversationClient.ts",
             "admin_dashboard/src/api/outputArtifactClient.ts",
+            "admin_dashboard/src/api/taskRunClient.ts",
             "admin_dashboard/.env.example",
             "admin_dashboard/README.md",
             "docs/zh/ADMIN_DASHBOARD.md",
@@ -247,6 +256,10 @@ class DocsRuntimeVerifier:
             "OPENCLAW_PROVIDER": settings.openclaw_provider,
             "OPENCLAW_ENABLED": str(settings.openclaw_enabled),
             "OPENCLAW_ACTION_TIMEOUT_SECONDS": str(settings.openclaw_action_timeout_seconds),
+            "TASK_ORCHESTRATOR_ENABLED": str(settings.task_orchestrator_enabled),
+            "TASK_ORCHESTRATOR_POLL_INTERVAL_SECONDS": str(settings.task_orchestrator_poll_interval_seconds),
+            "TASK_ORCHESTRATOR_BATCH_SIZE": str(settings.task_orchestrator_batch_size),
+            "TASK_RUN_DEFAULT_MAX_RETRIES": str(settings.task_run_default_max_retries),
         }
         for key, value in expected_values.items():
             if key not in current_runtime or str(value) not in current_runtime:
@@ -402,6 +415,12 @@ class DocsRuntimeVerifier:
             "/api/v1/output-artifacts/from-message/{message_id}",
             "/api/v1/output-artifacts/from-playbook-run/{run_id}",
             "/api/v1/output-artifacts/{artifact_id}/export",
+            "/api/v1/task-runs",
+            "/api/v1/task-runs/{task_run_id}",
+            "/api/v1/task-runs/{task_run_id}/events",
+            "/api/v1/task-runs/{task_run_id}/retry",
+            "/api/v1/task-runs/{task_run_id}/cancel",
+            "/api/v1/task-runs/{task_run_id}/resume",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
             "/api/v1/rag/eval/runs",
@@ -826,6 +845,25 @@ class DocsRuntimeVerifier:
             "artifact_exported",
             "artifact_deleted",
             "artifact_linked_to_playbook_run",
+            "task_runs",
+            "task_run_events",
+            "TaskOrchestratorService",
+            "BackgroundTaskExecutor",
+            "TaskRetryPolicy",
+            "execution_mode",
+            "scheduled_at",
+            "queued",
+            "waiting_approval",
+            "retrying",
+            "task_run_id",
+            "task_queued",
+            "task_started",
+            "task_retry_scheduled",
+            "task_completed",
+            "task_cancelled",
+            "artifact linkage",
+            "not Celery",
+            "not Kubernetes",
             "Save as Artifact",
             "Export markdown",
             "not a full DAM",
@@ -1211,6 +1249,20 @@ class DocsRuntimeVerifier:
             "not a full DAM",
             "S3",
             "MinIO",
+            "Phase 42",
+            "Task Orchestration & Background Execution",
+            "task_runs",
+            "task_run_events",
+            "TaskOrchestratorService",
+            "BackgroundTaskExecutor",
+            "TaskRetryPolicy",
+            "Background Execution",
+            "Scheduled Tasks",
+            "Approval resume",
+            "Artifact linkage",
+            "not Celery",
+            "not Kubernetes",
+            "not production HA",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1300,8 +1352,22 @@ class DocsRuntimeVerifier:
                 or "not a full DAM" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 41 scope")
+            elif not re.search(r"Phase\s+42", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 42")
+            elif (
+                "Task Orchestration & Background Execution" not in text
+                or "task_runs" not in text
+                or "task_run_events" not in text
+                or "TaskOrchestratorService" not in text
+                or "BackgroundTaskExecutor" not in text
+                or "TaskRetryPolicy" not in text
+                or "execution_mode" not in text
+                or "not Celery" not in text
+                or "not Kubernetes" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 42 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, and Phase 41")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, and Phase 42")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

@@ -331,3 +331,8 @@ Worker Console Web and Desktop Chat Panel now include Output Library foundation 
 - Export markdown
 
 This lets operators inspect reusable `content_draft`, `report`, `rag_answer`, `screenshot`, `html_snapshot`, `plan`, and `json` outputs from Playbook / Conversation runs. It is an Output Library Foundation, not a full DAM, has no S3 / MinIO integration, and is not production publishing asset management.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

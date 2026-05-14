@@ -56,6 +56,7 @@ class OutputArtifactService:
         metadata: dict[str, Any] | None = None,
         thread_id: UUID | None = None,
         playbook_run_id: UUID | None = None,
+        task_run_id: UUID | None = None,
         created_by: str | None = None,
         commit: bool = True,
     ) -> OutputArtifact:
@@ -66,6 +67,7 @@ class OutputArtifactService:
             workspace_id=workspace_id,
             thread_id=thread_id,
             playbook_run_id=playbook_run_id,
+            task_run_id=task_run_id,
             source_type=source_type,
             artifact_type=artifact_type,
             title=title[:255],
@@ -90,6 +92,7 @@ class OutputArtifactService:
                     "artifact_type": artifact.artifact_type,
                     "source_type": artifact.source_type,
                     "playbook_run_id": str(playbook_run_id) if playbook_run_id else None,
+                    "task_run_id": str(task_run_id) if task_run_id else None,
                 },
             )
             if playbook_run_id is not None:
@@ -117,6 +120,7 @@ class OutputArtifactService:
         source_type: str | None = None,
         thread_id: UUID | None = None,
         playbook_run_id: UUID | None = None,
+        task_run_id: UUID | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
         include_deleted: bool = False,
@@ -135,6 +139,8 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.thread_id == thread_id)
         if playbook_run_id is not None:
             statement = statement.where(OutputArtifact.playbook_run_id == playbook_run_id)
+        if task_run_id is not None:
+            statement = statement.where(OutputArtifact.task_run_id == task_run_id)
         if created_from is not None:
             statement = statement.where(OutputArtifact.created_at >= created_from)
         if created_to is not None:
@@ -176,6 +182,37 @@ class OutputArtifactService:
         await self.session.commit()
         await self.session.refresh(artifact)
         return artifact
+
+    async def link_artifacts_to_task_run(
+        self,
+        *,
+        workspace_id: str,
+        task_run_id: UUID,
+        playbook_run_id: UUID | None = None,
+        thread_id: UUID | None = None,
+        commit: bool = True,
+    ) -> list[OutputArtifact]:
+        """Link existing artifacts to a task run for timeline/library queries."""
+
+        artifacts = await self.list_artifacts(
+            workspace_id=workspace_id,
+            playbook_run_id=playbook_run_id,
+            thread_id=thread_id if playbook_run_id is None else None,
+            include_deleted=False,
+            limit=500,
+        )
+        linked: list[OutputArtifact] = []
+        for artifact in artifacts:
+            if artifact.task_run_id == task_run_id:
+                linked.append(artifact)
+                continue
+            artifact.task_run_id = task_run_id
+            linked.append(artifact)
+        if commit:
+            await self.session.commit()
+            for artifact in linked:
+                await self.session.refresh(artifact)
+        return linked
 
     async def delete_artifact(self, *, workspace_id: str, artifact_id: UUID) -> OutputArtifact:
         """Soft-delete an artifact. Physical files are not removed."""

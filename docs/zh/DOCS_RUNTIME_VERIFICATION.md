@@ -444,3 +444,8 @@ Verifier 检查项新增：
 ## Phase 41 验证补充
 
 Docs verifier 现在检查 Output Library：`output_artifacts`、`OutputArtifactService`、`/api/v1/output-artifacts`、artifact events、Save as Artifact、Export markdown、S3 / MinIO 边界和 not a full DAM 声明。新增或删除 Output Artifact API、字段或前端入口时，必须同步 `scripts/verify_docs_runtime.py`。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

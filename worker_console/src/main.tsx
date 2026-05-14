@@ -34,6 +34,7 @@ import {
   ConversationSettings,
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
+import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
 import "./styles.css";
 
@@ -116,6 +117,9 @@ function ChatPanel() {
   const [playbooks, setPlaybooks] = useState<ConversationPlaybook[]>([]);
   const [playbookRuns, setPlaybookRuns] = useState<ConversationPlaybookRun[]>([]);
   const [artifacts, setArtifacts] = useState<OutputArtifact[]>([]);
+  const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
+  const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
+  const [selectedTaskRunId, setSelectedTaskRunId] = useState<string | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -144,9 +148,25 @@ function ChatPanel() {
     }
   }, [settings]);
 
+  const refreshTaskRuns = useCallback(async () => {
+    try {
+      const response = await taskRunClient.listTaskRuns(settings);
+      setTaskRuns(response.items);
+      const taskId = selectedTaskRunId || response.items[0]?.id;
+      if (taskId) {
+        setSelectedTaskRunId(taskId);
+        setTaskEvents((await taskRunClient.listEvents(taskId, settings)).items);
+      }
+    } catch {
+      setTaskRuns([]);
+      setTaskEvents([]);
+    }
+  }, [selectedTaskRunId, settings]);
+
   useEffect(() => {
     void refreshPlaybooks();
-  }, [refreshPlaybooks]);
+    void refreshTaskRuns();
+  }, [refreshPlaybooks, refreshTaskRuns]);
 
   const refreshConversation = useCallback(async () => {
     if (!threadId) {
@@ -164,12 +184,13 @@ function ChatPanel() {
       setApprovals(nextApprovals.items);
       setArtifacts((await outputArtifactClient.listArtifacts(settings, { threadId })).items);
       await refreshPlaybooks();
+      await refreshTaskRuns();
       setConnectionState("connected");
     } catch (nextError) {
       setConnectionState("disconnected");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
     }
-  }, [refreshPlaybooks, settings, threadId]);
+  }, [refreshPlaybooks, refreshTaskRuns, settings, threadId]);
 
   useEffect(() => {
     if (!pollEvents || !threadId) {
@@ -230,6 +251,10 @@ function ChatPanel() {
       setLastRoute(run.route_name);
       setLastSelectedTool(run.selected_tool);
       setLastRunMetadata(run.result_metadata);
+      if (run.task_run_id) {
+        setSelectedTaskRunId(run.task_run_id);
+        await refreshTaskRuns();
+      }
       setConnectionState("connected");
       setRunStatus(`route: ${run.route_name} | tool: ${run.selected_tool ?? "none"} | risk: ${run.risk_level ?? "-"} | approval: ${run.approval_status ?? "-"} | success: ${run.success}`);
       setInput("");
@@ -237,6 +262,59 @@ function ChatPanel() {
       setConnectionState("disconnected");
       setRunStatus("error");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const sendBackgroundConversation = async () => {
+    const content = input.trim();
+    if (!content) {
+      return;
+    }
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("queueing background task");
+    try {
+      const thread = threadId
+        ? { id: threadId }
+        : await conversationClient.createThread(title.trim() || `Worker Console Background ${new Date().toLocaleString()}`, settings);
+      if (!threadId) {
+        setThreadId(thread.id);
+      }
+      const run = await conversationClient.runConversation(thread.id, content, settings, "review_first", selectedPlaybookName, "background");
+      if (run.task_run_id) {
+        setSelectedTaskRunId(run.task_run_id);
+      }
+      await refreshConversation();
+      await refreshTaskRuns();
+      setLastRunMetadata(run.result_metadata);
+      setRunStatus(`background task queued: ${run.task_run_id ?? "-"} | status: ${run.task_status ?? "-"}`);
+    } catch (nextError) {
+      setConnectionState("disconnected");
+      setRunStatus("error");
+      setChatError(nextError instanceof Error ? nextError.message : "Background task API unreachable");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume") => {
+    setChatLoading(true);
+    setChatError(null);
+    try {
+      if (action === "retry") {
+        await taskRunClient.retry(taskRunId, settings);
+      } else if (action === "cancel") {
+        await taskRunClient.cancel(taskRunId, settings);
+      } else {
+        await taskRunClient.resume(taskRunId, settings);
+      }
+      await refreshTaskRuns();
+      setRunStatus(`task ${action} submitted`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : `Task ${action} failed`);
+      setRunStatus("task control error");
     } finally {
       setChatLoading(false);
     }
@@ -507,7 +585,7 @@ function ChatPanel() {
               <span>{artifact.source_type}</span>
             </div>
             <div className="chat-meta">
-              artifact_id: {artifact.id} | playbook_run_id: {artifact.playbook_run_id ?? "-"}
+              artifact_id: {artifact.id} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"}
             </div>
             <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
             <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
@@ -516,6 +594,48 @@ function ChatPanel() {
           </div>
         )) : (
           <div className="empty-chat">No generated artifacts yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
+        <h3>Task Runs</h3>
+        <div className="chat-note">
+          Background execution uses the Phase 42 in-process queue with retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+        </div>
+        <div className="chat-actions">
+          <button className="refresh-button" onClick={() => void refreshTaskRuns()}>
+            <RefreshCcw size={15} />
+            Refresh task status
+          </button>
+        </div>
+        {taskRuns.length > 0 ? taskRuns.slice(0, 8).map((task) => (
+          <div key={task.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{task.task_type}</strong>
+              <span>{task.status}</span>
+            </div>
+            <div className="chat-meta">
+              task_run_id: {task.id} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries}
+            </div>
+            <p>{String(task.error ?? task.output_payload.summary ?? "No error")}</p>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => { setSelectedTaskRunId(task.id); void refreshTaskRuns(); }}>Events</button>
+              <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "retry")} disabled={chatLoading}>Retry</button>
+              <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "cancel")} disabled={chatLoading}>Cancel</button>
+              <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "resume")} disabled={chatLoading}>Resume</button>
+            </div>
+          </div>
+        )) : (
+          <div className="empty-chat">No background task runs yet.</div>
+        )}
+        <h4>Task timeline {selectedTaskRunId ? `for ${selectedTaskRunId}` : ""}</h4>
+        {taskEvents.length > 0 ? taskEvents.map((event) => (
+          <div key={event.id} className="event-item">
+            <strong>{event.event_type}</strong>
+            <span>{event.message ?? "-"}</span>
+            <code>{JSON.stringify(event.payload)}</code>
+          </div>
+        )) : (
+          <div className="empty-chat">Select a task run to inspect its timeline.</div>
         )}
       </div>
       <div className="chat-input-row">
@@ -527,6 +647,10 @@ function ChatPanel() {
         <button className="action-button" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
           <Send size={16} />
           Send and run
+        </button>
+        <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
+          <PlayCircle size={16} />
+          Run background
         </button>
       </div>
     </section>

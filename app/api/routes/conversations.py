@@ -12,6 +12,7 @@ from app.conversation.services import ConversationApprovalService, ConversationS
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
+from app.models.enums import ConversationRole
 from app.schemas.conversation import (
     ConversationEventListResponse,
     ConversationEventResponse,
@@ -26,6 +27,7 @@ from app.schemas.conversation import (
     ConversationThreadListResponse,
     ConversationThreadResponse,
 )
+from app.task_orchestration.service import TaskOrchestratorService
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +217,63 @@ async def run_conversation(
     """执行一轮 rule-based conversation runtime。"""
 
     try:
+        if request.execution_mode in {"background", "scheduled"}:
+            if request.execution_mode == "scheduled" and request.scheduled_at is None:
+                raise AppError("scheduled_at is required for scheduled execution", status_code=400)
+            conversation = ConversationService(session)
+            text = str(request.input.get("message") or request.input.get("topic") or request.playbook_name or "Background conversation task")
+            user_message = await conversation.append_message(
+                workspace_id=context.workspace_id,
+                thread_id=thread_id,
+                role=ConversationRole.USER.value,
+                content=text,
+                metadata={"execution_mode": request.execution_mode, "source": "task_orchestration"},
+            )
+            assistant_message = await conversation.append_message(
+                workspace_id=context.workspace_id,
+                thread_id=thread_id,
+                role=ConversationRole.ASSISTANT.value,
+                content="Background task queued. Poll /api/v1/task-runs/{task_run_id} for status.",
+                metadata={"execution_mode": request.execution_mode, "queued": True},
+            )
+            run_payload = request.model_dump()
+            run_payload.pop("execution_mode", None)
+            run_payload.pop("scheduled_at", None)
+            task = await TaskOrchestratorService(session).enqueue_task(
+                workspace_id=context.workspace_id,
+                task_type="playbook" if request.playbook_name else "conversation",
+                source_type="conversation",
+                source_id=str(thread_id),
+                input_payload={"thread_id": str(thread_id), "run_input": run_payload, **run_payload},
+                created_by=context.user_id,
+                scheduled_at=request.scheduled_at,
+                metadata={"execution_mode": request.execution_mode, "playbook_name": request.playbook_name},
+            )
+            await conversation.append_event(
+                workspace_id=context.workspace_id,
+                thread_id=thread_id,
+                event_type="task_queued",
+                message="Conversation run queued as background task",
+                payload={"task_run_id": str(task.id), "execution_mode": request.execution_mode, "task_status": task.status},
+            )
+            return ConversationRunResponse(
+                thread_id=thread_id,
+                user_message_id=user_message.id,
+                assistant_message_id=assistant_message.id,
+                assistant_message=ConversationMessageResponse.from_model(assistant_message),
+                route="task_run",
+                route_name="task_run",
+                selected_tool=None,
+                events=[],
+                events_created=1,
+                success=True,
+                summary="Background task queued",
+                result_metadata={"task_run_id": str(task.id), "task_status": task.status, "execution_mode": request.execution_mode},
+                output={"task_run_id": str(task.id), "task_status": task.status},
+                task_run_id=task.id,
+                task_status=task.status,
+                execution_mode=request.execution_mode,
+            )
         result = await ConversationService(session).run_conversation_turn(
             workspace_id=context.workspace_id,
             user_id=context.user_id,
@@ -243,6 +302,7 @@ async def run_conversation(
             playbook_run_id=result.playbook_run_id,
             playbook_name=result.playbook_name,
             playbook_status=result.playbook_status,
+            execution_mode=request.execution_mode,
         )
     except ValueError as exc:
         raise AppError(str(exc), status_code=400) from exc

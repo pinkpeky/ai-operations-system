@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   MonitorCheck,
+  PlayCircle,
   RefreshCcw,
   Search,
   Send,
@@ -49,6 +50,7 @@ import {
   ConversationThread,
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
+import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
 import "./styles.css";
 
 type PageKey =
@@ -91,7 +93,7 @@ const pages: PageDefinition[] = [
   { key: "settings", label: "Settings", icon: <Settings size={18} /> },
 ];
 
-const taskStatuses = ["pending", "running", "retry", "failed", "completed", "cancelled", "timeout"];
+const taskStatuses = ["pending", "queued", "running", "waiting_approval", "retrying", "failed", "completed", "cancelled", "expired"];
 
 function emptyState<T>(): AsyncState<T> {
   return { data: null, error: null, loading: false, updatedAt: null };
@@ -286,10 +288,11 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
-    const [health, workerSummary, taskSummary, openclawHealth, sessions, conversations] = await Promise.all([
+    const [health, workerSummary, taskSummary, taskRuns, openclawHealth, sessions, conversations] = await Promise.all([
       safeRequest<JsonRecord>("/health", {}, settings),
       safeRequest<JsonRecord>("/browser-workers/health/summary", {}, settings),
       safeRequest<JsonRecord>("/observability/summary", {}, settings),
+      safeRequest<JsonRecord>("/task-runs", {}, settings),
       safeRequest<JsonRecord>("/openclaw/health", {}, settings),
       safeRequest<JsonRecord>("/browser-runtime/sessions", {}, settings),
       safeRequest<JsonRecord>("/conversations", {}, settings),
@@ -298,6 +301,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
       health: health.ok ? health.data : { unavailable: health.error },
       workerSummary: workerSummary.ok ? workerSummary.data : { unavailable: workerSummary.error },
       taskSummary: taskSummary.ok ? taskSummary.data : { unavailable: taskSummary.error },
+      taskRuns: taskRuns.ok ? taskRuns.data : { unavailable: taskRuns.error },
       openclawHealth: openclawHealth.ok ? openclawHealth.data : { unavailable: openclawHealth.error },
       browserRuntimeSessions: sessions.ok ? sessions.data : { unavailable: sessions.error },
       conversations: conversations.ok ? conversations.data : { unavailable: conversations.error },
@@ -309,7 +313,12 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
 
   const sessionsCount = state.data ? toItems(state.data.browserRuntimeSessions).length : "-";
   const conversationCount = state.data ? toItems(state.data.conversations).length : "-";
-  const taskSummary = (state.data?.taskSummary as JsonRecord | undefined) || null;
+  const taskRuns = state.data ? toItems(state.data.taskRuns) : [];
+  const taskRunCounts = taskRuns.reduce<Record<string, number>>((counts, item) => {
+    const status = String(item.status ?? "unknown");
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
   const workerSummary = (state.data?.workerSummary as JsonRecord | undefined) || null;
   const health = (state.data?.health as JsonRecord | undefined) || null;
   const openclaw = (state.data?.openclawHealth as JsonRecord | undefined) || null;
@@ -326,7 +335,12 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
         />
         <DataCard title="Browser sessions" value={sessionsCount} detail="runtime sessions" icon={<MonitorCheck size={20} />} />
         <DataCard title="Conversations" value={conversationCount} detail="foundation threads" icon={<MessageSquareText size={20} />} />
-        <DataCard title="Tasks" value={valueAt(taskSummary, ["running_count"], "0")} detail="running now" icon={<ClipboardList size={20} />} />
+        <DataCard
+          title="Task runs"
+          value={`${taskRunCounts.queued ?? 0} queued / ${taskRunCounts.running ?? 0} running`}
+          detail={`${taskRunCounts.failed ?? 0} failed / ${taskRunCounts.retrying ?? 0} retrying`}
+          icon={<ClipboardList size={20} />}
+        />
         <DataCard
           title="OpenClaw"
           value={valueAt(openclaw, ["provider"], "unavailable")}
@@ -339,6 +353,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
         <div className="json-grid">
           <JsonPreview value={state.data?.health} />
           <JsonPreview value={state.data?.taskSummary} />
+          <JsonPreview value={state.data?.taskRuns} />
           <JsonPreview value={state.data?.workerSummary} />
           <JsonPreview value={state.data?.openclawHealth} />
         </div>
@@ -650,7 +665,10 @@ function ConversationsPage({ settings }: { settings: AdminSettings }) {
     }
   };
 
-  const runConversation = async (mode: "auto_safe" | "review_first" = "auto_safe") => {
+  const runConversation = async (
+    mode: "auto_safe" | "review_first" = "auto_safe",
+    executionMode: "immediate" | "background" | "scheduled" = "immediate",
+  ) => {
     if (!selectedThread) {
       setDetailError("Create or select a thread before running conversation.");
       return;
@@ -661,10 +679,17 @@ function ConversationsPage({ settings }: { settings: AdminSettings }) {
       setDetailError("Run requires a message.");
       return;
     }
-    setRunStatus("running conversation");
+    setRunStatus(executionMode === "background" ? "queueing background task" : "running conversation");
     setDetailError(null);
     try {
-      const response = await conversationClient.runConversation(selectedThread.id, content, settings, mode, selectedPlaybookName || null);
+      const response = await conversationClient.runConversation(
+        selectedThread.id,
+        content,
+        settings,
+        mode,
+        selectedPlaybookName || null,
+        executionMode,
+      );
       setMessages((await conversationClient.listMessages(selectedThread.id, settings)).items);
       setApprovals((await conversationClient.listApprovals(selectedThread.id, settings)).items);
       setPlaybookRuns((await conversationClient.listPlaybookRuns(settings)).items ?? []);
@@ -673,7 +698,7 @@ function ConversationsPage({ settings }: { settings: AdminSettings }) {
       setLastRunMetadata(response.result_metadata);
       setConnectionState("connected");
       setRunStatus(
-        `route: ${response.route_name} | tool: ${response.selected_tool ?? "none"} | risk: ${response.risk_level ?? "-"} | approval: ${response.approval_status ?? "-"} | success: ${response.success}`,
+        `mode: ${response.execution_mode} | task: ${response.task_run_id ?? "-"} | route: ${response.route_name} | tool: ${response.selected_tool ?? "none"} | risk: ${response.risk_level ?? "-"} | approval: ${response.approval_status ?? "-"} | success: ${response.success}`,
       );
     } catch (error) {
       setConnectionState("disconnected");
@@ -858,6 +883,10 @@ function ConversationsPage({ settings }: { settings: AdminSettings }) {
             <button className="ghost-button" onClick={() => void runConversation("review_first")} disabled={!selectedThread}>
               <AlertTriangle size={15} />
               Run review_first
+            </button>
+            <button className="ghost-button" onClick={() => void runConversation("review_first", "background")} disabled={!selectedThread}>
+              <PlayCircle size={15} />
+              Queue background
             </button>
             <button className="ghost-button" onClick={() => void refreshSelected()} disabled={!selectedThread}>
               <RefreshCcw size={15} />
@@ -1163,6 +1192,7 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <span>artifact_id: {selectedArtifact.id}</span>
               <span>thread_id: {selectedArtifact.thread_id ?? "-"}</span>
               <span>playbook_run_id: {selectedArtifact.playbook_run_id ?? "-"}</span>
+              <span>task_run_id: {selectedArtifact.task_run_id ?? "-"}</span>
             </div>
             <div className="approval-card">
               <div className="approval-card-header">
@@ -1192,38 +1222,62 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
 }
 
 function TasksPage({ settings }: { settings: AdminSettings }) {
-  const [status, setStatus] = useState("pending");
-  const [tasks, setTasks] = useState<AsyncState<JsonRecord[]>>(emptyState());
-  const [selectedTask, setSelectedTask] = useState<JsonRecord | null>(null);
-  const [events, setEvents] = useState<JsonRecord[]>([]);
-  const [logs, setLogs] = useState<JsonRecord[]>([]);
-  const selectedId = selectedTask ? rowId(selectedTask, ["id", "task_id"]) : null;
+  const [status, setStatus] = useState("queued");
+  const [tasks, setTasks] = useState<AsyncState<TaskRun[]>>(emptyState());
+  const [selectedTask, setSelectedTask] = useState<TaskRun | null>(null);
+  const [events, setEvents] = useState<TaskRunEvent[]>([]);
+  const [linkedArtifacts, setLinkedArtifacts] = useState<OutputArtifact[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const selectedId = selectedTask?.id ?? null;
 
   const load = useCallback(async () => {
     setTasks((current) => ({ ...current, loading: true, error: null }));
     try {
-      const response = await tasksApi.list(status, settings);
-      setTasks({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      const response = await taskRunClient.listTaskRuns(settings, { status });
+      setTasks({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
       setTasks({
         data: null,
-        error: error instanceof Error ? error.message : "Tasks API unavailable",
+        error: error instanceof Error ? error.message : "Task Runs API unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
     }
   }, [settings, status]);
 
-  const loadTask = async (row: JsonRecord) => {
-    const id = rowId(row, ["id", "task_id"]);
+  const loadTask = async (row: TaskRun) => {
     setSelectedTask(row);
     try {
-      const [eventList, logList] = await Promise.all([tasksApi.events(id, settings), tasksApi.logs(id, settings)]);
-      setEvents(toItems(eventList));
-      setLogs(toItems(logList));
-    } catch {
+      const [eventList, artifactList] = await Promise.all([
+        taskRunClient.listEvents(row.id, settings),
+        outputArtifactClient.listArtifacts(settings, { taskRunId: row.id }),
+      ]);
+      setEvents(eventList.items ?? []);
+      setLinkedArtifacts(artifactList.items ?? []);
+    } catch (error) {
       setEvents([]);
-      setLogs([]);
+      setLinkedArtifacts([]);
+      setActionError(error instanceof Error ? error.message : "Task Run detail unavailable");
+    }
+  };
+
+  const mutateTask = async (action: "retry" | "cancel" | "resume") => {
+    if (!selectedTask) {
+      return;
+    }
+    setActionError(null);
+    try {
+      const updated =
+        action === "retry"
+          ? await taskRunClient.retry(selectedTask.id, "Manual retry from Admin Dashboard", settings)
+          : action === "cancel"
+            ? await taskRunClient.cancel(selectedTask.id, "Manual cancel from Admin Dashboard", settings)
+            : await taskRunClient.resume(selectedTask.id, settings);
+      setSelectedTask(updated);
+      await loadTask(updated);
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : `${action} failed`);
     }
   };
 
@@ -1234,8 +1288,8 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
   return (
     <div className="split-page">
       <Panel
-        title="Tasks"
-        description="Read-only task monitoring. Retry and cancel controls are intentionally not exposed here."
+        title="Task Runs"
+        description="Task Orchestration Foundation for background Conversation and Playbook execution. In-process queue only; not Celery, not Kubernetes, not production HA."
         action={
           <div className="inline-controls">
             <select value={status} onChange={(event) => setStatus(event.target.value)}>
@@ -1251,28 +1305,53 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
       >
         <LoadNotice state={tasks} />
         <Table
-          rows={tasks.data || []}
+          rows={(tasks.data || []) as unknown as JsonRecord[]}
           selectedId={selectedId}
-          onSelect={(row) => void loadTask(row)}
-          emptyLabel="No tasks for selected status."
+          onSelect={(row) => void loadTask(row as unknown as TaskRun)}
+          emptyLabel="No task runs for selected status."
           columns={[
-            { key: "id", label: "task_id", aliases: ["task_id"] },
-            { key: "title", label: "title" },
+            { key: "id", label: "task_run_id" },
             { key: "task_type", label: "task_type" },
+            { key: "source_type", label: "source_type" },
             { key: "status", label: "status" },
+            { key: "retry_count", label: "retry" },
+            { key: "current_step", label: "step" },
+            { key: "scheduled_at", label: "scheduled_at" },
             { key: "created_at", label: "created_at" },
-            { key: "updated_at", label: "updated_at" },
-            { key: "duration_ms", label: "duration_ms" },
           ]}
         />
       </Panel>
       <aside className="detail-panel">
-        <h2>Task Detail</h2>
-        <JsonPreview value={selectedTask || { status: "select a task" }} />
-        <h3>Events</h3>
-        <Timeline rows={events} primary="event_type" secondary="message" />
-        <h3>Logs</h3>
-        <Timeline rows={logs} primary="level" secondary="message" />
+        <h2>Task Run Detail</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <JsonPreview value={selectedTask || { status: "select a task run" }} />
+        <div className="conversation-actions">
+          <button className="ghost-button" onClick={() => void mutateTask("retry")} disabled={!selectedTask}>
+            Retry
+          </button>
+          <button className="ghost-button" onClick={() => void mutateTask("cancel")} disabled={!selectedTask}>
+            Cancel
+          </button>
+          <button className="ghost-button" onClick={() => void mutateTask("resume")} disabled={!selectedTask}>
+            Resume after approval
+          </button>
+        </div>
+        <h3>Progress timeline</h3>
+        <Timeline rows={events as unknown as JsonRecord[]} primary="event_type" secondary="message" />
+        <h3>Linked artifacts</h3>
+        {linkedArtifacts.length ? (
+          linkedArtifacts.map((artifact) => (
+            <div className="approval-card" key={artifact.id}>
+              <div className="approval-card-header">
+                <strong>{artifact.title}</strong>
+                <StatusPill value={artifact.artifact_type} />
+              </div>
+              <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
+            </div>
+          ))
+        ) : (
+          <div className="empty-chat">No artifacts linked to this task run yet.</div>
+        )}
       </aside>
     </div>
   );

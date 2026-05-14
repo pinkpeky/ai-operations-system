@@ -21,6 +21,7 @@ from app.db.redis import close_redis, init_redis
 from app.middleware.workspace_middleware import WorkspaceContextMiddleware
 from app.services.queue import RedisQueue
 from app.services.scheduler import TaskScheduler, run_scheduler_loop
+from app.task_orchestration.background_executor import run_background_task_executor_loop
 from app.workers.handlers.agentic_rag_handler import AgenticRAGHandler
 from app.workers.handlers.content_generation_handler import ContentGenerationHandler
 from app.workers.task_executor import TaskExecutor, run_task_executor_loop
@@ -37,6 +38,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info("Application startup started", extra={"app_env": settings.app_env})
     scheduler_task: asyncio.Task[None] | None = None
     task_executor_task: asyncio.Task[None] | None = None
+    task_orchestrator_task: asyncio.Task[None] | None = None
 
     try:
         # 应用启动时统一初始化外部依赖，失败时阻止服务进入半可用状态。
@@ -77,6 +79,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             )
             logger.info("Task executor background task started")
 
+        if settings.task_orchestrator_enabled:
+            task_orchestrator_task = asyncio.create_task(
+                run_background_task_executor_loop(
+                    get_session_factory(),
+                    poll_interval_seconds=settings.task_orchestrator_poll_interval_seconds,
+                    batch_size=settings.task_orchestrator_batch_size,
+                )
+            )
+            logger.info("Task orchestrator background task started")
+
         logger.info("Application startup completed")
         yield
     except Exception as exc:
@@ -89,6 +101,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
                 await task_executor_task
             except asyncio.CancelledError:
                 logger.info("Task executor background task stopped")
+
+        if task_orchestrator_task is not None:
+            task_orchestrator_task.cancel()
+            try:
+                await task_orchestrator_task
+            except asyncio.CancelledError:
+                logger.info("Task orchestrator background task stopped")
 
         if scheduler_task is not None:
             scheduler_task.cancel()

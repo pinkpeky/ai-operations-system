@@ -1244,3 +1244,8 @@ If a browser Playbook stops at `waiting_approval`, that is expected. Medium/high
 ## Phase 41 Deployment Addendum
 
 Output Library requires the API container to write `OUTPUT_ARTIFACT_DIR=storage/output_artifacts`. This phase exports markdown/json/txt to local disk; screenshots and HTML snapshots keep existing path references. There is no S3 / MinIO integration, no full DAM, and no production publishing asset management.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

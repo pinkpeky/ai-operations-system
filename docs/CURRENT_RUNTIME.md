@@ -1367,3 +1367,13 @@ Events:
 - `artifact_linked_to_playbook_run`
 
 Current boundaries remain unchanged: no S3, no MinIO, no full DAM, no production-grade file manager, no real platform publishing, and no social-platform automation.
+## Phase 42 Runtime Configuration
+
+Task Orchestration defaults are now part of runtime config and docker-compose:
+
+- `TASK_ORCHESTRATOR_ENABLED=true`
+- `TASK_ORCHESTRATOR_POLL_INTERVAL_SECONDS=2.0`
+- `TASK_ORCHESTRATOR_BATCH_SIZE=5`
+- `TASK_RUN_DEFAULT_MAX_RETRIES=3`
+
+The background executor is `BackgroundTaskExecutor`, started from FastAPI lifespan when enabled. It polls `task_runs` in-process and executes Conversation / Playbook work through `TaskOrchestratorService`. This is not Celery, not RabbitMQ, not Kubernetes, and not production HA.

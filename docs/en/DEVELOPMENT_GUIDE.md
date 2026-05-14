@@ -700,3 +700,8 @@ Playbook steps must not bypass `ConversationRiskPolicy` or `ConversationApproval
 ## Phase 41 Development Rule
 
 When adding Conversation / Playbook / Tool outputs, prefer `OutputArtifactService` and `output_artifacts`. Do not store oversized raw payloads in `content`. File artifacts should keep paths and metadata; text artifacts may store bounded content. Every phase must keep Output Library API docs, frontend pages, pytest, frontend builds, Docker smoke, and docs verifier synchronized.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

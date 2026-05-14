@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     )
     task_executor_enabled: bool = Field(default=True, alias="TASK_EXECUTOR_ENABLED")
     task_executor_dequeue_timeout_seconds: int = Field(default=5, alias="TASK_EXECUTOR_DEQUEUE_TIMEOUT_SECONDS")
+    task_orchestrator_enabled: bool = Field(default=True, alias="TASK_ORCHESTRATOR_ENABLED")
+    task_orchestrator_poll_interval_seconds: float = Field(
+        default=2.0,
+        ge=0.2,
+        le=60.0,
+        alias="TASK_ORCHESTRATOR_POLL_INTERVAL_SECONDS",
+    )
+    task_orchestrator_batch_size: int = Field(default=5, ge=1, le=100, alias="TASK_ORCHESTRATOR_BATCH_SIZE")
+    task_run_default_max_retries: int = Field(default=3, ge=0, le=20, alias="TASK_RUN_DEFAULT_MAX_RETRIES")
     llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     local_llm_base_url: str = Field(
         default="http://host.docker.internal:11434",

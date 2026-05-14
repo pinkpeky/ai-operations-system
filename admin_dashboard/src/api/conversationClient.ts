@@ -53,6 +53,9 @@ export interface ConversationRunResponse {
   playbook_run_id: string | null;
   playbook_name: string | null;
   playbook_status: string | null;
+  task_run_id: string | null;
+  task_status: string | null;
+  execution_mode: string;
   websocket_placeholder: boolean;
   sse_placeholder: boolean;
 }
@@ -203,12 +206,20 @@ export const conversationClient = {
     settings: AdminSettings = readAdminSettings(),
     mode: "auto_safe" | "review_first" | "execute_after_approval" = "auto_safe",
     playbookName?: string | null,
+    executionMode: "immediate" | "background" | "scheduled" = "immediate",
+    scheduledAt?: string | null,
   ) =>
     requestJson<ConversationRunResponse>(
       `/conversations/${threadId}/run`,
       {
         method: "POST",
-        body: JSON.stringify({ input: { message }, mode, playbook_name: playbookName || undefined }),
+        body: JSON.stringify({
+          input: { message },
+          mode,
+          playbook_name: playbookName || undefined,
+          execution_mode: executionMode,
+          scheduled_at: scheduledAt || undefined,
+        }),
       },
       settings,
     ),

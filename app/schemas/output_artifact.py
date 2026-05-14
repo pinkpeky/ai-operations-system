@@ -47,6 +47,7 @@ class OutputArtifactCreateRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     thread_id: UUID | None = None
     playbook_run_id: UUID | None = None
+    task_run_id: UUID | None = None
 
 
 class OutputArtifactUpdateRequest(BaseModel):
@@ -67,6 +68,7 @@ class OutputArtifactResponse(BaseModel):
     workspace_id: str
     thread_id: UUID | None
     playbook_run_id: UUID | None
+    task_run_id: UUID | None
     source_type: str
     artifact_type: str
     title: str
@@ -87,6 +89,7 @@ class OutputArtifactResponse(BaseModel):
             workspace_id=artifact.workspace_id,
             thread_id=artifact.thread_id,
             playbook_run_id=artifact.playbook_run_id,
+            task_run_id=artifact.task_run_id,
             source_type=artifact.source_type,
             artifact_type=artifact.artifact_type,
             title=artifact.title,

@@ -185,6 +185,21 @@ export const tasksApi = {
   summary: (settings?: AdminSettings) => requestJson<JsonRecord>("/observability/summary", {}, settings),
 };
 
+export const taskRunsApi = {
+  list: (status = "", settings?: AdminSettings) => {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+    return requestJson<ApiList<JsonRecord>>(`/task-runs${suffix}`, {}, settings);
+  },
+  events: (taskRunId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/task-runs/${taskRunId}/events`, {}, settings),
+  retry: (taskRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/task-runs/${taskRunId}/retry`, { method: "POST", body: JSON.stringify({ reason: "retry from dashboard" }) }, settings),
+  cancel: (taskRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/task-runs/${taskRunId}/cancel`, { method: "POST", body: JSON.stringify({ reason: "cancel from dashboard" }) }, settings),
+  resume: (taskRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/task-runs/${taskRunId}/resume`, { method: "POST" }, settings),
+};
+
 export const openclawApi = {
   health: (settings?: AdminSettings) => requestJson<JsonRecord>("/openclaw/health", {}, settings),
   capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/openclaw/capabilities", {}, settings),

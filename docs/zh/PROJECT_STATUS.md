@@ -591,3 +591,10 @@ Phase 41 新增 `output_artifacts`，把 Conversation、Playbook、Tool、Browse
 - 不接 S3 / MinIO。
 - 不做真实平台发布资产管理。
 - 不做 TikTok / YouTube / X、登录、验证码、代理、指纹、真实 OpenClaw 或 ComfyUI。
+## Phase 42?Task Orchestration & Background Execution?????
+
+?????? `task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy` ? `/api/v1/task-runs` API?Conversation Runtime ? `POST /api/v1/conversations/{thread_id}/run` ???? `execution_mode=immediate|background|scheduled` ? `scheduled_at`??????? `task_run_id`????? polling ?? task timeline?Playbook / Conversation ??????? queued / running / waiting_approval / retrying / completed / failed / cancelled / expired ????? retry?cancel?approval resume??? Output Library artifacts ?? `task_run_id` ???
+
+?????? in-process queue foundation??? Celery?RabbitMQ?Kubernetes scheduler??????? HA distributed queue??? TikTok / YouTube / X????????????????????????????? OpenClaw ? ComfyUI?
+
+Phase 42 verifier markers: not Celery, not Kubernetes, Task Orchestration & Background Execution, `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, `execution_mode`.

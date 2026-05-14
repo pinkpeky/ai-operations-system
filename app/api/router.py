@@ -31,6 +31,7 @@ from app.api.routes.planning import router as planning_router
 from app.api.routes.rag import router as rag_router
 from app.api.routes.rag_eval import router as rag_eval_router
 from app.api.routes.reranker import router as reranker_router
+from app.api.routes.task_runs import router as task_runs_router
 from app.api.routes.tasks import router as tasks_router
 from app.api.routes.tools import router as tools_router
 from app.api.routes.users import router as users_router
@@ -67,6 +68,7 @@ def create_api_router() -> APIRouter:
         router.include_router(rag_router)
         router.include_router(rag_eval_router)
         router.include_router(reranker_router)
+        router.include_router(task_runs_router)
         router.include_router(tasks_router)
         router.include_router(tools_router)
         router.include_router(users_router)

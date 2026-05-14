@@ -673,3 +673,10 @@ Boundaries:
 - No S3 / MinIO integration.
 - No production publishing asset management.
 - No TikTok / YouTube / X, login, captcha, proxy, fingerprint handling, real OpenClaw, or ComfyUI.
+## Phase 42: Task Orchestration & Background Execution (Completed)
+
+Completed: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, and the `/api/v1/task-runs` API. `POST /api/v1/conversations/{thread_id}/run` now supports `execution_mode=immediate|background|scheduled` plus `scheduled_at`; background mode returns `task_run_id` and clients poll task status and timeline. Background Conversation / Playbook execution records queued / running / waiting_approval / retrying / completed / failed / cancelled / expired states, supports retry, cancel, approval resume, and links Output Library artifacts with `task_run_id`.
+
+Boundary: this is an in-process queue foundation, not Celery, RabbitMQ, Kubernetes scheduler, or production HA distributed queue. It does not implement TikTok / YouTube / X automation, real publishing, login, CAPTCHA, proxy/fingerprint bypass, real OpenClaw, or ComfyUI.
+
+Phase 42 verifier markers: not Celery, not Kubernetes, Task Orchestration & Background Execution, `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, `execution_mode`.

@@ -236,3 +236,8 @@ Phase 37 将 Conversation Runtime 接入 Server Admin Dashboard、Worker Console
 ## Phase 41 验证补充
 
 真实客户机完成 Playbook 或 Conversation 后，可验证 Output Library：`GET /api/v1/output-artifacts`、`POST /api/v1/output-artifacts/from-playbook-run/{run_id}`、`POST /api/v1/output-artifacts/from-message/{message_id}`、`GET /api/v1/output-artifacts/{artifact_id}/export?format=markdown`。截图 artifact 只引用路径，不复制大截图文件；当前不接 S3 / MinIO，也不是完整 DAM。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

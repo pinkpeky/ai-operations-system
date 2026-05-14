@@ -199,6 +199,28 @@ class OutputArtifactType(StrEnum):
     CONTENT_DRAFT = "content_draft"
 
 
+class TaskRunStatus(StrEnum):
+    """Task orchestration run lifecycle status."""
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    WAITING_APPROVAL = "waiting_approval"
+    RETRYING = "retrying"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class TaskRunPriority(StrEnum):
+    """Task orchestration priority."""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+
+
 class AgentMemoryType(StrEnum):
     """Agent Memory 类型。"""
 

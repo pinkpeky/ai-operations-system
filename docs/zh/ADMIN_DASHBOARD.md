@@ -178,3 +178,8 @@ Conversation 页面同步显示 generated artifacts，并且 assistant message �
 可查看内置模板：`browser_search_summary`、`browser_screenshot_report`、`rag_answer`、`content_generation`、`trend_research_draft`、`openclaw_mock_device_check`。
 
 当前只提供基础运行和监控入口，不提供复杂可视化 workflow editor，不做真实社媒发布，不绕过 Phase 39 approval gate。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????
