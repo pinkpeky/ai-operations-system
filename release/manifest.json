@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "phase": "51",
+  "name": "ai-operations-system-release-packaging-foundation",
+  "release_type": "packaging_foundation",
+  "version_file": "release/version.json",
+  "env_template": "release/env/aiops.release.env.template",
+  "generated_output_root": "release/build",
+  "components": [
+    {
+      "name": "api-server",
+      "type": "server",
+      "source_paths": [
+        "app",
+        "alembic",
+        "worker",
+        "worker_client",
+        "requirements.txt",
+        "Dockerfile",
+        "docker-compose.yml",
+        "alembic.ini",
+        ".env.example"
+      ],
+      "bundle_scripts": {
+        "windows": "release/scripts/build_server_bundle.ps1",
+        "mac": "release/scripts/build_server_bundle.sh"
+      },
+      "output_path": "release/build/server"
+    },
+    {
+      "name": "admin-dashboard",
+      "type": "frontend",
+      "source_path": "admin_dashboard",
+      "bundle_scripts": {
+        "windows": "release/scripts/build_frontend_bundles.ps1",
+        "mac": "release/scripts/build_frontend_bundles.sh"
+      },
+      "output_path": "release/build/frontends/admin_dashboard"
+    },
+    {
+      "name": "worker-console",
+      "type": "frontend",
+      "source_path": "worker_console",
+      "bundle_scripts": {
+        "windows": "release/scripts/build_frontend_bundles.ps1",
+        "mac": "release/scripts/build_frontend_bundles.sh"
+      },
+      "output_path": "release/build/frontends/worker_console"
+    },
+    {
+      "name": "worker-console-desktop",
+      "type": "desktop-readiness",
+      "source_path": "worker_console_desktop",
+      "readiness_scripts": {
+        "windows": "release/scripts/check_desktop_release_readiness.ps1",
+        "mac": "release/scripts/check_desktop_release_readiness.sh"
+      },
+      "output_path": "release/build/desktop_readiness"
+    }
+  ],
+  "startup_scripts": {
+    "windows": [
+      "release/windows/start_server.ps1",
+      "release/windows/start_admin_dashboard.ps1",
+      "release/windows/start_worker_console.ps1",
+      "release/windows/start_desktop_console.ps1"
+    ],
+    "mac": [
+      "release/mac/start_server.sh",
+      "release/mac/start_admin_dashboard.sh",
+      "release/mac/start_worker_console.sh",
+      "release/mac/start_desktop_console.sh"
+    ]
+  },
+  "validation_script": "release/scripts/validate_release_packaging.py",
+  "boundaries": {
+    "formal_installer": false,
+    "code_signing": false,
+    "auto_updater": false,
+    "msi_exe_release": false,
+    "macos_dmg_notarization": false,
+    "kubernetes_helm": false,
+    "comfyui": false,
+    "real_social_publishing": false
+  },
+  "forbidden_artifacts": [
+    ".env",
+    "worker_state.json",
+    "logs/",
+    "runtime_state/",
+    "node_modules/",
+    "storage runtime artifacts",
+    "large screenshots"
+  ]
+}
+

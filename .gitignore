@@ -52,6 +52,9 @@ checkpoints/
 .coverage
 htmlcov/
 
+# Release packaging generated bundles
+/release/build/
+
 # Browser screenshots
 /screenshots/*
 !/screenshots/.gitkeep
@@ -61,6 +64,10 @@ htmlcov/
 !/storage/browser_runtime_snapshots/.gitkeep
 /storage/output_artifacts/*
 !/storage/output_artifacts/.gitkeep
+/storage/output_packages/*
+!/storage/output_packages/.gitkeep
+/storage/output_exports/*
+!/storage/output_exports/.gitkeep
 /worker/screenshots/*
 !/worker/screenshots/.gitkeep
 

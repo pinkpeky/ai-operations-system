@@ -121,6 +121,19 @@ class DocsRuntimeVerifier:
             "worker_console_desktop/autostart/README.md",
             "worker_console_desktop/autostart/windows_registry_placeholder.md",
             "worker_console_desktop/autostart/mac_launch_agent_placeholder.md",
+            "release/README.md",
+            "release/manifest.json",
+            "release/version.json",
+            "release/env/aiops.release.env.template",
+            "release/scripts/build_server_bundle.ps1",
+            "release/scripts/build_server_bundle.sh",
+            "release/scripts/build_frontend_bundles.ps1",
+            "release/scripts/build_frontend_bundles.sh",
+            "release/scripts/check_desktop_release_readiness.ps1",
+            "release/scripts/check_desktop_release_readiness.sh",
+            "release/scripts/validate_release_packaging.py",
+            "release/windows/start_server.ps1",
+            "release/mac/start_server.sh",
             "worker_console_desktop/.env.example",
             "worker_console_desktop/README.md",
             "docs/zh/WORKER_CLIENT_INSTALL.md",
@@ -1602,6 +1615,20 @@ class DocsRuntimeVerifier:
             "not final installer",
             "no code signing",
             "no auto updater",
+            "Phase 51",
+            "Release Packaging & Deployment Bundle Foundation",
+            "release/manifest.json",
+            "release/version.json",
+            "server deployment bundle",
+            "frontend production build bundle",
+            "desktop release readiness",
+            "aiops.release.env.template",
+            "validate_release_packaging.py",
+            "Windows / Mac startup scripts",
+            "not a formal production release",
+            "no MSI/EXE",
+            "no DMG/notarization",
+            "no Kubernetes/Helm",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1831,8 +1858,28 @@ class DocsRuntimeVerifier:
                 or "no auto updater" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 50 scope")
+            elif not re.search(r"Phase\s+51", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 51")
+            elif (
+                "Release Packaging & Deployment Bundle Foundation" not in text
+                or "release/manifest.json" not in text
+                or "release/version.json" not in text
+                or "server deployment bundle" not in text
+                or "frontend production build bundle" not in text
+                or "desktop release readiness" not in text
+                or "aiops.release.env.template" not in text
+                or "validate_release_packaging.py" not in text
+                or "Windows / Mac startup scripts" not in text
+                or "not a formal production release" not in text
+                or "no code signing" not in text
+                or "no auto updater" not in text
+                or "no MSI/EXE" not in text
+                or "no DMG/notarization" not in text
+                or "no Kubernetes/Helm" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 51 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, Phase 49, and Phase 50")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, Phase 49, Phase 50, and Phase 51")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

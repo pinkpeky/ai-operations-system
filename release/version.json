@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "release_version": "0.51.0-foundation",
+  "phase": "51",
+  "status": "packaging_foundation",
+  "created_at": "2026-05-16",
+  "baseline_branch": "codex/phase-50-desktop-runtime-ux-packaging-readiness",
+  "components": {
+    "api_server": {
+      "bundle": "server deployment bundle",
+      "production_ready": false
+    },
+    "admin_dashboard": {
+      "package": "admin_dashboard/package.json",
+      "production_build": "npm run build"
+    },
+    "worker_console": {
+      "package": "worker_console/package.json",
+      "production_build": "npm run build"
+    },
+    "worker_console_desktop": {
+      "package": "worker_console_desktop/package.json",
+      "frontend_build": "npm run build",
+      "native_release_readiness": "tauri config/icon/dependency checks",
+      "signed_installer": false
+    }
+  },
+  "boundaries": [
+    "not a formal production release",
+    "no code signing",
+    "no auto updater",
+    "no MSI or EXE installer",
+    "no macOS DMG or notarization",
+    "no Kubernetes or Helm bundle",
+    "no ComfyUI integration",
+    "no real social platform publishing"
+  ]
+}
+
