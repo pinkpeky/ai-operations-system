@@ -1,0 +1,9 @@
+{
+  "profile_key": "client-worker",
+  "healthchecks": [
+    { "name": "local-status", "url": "http://127.0.0.1:9100/local/status", "required": true },
+    { "name": "local-health", "url": "http://127.0.0.1:9100/local/health", "required": true },
+    { "name": "server-health", "url": "http://localhost:8000/api/v1/health", "required": false }
+  ]
+}
+

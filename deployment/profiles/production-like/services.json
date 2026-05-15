@@ -1,0 +1,9 @@
+{
+  "profile_key": "production-like",
+  "startup_order": ["secrets-outside-git", "backing-services", "browser-worker", "api", "static-frontends"],
+  "services": [
+    { "name": "server-stack", "command": "docker compose up --build -d", "required": true },
+    { "name": "static-frontends", "command": "serve built frontend assets with your chosen web server", "required": false }
+  ]
+}
+

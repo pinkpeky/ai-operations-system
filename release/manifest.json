@@ -73,6 +73,27 @@
     ]
   },
   "validation_script": "release/scripts/validate_release_packaging.py",
+  "deployment_profiles": {
+    "root": "deployment/profiles",
+    "profiles": [
+      "local-dev",
+      "server-docker",
+      "client-worker",
+      "desktop-client",
+      "staging",
+      "production-like"
+    ],
+    "bootstrap_scripts": [
+      "deployment/scripts/generate_env.py",
+      "deployment/scripts/check_dependencies.py",
+      "deployment/scripts/check_ports.py",
+      "deployment/scripts/verify_environment.py"
+    ],
+    "startup_scripts": {
+      "windows": "deployment/windows",
+      "mac": "deployment/mac"
+    }
+  },
   "boundaries": {
     "formal_installer": false,
     "code_signing": false,
@@ -80,6 +101,7 @@
     "msi_exe_release": false,
     "macos_dmg_notarization": false,
     "kubernetes_helm": false,
+    "terraform_ansible": false,
     "comfyui": false,
     "real_social_publishing": false
   },
@@ -93,4 +115,3 @@
     "large screenshots"
   ]
 }
-

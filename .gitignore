@@ -54,6 +54,8 @@ htmlcov/
 
 # Release packaging generated bundles
 /release/build/
+.env.generated
+*.env.generated
 
 # Browser screenshots
 /screenshots/*

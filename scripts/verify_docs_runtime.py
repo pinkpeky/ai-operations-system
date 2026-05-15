@@ -134,6 +134,21 @@ class DocsRuntimeVerifier:
             "release/scripts/validate_release_packaging.py",
             "release/windows/start_server.ps1",
             "release/mac/start_server.sh",
+            "deployment/README.md",
+            "deployment/profiles/local-dev/profile.json",
+            "deployment/profiles/server-docker/profile.json",
+            "deployment/profiles/client-worker/profile.json",
+            "deployment/profiles/desktop-client/profile.json",
+            "deployment/profiles/staging/profile.json",
+            "deployment/profiles/production-like/profile.json",
+            "deployment/scripts/generate_env.py",
+            "deployment/scripts/check_dependencies.py",
+            "deployment/scripts/check_ports.py",
+            "deployment/scripts/verify_environment.py",
+            "deployment/windows/start_server_docker.ps1",
+            "deployment/mac/start_server_docker.sh",
+            "docs/zh/DEPLOYMENT_PROFILES.md",
+            "docs/en/DEPLOYMENT_PROFILES.md",
             "worker_console_desktop/.env.example",
             "worker_console_desktop/README.md",
             "docs/zh/WORKER_CLIENT_INSTALL.md",
@@ -1629,6 +1644,24 @@ class DocsRuntimeVerifier:
             "no MSI/EXE",
             "no DMG/notarization",
             "no Kubernetes/Helm",
+            "Phase 52",
+            "Deployment Profiles & Environment Bootstrap",
+            "local-dev",
+            "server-docker",
+            "client-worker",
+            "desktop-client",
+            "staging",
+            "production-like",
+            "generate_env.py",
+            "check_dependencies.py",
+            "check_ports.py",
+            "verify_environment.py",
+            "env generation",
+            "dependency checks",
+            "port checks",
+            "health verification",
+            "profile bootstrap docs",
+            "Kubernetes/Helm/Terraform",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1878,8 +1911,29 @@ class DocsRuntimeVerifier:
                 or "no Kubernetes/Helm" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 51 scope")
+            elif not re.search(r"Phase\s+52", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 52")
+            elif (
+                "Deployment Profiles & Environment Bootstrap" not in text
+                or "local-dev" not in text
+                or "server-docker" not in text
+                or "client-worker" not in text
+                or "desktop-client" not in text
+                or "staging" not in text
+                or "production-like" not in text
+                or "generate_env.py" not in text
+                or "check_dependencies.py" not in text
+                or "check_ports.py" not in text
+                or "verify_environment.py" not in text
+                or "env generation" not in text
+                or "dependency checks" not in text
+                or "port checks" not in text
+                or "health verification" not in text
+                or "Kubernetes/Helm/Terraform" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 52 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, Phase 49, Phase 50, and Phase 51")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, Phase 49, Phase 50, Phase 51, and Phase 52")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

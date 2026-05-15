@@ -1,0 +1,10 @@
+{
+  "profile_key": "desktop-client",
+  "name": "Desktop Client",
+  "scenario": "Worker Console Desktop on a client machine controlling the local worker runtime.",
+  "recommended_for": ["customer desktop validation", "local worker UX", "Tauri readiness"],
+  "not_for": ["server-host customer E2E", "signed installer", "auto update"],
+  "required_env": ["VITE_LOCAL_WORKER_API", "VITE_AI_SERVER_API", "VITE_WORKSPACE_ID", "VITE_USER_ID"],
+  "notes": "Desktop Console controls this local machine only."
+}
+

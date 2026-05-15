@@ -35,6 +35,32 @@ REQUIRED_FILES = [
     "release/mac/start_admin_dashboard.sh",
     "release/mac/start_worker_console.sh",
     "release/mac/start_desktop_console.sh",
+    "deployment/README.md",
+    "deployment/scripts/generate_env.py",
+    "deployment/scripts/check_dependencies.py",
+    "deployment/scripts/check_ports.py",
+    "deployment/scripts/verify_environment.py",
+    "deployment/windows/start_server_docker.ps1",
+    "deployment/windows/start_admin_dashboard.ps1",
+    "deployment/windows/start_worker_console.ps1",
+    "deployment/windows/start_desktop_console.ps1",
+    "deployment/windows/start_client_worker.ps1",
+    "deployment/windows/verify_profile.ps1",
+    "deployment/mac/start_server_docker.sh",
+    "deployment/mac/start_admin_dashboard.sh",
+    "deployment/mac/start_worker_console.sh",
+    "deployment/mac/start_desktop_console.sh",
+    "deployment/mac/start_client_worker.sh",
+    "deployment/mac/verify_profile.sh",
+]
+
+DEPLOYMENT_PROFILES = [
+    "local-dev",
+    "server-docker",
+    "client-worker",
+    "desktop-client",
+    "staging",
+    "production-like",
 ]
 
 
@@ -75,6 +101,7 @@ def validate(repo_root: Path) -> list[Check]:
         "msi_exe_release",
         "macos_dmg_notarization",
         "kubernetes_helm",
+        "terraform_ansible",
         "comfyui",
         "real_social_publishing",
     ]
@@ -110,6 +137,17 @@ def validate(repo_root: Path) -> list[Check]:
     manifest_forbidden = manifest.get("forbidden_artifacts", [])
     for item in forbidden:
         checks.append(Check(f"forbidden:{item}", item in manifest_forbidden, "listed" if item in manifest_forbidden else "missing"))
+
+    manifest_profiles = set(manifest.get("deployment_profiles", {}).get("profiles", []))
+    version_profiles = set(version.get("components", {}).get("deployment_profiles", {}).get("profiles", []))
+    for profile in DEPLOYMENT_PROFILES:
+        profile_root = repo_root / "deployment" / "profiles" / profile
+        profile_files = ["profile.json", "env.template", "ports.json", "services.json", "healthchecks.json", "README.md"]
+        checks.append(Check(f"deployment-profile:{profile}:manifest", profile in manifest_profiles, "declared in manifest"))
+        checks.append(Check(f"deployment-profile:{profile}:version", profile in version_profiles, "declared in version metadata"))
+        for filename in profile_files:
+            path = profile_root / filename
+            checks.append(Check(f"deployment-profile:{profile}:{filename}", path.exists(), "exists" if path.exists() else "missing"))
 
     return checks
 

@@ -20,7 +20,8 @@ This directory is intentionally a foundation only:
 - `scripts/build_frontend_bundles.*` builds and copies production frontend assets under `release/build/frontends`.
 - `scripts/check_desktop_release_readiness.*` checks Tauri icon/config/package readiness without producing a signed installer.
 - `scripts/validate_release_packaging.py` validates the release manifest, version metadata, script inventory, forbidden artifact boundaries, and desktop icon references.
+- `deployment/profiles/*` provides local-dev, server-docker, client-worker, desktop-client, staging, and production-like bootstrap profiles.
+- `deployment/scripts/*` provides env generation, dependency checks, port checks, and profile health verification.
 - `windows/*.ps1` and `mac/*.sh` provide local startup helpers for server and console development/release validation.
 
 Generated output under `release/build/` is ignored by git.
-
