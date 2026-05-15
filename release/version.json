@@ -46,6 +46,16 @@
       "preflight": "scripts/release_preflight.py",
       "smoke_orchestrator": "scripts/release_smoke_matrix.py",
       "report_generator": "scripts/generate_release_report.py"
+    },
+    "integration_reconciliation": {
+      "phase": "54",
+      "status": "integration_candidate_reconciliation",
+      "matrix": "release/integration/integration_matrix.json",
+      "preflight": "scripts/integration_preflight.py",
+      "inventory": "release/reports/pr_chain_inventory.json",
+      "conflict_detection": "scripts/detect_integration_conflicts.py",
+      "drift_check": "scripts/check_api_frontend_drift.py",
+      "report_generator": "scripts/generate_integration_report.py"
     }
   },
   "boundaries": [

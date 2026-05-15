@@ -55,6 +55,10 @@ htmlcov/
 # Release packaging generated bundles
 /release/build/
 /release/reports/release_readiness_report.json
+/release/reports/integration_readiness_report.json
+/release/reports/integration_readiness_report.md
+/release/reports/conflict_surface_report.json
+/release/reports/conflict_surface_report.md
 .env.generated
 *.env.generated
 

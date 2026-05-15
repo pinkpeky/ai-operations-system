@@ -51,3 +51,7 @@ python scripts/release_preflight.py --profile server-docker
 ## Boundaries
 
 The smoke matrix is not a GitHub Actions pipeline, Kubernetes scheduler, Helm chart, Terraform deployment, formal installer, code signing system, auto updater, or production HA orchestration layer.
+
+## Phase 54 Integration Use
+
+Phase 54 integration preflight calls this matrix as one verification group. The matrix remains read-only smoke orchestration: it does not merge PRs, rebase branches, or resolve conflicts.

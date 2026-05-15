@@ -50,3 +50,15 @@ It is not:
 - real OpenClaw
 - real social media automation
 - stealth browser framework
+
+## Phase 54 Integration Reconciliation
+
+Phase 54 uses release readiness as one input to the integration candidate decision. It adds PR chain inventory, dependency matrix, conflict surface detection, OpenAPI/frontend drift checks, and integration report generation.
+
+The integration readiness report is generated with:
+
+```powershell
+python scripts/generate_integration_report.py
+```
+
+Generated integration reports under `release/reports/` are ignored QA artifacts unless explicitly requested for archival.

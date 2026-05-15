@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "phase": "54",
+  "high_risk_surfaces": [
+    {
+      "surface": "alembic/versions",
+      "risk": "migration sequence risk",
+      "phases": ["43", "44", "45", "46", "47", "48", "49"],
+      "checks": ["unique revisions", "single root", "single head", "down revisions exist", "downgrade function exists"]
+    },
+    {
+      "surface": "app/models and app/schemas",
+      "risk": "schema drift risk",
+      "phases": ["43", "44", "45", "46", "47", "48", "49"],
+      "checks": ["model/schema route consistency", "nullable link fields", "metadata compatibility"]
+    },
+    {
+      "surface": "app/api/routes",
+      "risk": "duplicate route risk",
+      "phases": ["43", "44", "45", "46", "47", "48", "49"],
+      "checks": ["OpenAPI route consistency", "prefix uniqueness"]
+    },
+    {
+      "surface": "admin_dashboard/src/api and console API clients",
+      "risk": "frontend client drift risk",
+      "phases": ["43", "44", "45", "46", "47", "48", "49", "52", "53"],
+      "checks": ["required readiness/workflow/task/artifact/template routes referenced"]
+    },
+    {
+      "surface": "deployment and release",
+      "risk": "release/deployment drift",
+      "phases": ["51", "52", "53"],
+      "checks": ["release validator", "deployment verify", "smoke matrix"]
+    },
+    {
+      "surface": "docs",
+      "risk": "phase status drift",
+      "phases": ["docs-stabilization", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53"],
+      "checks": ["phase index", "current next phase", "system boundaries", "release readiness"]
+    }
+  ]
+}

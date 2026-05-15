@@ -83,6 +83,17 @@
     "migration_continuity": "scripts/check_migration_continuity.py",
     "runtime_hygiene": "scripts/check_runtime_hygiene.py"
   },
+  "integration": {
+    "matrix": "release/integration/integration_matrix.json",
+    "phase_dependency_matrix": "release/integration/phase_dependency_matrix.json",
+    "conflict_surface_matrix": "release/integration/conflict_surface_matrix.json",
+    "pr_chain_inventory": "release/reports/pr_chain_inventory.json",
+    "pr_chain_analyzer": "scripts/analyze_pr_chain.py",
+    "integration_preflight": "scripts/integration_preflight.py",
+    "conflict_detector": "scripts/detect_integration_conflicts.py",
+    "api_frontend_drift": "scripts/check_api_frontend_drift.py",
+    "integration_report_generator": "scripts/generate_integration_report.py"
+  },
   "deployment_profiles": {
     "root": "deployment/profiles",
     "profiles": [

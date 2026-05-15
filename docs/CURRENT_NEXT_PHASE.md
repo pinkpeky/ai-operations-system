@@ -2,13 +2,13 @@
 
 ## Current Active Branch
 
-`codex/docs-stabilization-sprint`
+`codex/phase-54-integration-branch-pr-chain-reconciliation`
 
 `main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint. This documentation branch records the complete Phase 1-52 development state, but that does not mean all phases are merged into `main`.
 
 ## Current Recommended Next Phase
 
-Phase 53 is the current integration stabilization step: Release Smoke Test Matrix & Preflight Automation. After this PR is reviewed, reconcile the open PR stack in order or create an explicit integration branch strategy before adding runtime features.
+Phase 54 is the current integration stabilization step: Integration Branch & PR Chain Reconciliation. It does not add runtime features; it reconciles the open Phase 43-53 PR chain, conflict surfaces, drift checks, and merge readiness.
 
 ## Open PRs
 
@@ -26,7 +26,8 @@ Phase 53 is the current integration stabilization step: Release Smoke Test Matri
 | #11 | Phase 51 Release Packaging and Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | Open |
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Open |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
-| #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Planned/Open after push |
+| #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
+| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Planned/Open after push |
 
 ## Current Architecture State
 
@@ -45,6 +46,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - `main` is Phase 42 stable.
 - Phase 43-52 are open PRs layered on top of each other.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
+- Phase 54 adds integration strategy, PR chain inventory, conflict surface detection, API/frontend drift checks, and integration report generation.
 
 ## Current Packaging State
 

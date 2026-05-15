@@ -30,6 +30,10 @@ FORBIDDEN_EXACT = {
     "worker_client/worker_state.json",
     "worker_client/worker_config.yaml",
     "release/reports/release_readiness_report.json",
+    "release/reports/integration_readiness_report.json",
+    "release/reports/integration_readiness_report.md",
+    "release/reports/conflict_surface_report.json",
+    "release/reports/conflict_surface_report.md",
 }
 
 FORBIDDEN_SEGMENTS = {

@@ -1342,9 +1342,11 @@ function App() {
             <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
             <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile client-worker" />
             <Field label="release_readiness_summary" value="docs/RELEASE_READINESS.md" />
+            <Field label="integration_preflight" value="python scripts/integration_preflight.py --profile server-docker" />
+            <Field label="integration_strategy" value="docs/INTEGRATION_STATUS.md" />
           </div>
           <p className="chat-note">
-            Phase 53 smoke checks are local preflight automation for integration candidates. They do not create installers, code signing, auto updater, Kubernetes, or production HA orchestration.
+            Phase 53 smoke checks are local preflight automation. Phase 54 adds PR chain reconciliation and drift checks. They do not create installers, code signing, auto updater, Kubernetes, or production HA orchestration.
           </p>
         </section>
 

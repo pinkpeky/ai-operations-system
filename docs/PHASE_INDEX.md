@@ -8,7 +8,7 @@
 
 ## Current Active Development Branch
 
-`codex/docs-stabilization-sprint` is the active documentation stabilization branch. It is based on `codex/phase-52-deployment-profiles-bootstrap`, not on `main`.
+`codex/phase-54-integration-branch-pr-chain-reconciliation` is the active integration stabilization branch. It is based on `codex/phase-53-release-smoke-test-matrix-preflight`, not on `main`.
 
 ## Open PR List
 
@@ -26,7 +26,8 @@
 | #11 | Phase 51 Release Packaging and Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | Open |
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Open |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
-| #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Planned/Open after push |
+| #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
+| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Planned/Open after push |
 
 ## Phase Timeline Table
 
@@ -85,7 +86,8 @@
 | 50 | Desktop Console Runtime UX & Client Packaging Readiness | `codex/phase-50-desktop-runtime-ux-packaging-readiness` | #10 | Open PR | Tauri icon fix, Start Runtime diagnostics, server/client boundary UX. |
 | 51 | Release Packaging & Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | #11 | Open PR | Release manifest, version metadata, bundle scripts, startup scripts. |
 | 52 | Deployment Profiles & Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | #12 | Open PR | Deployment profiles, env generator, dependency/port/env verification. |
-| 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Planned/Open after push | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
+| 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Open PR | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
+| 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Planned/Open after push | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
 
 ## Runtime Evolution
 

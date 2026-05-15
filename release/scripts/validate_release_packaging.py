@@ -62,6 +62,16 @@ REQUIRED_FILES = [
     "scripts/generate_release_report.py",
     "scripts/check_runtime_hygiene.py",
     "scripts/check_migration_continuity.py",
+    "release/integration/integration_matrix.json",
+    "release/integration/phase_dependency_matrix.json",
+    "release/integration/conflict_surface_matrix.json",
+    "release/integration/README.md",
+    "release/reports/pr_chain_inventory.json",
+    "scripts/analyze_pr_chain.py",
+    "scripts/integration_preflight.py",
+    "scripts/detect_integration_conflicts.py",
+    "scripts/check_api_frontend_drift.py",
+    "scripts/generate_integration_report.py",
 ]
 
 DEPLOYMENT_PROFILES = [
@@ -143,6 +153,27 @@ def validate(repo_root: Path) -> list[Check]:
         checks.append(
             Check(
                 f"smoke:{key}",
+                isinstance(path, str) and (repo_root / path).exists(),
+                path if isinstance(path, str) else "missing",
+            )
+        )
+
+    integration = manifest.get("integration", {})
+    for key in (
+        "matrix",
+        "phase_dependency_matrix",
+        "conflict_surface_matrix",
+        "pr_chain_inventory",
+        "pr_chain_analyzer",
+        "integration_preflight",
+        "conflict_detector",
+        "api_frontend_drift",
+        "integration_report_generator",
+    ):
+        path = integration.get(key)
+        checks.append(
+            Check(
+                f"integration:{key}",
                 isinstance(path, str) and (repo_root / path).exists(),
                 path if isinstance(path, str) else "missing",
             )

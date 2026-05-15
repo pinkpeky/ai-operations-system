@@ -2539,9 +2539,11 @@ function SettingsPage({
           <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
           <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile server-docker" />
           <Field label="release_readiness_summary" value="docs/RELEASE_READINESS.md and docs/SMOKE_TEST_MATRIX.md" />
+          <Field label="integration_preflight" value="python scripts/integration_preflight.py --profile server-docker" />
+          <Field label="integration_strategy" value="docs/INTEGRATION_STRATEGY.md and docs/INTEGRATION_STATUS.md" />
         </div>
         <p className="muted-copy">
-          Phase 53 provides a local Release Smoke Matrix and Preflight System for integration candidates. It is not CI/CD SaaS, Kubernetes, code signing, an auto updater, or a production installer.
+          Phase 53 provides a local Release Smoke Matrix and Preflight System. Phase 54 adds PR chain reconciliation, conflict surface detection, and API/frontend drift checks. This remains integration readiness, not CI/CD SaaS, Kubernetes, code signing, an auto updater, or a production installer.
         </p>
       </section>
     </Panel>

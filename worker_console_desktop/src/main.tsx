@@ -1633,9 +1633,11 @@ function App() {
             <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
             <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile desktop-client" />
             <Field label="release_readiness_summary" value="docs/SMOKE_TEST_MATRIX.md" />
+            <Field label="integration_preflight" value="python scripts/integration_preflight.py --profile server-docker" />
+            <Field label="integration_status" value="docs/INTEGRATION_STATUS.md" />
           </div>
           <p className="chat-note">
-            Phase 53 preflight is release readiness automation for integration candidates. It does not perform code signing, auto update, MSI/EXE packaging, DMG notarization, Kubernetes, or production HA deployment.
+            Phase 53 preflight is release readiness automation. Phase 54 adds integration reconciliation for the open PR stack. It does not perform code signing, auto update, MSI/EXE packaging, DMG notarization, Kubernetes, or production HA deployment.
           </p>
         </section>
 

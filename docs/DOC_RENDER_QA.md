@@ -48,3 +48,5 @@ CI should run `python scripts/verify_docs_runtime.py`. If LibreOffice is install
 Before an archival release, render QA should be run in an environment with LibreOffice installed. Rendered PDFs under `docs/rendered/` are QA artifacts and must not be committed.
 
 Phase 53 includes DOCX/PDF Render QA in the release preflight and smoke matrix through `python scripts/release_preflight.py --profile server-docker` and `python scripts/release_smoke_matrix.py`.
+
+Phase 54 integration preflight keeps DOCX/PDF Render QA as a required documentation stability signal before the Phase 43-53 stack is treated as merge-ready.
