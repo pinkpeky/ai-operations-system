@@ -54,8 +54,12 @@ htmlcov/
 
 # Release packaging generated bundles
 /release/build/
+/release/reports/release_readiness_report.json
 .env.generated
 *.env.generated
+
+# Docs render QA generated output
+/docs/rendered/
 
 # Browser screenshots
 /screenshots/*

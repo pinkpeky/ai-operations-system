@@ -38,6 +38,14 @@
       "dependency_check": "deployment/scripts/check_dependencies.py",
       "port_check": "deployment/scripts/check_ports.py",
       "health_verification": "deployment/scripts/verify_environment.py"
+    },
+    "release_smoke_matrix": {
+      "phase": "53",
+      "status": "preflight_foundation",
+      "matrix": "release/smoke/smoke_matrix.json",
+      "preflight": "scripts/release_preflight.py",
+      "smoke_orchestrator": "scripts/release_smoke_matrix.py",
+      "report_generator": "scripts/generate_release_report.py"
     }
   },
   "boundaries": [

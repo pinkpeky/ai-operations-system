@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +34,9 @@ class DocsRuntimeVerifier:
     def run(self) -> int:
         """执行所有校验并输出结果。"""
 
+        self.check_markdown_encoding()
+        self.check_docs_stabilization_quality()
+        self.check_docx_render_qa()
         self.check_required_docs()
         self.check_runtime_config()
         self.check_openapi_and_api_docs()
@@ -62,7 +67,15 @@ class DocsRuntimeVerifier:
 
         required = [
             "docs/PROJECT_OVERVIEW.md",
+            "docs/PROJECT_STATUS.md",
             "docs/CURRENT_RUNTIME.md",
+            "docs/PHASE_INDEX.md",
+            "docs/CURRENT_NEXT_PHASE.md",
+            "docs/SYSTEM_BOUNDARIES.md",
+            "docs/DOC_RENDER_QA.md",
+            "docs/ARCHITECTURE_TIMELINE.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/SMOKE_TEST_MATRIX.md",
             "docs/zh/PROJECT_STATUS.md",
             "docs/zh/ARCHITECTURE.md",
             "docs/zh/API_REFERENCE.md",
@@ -132,6 +145,16 @@ class DocsRuntimeVerifier:
             "release/scripts/check_desktop_release_readiness.ps1",
             "release/scripts/check_desktop_release_readiness.sh",
             "release/scripts/validate_release_packaging.py",
+            "release/smoke/smoke_matrix.json",
+            "release/smoke/profile_matrix.json",
+            "release/smoke/runtime_matrix.json",
+            "release/smoke/README.md",
+            "release/reports/README.md",
+            "scripts/release_preflight.py",
+            "scripts/release_smoke_matrix.py",
+            "scripts/generate_release_report.py",
+            "scripts/check_migration_continuity.py",
+            "scripts/check_runtime_hygiene.py",
             "release/windows/start_server.ps1",
             "release/mac/start_server.sh",
             "deployment/README.md",
@@ -246,6 +269,213 @@ class DocsRuntimeVerifier:
                 self.error(f"Missing required docs file: {path}")
         else:
             self.pass_("Required zh/en docs structure exists")
+
+    def check_markdown_encoding(self) -> None:
+        """Validate Markdown files as UTF-8 without BOM or obvious mojibake."""
+
+        markdown_files = sorted(self.docs.rglob("*.md"))
+        if not markdown_files:
+            self.error("No Markdown docs found")
+            return
+
+        suspicious_patterns = [
+            (re.compile(r"\ufeff"), "UTF-8 BOM"),
+            (re.compile(r"\ufffd"), "Unicode replacement character"),
+            (re.compile(r"\?{3,}"), "repeated question-mark encoding corruption"),
+            (re.compile(r"\u00c3|\u00c2|\u00e2\u20ac|\u9225|\u951b|\u9428"), "common mojibake marker"),
+        ]
+        failed = False
+        for path in markdown_files:
+            relative = path.relative_to(self.root).as_posix()
+            data = path.read_bytes()
+            if data.startswith(b"\xef\xbb\xbf"):
+                self.error(f"Markdown encoding validation failed for {relative}: UTF-8 BOM")
+                failed = True
+                continue
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                self.error(f"Markdown encoding validation failed for {relative}: {exc}")
+                failed = True
+                continue
+            for pattern, label in suspicious_patterns:
+                if pattern.search(text):
+                    self.error(f"Markdown encoding validation failed for {relative}: {label}")
+                    failed = True
+                    break
+        if not failed:
+            self.pass_(f"Markdown encoding validation passed for {len(markdown_files)} files")
+
+    def check_docs_stabilization_quality(self) -> None:
+        """Validate docs stabilization guardrails for titles, status, and render examples."""
+
+        self.check_phase_index_title()
+        self.check_doc_render_qa_examples()
+        self.check_project_status_consistency()
+        self.check_question_mark_pollution()
+
+    def check_phase_index_title(self) -> None:
+        """Ensure the Phase Index title has no replacement marker."""
+
+        text = self.read_text("docs/PHASE_INDEX.md")
+        first_line = text.splitlines()[0] if text.splitlines() else ""
+        allowed_titles = {
+            "# AI Operations System - Phase Index",
+            "# AI Operations System — Phase Index",
+        }
+        if first_line not in allowed_titles:
+            self.error("PHASE_INDEX.md title is not clean")
+        else:
+            self.pass_("PHASE_INDEX.md title is clean")
+
+    def check_doc_render_qa_examples(self) -> None:
+        """Ensure DOC_RENDER_QA keeps intact docs/rendered paths."""
+
+        text = self.read_text("docs/DOC_RENDER_QA.md")
+        if "docs\\rendered" not in text:
+            self.error("DOC_RENDER_QA.md missing intact Windows docs\\rendered path")
+        elif "docs\nendered" in text or "docs\r\nendered" in text:
+            self.error("DOC_RENDER_QA.md contains broken docs\\rendered path split")
+        elif "ignored QA output directory" not in text:
+            self.error("DOC_RENDER_QA.md does not explain docs\\rendered is ignored QA output")
+        else:
+            self.pass_("DOC_RENDER_QA.md render paths are intact")
+
+    def check_project_status_consistency(self) -> None:
+        """Ensure docs do not imply that Phase 43-52 are merged into main."""
+
+        required_terms = [
+            "`main` remains the Phase 42 stable baseline",
+            "PR #3-#12 cover Phase 43-52 and remain open",
+            "PR #13 is the Docs Stabilization Sprint",
+            "does not mean all phases are merged into `main`",
+        ]
+        status_files = [
+            "docs/PROJECT_OVERVIEW.md",
+            "docs/PHASE_INDEX.md",
+            "docs/CURRENT_NEXT_PHASE.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/en/PROJECT_STATUS.md",
+            "docs/zh/PROJECT_STATUS.md",
+        ]
+        failed = False
+        for relative_path in status_files:
+            text = self.read_text(relative_path)
+            for term in required_terms:
+                if term not in text:
+                    self.error(f"{relative_path} missing status consistency term: {term}")
+                    failed = True
+        if not failed:
+            self.pass_("Project status wording is consistent across overview, phase index, and status docs")
+
+    def check_question_mark_pollution(self) -> None:
+        """Detect suspicious question-mark separators without flagging URL query strings."""
+
+        query_marker = re.compile(r"\?[A-Za-z_][A-Za-z0-9_-]*=")
+        suspicious_backtick_separator = re.compile(r"`[^`\n]+`\?`[^`\n]+`")
+        suspicious_phase_separator = re.compile(r"Phase\s+\d+[A-Z]?\s*\?")
+        failed = False
+        for path in sorted(self.docs.rglob("*.md")):
+            relative = path.relative_to(self.root).as_posix()
+            text = path.read_text(encoding="utf-8")
+            for line_number, line in enumerate(text.splitlines(), start=1):
+                protected = query_marker.sub("__QUERY_MARK__=", line)
+                suspicious = False
+                reason = ""
+                if protected.lstrip().startswith("#") and "?" in protected:
+                    suspicious = True
+                    reason = "heading contains suspicious question-mark replacement"
+                elif protected.count("?") >= 2:
+                    suspicious = True
+                    reason = "line contains repeated question-mark separators"
+                elif suspicious_backtick_separator.search(protected):
+                    suspicious = True
+                    reason = "inline code terms separated by question-mark replacement"
+                elif suspicious_phase_separator.search(protected):
+                    suspicious = True
+                    reason = "Phase heading/title contains question-mark replacement"
+                if suspicious:
+                    self.error(f"Markdown question-mark pollution in {relative}:{line_number}: {reason}")
+                    failed = True
+                    break
+        if not failed:
+            self.pass_("Markdown question-mark pollution check passed")
+
+    def check_docx_render_qa(self) -> None:
+        """Render the canonical DOCX to PDF when LibreOffice is available."""
+
+        docx_path = self.docs / "Aiops Project Documentation Update Request For Codex.docx"
+        if not docx_path.exists():
+            self.error("DOCX render QA failed: DOCX file is missing")
+            return
+        self.pass_("DOCX render QA: DOCX exists")
+
+        soffice = self.find_soffice()
+        if not soffice:
+            self.warning("DOCX render QA: soffice not found; LibreOffice render check skipped")
+            return
+        self.pass_(f"DOCX render QA: soffice found at {soffice}")
+
+        render_dir = self.docs / "rendered"
+        render_dir.mkdir(parents=True, exist_ok=True)
+        pdf_path = render_dir / f"{docx_path.stem}.pdf"
+        if pdf_path.exists():
+            pdf_path.unlink()
+
+        command = [
+            soffice,
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(render_dir),
+            str(docx_path),
+        ]
+        try:
+            proc = subprocess.run(
+                command,
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=180,
+                check=False,
+            )
+        except Exception as exc:
+            self.error(f"DOCX render QA failed: {exc}")
+            return
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            self.error(f"DOCX render QA failed: soffice exit code {proc.returncode}: {detail}")
+            return
+        self.pass_("DOCX render QA: soffice conversion exit code == 0")
+
+        if not pdf_path.exists():
+            self.error(f"DOCX render QA failed: PDF output missing at {pdf_path}")
+            return
+        self.pass_("DOCX render QA: PDF output exists")
+
+        if pdf_path.stat().st_size <= 0:
+            self.error(f"DOCX render QA failed: PDF output is empty at {pdf_path}")
+            return
+        self.pass_(f"DOCX render QA: PDF output non-empty ({pdf_path.stat().st_size} bytes)")
+
+    def find_soffice(self) -> str | None:
+        """Find LibreOffice soffice on PATH or common Windows install paths."""
+
+        found = shutil.which("soffice")
+        if found:
+            return found
+        candidates = [
+            Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+            Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+        return None
 
     def check_runtime_config(self) -> None:
         """检查 CURRENT_RUNTIME 与 Settings / docker-compose 默认值是否一致。"""
@@ -1662,6 +1892,18 @@ class DocsRuntimeVerifier:
             "health verification",
             "profile bootstrap docs",
             "Kubernetes/Helm/Terraform",
+            "Phase 53",
+            "Release Smoke Test Matrix & Preflight Automation",
+            "release/smoke",
+            "release_preflight.py",
+            "release_smoke_matrix.py",
+            "generate_release_report.py",
+            "check_migration_continuity.py",
+            "check_runtime_hygiene.py",
+            "runtime hygiene",
+            "migration continuity",
+            "smoke routes",
+            "Integration Candidate",
         ]
         for term in required_terms:
             if term not in overview:

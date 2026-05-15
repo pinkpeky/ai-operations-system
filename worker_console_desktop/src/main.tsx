@@ -1621,6 +1621,24 @@ function App() {
           </p>
         </section>
 
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Activity size={18} />
+            <h2>Release Readiness / Diagnostics</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="current_profile" value="desktop-client" />
+            <Field label="preflight_result" value="python scripts/release_preflight.py --profile server-docker" />
+            <Field label="docs_verifier_status" value="python scripts/verify_docs_runtime.py" />
+            <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
+            <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile desktop-client" />
+            <Field label="release_readiness_summary" value="docs/SMOKE_TEST_MATRIX.md" />
+          </div>
+          <p className="chat-note">
+            Phase 53 preflight is release readiness automation for integration candidates. It does not perform code signing, auto update, MSI/EXE packaging, DMG notarization, Kubernetes, or production HA deployment.
+          </p>
+        </section>
+
         <ChatPanel />
         <BrowserSessionsPanel />
 

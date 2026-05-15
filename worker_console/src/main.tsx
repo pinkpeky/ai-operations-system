@@ -1330,6 +1330,24 @@ function App() {
           </p>
         </section>
 
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Activity size={18} />
+            <h2>Release Readiness / Diagnostics</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="current_profile" value="client-worker or desktop-client" />
+            <Field label="preflight_result" value="python scripts/release_preflight.py --profile server-docker" />
+            <Field label="docs_verifier_status" value="python scripts/verify_docs_runtime.py" />
+            <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
+            <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile client-worker" />
+            <Field label="release_readiness_summary" value="docs/RELEASE_READINESS.md" />
+          </div>
+          <p className="chat-note">
+            Phase 53 smoke checks are local preflight automation for integration candidates. They do not create installers, code signing, auto updater, Kubernetes, or production HA orchestration.
+          </p>
+        </section>
+
         <ChatPanel />
         <BrowserSessionsPanel />
 

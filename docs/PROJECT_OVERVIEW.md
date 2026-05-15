@@ -12,7 +12,7 @@ The project is not a frontend dashboard. It is a backend foundation for future c
 
 ## Current Status
 
-Phase 1 through Phase 44 are completed. Phase 35B remains a validation-plan phase; Phase 43 hardens task scheduler persistence and recovery on top of Phase 42 background execution, and Phase 44 adds Output Artifact Pipeline lineage, export, package, and retention foundations.
+`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint. This documentation branch records the complete Phase 1-52 development state, but that does not mean all phases are merged into `main`.
 
 Completed capabilities:
 
@@ -1074,7 +1074,7 @@ Source types: `conversation`, `playbook`, `tool`, `browser_runtime`, `rag`, `con
 Storage: exported files are written under `storage/output_artifacts/{workspace_id}/{artifact_id}/`. The system does not use S3 or MinIO.
 
 Current limitation: this is not a full DAM, not a production file manager, not cloud storage, not real publishing asset management, and not a complete material management system.
-## Phase 42?Task Orchestration & Background Execution
+## Phase 42: Task Orchestration & Background Execution
 
 Phase 42 is completed. The system now has `task_runs` and `task_run_events` as a dedicated background execution timeline for Conversation and Playbook work. `TaskOrchestratorService` creates, queues, starts, completes, fails, retries, cancels, schedules, and resumes task runs. `BackgroundTaskExecutor` is a lightweight in-process polling loop started by FastAPI when `TASK_ORCHESTRATOR_ENABLED=true`. `TaskRetryPolicy` provides exponential backoff and keeps approval rejected / validation errors non-retryable.
 
@@ -1291,7 +1291,7 @@ Packaging architecture:
 
 Boundaries: Phase 51 is not a formal production release, no code signing, no auto updater, no MSI/EXE formal installer, no DMG/notarization, no Kubernetes/Helm packaging, no ComfyUI, and no real social platform publishing.
 
-?????Phase 51 ?????????????????????????????????? release readiness???????????????????????????????? code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
+ Phase 51  release readiness  code signing, auto updater, MSI/EXE, DMG/notarization, Kubernetes/Helm.
 
 Keywords: Phase 51; Release Packaging & Deployment Bundle Foundation; release/manifest.json; release/version.json; server deployment bundle; frontend production build bundle; desktop release readiness; aiops.release.env.template; validate_release_packaging.py; Windows / Mac startup scripts; not a formal production release; no code signing; no auto updater; no MSI/EXE; no DMG/notarization; no Kubernetes/Helm.
 <!-- PHASE51_SYNC:END -->
@@ -1316,3 +1316,28 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
+
+<!-- PHASE53_SYNC:BEGIN -->
+## Phase 53: Release Smoke Test Matrix & Preflight Automation
+
+Phase 53 adds a unified Release Smoke Matrix and Preflight System. It introduces `release/smoke/` with `smoke_matrix.json`, `profile_matrix.json`, `runtime_matrix.json`, and smoke documentation. It also adds `scripts/release_preflight.py`, `scripts/release_smoke_matrix.py`, `scripts/generate_release_report.py`, `scripts/check_migration_continuity.py`, and `scripts/check_runtime_hygiene.py`.
+
+Capabilities:
+
+- Unified preflight runner for pytest, docs verifier, release packaging validation, migration continuity, runtime hygiene, frontend builds, Docker health, deployment verification, and smoke routes.
+- Smoke orchestrator for grouped execution and partial failure reporting.
+- Release readiness report generation under ignored local QA output.
+- Migration continuity checks for Alembic revision chain, unique revisions, single root/head, and downgrade functions.
+- Runtime hygiene checks for committed `.env`, rendered PDFs, `runtime_state`, logs, `node_modules`, storage runtime artifacts, and generated release bundles.
+- Frontend Release Readiness / Diagnostics help in Admin Dashboard, Worker Console, and Desktop Console.
+
+Boundaries: Phase 53 is an Integration Candidate readiness layer. It is not Kubernetes, Helm, Terraform, CI/CD SaaS, a real installer, code signing, an auto updater, production HA orchestration, ComfyUI, real OpenClaw, or real social media automation.
+
+Keywords: Phase 53; Release Smoke Test Matrix; Preflight Automation; release/smoke; release_preflight.py; release_smoke_matrix.py; generate_release_report.py; check_migration_continuity.py; check_runtime_hygiene.py; runtime hygiene; migration continuity; smoke routes; release readiness.
+<!-- PHASE53_SYNC:END -->
+
+## Docs Stabilization Sprint
+
+This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
+
+The canonical project recovery state is: `main` remains the Phase 42 stable baseline, the active docs branch is `codex/docs-stabilization-sprint`, and Phase 43-52 remain open PRs layered on top of the Phase 42 baseline. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.

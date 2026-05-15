@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "base_url": "http://localhost:8000",
+  "headers": {
+    "X-Workspace-Id": "demo-workspace",
+    "X-User-Id": "demo-user"
+  },
+  "routes": [
+    {
+      "name": "api_health",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "required": true,
+      "group": "docker-runtime"
+    },
+    {
+      "name": "browser_worker_health",
+      "method": "GET",
+      "path": "/api/v1/browser-workers/health/summary",
+      "required": true,
+      "group": "docker-runtime"
+    },
+    {
+      "name": "conversation_playbooks",
+      "method": "GET",
+      "path": "/api/v1/conversation-playbooks",
+      "required": true,
+      "group": "workflow_routes"
+    },
+    {
+      "name": "task_runs",
+      "method": "GET",
+      "path": "/api/v1/task-runs",
+      "required": true,
+      "group": "task_routes"
+    },
+    {
+      "name": "output_artifacts",
+      "method": "GET",
+      "path": "/api/v1/output-artifacts",
+      "required": true,
+      "group": "artifact_routes"
+    },
+    {
+      "name": "workflow_templates",
+      "method": "GET",
+      "path": "/api/v1/workflow-templates",
+      "required": true,
+      "group": "template_routes"
+    },
+    {
+      "name": "workflow_replay_sessions",
+      "method": "GET",
+      "path": "/api/v1/workflow-replay-sessions",
+      "required": true,
+      "group": "replay_routes"
+    }
+  ]
+}
