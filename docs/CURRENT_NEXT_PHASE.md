@@ -8,7 +8,7 @@
 
 ## Current Recommended Next Phase
 
-Pause feature development and finish Docs Stabilization Sprint. After this PR is reviewed, reconcile the open PR stack in order or create an explicit integration branch strategy before adding runtime features.
+Phase 53 is the current integration stabilization step: Release Smoke Test Matrix & Preflight Automation. After this PR is reviewed, reconcile the open PR stack in order or create an explicit integration branch strategy before adding runtime features.
 
 ## Open PRs
 
@@ -26,6 +26,7 @@ Pause feature development and finish Docs Stabilization Sprint. After this PR is
 | #11 | Phase 51 Release Packaging and Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | Open |
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Open |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
+| #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Planned/Open after push |
 
 ## Current Architecture State
 
@@ -83,4 +84,4 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 2. Review PR #3 through PR #12 in dependency order before merging any later branch.
 3. Decide whether PR #1 should be closed as superseded or merged independently after comparing with the later runtime branches.
 4. Add CI checks for docs encoding, DOCX render readiness, and release/deployment validation.
-5. After the docs sprint, create a clean integration plan for Phase 43-52 or continue with a new feature branch from the latest approved integration branch.
+5. Use Phase 53 preflight and smoke matrix outputs to create a clean integration plan for Phase 43-52 before continuing runtime features.

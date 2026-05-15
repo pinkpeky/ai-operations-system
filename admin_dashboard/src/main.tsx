@@ -2530,6 +2530,20 @@ function SettingsPage({
           Server Docker runs API, browser-worker, PostgreSQL, Redis, and Qdrant. Client Worker runs worker_client on a customer machine. Desktop Client controls only that local machine worker runtime. Bootstrap scripts generate env files and verify dependencies, ports, and health without writing system environment variables.
         </p>
       </section>
+      <section className="detail-panel">
+        <h3>Release Readiness / Diagnostics</h3>
+        <div className="field-grid compact">
+          <Field label="current_profile" value="server-docker or local-dev" />
+          <Field label="preflight_result" value="Run python scripts/release_preflight.py --profile server-docker" />
+          <Field label="docs_verifier_status" value="python scripts/verify_docs_runtime.py" />
+          <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
+          <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile server-docker" />
+          <Field label="release_readiness_summary" value="docs/RELEASE_READINESS.md and docs/SMOKE_TEST_MATRIX.md" />
+        </div>
+        <p className="muted-copy">
+          Phase 53 provides a local Release Smoke Matrix and Preflight System for integration candidates. It is not CI/CD SaaS, Kubernetes, code signing, an auto updater, or a production installer.
+        </p>
+      </section>
     </Panel>
   );
 }

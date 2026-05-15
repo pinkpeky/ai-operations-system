@@ -53,4 +53,10 @@ Completed scope:
 Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not production HA, not code signing, not an auto updater, not a formal installer, not ComfyUI, and not real social platform publishing.
 
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
+
+## Phase 53: Release Smoke Matrix & Preflight
+
+Phase 53 adds release readiness automation on top of deployment profiles. Use `python scripts/release_preflight.py --profile server-docker` for the unified preflight runner and `python scripts/release_smoke_matrix.py` for grouped smoke checks. The matrix covers pytest, frontend builds, Docker health, deployment verification, docs verifier, render QA, runtime hygiene, migration continuity, release packaging validation, and smoke routes.
+
+This is not Kubernetes, Helm, Terraform, CI/CD SaaS, a real installer, code signing, an auto updater, or production HA orchestration.
 <!-- PHASE52_SYNC:END -->

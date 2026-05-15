@@ -1317,6 +1317,25 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
 
+<!-- PHASE53_SYNC:BEGIN -->
+## Phase 53: Release Smoke Test Matrix & Preflight Automation
+
+Phase 53 adds a unified Release Smoke Matrix and Preflight System. It introduces `release/smoke/` with `smoke_matrix.json`, `profile_matrix.json`, `runtime_matrix.json`, and smoke documentation. It also adds `scripts/release_preflight.py`, `scripts/release_smoke_matrix.py`, `scripts/generate_release_report.py`, `scripts/check_migration_continuity.py`, and `scripts/check_runtime_hygiene.py`.
+
+Capabilities:
+
+- Unified preflight runner for pytest, docs verifier, release packaging validation, migration continuity, runtime hygiene, frontend builds, Docker health, deployment verification, and smoke routes.
+- Smoke orchestrator for grouped execution and partial failure reporting.
+- Release readiness report generation under ignored local QA output.
+- Migration continuity checks for Alembic revision chain, unique revisions, single root/head, and downgrade functions.
+- Runtime hygiene checks for committed `.env`, rendered PDFs, `runtime_state`, logs, `node_modules`, storage runtime artifacts, and generated release bundles.
+- Frontend Release Readiness / Diagnostics help in Admin Dashboard, Worker Console, and Desktop Console.
+
+Boundaries: Phase 53 is an Integration Candidate readiness layer. It is not Kubernetes, Helm, Terraform, CI/CD SaaS, a real installer, code signing, an auto updater, production HA orchestration, ComfyUI, real OpenClaw, or real social media automation.
+
+Keywords: Phase 53; Release Smoke Test Matrix; Preflight Automation; release/smoke; release_preflight.py; release_smoke_matrix.py; generate_release_report.py; check_migration_continuity.py; check_runtime_hygiene.py; runtime hygiene; migration continuity; smoke routes; release readiness.
+<!-- PHASE53_SYNC:END -->
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

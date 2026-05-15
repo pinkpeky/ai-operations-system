@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "phase": "53",
+  "name": "release-smoke-test-matrix",
+  "description": "Release smoke orchestration matrix for integration candidates.",
+  "default_profile": "server-docker",
+  "groups": [
+    {
+      "name": "static",
+      "description": "Static repository hygiene, migration continuity, and release packaging checks.",
+      "checks": [
+        "runtime_hygiene",
+        "migration_continuity",
+        "release_packaging_validator"
+      ]
+    },
+    {
+      "name": "docs",
+      "description": "Docs runtime verifier and DOCX render QA.",
+      "checks": [
+        "docs_verifier",
+        "docx_render_qa"
+      ]
+    },
+    {
+      "name": "frontend-build",
+      "description": "Production frontend builds for all console surfaces.",
+      "checks": [
+        "admin_dashboard_build",
+        "worker_console_build",
+        "worker_console_desktop_build"
+      ]
+    },
+    {
+      "name": "docker-runtime",
+      "description": "Docker Compose process health and API smoke routes.",
+      "checks": [
+        "docker_compose_ps",
+        "api_health",
+        "browser_worker_health",
+        "workflow_routes",
+        "task_routes",
+        "artifact_routes",
+        "template_routes",
+        "replay_routes"
+      ]
+    },
+    {
+      "name": "deployment",
+      "description": "Deployment profile verification for configured environments.",
+      "checks": [
+        "deployment_verify_profile"
+      ]
+    }
+  ],
+  "boundaries": [
+    "not Kubernetes",
+    "not Helm",
+    "not Terraform",
+    "not CI/CD SaaS",
+    "not a real installer",
+    "no code signing",
+    "no auto updater",
+    "not production HA orchestration",
+    "not ComfyUI",
+    "not real social automation"
+  ]
+}

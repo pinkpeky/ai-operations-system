@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "profiles": {
+    "server-docker": {
+      "category": "server",
+      "required_groups": ["static", "docs", "frontend-build", "docker-runtime", "deployment"],
+      "description": "Server Docker integration candidate with API, backing services, browser worker, and static frontend builds."
+    },
+    "local-dev": {
+      "category": "developer",
+      "required_groups": ["static", "docs", "frontend-build"],
+      "description": "Local developer checkout with optional Docker services."
+    },
+    "desktop-client": {
+      "category": "client",
+      "required_groups": ["static", "frontend-build"],
+      "description": "Desktop console readiness profile for customer-machine UI validation."
+    },
+    "client-worker": {
+      "category": "client",
+      "required_groups": ["static", "deployment"],
+      "description": "Customer machine worker bootstrap profile for local worker runtime checks."
+    },
+    "staging": {
+      "category": "server",
+      "required_groups": ["static", "docs", "frontend-build", "docker-runtime", "deployment"],
+      "description": "Production-like staging smoke profile without HA guarantees."
+    },
+    "production-like": {
+      "category": "server",
+      "required_groups": ["static", "docs", "frontend-build", "docker-runtime", "deployment"],
+      "description": "Production-like profile for release readiness rehearsal; not production HA."
+    }
+  }
+}

@@ -26,6 +26,7 @@
 | #11 | Phase 51 Release Packaging and Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | Open |
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Open |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
+| #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Planned/Open after push |
 
 ## Phase Timeline Table
 
@@ -84,6 +85,7 @@
 | 50 | Desktop Console Runtime UX & Client Packaging Readiness | `codex/phase-50-desktop-runtime-ux-packaging-readiness` | #10 | Open PR | Tauri icon fix, Start Runtime diagnostics, server/client boundary UX. |
 | 51 | Release Packaging & Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | #11 | Open PR | Release manifest, version metadata, bundle scripts, startup scripts. |
 | 52 | Deployment Profiles & Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | #12 | Open PR | Deployment profiles, env generator, dependency/port/env verification. |
+| 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Planned/Open after push | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
 
 ## Runtime Evolution
 

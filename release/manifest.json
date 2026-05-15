@@ -73,6 +73,16 @@
     ]
   },
   "validation_script": "release/scripts/validate_release_packaging.py",
+  "smoke": {
+    "matrix": "release/smoke/smoke_matrix.json",
+    "profile_matrix": "release/smoke/profile_matrix.json",
+    "runtime_matrix": "release/smoke/runtime_matrix.json",
+    "preflight_runner": "scripts/release_preflight.py",
+    "smoke_orchestrator": "scripts/release_smoke_matrix.py",
+    "release_report_generator": "scripts/generate_release_report.py",
+    "migration_continuity": "scripts/check_migration_continuity.py",
+    "runtime_hygiene": "scripts/check_runtime_hygiene.py"
+  },
   "deployment_profiles": {
     "root": "deployment/profiles",
     "profiles": [

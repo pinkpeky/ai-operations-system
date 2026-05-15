@@ -52,6 +52,16 @@ REQUIRED_FILES = [
     "deployment/mac/start_desktop_console.sh",
     "deployment/mac/start_client_worker.sh",
     "deployment/mac/verify_profile.sh",
+    "release/smoke/smoke_matrix.json",
+    "release/smoke/profile_matrix.json",
+    "release/smoke/runtime_matrix.json",
+    "release/smoke/README.md",
+    "release/reports/README.md",
+    "scripts/release_preflight.py",
+    "scripts/release_smoke_matrix.py",
+    "scripts/generate_release_report.py",
+    "scripts/check_runtime_hygiene.py",
+    "scripts/check_migration_continuity.py",
 ]
 
 DEPLOYMENT_PROFILES = [
@@ -117,6 +127,26 @@ def validate(repo_root: Path) -> list[Check]:
     components = {component.get("name") for component in manifest.get("components", []) if isinstance(component, dict)}
     for name in {"api-server", "admin-dashboard", "worker-console", "worker-console-desktop"}:
         checks.append(Check(f"component:{name}", name in components, "declared" if name in components else "missing"))
+
+    smoke = manifest.get("smoke", {})
+    for key in (
+        "matrix",
+        "profile_matrix",
+        "runtime_matrix",
+        "preflight_runner",
+        "smoke_orchestrator",
+        "release_report_generator",
+        "migration_continuity",
+        "runtime_hygiene",
+    ):
+        path = smoke.get(key)
+        checks.append(
+            Check(
+                f"smoke:{key}",
+                isinstance(path, str) and (repo_root / path).exists(),
+                path if isinstance(path, str) else "missing",
+            )
+        )
 
     if version.get("phase") == "51" and version.get("status") == "packaging_foundation":
         checks.append(Check("version:phase51", True, "phase 51 packaging foundation"))

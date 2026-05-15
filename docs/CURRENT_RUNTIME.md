@@ -1677,6 +1677,27 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
 
+<!-- PHASE53_SYNC:BEGIN -->
+## Phase 53: Release Smoke Test Matrix & Preflight Automation
+
+Phase 53 adds release readiness orchestration on top of Phase 51 packaging and Phase 52 deployment profiles.
+
+Runtime-facing additions:
+
+- `release/smoke/smoke_matrix.json`
+- `release/smoke/profile_matrix.json`
+- `release/smoke/runtime_matrix.json`
+- `scripts/release_preflight.py`
+- `scripts/release_smoke_matrix.py`
+- `scripts/generate_release_report.py`
+- `scripts/check_migration_continuity.py`
+- `scripts/check_runtime_hygiene.py`
+
+The preflight runner coordinates pytest, docs verifier, release validator, frontend builds, Docker health, deployment verification, runtime hygiene, migration continuity, and smoke routes. The smoke matrix checks health, browser-worker summary, conversation playbooks, task runs, output artifacts, workflow templates, and workflow replay sessions.
+
+Boundaries: this is not Kubernetes, Helm, Terraform, CI/CD SaaS, a real installer, code signing, an auto updater, production HA orchestration, ComfyUI, real OpenClaw, or real social media automation.
+<!-- PHASE53_SYNC:END -->
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
