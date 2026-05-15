@@ -62,3 +62,7 @@ python scripts/generate_integration_report.py
 ```
 
 Generated integration reports under `release/reports/` are ignored QA artifacts unless explicitly requested for archival.
+
+## Phase 55 Mainline Readiness
+
+Phase 55 adds mainline readiness tooling: `mainline_readiness.py`, `simulate_mainline_merge.py`, `generate_superseded_pr_report.py`, `generate_mainline_integration_report.py`, and `release_candidate_model.json`. These gates prepare a Release Candidate merge window and do not create a production release.

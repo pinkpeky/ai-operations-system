@@ -65,13 +65,19 @@ REQUIRED_FILES = [
     "release/integration/integration_matrix.json",
     "release/integration/phase_dependency_matrix.json",
     "release/integration/conflict_surface_matrix.json",
+    "release/integration/release_candidate_model.json",
     "release/integration/README.md",
     "release/reports/pr_chain_inventory.json",
+    "release/reports/superseded_prs.md",
     "scripts/analyze_pr_chain.py",
     "scripts/integration_preflight.py",
     "scripts/detect_integration_conflicts.py",
     "scripts/check_api_frontend_drift.py",
     "scripts/generate_integration_report.py",
+    "scripts/mainline_readiness.py",
+    "scripts/simulate_mainline_merge.py",
+    "scripts/generate_superseded_pr_report.py",
+    "scripts/generate_mainline_integration_report.py",
 ]
 
 DEPLOYMENT_PROFILES = [
@@ -169,6 +175,10 @@ def validate(repo_root: Path) -> list[Check]:
         "conflict_detector",
         "api_frontend_drift",
         "integration_report_generator",
+        "mainline_readiness",
+        "mainline_merge_simulation",
+        "superseded_pr_report_generator",
+        "mainline_report_generator",
     ):
         path = integration.get(key)
         checks.append(

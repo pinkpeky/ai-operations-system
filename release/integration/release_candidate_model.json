@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "phase": "55",
+  "name": "mainline-release-candidate-branch-model",
+  "candidate_branch": "codex/phase-43-55-release-candidate",
+  "source_branch": "codex/phase-55-mainline-integration-release-candidate",
+  "target_branch": "main",
+  "baseline": "main remains Phase 42 stable baseline",
+  "included_phases": [
+    "docs-stabilization",
+    "43",
+    "44",
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50",
+    "51",
+    "52",
+    "53",
+    "54",
+    "55"
+  ],
+  "required_gates": [
+    "mainline_readiness",
+    "integration_preflight",
+    "release_preflight",
+    "release_smoke_matrix",
+    "docs_verifier",
+    "migration_continuity",
+    "runtime_hygiene",
+    "api_frontend_drift",
+    "deployment_verification",
+    "pytest",
+    "frontend_builds",
+    "docker_compose"
+  ],
+  "optional_gates": [
+    "LibreOffice DOCX render QA",
+    "Tauri native dev window",
+    "real client worker E2E"
+  ],
+  "blocking_failures": [
+    "migration continuity failure",
+    "runtime hygiene failure",
+    "docs verifier error",
+    "release preflight failure",
+    "integration preflight failure",
+    "API/frontend drift failure",
+    "pytest failure",
+    "frontend build failure"
+  ],
+  "warning_only_failures": [
+    "GitHub unavailable while offline inventory is available",
+    "conflict surface warnings without strict mode",
+    "optional native desktop dependency missing",
+    "real client worker unavailable"
+  ],
+  "manual_review_gates": [
+    "PR superseded/close decision",
+    "migration review",
+    "OpenAPI surface review",
+    "desktop packaging boundary review",
+    "release readiness sign-off",
+    "rollback plan sign-off"
+  ],
+  "rollback_model": {
+    "preferred": "Revert the release candidate merge commit if the RC lands as one reviewed integration merge.",
+    "phase_by_phase": "If phases land separately, revert from Phase 55 back to Phase 43 in reverse dependency order.",
+    "forbidden": [
+      "force push main",
+      "delete phase branches",
+      "drop migration files without explicit migration rollback review"
+    ]
+  },
+  "boundaries": {
+    "production_release": false,
+    "formal_installer": false,
+    "code_signing": false,
+    "auto_updater": false,
+    "kubernetes": false,
+    "ha_orchestration": false,
+    "real_social_automation": false,
+    "comfyui": false
+  }
+}

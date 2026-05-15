@@ -87,12 +87,18 @@
     "matrix": "release/integration/integration_matrix.json",
     "phase_dependency_matrix": "release/integration/phase_dependency_matrix.json",
     "conflict_surface_matrix": "release/integration/conflict_surface_matrix.json",
+    "release_candidate_model": "release/integration/release_candidate_model.json",
     "pr_chain_inventory": "release/reports/pr_chain_inventory.json",
+    "superseded_pr_report": "release/reports/superseded_prs.md",
     "pr_chain_analyzer": "scripts/analyze_pr_chain.py",
     "integration_preflight": "scripts/integration_preflight.py",
     "conflict_detector": "scripts/detect_integration_conflicts.py",
     "api_frontend_drift": "scripts/check_api_frontend_drift.py",
-    "integration_report_generator": "scripts/generate_integration_report.py"
+    "integration_report_generator": "scripts/generate_integration_report.py",
+    "mainline_readiness": "scripts/mainline_readiness.py",
+    "mainline_merge_simulation": "scripts/simulate_mainline_merge.py",
+    "superseded_pr_report_generator": "scripts/generate_superseded_pr_report.py",
+    "mainline_report_generator": "scripts/generate_mainline_integration_report.py"
   },
   "deployment_profiles": {
     "root": "deployment/profiles",
