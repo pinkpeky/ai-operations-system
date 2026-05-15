@@ -1162,3 +1162,11 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Phase 46 adds workflow graph database tables and API routes only. Deploy migrations for `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, and nullable graph lineage fields before enabling the updated Admin Dashboard and Worker Console builds. Runtime remains in-process and is not a distributed orchestration engine, not Kubernetes/Celery scheduling, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47：部署说明
+
+Phase 47 不新增外部基础设施依赖。部署后执行数据库 migration 即可启用 `workflow_templates`、`workflow_template_versions`、`workflow_template_runs`。前端 Admin Dashboard / Worker Console / Worker Console Desktop 通过 AI Server API 使用 Template Library、Validation result、Compatibility result、Import / Export JSON 和 Template runs。
+
+边界：不需要 ComfyUI、DAG 可视化编辑器、WebSocket/SSE 或生产级分布式编排器。
+<!-- PHASE47_SYNC:END -->

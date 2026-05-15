@@ -62,6 +62,12 @@ import {
   WorkflowRun,
   WorkflowStep,
 } from "./api/workflowClient";
+import {
+  workflowTemplateClient,
+  WorkflowTemplate,
+  WorkflowTemplateCompatibility,
+  WorkflowTemplateRun,
+} from "./api/workflowTemplateClient";
 import "./styles.css";
 
 type PageKey =
@@ -74,6 +80,7 @@ type PageKey =
   | "tasks"
   | "workflows"
   | "workflow-graphs"
+  | "workflow-templates"
   | "openclaw"
   | "audit-logs"
   | "rag-documents"
@@ -102,6 +109,7 @@ const pages: PageDefinition[] = [
   { key: "tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
   { key: "workflows", label: "Workflows", icon: <GitBranch size={18} /> },
   { key: "workflow-graphs", label: "Workflow Graphs", icon: <GitBranch size={18} /> },
+  { key: "workflow-templates", label: "Workflow Templates", icon: <GitBranch size={18} /> },
   { key: "openclaw", label: "OpenClaw", icon: <Bot size={18} /> },
   { key: "audit-logs", label: "Audit Logs", icon: <ShieldCheck size={18} /> },
   { key: "rag-documents", label: "RAG / Documents", icon: <Database size={18} /> },
@@ -1276,6 +1284,9 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <span>workflow_step_id: {selectedArtifact.workflow_step_id ?? "-"}</span>
               <span>checkpoint_id: {selectedArtifact.checkpoint_id ?? "-"}</span>
               <span>memory_snapshot_id: {selectedArtifact.memory_snapshot_id ?? "-"}</span>
+              <span>workflow_template_id: {selectedArtifact.workflow_template_id ?? "-"}</span>
+              <span>workflow_template_version_id: {selectedArtifact.workflow_template_version_id ?? "-"}</span>
+              <span>workflow_template_run_id: {selectedArtifact.workflow_template_run_id ?? "-"}</span>
               <span>producing_node_key: {selectedArtifact.producing_node_key ?? "-"}</span>
               <span>replay_source: {selectedArtifact.replay_source ?? "-"}</span>
             </div>
@@ -1766,6 +1777,131 @@ function WorkflowGraphsPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
+function WorkflowTemplatesPage({ settings }: { settings: AdminSettings }) {
+  const [templates, setTemplates] = useState<AsyncState<WorkflowTemplate[]>>(emptyState());
+  const [runs, setRuns] = useState<AsyncState<WorkflowTemplateRun[]>>(emptyState());
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+  const [compatibility, setCompatibility] = useState<WorkflowTemplateCompatibility | null>(null);
+  const [exportPayload, setExportPayload] = useState<JsonRecord | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setTemplates((current) => ({ ...current, loading: true, error: null }));
+    setRuns((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [templateResponse, runResponse] = await Promise.all([
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listRuns(settings),
+      ]);
+      setTemplates({ data: templateResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setRuns({ data: runResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Workflow Template Registry API unavailable";
+      setTemplates({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setRuns({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+    }
+  }, [settings]);
+
+  const inspectTemplate = async (template: WorkflowTemplate) => {
+    setSelectedTemplate(template);
+    setActionError(null);
+    try {
+      const result = await workflowTemplateClient.validateTemplate(template.id, settings);
+      setCompatibility(result);
+    } catch (error) {
+      setCompatibility(null);
+      setActionError(error instanceof Error ? error.message : "Compatibility check unavailable");
+    }
+  };
+
+  const exportTemplate = async () => {
+    if (!selectedTemplate) return;
+    setActionError(null);
+    try {
+      setExportPayload(await workflowTemplateClient.exportTemplate(selectedTemplate.id, settings));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template export failed");
+    }
+  };
+
+  const importDryRun = async () => {
+    if (!exportPayload) return;
+    setActionError(null);
+    try {
+      const imported = await workflowTemplateClient.importTemplateDryRun(
+        { ...exportPayload, template_key: `${exportPayload.template_key ?? "template"}_dry_run` },
+        settings,
+      );
+      setExportPayload({ ...exportPayload, import_dry_run_result: imported });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template import dry-run failed");
+    }
+  };
+
+  const runTemplate = async () => {
+    if (!selectedTemplate) return;
+    setActionError(null);
+    try {
+      await workflowTemplateClient.runTemplate(selectedTemplate.id, settings, {
+        url: "https://example.com",
+        topic: "AI automation operations",
+      });
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template run failed");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Template Library"
+        description="Workflow Template Registry with versioning, built-in templates, import/export JSON, compatibility checks, and template runs. This is not a visual DAG builder and does not connect ComfyUI."
+        action={<RefreshButton onClick={load} />}
+      >
+        <LoadNotice state={templates} />
+        <Table
+          rows={(templates.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedTemplate?.id ?? null}
+          onSelect={(row) => void inspectTemplate(row as unknown as WorkflowTemplate)}
+          emptyLabel="No workflow templates."
+          columns={[
+            { key: "template_key", label: "template_key" },
+            { key: "name", label: "name" },
+            { key: "category", label: "category" },
+            { key: "status", label: "status" },
+            { key: "current_version", label: "current_version" },
+            { key: "risk_level", label: "risk_level" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Template Detail</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <div className="actions-row">
+          <button className="ghost-button" disabled={!selectedTemplate} onClick={() => void exportTemplate()}>Export JSON</button>
+          <button className="ghost-button" disabled={!exportPayload} onClick={() => void importDryRun()}>Import dry-run</button>
+          <button className="primary-button" disabled={!selectedTemplate} onClick={() => void runTemplate()}>Run template</button>
+        </div>
+        <JsonPreview value={selectedTemplate || { status: "select a workflow template" }} />
+        <h3>Validation result</h3>
+        <JsonPreview value={compatibility || { compatible: null, warnings: [], errors: [] }} />
+        <h3>Version list</h3>
+        <Timeline rows={(selectedTemplate?.versions || []) as unknown as JsonRecord[]} primary="version" secondary="validation_status" />
+        <h3>Export / import JSON</h3>
+        <JsonPreview value={exportPayload || { status: "export a template to inspect JSON" }} />
+        <h3>Template runs</h3>
+        <LoadNotice state={runs} />
+        <Timeline rows={(runs.data || []) as unknown as JsonRecord[]} primary="id" secondary="status" />
+      </aside>
+    </div>
+  );
+}
+
 function OpenClawPage({ settings }: { settings: AdminSettings }) {
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
 
@@ -2077,6 +2213,7 @@ function App() {
           {activePage === "tasks" ? <TasksPage settings={settings} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
           {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
+          {activePage === "workflow-templates" ? <WorkflowTemplatesPage settings={settings} /> : null}
           {activePage === "openclaw" ? <OpenClawPage settings={settings} /> : null}
           {activePage === "audit-logs" ? <AuditLogsPage settings={settings} /> : null}
           {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} /> : null}

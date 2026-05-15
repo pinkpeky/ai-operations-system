@@ -61,6 +61,9 @@ from app.models.enums import (
     WorkflowNodeExecutionMode,
     WorkflowNodeType,
     WorkflowReplayStatus,
+    WorkflowTemplateRunStatus,
+    WorkflowTemplateStatus,
+    WorkflowTemplateVersionValidationStatus,
     OutputArtifactSourceType,
     OutputArtifactRole,
     OutputArtifactStage,
@@ -103,6 +106,9 @@ from app.models.workflow import (
     WorkflowReplay,
     WorkflowRun,
     WorkflowStep,
+    WorkflowTemplate,
+    WorkflowTemplateRun,
+    WorkflowTemplateVersion,
 )
 from app.models.workspace import Workspace, WorkspaceMember
 
@@ -215,6 +221,12 @@ __all__ = [
     "WorkflowRunStatus",
     "WorkflowStep",
     "WorkflowStepStatus",
+    "WorkflowTemplate",
+    "WorkflowTemplateRun",
+    "WorkflowTemplateRunStatus",
+    "WorkflowTemplateStatus",
+    "WorkflowTemplateVersion",
+    "WorkflowTemplateVersionValidationStatus",
     "Workspace",
     "WorkspaceMember",
     "WorkspaceMemberRole",

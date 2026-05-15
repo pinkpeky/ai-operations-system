@@ -629,3 +629,11 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Workflow Graph Runtime development centers on `WorkflowExecutionPlanner`, `SafeConditionEvaluator`, `WorkflowGraphService`, and `WorkflowStateService`. Tests should cover graph validation, Conditional Execution, Retry/Fallback Path planning, Replay Foundation metadata, `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `producing_node_key`, and `graph_lineage`. Do not use Python eval for conditions; do not build a visual DAG builder or distributed orchestration engine.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47：开发说明
+
+新增开发入口：`app/workflow/template_definitions.py` 定义 built-in templates，`app/workflow/template_registry.py` 实现 `WorkflowTemplateRegistryService` 与 `WorkflowTemplateCompatibilityService`，`app/schemas/workflow_template.py` 定义 API schema，`app/api/routes/workflow_templates.py` 暴露 `/api/v1/workflow-templates` 与 `/api/v1/workflow-template-runs`。三端前端新增 `workflowTemplateClient.ts`。
+
+开发边界：版本不可覆盖，`template_key` 必须 workspace 唯一，validate_template 必须复用 planner validation，不允许绕过 approval/risk gate；当前不是可视化 DAG builder，不接 ComfyUI。
+<!-- PHASE47_SYNC:END -->

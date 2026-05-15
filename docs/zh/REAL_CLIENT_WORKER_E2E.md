@@ -320,3 +320,9 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Real client worker E2E validation is unchanged by Workflow Graph Runtime. Graph planner and Replay Foundation metadata may reference browser/runtime artifacts through `producing_node_key`, `replay_source`, and `graph_lineage`, but this does not add remote desktop streaming, ComfyUI, real OpenClaw, or social platform automation.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47：真实客户机 E2E 关系
+
+Workflow Template Registry & Versioning 运行在 AI Server 侧。真实客户机 Worker 的 E2E 验证流程不变；模板可以选择 Browser Graph 模板触发远程 Browser Runtime，但仍必须遵守 approval/risk gate。当前仍不做 TikTok / YouTube / X、登录、验证码、代理、指纹、真实 OpenClaw 或 ComfyUI。
+<!-- PHASE47_SYNC:END -->

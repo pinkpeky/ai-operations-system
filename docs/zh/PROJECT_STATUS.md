@@ -704,3 +704,19 @@ Completed:
 
 Boundaries: not a visual DAG builder, not a drag/drop workflow editor, not distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, not real platform publishing, and not TikTok / YouTube / X automation.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Workflow Template Registry & Versioning
+
+Status: completed.
+
+Phase 47 在 Phase 46 Workflow Graph Runtime 之上新增 Workflow Template Registry & Versioning。新增 `workflow_templates`、`workflow_template_versions`、`workflow_template_runs`，并通过 `WorkflowTemplateRegistryService` 管理模板注册、版本创建、启用版本、导入导出、模板运行和内置模板种子数据。`WorkflowTemplateCompatibilityService` 负责 required node types、input_schema、output_schema、graph validation、risk_level、runtime capabilities、warnings、errors、missing_capabilities 检查。
+
+内置模板包括 `browser_screenshot_report_graph`、`content_generation_graph`、`rag_answer_graph`、`approval_then_browser_graph`、`openclaw_mock_inspect_graph`、`task_retry_demo_graph`。
+
+状态与版本字段包括 `template_key`、`current_version`、`latest_version`、`validation_status`、`compatibility`。Conversation / Task / Output Artifact / Agent Memory 可记录 `workflow_template_id`、`workflow_template_version_id`、`workflow_template_run_id`。
+
+前端新增 Template Library：Admin Dashboard 支持 template detail、Version list、Validation result、Compatibility result、Import / Export JSON、Run template、Template runs；Worker Console 和 Worker Console Desktop 提供简化 Template Library、select template、run template、template run status。
+
+边界：当前不是可视化 DAG builder，不是 drag/drop workflow editor，不接 ComfyUI，不做 WebSocket/SSE streaming，不做 TikTok / YouTube / X 自动化，不做真实平台发布，不做自动登录、验证码、代理池、指纹绕过或真实 OpenClaw。
+<!-- PHASE47_SYNC:END -->

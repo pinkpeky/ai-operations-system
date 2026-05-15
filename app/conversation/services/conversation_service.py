@@ -60,6 +60,10 @@ class ConversationRunResult:
     workflow_step_id: UUID | None = None
     checkpoint_id: UUID | None = None
     memory_snapshot_id: UUID | None = None
+    workflow_template_id: UUID | None = None
+    workflow_template_version_id: UUID | None = None
+    workflow_template_run_id: UUID | None = None
+    workflow_template_key: str | None = None
 
 
 class ConversationService:
@@ -249,6 +253,7 @@ class ConversationService:
         )
         await self._load_memory_context(workspace_id=workspace_id, thread_id=thread.id, message=message)
 
+        workflow_template_key = self._workflow_template_key_from_run_input(run_input)
         playbook_name = self._playbook_name_from_run_input(run_input)
         if mode == ConversationRunMode.EXECUTE_AFTER_APPROVAL.value:
             approval_probe = await self._approval_from_run_input(workspace_id=workspace_id, run_input=run_input)
@@ -263,6 +268,19 @@ class ConversationService:
                     events_before_count=len(events_before),
                     started_at=started_at,
                 )
+        if workflow_template_key:
+            return await self._run_workflow_template_by_key(
+                workspace_id=workspace_id,
+                user_id=user_id,
+                thread=thread,
+                message=message,
+                user_message_id=user_message_id,
+                run_input=run_input,
+                workflow_template_key=workflow_template_key,
+                mode=mode,
+                events_before_count=len(events_before),
+                started_at=started_at,
+            )
         if playbook_name:
             return await self._run_playbook_by_name(
                 workspace_id=workspace_id,
@@ -579,6 +597,128 @@ class ConversationService:
         input_payload = run_input.get("input") if isinstance(run_input.get("input"), dict) else {}
         value = run_input.get("playbook_name") or input_payload.get("playbook_name")
         return str(value).strip() if value else None
+
+    def _workflow_template_key_from_run_input(self, run_input: dict[str, Any]) -> str | None:
+        input_payload = run_input.get("input") if isinstance(run_input.get("input"), dict) else {}
+        value = run_input.get("workflow_template_key") or input_payload.get("workflow_template_key")
+        return str(value).strip() if value else None
+
+    async def _run_workflow_template_by_key(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str | None,
+        thread: ConversationThread,
+        message: str,
+        user_message_id: UUID,
+        run_input: dict[str, Any],
+        workflow_template_key: str,
+        mode: str,
+        events_before_count: int,
+        started_at: float,
+    ) -> ConversationRunResult:
+        from app.workflow.template_registry import WorkflowTemplateRegistryService
+
+        input_payload = run_input.get("input") if isinstance(run_input.get("input"), dict) else run_input
+        service = WorkflowTemplateRegistryService(self.session)
+        result = await service.run_template(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            template_key=workflow_template_key,
+            input_payload={**(input_payload or {}), "message": message},
+            source_type="conversation",
+            source_id=str(thread.id),
+            mode=mode,
+            execution_mode=str(run_input.get("execution_mode") or "immediate"),
+            metadata={"conversation_thread_id": str(thread.id), "user_message_id": str(user_message_id)},
+            commit=False,
+        )
+        await self.repository.append_event(
+            workspace_id=workspace_id,
+            thread_id=thread.id,
+            event_type="workflow_template_selected",
+            message=f"Workflow template selected: {result.template.template_key}",
+            payload={
+                "workflow_template_id": str(result.template.id),
+                "workflow_template_key": result.template.template_key,
+                "workflow_template_version_id": str(result.version.id),
+                "workflow_template_run_id": str(result.run.id),
+                "workflow_run_id": str(result.workflow_run_id) if result.workflow_run_id else None,
+            },
+        )
+        await self.repository.append_event(
+            workspace_id=workspace_id,
+            thread_id=thread.id,
+            event_type="workflow_template_run_started",
+            message=f"Workflow template run started: {result.template.template_key}",
+            payload={"workflow_template_run_id": str(result.run.id), "status": result.run.status},
+        )
+        assistant_message = await self.repository.append_message(
+            workspace_id=workspace_id,
+            thread_id=thread.id,
+            role=ConversationRole.ASSISTANT.value,
+            content=self._build_assistant_response(
+                summary=result.summary,
+                success=result.success,
+                route_name=f"workflow_template:{result.template.template_key}",
+            ),
+            metadata={
+                "route": f"workflow_template:{result.template.template_key}",
+                "route_name": f"workflow_template:{result.template.template_key}",
+                "success": result.success,
+                "summary": result.summary,
+                "workflow_template_id": str(result.template.id),
+                "workflow_template_version_id": str(result.version.id),
+                "workflow_template_run_id": str(result.run.id),
+                "workflow_template_key": result.template.template_key,
+                "workflow_run_id": str(result.workflow_run_id) if result.workflow_run_id else None,
+                "output": result.run.output_payload or {},
+            },
+        )
+        await self.repository.append_event(
+            workspace_id=workspace_id,
+            thread_id=thread.id,
+            event_type="assistant_response",
+            message="Assistant response generated for workflow template run",
+            payload={"message_id": str(assistant_message.id), "workflow_template_run_id": str(result.run.id), "success": result.success},
+        )
+        await self.session.commit()
+        await self.session.refresh(assistant_message)
+        events = await self.repository.list_events(workspace_id=workspace_id, thread_id=thread.id, limit=500)
+        approval_required = bool((result.run.output_payload or {}).get("approval_required"))
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        metadata = {
+            "workflow_template_id": str(result.template.id),
+            "workflow_template_version_id": str(result.version.id),
+            "workflow_template_run_id": str(result.run.id),
+            "workflow_template_key": result.template.template_key,
+            "workflow_run_id": str(result.workflow_run_id) if result.workflow_run_id else None,
+            "approval_required": approval_required,
+            "duration_ms": duration_ms,
+            "output": result.run.output_payload or {},
+        }
+        return ConversationRunResult(
+            thread_id=thread.id,
+            user_message_id=user_message_id,
+            assistant_message_id=assistant_message.id,
+            assistant_message=assistant_message,
+            route=f"workflow_template:{result.template.template_key}",
+            route_name=f"workflow_template:{result.template.template_key}",
+            selected_tool=None,
+            events=events,
+            events_created=max(0, len(events) - events_before_count),
+            success=result.success,
+            summary=result.summary,
+            result_metadata=metadata,
+            output=result.run.output_payload or {},
+            approval_required=approval_required,
+            risk_level=result.template.risk_level,
+            workflow_run_id=result.workflow_run_id,
+            workflow_template_id=result.template.id,
+            workflow_template_version_id=result.version.id,
+            workflow_template_run_id=result.run.id,
+            workflow_template_key=result.template.template_key,
+        )
 
     async def _run_playbook_by_name(
         self,

@@ -291,3 +291,17 @@ Admin Dashboard now includes Workflow Graphs for Workflow Graph Runtime & Condit
 
 Boundaries: this Admin Dashboard view is not a visual DAG builder, not drag/drop workflow editing, not distributed orchestration engine, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Workflow Template Library
+
+Admin Dashboard adds a Workflow Templates / Template Library page for Workflow Template Registry & Versioning:
+
+- Shows `workflow_templates`, `workflow_template_versions`, and `workflow_template_runs`.
+- Displays `template_key`, `current_version`, `latest_version`, `risk_level`, `validation_status`, and `compatibility`.
+- Shows built-in templates: `browser_screenshot_report_graph`, `content_generation_graph`, `rag_answer_graph`, `approval_then_browser_graph`, `openclaw_mock_inspect_graph`, and `task_retry_demo_graph`.
+- Supports Validation result, Compatibility result, Import / Export JSON, Run template, and Template runs.
+- Output Library, Task Runs, and Agent Memory Snapshot detail can surface `workflow_template_id`, `workflow_template_version_id`, and `workflow_template_run_id`.
+
+The Template Library is a registry, versioning, and run foundation. It is not a visual DAG builder, not a drag/drop workflow editor, not ComfyUI, and not real platform automation.
+<!-- PHASE47_SYNC:END -->

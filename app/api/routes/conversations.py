@@ -221,7 +221,13 @@ async def run_conversation(
             if request.execution_mode == "scheduled" and request.scheduled_at is None:
                 raise AppError("scheduled_at is required for scheduled execution", status_code=400)
             conversation = ConversationService(session)
-            text = str(request.input.get("message") or request.input.get("topic") or request.playbook_name or "Background conversation task")
+            text = str(
+                request.input.get("message")
+                or request.input.get("topic")
+                or request.workflow_template_key
+                or request.playbook_name
+                or "Background conversation task"
+            )
             user_message = await conversation.append_message(
                 workspace_id=context.workspace_id,
                 thread_id=thread_id,
@@ -241,13 +247,17 @@ async def run_conversation(
             run_payload.pop("scheduled_at", None)
             task = await TaskOrchestratorService(session).enqueue_task(
                 workspace_id=context.workspace_id,
-                task_type="playbook" if request.playbook_name else "conversation",
+                task_type="playbook" if request.playbook_name or request.workflow_template_key else "conversation",
                 source_type="conversation",
                 source_id=str(thread_id),
                 input_payload={"thread_id": str(thread_id), "run_input": run_payload, **run_payload},
                 created_by=context.user_id,
                 scheduled_at=request.scheduled_at,
-                metadata={"execution_mode": request.execution_mode, "playbook_name": request.playbook_name},
+                metadata={
+                    "execution_mode": request.execution_mode,
+                    "playbook_name": request.playbook_name,
+                    "workflow_template_key": request.workflow_template_key,
+                },
             )
             await conversation.append_event(
                 workspace_id=context.workspace_id,
@@ -318,6 +328,10 @@ async def run_conversation(
             workflow_step_id=result.workflow_step_id,
             checkpoint_id=result.checkpoint_id,
             memory_snapshot_id=result.memory_snapshot_id,
+            workflow_template_id=result.workflow_template_id,
+            workflow_template_version_id=result.workflow_template_version_id,
+            workflow_template_run_id=result.workflow_template_run_id,
+            workflow_template_key=result.workflow_template_key,
             execution_mode=request.execution_mode,
         )
     except ValueError as exc:

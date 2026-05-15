@@ -443,3 +443,16 @@ Worker Console and Worker Console Desktop now show a simplified graph execution 
 
 This is a status and debugging view for Workflow Graph Runtime & Conditional Execution. It is not a visual DAG builder, not a drag/drop workflow editor, not distributed orchestration engine, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47：Worker Console Template Library
+
+Worker Console Web 和 Worker Console Desktop 新增简化 Template Library：
+
+- 通过 `worker_console/src/api/workflowTemplateClient.ts` 与 `worker_console_desktop/src/api/workflowTemplateClient.ts` 调用 AI Server。
+- 支持 list templates、select template、run template、view template run status。
+- 可显示内置模板 `browser_screenshot_report_graph`、`content_generation_graph`、`rag_answer_graph`、`approval_then_browser_graph`、`openclaw_mock_inspect_graph`、`task_retry_demo_graph`。
+- 可显示 `workflow_template_id`、`workflow_template_version_id`、`workflow_template_run_id`、`validation_status` 和 `compatibility` 摘要。
+
+当前只是模板入口和运行状态视图，不是可视化 DAG builder，不是 drag/drop workflow editor，不接 ComfyUI，不做真实平台自动化。
+<!-- PHASE47_SYNC:END -->

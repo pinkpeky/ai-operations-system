@@ -295,3 +295,9 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Worker client installation is unchanged. Workflow Graph Runtime and Conditional Execution run on the AI Server and UI surfaces; customer machines continue to expose the same worker runtime APIs. Phase 46 does not add ComfyUI, a distributed orchestration engine, or platform automation.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47 Note
+
+Worker client 安装方式不变。Workflow Template Registry & Versioning 位于 AI Server 和前端控制台侧；客户机继续提供 browser runtime / worker runtime API。Template Library 可选择 `browser_screenshot_report_graph` 等模板，但不会改变客户机安全边界，也不接 ComfyUI、TikTok / YouTube / X 或真实平台自动化。
+<!-- PHASE47_SYNC:END -->

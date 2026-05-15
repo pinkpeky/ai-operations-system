@@ -39,6 +39,8 @@ from app.api.routes.users import router as users_router
 from app.api.routes.workflows import memory_router as agent_memory_snapshots_router
 from app.api.routes.workflows import graph_router as workflow_graphs_router
 from app.api.routes.workflows import router as workflow_runs_router
+from app.api.routes.workflow_templates import router as workflow_templates_router
+from app.api.routes.workflow_templates import runs_router as workflow_template_runs_router
 from app.api.routes.workspaces import router as workspaces_router
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,8 @@ def create_api_router() -> APIRouter:
         router.include_router(tools_router)
         router.include_router(users_router)
         router.include_router(workflow_graphs_router)
+        router.include_router(workflow_templates_router)
+        router.include_router(workflow_template_runs_router)
         router.include_router(workflow_runs_router)
         router.include_router(agent_memory_snapshots_router)
         router.include_router(workspaces_router)

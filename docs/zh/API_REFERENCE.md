@@ -2975,3 +2975,48 @@ Supported routing concepts: Workflow Graph Runtime, Conditional Execution, Retry
 
 Boundaries: not a visual DAG builder, not distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, and not real platform publishing.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47：Workflow Template Registry & Versioning API
+
+Phase 47 新增 Workflow Template Registry & Versioning。核心表包括 `workflow_templates`、`workflow_template_versions`、`workflow_template_runs`。核心服务包括 `WorkflowTemplateRegistryService` 与 `WorkflowTemplateCompatibilityService`。
+
+新增 API：
+
+- `GET /api/v1/workflow-templates`
+- `POST /api/v1/workflow-templates`
+- `GET /api/v1/workflow-templates/{template_id}`
+- `POST /api/v1/workflow-templates/{template_id}/versions`
+- `GET /api/v1/workflow-templates/{template_id}/versions/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/activate-version/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/validate`
+- `POST /api/v1/workflow-templates/{template_id}/run`
+- `GET /api/v1/workflow-template-runs`
+- `GET /api/v1/workflow-template-runs/{run_id}`
+- `POST /api/v1/workflow-templates/import`
+- `GET /api/v1/workflow-templates/{template_id}/export`
+
+关键字段与概念：
+
+- `template_key`
+- `current_version`
+- `latest_version`
+- `validation_status`
+- `compatibility`
+- `workflow_template_id`
+- `workflow_template_version_id`
+- `workflow_template_run_id`
+- `Template Library`
+- `Import / Export`
+
+内置模板：
+
+- `browser_screenshot_report_graph`
+- `content_generation_graph`
+- `rag_answer_graph`
+- `approval_then_browser_graph`
+- `openclaw_mock_inspect_graph`
+- `task_retry_demo_graph`
+
+边界：当前不是可视化 DAG builder，不是 drag/drop workflow editor，不接 ComfyUI，不做真实平台自动化。
+<!-- PHASE47_SYNC:END -->

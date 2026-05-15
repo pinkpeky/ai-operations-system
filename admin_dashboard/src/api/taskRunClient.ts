@@ -33,6 +33,9 @@ export interface TaskRun {
   output_payload: JsonRecord;
   metadata: JsonRecord;
   workflow_run_id: string | null;
+  workflow_template_id: string | null;
+  workflow_template_version_id: string | null;
+  workflow_template_run_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -103,6 +103,24 @@ class OutputArtifact(IdTimestampMixin, Base):
         nullable=True,
         comment="Agent memory snapshot associated with this artifact",
     )
+    workflow_template_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_templates.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Workflow template that produced this artifact",
+    )
+    workflow_template_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Workflow template version that produced this artifact",
+    )
+    workflow_template_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Workflow template run that produced this artifact",
+    )
     producing_node_key: Mapped[str | None] = mapped_column(
         String(128),
         index=True,

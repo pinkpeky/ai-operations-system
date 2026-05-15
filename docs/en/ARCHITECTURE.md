@@ -1296,3 +1296,11 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Phase 46 adds `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, `WorkflowExecutionPlanner`, and `SafeConditionEvaluator` above the Phase 45 Workflow State layer. Graph runtime supports Conditional Execution, dependency resolution, Retry/Fallback Path planning, and Replay Foundation metadata while preserving boundaries: not a visual DAG builder, not distributed orchestration engine, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Workflow Template Registry & Versioning
+
+Architecture now includes `workflow_templates`, `workflow_template_versions`, and `workflow_template_runs`. `WorkflowTemplateRegistryService` and `WorkflowTemplateCompatibilityService` turn Workflow Graph Runtime definitions into reusable templates. Built-in templates include `browser_screenshot_report_graph`, `content_generation_graph`, `rag_answer_graph`, `approval_then_browser_graph`, `openclaw_mock_inspect_graph`, and `task_retry_demo_graph`. Template runs link `workflow_template_id`, `workflow_template_version_id`, and `workflow_template_run_id` while preserving approval and risk gates.
+
+Boundary: this is not a visual DAG builder, does not connect ComfyUI, and does not perform real platform automation.
+<!-- PHASE47_SYNC:END -->

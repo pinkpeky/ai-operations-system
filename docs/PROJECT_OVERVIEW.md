@@ -1162,3 +1162,53 @@ Completed scope:
 
 Boundaries: Phase 46 is not a visual DAG builder, not a drag/drop graph editor, not distributed orchestration engine, not a distributed orchestration engine, not Kubernetes/Celery orchestration, not WebSocket/SSE streaming, and not ComfyUI. It does not add TikTok / YouTube / X automation, real platform publishing, automatic login, CAPTCHA automation, proxy pools, fingerprint bypass, or real OpenClaw.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Workflow Template Registry & Versioning
+
+Status: completed.
+
+Phase 47 upgrades the Phase 46 Workflow Graph Runtime into a reusable Workflow Template Registry & Versioning foundation. It adds `workflow_templates`, `workflow_template_versions`, and `workflow_template_runs`, plus `WorkflowTemplateRegistryService` and `WorkflowTemplateCompatibilityService` for template registration, immutable versions, validation, compatibility checks, import/export, and template runs.
+
+Built-in templates:
+
+- `browser_screenshot_report_graph`: open URL, screenshot, page snapshot, and report artifact.
+- `content_generation_graph`: generate title, description, hashtags, CTA, and content artifact.
+- `rag_answer_graph`: retrieve docs, summarize answer, and create RAG artifact.
+- `approval_then_browser_graph`: approval gate, browser action, and artifact package.
+- `openclaw_mock_inspect_graph`: mock inspect and JSON artifact only.
+- `task_retry_demo_graph`: simulated failure, retry route, and fallback summary.
+
+Versioning and registry flow:
+
+- `template_key` is workspace-unique.
+- `current_version` is the default active version; `latest_version` tracks the newest version.
+- `workflow_template_versions.validation_status` stores `pending`, `valid`, or `invalid`.
+- `compatibility` records supported node-type checks, schema checks, graph validation, runtime capability warnings, and missing capabilities.
+- Versions are not overwritten; a new graph definition creates a new version.
+- Template runs create `workflow_template_run_id` and link to `workflow_run_id` without bypassing approval or risk gates.
+
+Integration:
+
+- Conversation run supports `workflow_template_key`.
+- Task Runs, Output Artifacts, and Agent Memory Snapshots can record `workflow_template_id`, `workflow_template_version_id`, and `workflow_template_run_id`.
+- Admin Dashboard adds a Template Library with template detail, Version list, Validation result, Compatibility result, Import / Export JSON, Run template, and Template runs.
+- Worker Console and Worker Console Desktop add a simplified Template Library entry for selecting, running, and checking template runs.
+
+API coverage:
+
+- `GET /api/v1/workflow-templates`
+- `POST /api/v1/workflow-templates`
+- `GET /api/v1/workflow-templates/{template_id}`
+- `POST /api/v1/workflow-templates/{template_id}/versions`
+- `GET /api/v1/workflow-templates/{template_id}/versions/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/activate-version/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/validate`
+- `POST /api/v1/workflow-templates/{template_id}/run`
+- `GET /api/v1/workflow-template-runs`
+- `GET /api/v1/workflow-template-runs/{run_id}`
+- `POST /api/v1/workflow-templates/import`
+- `GET /api/v1/workflow-templates/{template_id}/export`
+
+Boundaries: Phase 47 is not a visual DAG builder, not a drag/drop workflow editor, not WebSocket/SSE streaming, and not ComfyUI. It does not add TikTok / YouTube / X automation, real platform publishing, automatic login, CAPTCHA automation, proxy pools, fingerprint bypass, or real OpenClaw.
+<!-- PHASE47_SYNC:END -->

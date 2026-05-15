@@ -74,6 +74,9 @@ class OutputArtifactService:
         workflow_step_id: UUID | None = None,
         checkpoint_id: UUID | None = None,
         memory_snapshot_id: UUID | None = None,
+        workflow_template_id: UUID | None = None,
+        workflow_template_version_id: UUID | None = None,
+        workflow_template_run_id: UUID | None = None,
         producing_node_key: str | None = None,
         replay_source: str | None = None,
         graph_lineage: dict[str, Any] | None = None,
@@ -112,6 +115,9 @@ class OutputArtifactService:
             workflow_step_id=workflow_step_id,
             checkpoint_id=checkpoint_id,
             memory_snapshot_id=memory_snapshot_id,
+            workflow_template_id=workflow_template_id,
+            workflow_template_version_id=workflow_template_version_id,
+            workflow_template_run_id=workflow_template_run_id,
             producing_node_key=producing_node_key,
             replay_source=replay_source,
             graph_lineage=graph_lineage or {},
@@ -186,6 +192,9 @@ class OutputArtifactService:
         workflow_step_id: UUID | None = None,
         checkpoint_id: UUID | None = None,
         memory_snapshot_id: UUID | None = None,
+        workflow_template_id: UUID | None = None,
+        workflow_template_version_id: UUID | None = None,
+        workflow_template_run_id: UUID | None = None,
         producing_node_key: str | None = None,
         replay_source: str | None = None,
         exportable: bool | None = None,
@@ -231,6 +240,12 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.checkpoint_id == checkpoint_id)
         if memory_snapshot_id is not None:
             statement = statement.where(OutputArtifact.memory_snapshot_id == memory_snapshot_id)
+        if workflow_template_id is not None:
+            statement = statement.where(OutputArtifact.workflow_template_id == workflow_template_id)
+        if workflow_template_version_id is not None:
+            statement = statement.where(OutputArtifact.workflow_template_version_id == workflow_template_version_id)
+        if workflow_template_run_id is not None:
+            statement = statement.where(OutputArtifact.workflow_template_run_id == workflow_template_run_id)
         if producing_node_key is not None:
             statement = statement.where(OutputArtifact.producing_node_key == producing_node_key)
         if replay_source is not None:

@@ -391,6 +391,9 @@ class AgentMemorySnapshotResponse(BaseModel):
     workflow_run_id: UUID | None
     conversation_thread_id: UUID | None
     task_run_id: UUID | None
+    workflow_template_id: UUID | None
+    workflow_template_version_id: UUID | None
+    workflow_template_run_id: UUID | None
     node_key: str | None
     memory_type: str
     summary: str | None
@@ -409,6 +412,9 @@ class AgentMemorySnapshotResponse(BaseModel):
             workflow_run_id=snapshot.workflow_run_id,
             conversation_thread_id=snapshot.conversation_thread_id,
             task_run_id=snapshot.task_run_id,
+            workflow_template_id=snapshot.workflow_template_id,
+            workflow_template_version_id=snapshot.workflow_template_version_id,
+            workflow_template_run_id=snapshot.workflow_template_run_id,
             node_key=snapshot.node_key,
             memory_type=snapshot.memory_type,
             summary=snapshot.summary,

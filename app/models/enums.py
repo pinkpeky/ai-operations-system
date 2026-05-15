@@ -325,6 +325,33 @@ class WorkflowReplayStatus(StrEnum):
     FAILED = "failed"
 
 
+class WorkflowTemplateStatus(StrEnum):
+    """Workflow template lifecycle status."""
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    DISABLED = "disabled"
+    ARCHIVED = "archived"
+
+
+class WorkflowTemplateVersionValidationStatus(StrEnum):
+    """Workflow template version validation status."""
+
+    PENDING = "pending"
+    VALID = "valid"
+    INVALID = "invalid"
+
+
+class WorkflowTemplateRunStatus(StrEnum):
+    """Workflow template run lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class TaskRunStatus(StrEnum):
     """Task orchestration run lifecycle status."""
 

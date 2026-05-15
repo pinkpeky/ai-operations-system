@@ -75,6 +75,9 @@ class TaskRunResponse(BaseModel):
     recoverable: bool
     suggested_action: str | None
     last_event_summary: str | None
+    workflow_template_id: UUID | None
+    workflow_template_version_id: UUID | None
+    workflow_template_run_id: UUID | None
     input_payload: dict[str, Any]
     output_payload: dict[str, Any]
     metadata: dict[str, Any]
@@ -114,6 +117,9 @@ class TaskRunResponse(BaseModel):
             recoverable=task.recoverable,
             suggested_action=task.suggested_action,
             last_event_summary=task.last_event_summary,
+            workflow_template_id=task.workflow_template_id,
+            workflow_template_version_id=task.workflow_template_version_id,
+            workflow_template_run_id=task.workflow_template_run_id,
             input_payload=task.input_payload or {},
             output_payload=task.output_payload or {},
             metadata=task.task_metadata or {},

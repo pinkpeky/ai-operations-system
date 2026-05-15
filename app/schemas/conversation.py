@@ -135,6 +135,7 @@ class ConversationRunRequest(BaseModel):
 
     input: dict[str, Any] = Field(default_factory=dict, description="运行输入，通常包含 message")
     playbook_name: str | None = Field(default=None, description="Optional playbook name to run before rule-based routing")
+    workflow_template_key: str | None = Field(default=None, description="Optional workflow template key to run before playbook/router")
     mode: ConversationRunModeLiteral = Field(
         default="auto_safe",
         description="auto_safe / review_first / execute_after_approval",
@@ -176,6 +177,10 @@ class ConversationRunResponse(BaseModel):
     workflow_step_id: UUID | None = None
     checkpoint_id: UUID | None = None
     memory_snapshot_id: UUID | None = None
+    workflow_template_id: UUID | None = None
+    workflow_template_version_id: UUID | None = None
+    workflow_template_run_id: UUID | None = None
+    workflow_template_key: str | None = None
     execution_mode: str = "immediate"
     websocket_placeholder: bool = True
     sse_placeholder: bool = True

@@ -1508,3 +1508,67 @@ Runtime fields:
 
 Boundaries: current replay is metadata-only and does not re-run actions. The runtime is not a visual DAG builder, not a distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, and not real platform automation.
 <!-- PHASE46_RUNTIME:END -->
+
+<!-- PHASE47_RUNTIME:START -->
+## Phase 47 Runtime: Workflow Template Registry & Versioning
+
+Runtime database tables:
+
+- `workflow_templates`
+- `workflow_template_versions`
+- `workflow_template_runs`
+
+Runtime services:
+
+- `WorkflowTemplateRegistryService` manages template listing, creation, immutable version creation, active version activation, validation, import/export, template runs, and built-in template seeding.
+- `WorkflowTemplateCompatibilityService` checks required node types, input_schema, output_schema, graph definition validation, risk_level, runtime capabilities, warnings, errors, and missing capabilities.
+
+Built-in template keys:
+
+- `browser_screenshot_report_graph`
+- `content_generation_graph`
+- `rag_answer_graph`
+- `approval_then_browser_graph`
+- `openclaw_mock_inspect_graph`
+- `task_retry_demo_graph`
+
+Runtime API routes:
+
+- `GET /api/v1/workflow-templates`
+- `POST /api/v1/workflow-templates`
+- `GET /api/v1/workflow-templates/{template_id}`
+- `POST /api/v1/workflow-templates/{template_id}/versions`
+- `GET /api/v1/workflow-templates/{template_id}/versions/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/activate-version/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/validate`
+- `POST /api/v1/workflow-templates/{template_id}/run`
+- `GET /api/v1/workflow-template-runs`
+- `GET /api/v1/workflow-template-runs/{run_id}`
+- `POST /api/v1/workflow-templates/import`
+- `GET /api/v1/workflow-templates/{template_id}/export`
+
+Runtime fields:
+
+- `workflow_templates.template_key`
+- `workflow_templates.current_version`
+- `workflow_templates.latest_version`
+- `workflow_template_versions.validation_status`
+- `workflow_template_versions.compatibility`
+- `task_runs.workflow_template_id`
+- `task_runs.workflow_template_version_id`
+- `task_runs.workflow_template_run_id`
+- `output_artifacts.workflow_template_id`
+- `output_artifacts.workflow_template_version_id`
+- `output_artifacts.workflow_template_run_id`
+- `agent_memory_snapshots.workflow_template_id`
+- `agent_memory_snapshots.workflow_template_version_id`
+- `agent_memory_snapshots.workflow_template_run_id`
+
+Frontend clients:
+
+- `admin_dashboard/src/api/workflowTemplateClient.ts`
+- `worker_console/src/api/workflowTemplateClient.ts`
+- `worker_console_desktop/src/api/workflowTemplateClient.ts`
+
+Boundaries: Template Library is a registry and run foundation only. It is not a visual DAG builder, not a drag/drop graph editor, not ComfyUI, not WebSocket/SSE streaming, and not real platform automation.
+<!-- PHASE47_RUNTIME:END -->

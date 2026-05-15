@@ -291,3 +291,17 @@ Admin Dashboard now includes Workflow Graphs for Workflow Graph Runtime & Condit
 
 Boundaries: this Admin Dashboard view is not a visual DAG builder, not drag/drop workflow editing, not distributed orchestration engine, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47：Workflow Template Library
+
+Admin Dashboard 新增 Workflow Templates / Template Library 页面，用于查看和运行 Workflow Template Registry & Versioning：
+
+- 显示 `workflow_templates`、`workflow_template_versions`、`workflow_template_runs`。
+- 展示 `template_key`、`current_version`、`latest_version`、`risk_level`、`validation_status`、`compatibility`。
+- 支持查看 built-in templates：`browser_screenshot_report_graph`、`content_generation_graph`、`rag_answer_graph`、`approval_then_browser_graph`、`openclaw_mock_inspect_graph`、`task_retry_demo_graph`。
+- 支持 Validation result、Compatibility result、Import / Export JSON、Run template、Template runs。
+- Output Library / Task Runs / Agent Memory Snapshot detail 可显示 `workflow_template_id`、`workflow_template_version_id`、`workflow_template_run_id`。
+
+当前 Template Library 是注册、版本和运行入口，不是可视化 DAG builder，不是 drag/drop workflow editor，不接 ComfyUI，也不做真实平台自动化。
+<!-- PHASE47_SYNC:END -->

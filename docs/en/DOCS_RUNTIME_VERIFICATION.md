@@ -553,3 +553,11 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Docs verifier now checks Workflow Graph Runtime terms and routes: `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, `WorkflowExecutionPlanner`, `SafeConditionEvaluator`, Conditional Execution, Retry/Fallback Path, Replay Foundation, `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `producing_node_key`, `graph_lineage`, and the boundaries not a visual DAG builder, not distributed orchestration engine, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Docs Runtime Verification
+
+`scripts/verify_docs_runtime.py` now checks Phase 47 required files, OpenAPI routes, API_REFERENCE fields, PROJECT_OVERVIEW, and PROJECT_STATUS coverage for Workflow Template Registry & Versioning, `workflow_templates`, `workflow_template_versions`, `workflow_template_runs`, `WorkflowTemplateRegistryService`, `WorkflowTemplateCompatibilityService`, Template Library, Import / Export, and built-in templates.
+
+Run `python scripts/verify_docs_runtime.py`; expected result is `SUMMARY: PASS`.
+<!-- PHASE47_SYNC:END -->

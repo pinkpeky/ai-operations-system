@@ -784,3 +784,19 @@ Completed:
 
 Boundaries: not a visual DAG builder, not a drag/drop workflow editor, not distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, not real platform publishing, and not TikTok / YouTube / X automation.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Workflow Template Registry & Versioning
+
+Status: completed.
+
+Phase 47 adds Workflow Template Registry & Versioning on top of the Phase 46 Workflow Graph Runtime. It adds `workflow_templates`, `workflow_template_versions`, and `workflow_template_runs`. `WorkflowTemplateRegistryService` manages template registration, immutable version creation, active version activation, import/export, template runs, and built-in template seeding. `WorkflowTemplateCompatibilityService` checks required node types, input_schema, output_schema, graph validation, risk_level, runtime capabilities, warnings, errors, and missing_capabilities.
+
+Built-in templates include `browser_screenshot_report_graph`, `content_generation_graph`, `rag_answer_graph`, `approval_then_browser_graph`, `openclaw_mock_inspect_graph`, and `task_retry_demo_graph`.
+
+Version and status fields include `template_key`, `current_version`, `latest_version`, `validation_status`, and `compatibility`. Conversation, Task, Output Artifact, and Agent Memory records can store `workflow_template_id`, `workflow_template_version_id`, and `workflow_template_run_id`.
+
+Frontends add Template Library support: Admin Dashboard shows template detail, Version list, Validation result, Compatibility result, Import / Export JSON, Run template, and Template runs. Worker Console and Worker Console Desktop provide simplified Template Library, select template, run template, and template run status views.
+
+Boundaries: this is not a visual DAG builder, not a drag/drop workflow editor, not ComfyUI, not WebSocket/SSE streaming, not TikTok / YouTube / X automation, not real platform publishing, and not automatic login, captcha automation, proxy pools, fingerprint bypass, or real OpenClaw.
+<!-- PHASE47_SYNC:END -->

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IdTimestampMixin
@@ -19,6 +19,9 @@ from app.models.enums import (
     WorkflowReplayStatus,
     WorkflowRunStatus,
     WorkflowStepStatus,
+    WorkflowTemplateRunStatus,
+    WorkflowTemplateStatus,
+    WorkflowTemplateVersionValidationStatus,
 )
 
 
@@ -253,6 +256,21 @@ class AgentMemorySnapshot(IdTimestampMixin, Base):
         index=True,
         nullable=True,
     )
+    workflow_template_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_templates.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_template_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_template_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     memory_type: Mapped[str] = mapped_column(
         String(64),
@@ -295,3 +313,110 @@ class WorkflowReplay(IdTimestampMixin, Base):
     replay_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
     workflow_run: Mapped[WorkflowRun] = relationship(back_populates="replay_records")
+
+
+class WorkflowTemplate(IdTimestampMixin, Base):
+    """Reusable workflow template registry entry."""
+
+    __tablename__ = "workflow_templates"
+    __table_args__ = (UniqueConstraint("workspace_id", "template_key", name="uq_workflow_templates_workspace_key"),)
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowTemplateStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+    )
+    current_version: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    latest_version: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(32), default="low", index=True, nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    template_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    versions: Mapped[list["WorkflowTemplateVersion"]] = relationship(
+        back_populates="template",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    runs: Mapped[list["WorkflowTemplateRun"]] = relationship(
+        back_populates="template",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+
+
+class WorkflowTemplateVersion(IdTimestampMixin, Base):
+    """Immutable version of a workflow template graph definition."""
+
+    __tablename__ = "workflow_template_versions"
+    __table_args__ = (UniqueConstraint("template_id", "version", name="uq_workflow_template_versions_template_version"),)
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_templates.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    version: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    graph_definition: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    entry_node: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    output_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    compatibility: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    validation_status: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowTemplateVersionValidationStatus.PENDING.value,
+        index=True,
+        nullable=False,
+    )
+    validation_errors: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    changelog: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+
+    template: Mapped[WorkflowTemplate] = relationship(back_populates="versions")
+    runs: Mapped[list["WorkflowTemplateRun"]] = relationship(
+        back_populates="template_version",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+
+
+class WorkflowTemplateRun(IdTimestampMixin, Base):
+    """One execution of a workflow template version."""
+
+    __tablename__ = "workflow_template_runs"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_templates.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    template_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    workflow_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    source_type: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowTemplateRunStatus.PENDING.value,
+        index=True,
+        nullable=False,
+    )
+    input_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    output_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    run_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    template: Mapped[WorkflowTemplate] = relationship(back_populates="runs")
+    template_version: Mapped[WorkflowTemplateVersion] = relationship(back_populates="runs")

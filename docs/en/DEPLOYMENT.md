@@ -1328,3 +1328,11 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Phase 46 adds workflow graph database tables and API routes only. Deploy migrations for `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, and nullable graph lineage fields before enabling the updated Admin Dashboard and Worker Console builds. Runtime remains in-process and is not a distributed orchestration engine, not Kubernetes/Celery scheduling, and not ComfyUI.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Deployment Notes
+
+Phase 47 adds no external infrastructure dependency. Apply database migrations to enable `workflow_templates`, `workflow_template_versions`, and `workflow_template_runs`. Admin Dashboard, Worker Console, and Worker Console Desktop use AI Server APIs for Template Library, Validation result, Compatibility result, Import / Export JSON, and Template runs.
+
+Boundary: no ComfyUI, no visual DAG editor, no WebSocket/SSE dependency, and no production distributed orchestrator.
+<!-- PHASE47_SYNC:END -->

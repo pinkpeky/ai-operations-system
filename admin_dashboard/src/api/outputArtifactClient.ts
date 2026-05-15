@@ -16,6 +16,9 @@ export interface OutputArtifact {
   workflow_step_id: string | null;
   checkpoint_id: string | null;
   memory_snapshot_id: string | null;
+  workflow_template_id: string | null;
+  workflow_template_version_id: string | null;
+  workflow_template_run_id: string | null;
   producing_node_key: string | null;
   replay_source: string | null;
   graph_lineage: JsonRecord;
@@ -83,6 +86,9 @@ export const outputArtifactClient = {
       exportable?: boolean;
       workflowRunId?: string;
       workflowStepId?: string;
+      workflowTemplateId?: string;
+      workflowTemplateVersionId?: string;
+      workflowTemplateRunId?: string;
     } = {},
   ) => {
     const params = new URLSearchParams();
@@ -98,6 +104,9 @@ export const outputArtifactClient = {
     if (filters.exportable !== undefined) params.set("exportable", String(filters.exportable));
     if (filters.workflowRunId) params.set("workflow_run_id", filters.workflowRunId);
     if (filters.workflowStepId) params.set("workflow_step_id", filters.workflowStepId);
+    if (filters.workflowTemplateId) params.set("workflow_template_id", filters.workflowTemplateId);
+    if (filters.workflowTemplateVersionId) params.set("workflow_template_version_id", filters.workflowTemplateVersionId);
+    if (filters.workflowTemplateRunId) params.set("workflow_template_run_id", filters.workflowTemplateRunId);
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return requestJson<ApiList<OutputArtifact>>(`/output-artifacts${suffix}`, {}, settings);
   },

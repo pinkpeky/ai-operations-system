@@ -170,8 +170,12 @@ class DocsRuntimeVerifier:
             "app/models/workflow.py",
             "app/workflow/services.py",
             "app/workflow/planner.py",
+            "app/workflow/template_definitions.py",
+            "app/workflow/template_registry.py",
             "app/schemas/workflow.py",
+            "app/schemas/workflow_template.py",
             "app/api/routes/workflows.py",
+            "app/api/routes/workflow_templates.py",
             "app/api/routes/output_artifacts.py",
             "app/api/routes/task_runs.py",
             "app/api/routes/task_scheduler.py",
@@ -184,10 +188,12 @@ class DocsRuntimeVerifier:
             "worker_console/src/api/outputArtifactClient.ts",
             "worker_console/src/api/taskRunClient.ts",
             "worker_console/src/api/workflowClient.ts",
+            "worker_console/src/api/workflowTemplateClient.ts",
             "worker_console_desktop/src/api/conversationClient.ts",
             "worker_console_desktop/src/api/outputArtifactClient.ts",
             "worker_console_desktop/src/api/taskRunClient.ts",
             "worker_console_desktop/src/api/workflowClient.ts",
+            "worker_console_desktop/src/api/workflowTemplateClient.ts",
             "admin_dashboard/package.json",
             "admin_dashboard/index.html",
             "admin_dashboard/vite.config.ts",
@@ -199,6 +205,7 @@ class DocsRuntimeVerifier:
             "admin_dashboard/src/api/outputArtifactClient.ts",
             "admin_dashboard/src/api/taskRunClient.ts",
             "admin_dashboard/src/api/workflowClient.ts",
+            "admin_dashboard/src/api/workflowTemplateClient.ts",
             "admin_dashboard/.env.example",
             "admin_dashboard/README.md",
             "docs/zh/ADMIN_DASHBOARD.md",
@@ -462,6 +469,17 @@ class DocsRuntimeVerifier:
             "/api/v1/workflow-graphs",
             "/api/v1/workflow-graphs/{graph_id}",
             "/api/v1/workflow-graphs/{graph_id}/validate",
+            "/api/v1/workflow-templates",
+            "/api/v1/workflow-templates/{template_id}",
+            "/api/v1/workflow-templates/{template_id}/versions",
+            "/api/v1/workflow-templates/{template_id}/versions/{version_id}",
+            "/api/v1/workflow-templates/{template_id}/activate-version/{version_id}",
+            "/api/v1/workflow-templates/{template_id}/validate",
+            "/api/v1/workflow-templates/{template_id}/run",
+            "/api/v1/workflow-template-runs",
+            "/api/v1/workflow-template-runs/{run_id}",
+            "/api/v1/workflow-templates/import",
+            "/api/v1/workflow-templates/{template_id}/export",
             "/api/v1/agent-memory-snapshots",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
@@ -993,6 +1011,28 @@ class DocsRuntimeVerifier:
             "graph_lineage",
             "not a visual DAG builder",
             "not distributed orchestration engine",
+            "workflow_templates",
+            "workflow_template_versions",
+            "workflow_template_runs",
+            "Workflow Template Registry & Versioning",
+            "WorkflowTemplateRegistryService",
+            "WorkflowTemplateCompatibilityService",
+            "template_key",
+            "current_version",
+            "latest_version",
+            "validation_status",
+            "compatibility",
+            "Template Library",
+            "Import / Export",
+            "browser_screenshot_report_graph",
+            "content_generation_graph",
+            "rag_answer_graph",
+            "approval_then_browser_graph",
+            "openclaw_mock_inspect_graph",
+            "task_retry_demo_graph",
+            "workflow_template_id",
+            "workflow_template_version_id",
+            "workflow_template_run_id",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1437,6 +1477,24 @@ class DocsRuntimeVerifier:
             "Replay Foundation",
             "not a visual DAG builder",
             "not distributed orchestration engine",
+            "Phase 47",
+            "Workflow Template Registry & Versioning",
+            "workflow_templates",
+            "workflow_template_versions",
+            "workflow_template_runs",
+            "WorkflowTemplateRegistryService",
+            "WorkflowTemplateCompatibilityService",
+            "browser_screenshot_report_graph",
+            "content_generation_graph",
+            "rag_answer_graph",
+            "approval_then_browser_graph",
+            "openclaw_mock_inspect_graph",
+            "task_retry_demo_graph",
+            "Template Library",
+            "Import / Export",
+            "workflow_template_id",
+            "workflow_template_version_id",
+            "workflow_template_run_id",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1601,8 +1659,24 @@ class DocsRuntimeVerifier:
                 or "not ComfyUI" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 46 scope")
+            elif not re.search(r"Phase\s+47", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 47")
+            elif (
+                "Workflow Template Registry & Versioning" not in text
+                or "workflow_templates" not in text
+                or "workflow_template_versions" not in text
+                or "workflow_template_runs" not in text
+                or "WorkflowTemplateRegistryService" not in text
+                or "WorkflowTemplateCompatibilityService" not in text
+                or "browser_screenshot_report_graph" not in text
+                or "Template Library" not in text
+                or "Import / Export" not in text
+                or "not a visual DAG builder" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 47 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, and Phase 46")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, and Phase 47")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

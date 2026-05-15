@@ -62,6 +62,21 @@ class TaskRun(IdTimestampMixin, Base):
     recoverable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     suggested_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_event_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workflow_template_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_templates.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_template_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_template_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     input_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     output_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     task_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)

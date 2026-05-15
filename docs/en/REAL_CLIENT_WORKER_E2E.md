@@ -320,3 +320,9 @@ Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE 
 
 Real client worker E2E validation is unchanged by Workflow Graph Runtime. Graph planner and Replay Foundation metadata may reference browser/runtime artifacts through `producing_node_key`, `replay_source`, and `graph_lineage`, but this does not add remote desktop streaming, ComfyUI, real OpenClaw, or social platform automation.
 <!-- PHASE46_SYNC:END -->
+
+<!-- PHASE47_SYNC:START -->
+## Phase 47: Real Client Worker E2E Relationship
+
+Workflow Template Registry & Versioning runs on AI Server. The real client Worker E2E validation flow is unchanged. A template can select a Browser Graph template that triggers Remote Browser Runtime, but it must still pass approval and risk gates. The current system still does not implement TikTok / YouTube / X automation, login, captcha automation, proxy pools, fingerprint bypass, real OpenClaw, or ComfyUI.
+<!-- PHASE47_SYNC:END -->

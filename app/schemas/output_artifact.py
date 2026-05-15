@@ -78,6 +78,9 @@ class OutputArtifactCreateRequest(BaseModel):
     workflow_step_id: UUID | None = None
     checkpoint_id: UUID | None = None
     memory_snapshot_id: UUID | None = None
+    workflow_template_id: UUID | None = None
+    workflow_template_version_id: UUID | None = None
+    workflow_template_run_id: UUID | None = None
     producing_node_key: str | None = Field(default=None, max_length=128)
     replay_source: str | None = Field(default=None, max_length=255)
     graph_lineage: dict[str, Any] = Field(default_factory=dict)
@@ -124,6 +127,9 @@ class OutputArtifactResponse(BaseModel):
     workflow_step_id: UUID | None
     checkpoint_id: UUID | None
     memory_snapshot_id: UUID | None
+    workflow_template_id: UUID | None
+    workflow_template_version_id: UUID | None
+    workflow_template_run_id: UUID | None
     producing_node_key: str | None
     replay_source: str | None
     graph_lineage: dict[str, Any]
@@ -164,6 +170,9 @@ class OutputArtifactResponse(BaseModel):
             workflow_step_id=artifact.workflow_step_id,
             checkpoint_id=artifact.checkpoint_id,
             memory_snapshot_id=artifact.memory_snapshot_id,
+            workflow_template_id=artifact.workflow_template_id,
+            workflow_template_version_id=artifact.workflow_template_version_id,
+            workflow_template_run_id=artifact.workflow_template_run_id,
             producing_node_key=artifact.producing_node_key,
             replay_source=artifact.replay_source,
             graph_lineage=artifact.graph_lineage or {},

@@ -36,6 +36,7 @@ import {
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
 import { workflowClient, AgentMemorySnapshot, WorkflowPlannerResult, WorkflowRun, WorkflowStep } from "./api/workflowClient";
+import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
 import "./styles.css";
 
@@ -127,6 +128,9 @@ function ChatPanel() {
   const [memorySnapshots, setMemorySnapshots] = useState<AgentMemorySnapshot[]>([]);
   const [selectedWorkflowRunId, setSelectedWorkflowRunId] = useState<string | null>(null);
   const [workflowPlanner, setWorkflowPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplate[]>([]);
+  const [workflowTemplateRuns, setWorkflowTemplateRuns] = useState<WorkflowTemplateRun[]>([]);
+  const [selectedWorkflowTemplateId, setSelectedWorkflowTemplateId] = useState<string | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -174,8 +178,15 @@ function ChatPanel() {
 
   const refreshWorkflows = useCallback(async () => {
     try {
-      const response = await workflowClient.listRuns(settings);
+      const [response, templateResponse, templateRunResponse] = await Promise.all([
+        workflowClient.listRuns(settings),
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listRuns(settings),
+      ]);
       setWorkflowRuns(response.items);
+      setWorkflowTemplates(templateResponse.items);
+      setWorkflowTemplateRuns(templateRunResponse.items);
+      setSelectedWorkflowTemplateId((current) => current || templateResponse.items[0]?.id || null);
       const workflowId =
         selectedWorkflowRunId ||
         response.items.find((item) => item.status === "running" || item.status === "waiting_approval")?.id ||
@@ -196,6 +207,8 @@ function ChatPanel() {
       setWorkflowSteps([]);
       setMemorySnapshots([]);
       setWorkflowPlanner(null);
+      setWorkflowTemplates([]);
+      setWorkflowTemplateRuns([]);
     }
   }, [selectedWorkflowRunId, settings]);
 
@@ -492,6 +505,32 @@ function ChatPanel() {
     }
   };
 
+  const runSelectedWorkflowTemplate = async () => {
+    if (!selectedWorkflowTemplateId) {
+      setChatError("Select a workflow template first");
+      return;
+    }
+    setChatLoading(true);
+    setChatError(null);
+    try {
+      const run = await workflowTemplateClient.runTemplate(selectedWorkflowTemplateId, settings, {
+        message: input,
+        url: "https://example.com",
+        topic: "AI automation operations",
+      });
+      setLastRoute("workflow_template");
+      setLastSelectedTool(null);
+      setLastRunMetadata(run as unknown as Record<string, unknown>);
+      await refreshWorkflows();
+      setRunStatus(`template run ${run.status}`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Workflow template run failed");
+      setRunStatus("error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const assistantMessages = messages.filter((message) => message.role === "assistant");
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
 
@@ -598,6 +637,51 @@ function ChatPanel() {
           </div>
         )) : (
           <div className="empty-chat">No Playbook runs yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
+        <h3>Template Library</h3>
+        <div className="chat-note">
+          Workflow Template Registry foundation: select template, run template, view template run status. This is not a visual DAG builder and does not connect ComfyUI.
+        </div>
+        <select value={selectedWorkflowTemplateId ?? ""} onChange={(event) => setSelectedWorkflowTemplateId(event.target.value || null)}>
+          {workflowTemplates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.template_key} | v{template.current_version ?? template.latest_version ?? "-"} | {template.risk_level}
+            </option>
+          ))}
+        </select>
+        <div className="chat-actions">
+          <button className="action-button" onClick={() => void runSelectedWorkflowTemplate()} disabled={chatLoading || !selectedWorkflowTemplateId}>
+            Run template
+          </button>
+          <button className="refresh-button" onClick={() => void refreshWorkflows()}>
+            Refresh templates
+          </button>
+        </div>
+        {workflowTemplates.slice(0, 4).map((template) => (
+          <div key={template.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{template.template_key}</strong>
+              <span>{template.status}</span>
+              <span>{template.category ?? "uncategorized"}</span>
+              <span>{template.risk_level}</span>
+            </div>
+            <p>{template.description ?? "No description"}</p>
+          </div>
+        ))}
+        <h4>Template runs</h4>
+        {workflowTemplateRuns.length > 0 ? workflowTemplateRuns.slice(0, 4).map((run) => (
+          <div key={run.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{run.id}</strong>
+              <span>{run.status}</span>
+              <span>workflow {run.workflow_run_id ?? "-"}</span>
+            </div>
+            <pre className="event-payload">{JSON.stringify(run.output_payload, null, 2)}</pre>
+          </div>
+        )) : (
+          <div className="empty-chat">No workflow template runs yet.</div>
         )}
       </div>
       <div className="approval-list">

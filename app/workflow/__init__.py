@@ -2,6 +2,7 @@
 
 from app.workflow.planner import SafeConditionEvaluator, WorkflowExecutionPlanner, WorkflowPlannerResult
 from app.workflow.services import WorkflowGraphService, WorkflowStateService
+from app.workflow.template_registry import WorkflowTemplateCompatibilityService, WorkflowTemplateRegistryService
 
 __all__ = [
     "SafeConditionEvaluator",
@@ -9,4 +10,6 @@ __all__ = [
     "WorkflowGraphService",
     "WorkflowPlannerResult",
     "WorkflowStateService",
+    "WorkflowTemplateCompatibilityService",
+    "WorkflowTemplateRegistryService",
 ]
