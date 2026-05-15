@@ -3354,3 +3354,49 @@ The response includes `task_run_id`, `task_status`, and `execution_mode`. `sched
 Current boundary: Task Orchestration is a Background Execution foundation, not Celery / RabbitMQ / Kubernetes / production HA queue.
 
 Phase 42 verifier markers: `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, artifact linkage, not Celery, not Kubernetes, not production HA.
+## Phase 43: Task Scheduler Persistence & Worker Recovery (Completed)
+
+Completed: Task Scheduler Persistence, `task_scheduler_state`, Task Lease fields on `task_runs`, `TaskRecoveryService`, Scheduler Health API, manual recovery API, Failed Diagnostics, and frontend scheduler health panels.
+
+Task Lease: running task runs receive `lease_owner`, `lease_token`, `lease_expires_at`, and `heartbeat_at`. Expired lease and stale heartbeat are recoverable through scan or manual recover.
+
+Recovery rules: running + expired lease or stale heartbeat -> retrying if retry budget remains, otherwise failed; pending scheduled due -> queued; retrying delay elapsed -> queued; waiting_approval is not auto-executed; completed/cancelled/expired are not recovered.
+
+Admin Dashboard now shows Scheduler Health, lease status, recoverable badge, diagnostics panel, scheduled due indicator, and manual recover. Worker Console and Worker Console Desktop show simplified Task recovery state.
+
+Boundary: this remains an in-process scheduler foundation, not Celery, not Kubernetes, and not production HA distributed queue.
+## Phase 43 API: Task Scheduler Persistence & Worker Recovery
+
+Required headers: `X-Workspace-Id`, `X-User-Id`.
+
+Database table: `task_scheduler_state`.
+
+Task lease fields on `task_runs`: `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `last_recovered_at`, `recovery_reason`, `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, and `last_event_summary`.
+
+### `GET /api/v1/task-scheduler/health`
+
+Returns scheduler health for the current workspace, including scheduler status, heartbeat, last scan, active task count, recovered task count, and metadata. The current scheduler is an in-process foundation and is not Celery, not Kubernetes, and not production HA.
+
+### `POST /api/v1/task-scheduler/scan`
+
+Runs one manual recovery scan. It checks scheduled due tasks, retrying due tasks, expired lease, and stuck task recovery. Response includes recovered counts and the updated scheduler health.
+
+### `GET /api/v1/task-runs/{task_run_id}/diagnostics`
+
+Returns Failed Diagnostics: `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, `last_event_summary`, `lease_expired`, `scheduled_due`, `retry_count`, and `max_retries`.
+
+### `POST /api/v1/task-runs/{task_run_id}/recover`
+
+Manually recovers a recoverable task. Running tasks with expired lease are moved through retry policy; failed tasks may be retried if `TaskRetryPolicy` allows it; waiting approval tasks must continue through approval resume.
+
+### Enhanced `GET /api/v1/task-runs`
+
+Additional filters: `recoverable`, `lease_expired`, and `scheduled_due`.
+
+Recovery rules: running + expired lease or stale heartbeat -> retrying or failed; queued/pending can be re-queued; scheduled due -> queued; retrying delay elapsed -> queued; waiting_approval is not auto-executed; completed/cancelled/expired are not recovered; exceeded max retries -> failed.
+
+Admin Dashboard shows scheduler health, lease status, recoverable badge, diagnostics panel, and manual recover button. Worker Console and Worker Console Desktop show simplified Task recovery state.
+
+Phase 43 verifier markers: `TaskRecoveryService`, `task_scheduler_state`, `Task Lease`, `Scheduler Health`, `Failed Diagnostics`, `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `failure_category`, `recoverable`, stuck task recovery, expired lease, not Celery, not Kubernetes, not production HA.
+
+Phase 43 runtime config markers: `TASK_SCHEDULER_NAME`, `TASK_LEASE_SECONDS`, `TASK_STUCK_TIMEOUT_SECONDS`, `TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS`.

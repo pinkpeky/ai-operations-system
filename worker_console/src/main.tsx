@@ -119,6 +119,7 @@ function ChatPanel() {
   const [artifacts, setArtifacts] = useState<OutputArtifact[]>([]);
   const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
   const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
+  const [schedulerHealth, setSchedulerHealth] = useState<Record<string, unknown> | null>(null);
   const [selectedTaskRunId, setSelectedTaskRunId] = useState<string | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
@@ -151,7 +152,9 @@ function ChatPanel() {
   const refreshTaskRuns = useCallback(async () => {
     try {
       const response = await taskRunClient.listTaskRuns(settings);
+      const health = await taskRunClient.schedulerHealth(settings);
       setTaskRuns(response.items);
+      setSchedulerHealth(health as unknown as Record<string, unknown>);
       const taskId = selectedTaskRunId || response.items[0]?.id;
       if (taskId) {
         setSelectedTaskRunId(taskId);
@@ -299,7 +302,7 @@ function ChatPanel() {
     }
   };
 
-  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume") => {
+  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume" | "recover") => {
     setChatLoading(true);
     setChatError(null);
     try {
@@ -307,6 +310,8 @@ function ChatPanel() {
         await taskRunClient.retry(taskRunId, settings);
       } else if (action === "cancel") {
         await taskRunClient.cancel(taskRunId, settings);
+      } else if (action === "recover") {
+        await taskRunClient.recover(taskRunId, settings);
       } else {
         await taskRunClient.resume(taskRunId, settings);
       }
@@ -599,7 +604,10 @@ function ChatPanel() {
       <div className="approval-list">
         <h3>Task Runs</h3>
         <div className="chat-note">
-          Background execution uses the Phase 42 in-process queue with retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+          Background execution uses the in-process queue with lease, recovery, retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+        </div>
+        <div className="chat-note">
+          Scheduler: {String(schedulerHealth?.status ?? "unavailable")} | heartbeat: {String(schedulerHealth?.heartbeat_at ?? "-")} | recovered: {String(schedulerHealth?.recovered_task_count ?? 0)}
         </div>
         <div className="chat-actions">
           <button className="refresh-button" onClick={() => void refreshTaskRuns()}>
@@ -614,14 +622,15 @@ function ChatPanel() {
               <span>{task.status}</span>
             </div>
             <div className="chat-meta">
-              task_run_id: {task.id} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries}
+              task_run_id: {task.id} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries} | recoverable: {String(task.recoverable)} | lease: {task.lease_expires_at ?? "-"}
             </div>
-            <p>{String(task.error ?? task.output_payload.summary ?? "No error")}</p>
+            <p>{String(task.error ?? task.suggested_action ?? task.output_payload.summary ?? "No error")}</p>
             <div className="chat-actions">
               <button className="refresh-button" onClick={() => { setSelectedTaskRunId(task.id); void refreshTaskRuns(); }}>Events</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "retry")} disabled={chatLoading}>Retry</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "cancel")} disabled={chatLoading}>Cancel</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "resume")} disabled={chatLoading}>Resume</button>
+              <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "recover")} disabled={chatLoading}>Recover</button>
             </div>
           </div>
         )) : (

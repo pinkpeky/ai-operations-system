@@ -1,6 +1,6 @@
 # AI Operations System Project Overview
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 This is the entry point for `E:\ai-operations-system`. After Phase 10.5, `docs/` is the project Single Source of Truth. After Phase 27, this source of truth is also verified by runtime checks through `scripts/verify_docs_runtime.py`.
 
@@ -12,7 +12,7 @@ The project is not a frontend dashboard. It is a backend foundation for future c
 
 ## Current Status
 
-Phase 1 through Phase 35A are completed. Phase 35B is also completed as a validation-plan phase; Phase 35A was implemented afterward to harden runtime observability.
+Phase 1 through Phase 43 are completed. Phase 35B remains a validation-plan phase; Phase 43 hardens task scheduler persistence and recovery on top of Phase 42 background execution.
 
 Completed capabilities:
 
@@ -1083,3 +1083,19 @@ Conversation Runtime now supports `execution_mode=immediate|background|scheduled
 Current limits: this is not Celery, not RabbitMQ, not Kubernetes scheduler, and not production HA distributed queue. It does not add TikTok / YouTube / X automation, real publishing, login, CAPTCHA handling, proxy rotation, fingerprint bypass, real OpenClaw, or ComfyUI.
 
 Phase 42 marker: Approval resume is supported for approved waiting_approval task runs.
+## Phase 43: Task Scheduler Persistence & Worker Recovery
+
+Phase 43 is completed. It strengthens Phase 42 Background Execution with Task Scheduler Persistence, Task Lease ownership, scheduler heartbeat, recovery scans, Failed Diagnostics, and Admin Dashboard scheduler health.
+
+Completed capabilities:
+
+- `task_scheduler_state` records scheduler status, heartbeat, last scan, active task count, recovered task count, and metadata.
+- `task_runs` now records `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `last_recovered_at`, `recovery_reason`, `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, and `last_event_summary`.
+- `TaskRecoveryService` supports scheduled task recovery, retrying task recovery, expired lease recovery, stuck task recovery, manual recover, executor degraded state, and scheduler health.
+- `BackgroundTaskExecutor` now heartbeats scheduler state, runs startup recovery, periodically scans scheduled/retrying/stuck tasks, assigns leases to running tasks, and releases owned leases on shutdown best effort.
+- APIs: `GET /api/v1/task-scheduler/health`, `POST /api/v1/task-scheduler/scan`, `GET /api/v1/task-runs/{task_run_id}/diagnostics`, and `POST /api/v1/task-runs/{task_run_id}/recover`.
+- Admin Dashboard shows Scheduler Health, lease status, recoverable badge, diagnostics panel, scheduled due indicator, and manual recover button. Worker Console Web/Desktop show simplified task recovery state.
+
+Recovery rules: running + expired lease or stale heartbeat -> retrying if retry budget remains, otherwise failed; pending scheduled due -> queued; retrying delay elapsed -> queued; waiting_approval is not auto-executed; completed/cancelled/expired are not recovered.
+
+Boundary: this remains an in-process scheduler foundation. It is not Celery, not RabbitMQ, not Kubernetes scheduler, and not production HA distributed queue. It does not implement TikTok / YouTube / X automation, real publishing, login, CAPTCHA, proxy/fingerprint bypass, real OpenClaw, or ComfyUI.

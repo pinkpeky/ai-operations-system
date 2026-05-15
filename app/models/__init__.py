@@ -65,6 +65,7 @@ from app.models.enums import (
     TaskStatus,
     TaskRunPriority,
     TaskRunStatus,
+    TaskSchedulerStatus,
     UserStatus,
     WorkspaceMemberRole,
     WorkspaceMemberStatus,
@@ -79,7 +80,7 @@ from app.models.publish_log import PublishLog
 from app.models.rag_eval import RAGEvalItem, RAGEvalRun
 from app.models.task import Task
 from app.models.task_observability import TaskEvent, TaskLog
-from app.models.task_run import TaskRun, TaskRunEvent
+from app.models.task_run import TaskRun, TaskRunEvent, TaskSchedulerState
 from app.models.tool_call import ToolCallLog
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
@@ -167,6 +168,8 @@ __all__ = [
     "TaskRunEvent",
     "TaskRunPriority",
     "TaskRunStatus",
+    "TaskSchedulerState",
+    "TaskSchedulerStatus",
     "TaskStatus",
     "ToolCallLog",
     "User",

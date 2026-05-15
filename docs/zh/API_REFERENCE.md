@@ -2786,3 +2786,49 @@ Response JSON:
 ?????Task Orchestration ? Background Execution foundation??? Celery / RabbitMQ / Kubernetes / production HA queue?
 
 Phase 42 verifier markers: `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, artifact linkage, not Celery, not Kubernetes, not production HA.
+## Phase 43?Task Scheduler Persistence & Worker Recovery?????
+
+????Task Scheduler Persistence?`task_scheduler_state`?`task_runs` ? Task Lease ???`TaskRecoveryService`?Scheduler Health API?manual recovery API?Failed Diagnostics????? scheduler health ???
+
+Task Lease?running task run ??? `lease_owner`?`lease_token`?`lease_expires_at`?`heartbeat_at`?expired lease ? stale heartbeat ??? scan ? manual recover ???
+
+Recovery rules?running + expired lease ? stale heartbeat -> retrying????? retry budget ? failed?pending scheduled due -> queued?retrying delay elapsed -> queued?waiting_approval ??????completed/cancelled/expired ????
+
+Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics panel?scheduled due indicator?manual recover?Worker Console ? Worker Console Desktop ???? Task recovery ???
+
+??????? in-process scheduler foundation??? Celery??? Kubernetes???? production HA distributed queue?
+## Phase 43 API?Task Scheduler Persistence & Worker Recovery
+
+Required headers: `X-Workspace-Id`, `X-User-Id`.
+
+????`task_scheduler_state`?
+
+`task_runs` ?? Task Lease / Recovery / Failed Diagnostics ???`lease_owner`?`lease_token`?`lease_expires_at`?`heartbeat_at`?`recovery_count`?`last_recovered_at`?`recovery_reason`?`failure_category`?`failure_reason`?`recoverable`?`suggested_action`?`last_event_summary`?
+
+### `GET /api/v1/task-scheduler/health`
+
+???? workspace ? Scheduler Health?scheduler status?heartbeat?last scan?active task count?recovered task count ? metadata????? in-process foundation??? Celery??? Kubernetes???? production HA distributed queue?
+
+### `POST /api/v1/task-scheduler/scan`
+
+?????? recovery scan??? scheduled due tasks?retrying due tasks?expired lease?stuck task recovery???? recovered counts ? scheduler health?
+
+### `GET /api/v1/task-runs/{task_run_id}/diagnostics`
+
+?? Failed Diagnostics?`failure_category`?`failure_reason`?`recoverable`?`suggested_action`?`last_event_summary`?`lease_expired`?`scheduled_due`?`retry_count`?`max_retries`?
+
+### `POST /api/v1/task-runs/{task_run_id}/recover`
+
+???? recoverable task?running + expired lease ? retry policy?failed task ?? `TaskRetryPolicy` ??? retry?waiting_approval ????????? approval resume?
+
+### ?? `GET /api/v1/task-runs`
+
+?????`recoverable`?`lease_expired`?`scheduled_due`?
+
+Recovery rules?running + expired lease ? stale heartbeat -> retrying ? failed?queued/pending ??????scheduled due -> queued?retrying delay elapsed -> queued?waiting_approval ??????completed/cancelled/expired ?????? max retries -> failed?
+
+Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics panel?manual recover button?Worker Console ? Worker Console Desktop ???? Task recovery ???
+
+Phase 43 verifier markers: `TaskRecoveryService`, `task_scheduler_state`, `Task Lease`, `Scheduler Health`, `Failed Diagnostics`, `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `failure_category`, `recoverable`, stuck task recovery, expired lease, not Celery, not Kubernetes, not production HA.
+
+Phase 43 runtime config markers: `TASK_SCHEDULER_NAME`, `TASK_LEASE_SECONDS`, `TASK_STUCK_TIMEOUT_SECONDS`, `TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS`.

@@ -85,6 +85,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
                     get_session_factory(),
                     poll_interval_seconds=settings.task_orchestrator_poll_interval_seconds,
                     batch_size=settings.task_orchestrator_batch_size,
+                    scheduler_name=settings.task_scheduler_name,
+                    lease_seconds=settings.task_lease_seconds,
+                    stuck_timeout_seconds=settings.task_stuck_timeout_seconds,
+                    recovery_interval_seconds=settings.task_scheduler_recovery_interval_seconds,
                 )
             )
             logger.info("Task orchestrator background task started")

@@ -50,7 +50,7 @@ import {
   ConversationThread,
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
-import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
+import { taskRunClient, TaskRun, TaskRunDiagnostics, TaskRunEvent, TaskSchedulerHealth } from "./api/taskRunClient";
 import "./styles.css";
 
 type PageKey =
@@ -288,11 +288,12 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
-    const [health, workerSummary, taskSummary, taskRuns, openclawHealth, sessions, conversations] = await Promise.all([
+    const [health, workerSummary, taskSummary, taskRuns, schedulerHealth, openclawHealth, sessions, conversations] = await Promise.all([
       safeRequest<JsonRecord>("/health", {}, settings),
       safeRequest<JsonRecord>("/browser-workers/health/summary", {}, settings),
       safeRequest<JsonRecord>("/observability/summary", {}, settings),
       safeRequest<JsonRecord>("/task-runs", {}, settings),
+      safeRequest<JsonRecord>("/task-scheduler/health", {}, settings),
       safeRequest<JsonRecord>("/openclaw/health", {}, settings),
       safeRequest<JsonRecord>("/browser-runtime/sessions", {}, settings),
       safeRequest<JsonRecord>("/conversations", {}, settings),
@@ -302,6 +303,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
       workerSummary: workerSummary.ok ? workerSummary.data : { unavailable: workerSummary.error },
       taskSummary: taskSummary.ok ? taskSummary.data : { unavailable: taskSummary.error },
       taskRuns: taskRuns.ok ? taskRuns.data : { unavailable: taskRuns.error },
+      schedulerHealth: schedulerHealth.ok ? schedulerHealth.data : { unavailable: schedulerHealth.error },
       openclawHealth: openclawHealth.ok ? openclawHealth.data : { unavailable: openclawHealth.error },
       browserRuntimeSessions: sessions.ok ? sessions.data : { unavailable: sessions.error },
       conversations: conversations.ok ? conversations.data : { unavailable: conversations.error },
@@ -320,6 +322,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
     return counts;
   }, {});
   const workerSummary = (state.data?.workerSummary as JsonRecord | undefined) || null;
+  const schedulerHealth = (state.data?.schedulerHealth as JsonRecord | undefined) || null;
   const health = (state.data?.health as JsonRecord | undefined) || null;
   const openclaw = (state.data?.openclawHealth as JsonRecord | undefined) || null;
 
@@ -342,6 +345,12 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
           icon={<ClipboardList size={20} />}
         />
         <DataCard
+          title="Scheduler"
+          value={valueAt(schedulerHealth, ["status"], "unavailable")}
+          detail={`${valueAt(schedulerHealth, ["active_task_count"], "0")} active / ${valueAt(schedulerHealth, ["recovered_task_count"], "0")} recovered`}
+          icon={<Gauge size={20} />}
+        />
+        <DataCard
           title="OpenClaw"
           value={valueAt(openclaw, ["provider"], "unavailable")}
           detail="mock adapter only"
@@ -354,6 +363,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
           <JsonPreview value={state.data?.health} />
           <JsonPreview value={state.data?.taskSummary} />
           <JsonPreview value={state.data?.taskRuns} />
+          <JsonPreview value={state.data?.schedulerHealth} />
           <JsonPreview value={state.data?.workerSummary} />
           <JsonPreview value={state.data?.openclawHealth} />
         </div>
@@ -1223,8 +1233,11 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
 
 function TasksPage({ settings }: { settings: AdminSettings }) {
   const [status, setStatus] = useState("queued");
+  const [recoveryFilter, setRecoveryFilter] = useState("all");
   const [tasks, setTasks] = useState<AsyncState<TaskRun[]>>(emptyState());
+  const [schedulerHealth, setSchedulerHealth] = useState<TaskSchedulerHealth | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskRun | null>(null);
+  const [diagnostics, setDiagnostics] = useState<TaskRunDiagnostics | null>(null);
   const [events, setEvents] = useState<TaskRunEvent[]>([]);
   const [linkedArtifacts, setLinkedArtifacts] = useState<OutputArtifact[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -1233,7 +1246,14 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
   const load = useCallback(async () => {
     setTasks((current) => ({ ...current, loading: true, error: null }));
     try {
-      const response = await taskRunClient.listTaskRuns(settings, { status });
+      const response = await taskRunClient.listTaskRuns(settings, {
+        status,
+        recoverable: recoveryFilter === "recoverable" ? true : undefined,
+        leaseExpired: recoveryFilter === "lease_expired" ? true : undefined,
+        scheduledDue: recoveryFilter === "scheduled_due" ? true : undefined,
+      });
+      const health = await taskRunClient.schedulerHealth(settings);
+      setSchedulerHealth(health);
       setTasks({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
       setTasks({
@@ -1243,7 +1263,7 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         updatedAt: nowLabel(),
       });
     }
-  }, [settings, status]);
+  }, [settings, status, recoveryFilter]);
 
   const loadTask = async (row: TaskRun) => {
     setSelectedTask(row);
@@ -1252,16 +1272,19 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         taskRunClient.listEvents(row.id, settings),
         outputArtifactClient.listArtifacts(settings, { taskRunId: row.id }),
       ]);
+      const taskDiagnostics = await taskRunClient.diagnostics(row.id, settings);
       setEvents(eventList.items ?? []);
       setLinkedArtifacts(artifactList.items ?? []);
+      setDiagnostics(taskDiagnostics);
     } catch (error) {
       setEvents([]);
       setLinkedArtifacts([]);
+      setDiagnostics(null);
       setActionError(error instanceof Error ? error.message : "Task Run detail unavailable");
     }
   };
 
-  const mutateTask = async (action: "retry" | "cancel" | "resume") => {
+  const mutateTask = async (action: "retry" | "cancel" | "resume" | "recover") => {
     if (!selectedTask) {
       return;
     }
@@ -1272,7 +1295,9 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
           ? await taskRunClient.retry(selectedTask.id, "Manual retry from Admin Dashboard", settings)
           : action === "cancel"
             ? await taskRunClient.cancel(selectedTask.id, "Manual cancel from Admin Dashboard", settings)
-            : await taskRunClient.resume(selectedTask.id, settings);
+            : action === "recover"
+              ? await taskRunClient.recover(selectedTask.id, "Manual recovery from Admin Dashboard", settings)
+              : await taskRunClient.resume(selectedTask.id, settings);
       setSelectedTask(updated);
       await loadTask(updated);
       await load();
@@ -1299,10 +1324,21 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
                 </option>
               ))}
             </select>
+            <select value={recoveryFilter} onChange={(event) => setRecoveryFilter(event.target.value)}>
+              <option value="all">all</option>
+              <option value="recoverable">recoverable</option>
+              <option value="lease_expired">lease expired</option>
+              <option value="scheduled_due">scheduled due</option>
+            </select>
             <RefreshButton onClick={load} />
           </div>
         }
       >
+        <section className="metrics-grid compact">
+          <DataCard title="Scheduler status" value={schedulerHealth?.status ?? "unavailable"} detail={schedulerHealth?.scheduler_name ?? "in-process"} icon={<Gauge size={18} />} />
+          <DataCard title="Heartbeat" value={schedulerHealth?.heartbeat_at ?? "-"} detail={`last scan: ${schedulerHealth?.last_scan_at ?? "-"}`} icon={<Activity size={18} />} />
+          <DataCard title="Recovery" value={`${schedulerHealth?.recovered_task_count ?? 0} recovered`} detail={`${schedulerHealth?.active_task_count ?? 0} active`} icon={<RefreshCcw size={18} />} />
+        </section>
         <LoadNotice state={tasks} />
         <Table
           rows={(tasks.data || []) as unknown as JsonRecord[]}
@@ -1315,6 +1351,8 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
             { key: "source_type", label: "source_type" },
             { key: "status", label: "status" },
             { key: "retry_count", label: "retry" },
+            { key: "recoverable", label: "recoverable" },
+            { key: "lease_expires_at", label: "lease_expires_at" },
             { key: "current_step", label: "step" },
             { key: "scheduled_at", label: "scheduled_at" },
             { key: "created_at", label: "created_at" },
@@ -1335,7 +1373,12 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
           <button className="ghost-button" onClick={() => void mutateTask("resume")} disabled={!selectedTask}>
             Resume after approval
           </button>
+          <button className="ghost-button" onClick={() => void mutateTask("recover")} disabled={!selectedTask}>
+            Recover
+          </button>
         </div>
+        <h3>Diagnostics</h3>
+        <JsonPreview value={diagnostics || { status: "select a task run" }} />
         <h3>Progress timeline</h3>
         <Timeline rows={events as unknown as JsonRecord[]} primary="event_type" secondary="message" />
         <h3>Linked artifacts</h3>

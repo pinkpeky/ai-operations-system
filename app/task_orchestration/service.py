@@ -9,10 +9,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 import logging
+import os
+import socket
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -35,9 +38,18 @@ class TaskOrchestratorService:
         TaskRunStatus.EXPIRED.value,
     }
 
-    def __init__(self, session: AsyncSession, *, retry_policy: TaskRetryPolicy | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        retry_policy: TaskRetryPolicy | None = None,
+        lease_owner: str | None = None,
+        lease_seconds: int = 120,
+    ) -> None:
         self.session = session
         self.retry_policy = retry_policy or TaskRetryPolicy()
+        self.lease_owner = lease_owner or f"{socket.gethostname()}:{os.getpid()}"
+        self.lease_seconds = lease_seconds
 
     async def enqueue_task(
         self,
@@ -125,8 +137,12 @@ class TaskOrchestratorService:
         source_type: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
+        recoverable: bool | None = None,
+        lease_expired: bool | None = None,
+        scheduled_due: bool | None = None,
         limit: int = 100,
     ) -> list[TaskRun]:
+        now = datetime.now(UTC)
         statement = select(TaskRun).where(TaskRun.workspace_id == workspace_id)
         if status is not None:
             statement = statement.where(TaskRun.status == status)
@@ -138,6 +154,18 @@ class TaskOrchestratorService:
             statement = statement.where(TaskRun.created_at >= created_from)
         if created_to is not None:
             statement = statement.where(TaskRun.created_at <= created_to)
+        if recoverable is not None:
+            statement = statement.where(TaskRun.recoverable.is_(recoverable))
+        if lease_expired:
+            statement = statement.where(
+                TaskRun.status == TaskRunStatus.RUNNING.value,
+                or_(TaskRun.lease_expires_at.is_(None), TaskRun.lease_expires_at <= now),
+            )
+        if scheduled_due:
+            statement = statement.where(
+                TaskRun.status.in_([TaskRunStatus.PENDING.value, TaskRunStatus.RETRYING.value]),
+                TaskRun.scheduled_at <= now,
+            )
         statement = statement.order_by(TaskRun.created_at.desc()).limit(limit)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
@@ -186,6 +214,7 @@ class TaskOrchestratorService:
             raise ValueError("Cancelled task runs cannot be started")
         task.status = TaskRunStatus.RUNNING.value
         task.started_at = datetime.now(UTC)
+        self._assign_lease(task)
         await self.append_event(
             workspace_id=task.workspace_id,
             task_run_id=task.id,
@@ -204,6 +233,7 @@ class TaskOrchestratorService:
         now = datetime.now(UTC)
         task.status = TaskRunStatus.COMPLETED.value
         task.completed_at = now
+        self._clear_lease(task)
         if output_payload is not None:
             task.output_payload = output_payload
             flag_modified(task, "output_payload")
@@ -228,6 +258,8 @@ class TaskOrchestratorService:
         task.status = TaskRunStatus.FAILED.value
         task.failed_at = datetime.now(UTC)
         task.error = error
+        self._clear_lease(task)
+        self._apply_diagnostics(task, error=error)
         if output_payload is not None:
             task.output_payload = output_payload
             flag_modified(task, "output_payload")
@@ -256,6 +288,8 @@ class TaskOrchestratorService:
         task.status = TaskRunStatus.RETRYING.value
         task.scheduled_at = datetime.now(UTC) + timedelta(seconds=delay)
         task.error = reason
+        self._clear_lease(task)
+        self._apply_diagnostics(task, error=reason)
         await self.append_event(
             workspace_id=task.workspace_id,
             task_run_id=task.id,
@@ -278,6 +312,7 @@ class TaskOrchestratorService:
         task.status = TaskRunStatus.CANCELLED.value
         task.cancelled_at = datetime.now(UTC)
         task.error = reason
+        self._clear_lease(task)
         await self.append_event(
             workspace_id=workspace_id,
             task_run_id=task.id,
@@ -304,6 +339,17 @@ class TaskOrchestratorService:
         )
         result = await self.session.execute(statement)
         return list(result.scalars().all())
+
+    async def heartbeat_task(self, *, task: TaskRun, commit: bool = True) -> TaskRun:
+        """Refresh the lease heartbeat for a running task."""
+
+        if task.status == TaskRunStatus.RUNNING.value:
+            task.heartbeat_at = datetime.now(UTC)
+            task.lease_expires_at = task.heartbeat_at + timedelta(seconds=self.lease_seconds)
+            if commit:
+                await self.session.commit()
+                await self.session.refresh(task)
+        return task
 
     async def execute_task(self, *, task: TaskRun) -> TaskRun:
         """Run a task once. The caller owns the AsyncSession lifecycle."""
@@ -469,3 +515,24 @@ class TaskOrchestratorService:
         if isinstance(steps, list):
             return len([step for step in steps if step.get("status") in {"completed", "failed", "waiting_approval"}])
         return 0
+
+    def _assign_lease(self, task: TaskRun) -> None:
+        now = datetime.now(UTC)
+        task.lease_owner = self.lease_owner
+        task.lease_token = f"lease-{uuid4()}"
+        task.heartbeat_at = now
+        task.lease_expires_at = now + timedelta(seconds=self.lease_seconds)
+
+    def _clear_lease(self, task: TaskRun) -> None:
+        task.lease_owner = None
+        task.lease_token = None
+        task.lease_expires_at = None
+        task.heartbeat_at = None
+
+    def _apply_diagnostics(self, task: TaskRun, *, error: str | None) -> None:
+        recoverable = self.retry_policy.should_retry(error=error, retry_count=task.retry_count, max_retries=task.max_retries)
+        task.failure_category = self.retry_policy.category_for_error(error)
+        task.failure_reason = error
+        task.recoverable = recoverable
+        task.suggested_action = self.retry_policy.suggested_action_for_error(error=error, recoverable=recoverable)
+        task.last_event_summary = self._summary_from_output(task.output_payload) or error

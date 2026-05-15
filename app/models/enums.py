@@ -221,6 +221,15 @@ class TaskRunPriority(StrEnum):
     HIGH = "high"
 
 
+class TaskSchedulerStatus(StrEnum):
+    """In-process task scheduler health status."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    DEGRADED = "degraded"
+    STOPPED = "stopped"
+
+
 class AgentMemoryType(StrEnum):
     """Agent Memory 类型。"""
 

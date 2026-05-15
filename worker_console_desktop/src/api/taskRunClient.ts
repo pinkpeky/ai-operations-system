@@ -11,6 +11,11 @@ export type TaskRun = {
   retry_count: number;
   max_retries: number;
   scheduled_at: string | null;
+  lease_expires_at: string | null;
+  heartbeat_at: string | null;
+  recovery_count: number;
+  recoverable: boolean;
+  suggested_action: string | null;
   current_step: number;
   error: string | null;
   input_payload: Record<string, unknown>;
@@ -29,6 +34,16 @@ export type TaskRunEvent = {
   payload: Record<string, unknown>;
   error: string | null;
   created_at: string;
+};
+
+export type TaskSchedulerHealth = {
+  scheduler_name: string;
+  status: string;
+  heartbeat_at: string | null;
+  last_scan_at: string | null;
+  active_task_count: number;
+  recovered_task_count: number;
+  metadata: Record<string, unknown>;
 };
 
 function normalizeApiBase(rawBase: string): string {
@@ -67,4 +82,8 @@ export const taskRunClient = {
     requestJson<TaskRun>(`/task-runs/${taskRunId}/cancel`, { method: "POST", body: JSON.stringify({ reason: "cancel from Desktop Console" }) }, settings),
   resume: (taskRunId: string, settings?: ConversationSettings) =>
     requestJson<TaskRun>(`/task-runs/${taskRunId}/resume`, { method: "POST" }, settings),
+  recover: (taskRunId: string, settings?: ConversationSettings) =>
+    requestJson<TaskRun>(`/task-runs/${taskRunId}/recover`, { method: "POST", body: JSON.stringify({ reason: "recover from Desktop Console" }) }, settings),
+  schedulerHealth: (settings?: ConversationSettings) =>
+    requestJson<TaskSchedulerHealth>("/task-scheduler/health", {}, settings),
 };

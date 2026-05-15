@@ -63,6 +63,18 @@ class TaskRunResponse(BaseModel):
     failed_at: datetime | None
     current_step: int
     error: str | None
+    lease_owner: str | None
+    lease_token: str | None
+    lease_expires_at: datetime | None
+    heartbeat_at: datetime | None
+    recovery_count: int
+    last_recovered_at: datetime | None
+    recovery_reason: str | None
+    failure_category: str | None
+    failure_reason: str | None
+    recoverable: bool
+    suggested_action: str | None
+    last_event_summary: str | None
     input_payload: dict[str, Any]
     output_payload: dict[str, Any]
     metadata: dict[str, Any]
@@ -89,6 +101,18 @@ class TaskRunResponse(BaseModel):
             failed_at=task.failed_at,
             current_step=task.current_step,
             error=task.error,
+            lease_owner=task.lease_owner,
+            lease_token=task.lease_token,
+            lease_expires_at=task.lease_expires_at,
+            heartbeat_at=task.heartbeat_at,
+            recovery_count=task.recovery_count,
+            last_recovered_at=task.last_recovered_at,
+            recovery_reason=task.recovery_reason,
+            failure_category=task.failure_category,
+            failure_reason=task.failure_reason,
+            recoverable=task.recoverable,
+            suggested_action=task.suggested_action,
+            last_event_summary=task.last_event_summary,
             input_payload=task.input_payload or {},
             output_payload=task.output_payload or {},
             metadata=task.task_metadata or {},
@@ -137,3 +161,49 @@ class TaskRunEventListResponse(BaseModel):
 
     task_run_id: UUID
     items: list[TaskRunEventResponse]
+
+
+class TaskRunDiagnosticsResponse(BaseModel):
+    """Failed/recovery diagnostics for a task run."""
+
+    task_run_id: UUID
+    status: str
+    failure_category: str | None
+    failure_reason: str | None
+    recoverable: bool
+    suggested_action: str | None
+    last_event_summary: str | None
+    lease_expired: bool
+    scheduled_due: bool
+    retry_count: int
+    max_retries: int
+
+
+class TaskRecoverRequest(BaseModel):
+    """Manual task recovery request."""
+
+    reason: str | None = "manual recovery"
+
+
+class TaskSchedulerStateResponse(BaseModel):
+    """Task scheduler health response."""
+
+    id: UUID | None = None
+    workspace_id: str
+    scheduler_name: str
+    status: str
+    heartbeat_at: datetime | None = None
+    last_scan_at: datetime | None = None
+    active_task_count: int = 0
+    recovered_task_count: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class TaskSchedulerScanResponse(BaseModel):
+    """Manual scheduler scan result."""
+
+    scheduler: TaskSchedulerStateResponse
+    recovered_count: int
+    details: dict[str, int] = Field(default_factory=dict)

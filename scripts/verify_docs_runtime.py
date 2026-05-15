@@ -163,8 +163,10 @@ class DocsRuntimeVerifier:
             "app/task_orchestration/service.py",
             "app/task_orchestration/background_executor.py",
             "app/task_orchestration/retry_policy.py",
+            "app/task_orchestration/recovery_service.py",
             "app/api/routes/output_artifacts.py",
             "app/api/routes/task_runs.py",
+            "app/api/routes/task_scheduler.py",
             "app/schemas/conversation.py",
             "app/schemas/conversation_playbook.py",
             "app/api/routes/conversations.py",
@@ -260,6 +262,10 @@ class DocsRuntimeVerifier:
             "TASK_ORCHESTRATOR_POLL_INTERVAL_SECONDS": str(settings.task_orchestrator_poll_interval_seconds),
             "TASK_ORCHESTRATOR_BATCH_SIZE": str(settings.task_orchestrator_batch_size),
             "TASK_RUN_DEFAULT_MAX_RETRIES": str(settings.task_run_default_max_retries),
+            "TASK_SCHEDULER_NAME": settings.task_scheduler_name,
+            "TASK_LEASE_SECONDS": str(settings.task_lease_seconds),
+            "TASK_STUCK_TIMEOUT_SECONDS": str(settings.task_stuck_timeout_seconds),
+            "TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS": str(settings.task_scheduler_recovery_interval_seconds),
         }
         for key, value in expected_values.items():
             if key not in current_runtime or str(value) not in current_runtime:
@@ -418,9 +424,13 @@ class DocsRuntimeVerifier:
             "/api/v1/task-runs",
             "/api/v1/task-runs/{task_run_id}",
             "/api/v1/task-runs/{task_run_id}/events",
+            "/api/v1/task-runs/{task_run_id}/diagnostics",
+            "/api/v1/task-runs/{task_run_id}/recover",
             "/api/v1/task-runs/{task_run_id}/retry",
             "/api/v1/task-runs/{task_run_id}/cancel",
             "/api/v1/task-runs/{task_run_id}/resume",
+            "/api/v1/task-scheduler/health",
+            "/api/v1/task-scheduler/scan",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
             "/api/v1/rag/eval/runs",
@@ -862,6 +872,26 @@ class DocsRuntimeVerifier:
             "task_completed",
             "task_cancelled",
             "artifact linkage",
+            "task_scheduler_state",
+            "TaskRecoveryService",
+            "lease_owner",
+            "lease_token",
+            "lease_expires_at",
+            "heartbeat_at",
+            "recovery_count",
+            "last_recovered_at",
+            "recovery_reason",
+            "failure_category",
+            "failure_reason",
+            "recoverable",
+            "suggested_action",
+            "scheduler health",
+            "stuck task recovery",
+            "expired lease",
+            "TASK_SCHEDULER_NAME",
+            "TASK_LEASE_SECONDS",
+            "TASK_STUCK_TIMEOUT_SECONDS",
+            "TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1263,6 +1293,15 @@ class DocsRuntimeVerifier:
             "not Celery",
             "not Kubernetes",
             "not production HA",
+            "Phase 43",
+            "Task Scheduler Persistence & Worker Recovery",
+            "task_scheduler_state",
+            "TaskRecoveryService",
+            "Task Lease",
+            "Scheduler Health",
+            "Failed Diagnostics",
+            "stuck task recovery",
+            "expired lease",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1366,8 +1405,22 @@ class DocsRuntimeVerifier:
                 or "not Kubernetes" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 42 scope")
+            elif not re.search(r"Phase\s+43", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 43")
+            elif (
+                "Task Scheduler Persistence & Worker Recovery" not in text
+                or "task_scheduler_state" not in text
+                or "TaskRecoveryService" not in text
+                or "Task Lease" not in text
+                or "Scheduler Health" not in text
+                or "Failed Diagnostics" not in text
+                or "not Celery" not in text
+                or "not Kubernetes" not in text
+                or "not production HA" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 43 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, and Phase 42")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, and Phase 43")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

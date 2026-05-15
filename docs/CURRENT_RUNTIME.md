@@ -1,6 +1,6 @@
 # Current Runtime
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 This document records the current real runtime defaults for `E:\ai-operations-system`. Values are based on `app/core/config.py`, `.env.example`, and `docker-compose.yml`.
 
@@ -1377,3 +1377,37 @@ Task Orchestration defaults are now part of runtime config and docker-compose:
 - `TASK_RUN_DEFAULT_MAX_RETRIES=3`
 
 The background executor is `BackgroundTaskExecutor`, started from FastAPI lifespan when enabled. It polls `task_runs` in-process and executes Conversation / Playbook work through `TaskOrchestratorService`. This is not Celery, not RabbitMQ, not Kubernetes, and not production HA.
+## Phase 43 Runtime Configuration: Task Scheduler Persistence & Worker Recovery
+
+Task Scheduler Persistence is enabled through the existing in-process `BackgroundTaskExecutor`; it remains a foundation, not Celery, not Kubernetes, and not production HA distributed queue.
+
+| Key | Current default | Meaning |
+| --- | --- | --- |
+| `TASK_SCHEDULER_NAME` | `api-in-process-task-scheduler` | Stable scheduler identity used for `task_scheduler_state` and task lease ownership. |
+| `TASK_LEASE_SECONDS` | `120` | Lease duration assigned to running `task_runs`. Expired lease is eligible for recovery. |
+| `TASK_STUCK_TIMEOUT_SECONDS` | `300` | Heartbeat staleness threshold for stuck running task recovery. |
+| `TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS` | `10.0` | Background recovery scan interval for scheduled, retrying, and stuck tasks. |
+
+Runtime tables and fields:
+
+- `task_scheduler_state` stores scheduler status, heartbeat, last scan, active task count, recovered task count, and metadata.
+- `task_runs` now includes `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `last_recovered_at`, `recovery_reason`, `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, and `last_event_summary`.
+
+Core APIs:
+
+- `GET /api/v1/task-scheduler/health`
+- `POST /api/v1/task-scheduler/scan`
+- `GET /api/v1/task-runs/{task_run_id}/diagnostics`
+- `POST /api/v1/task-runs/{task_run_id}/recover`
+
+Recovery rules:
+
+- `running` task with expired lease or stale heartbeat becomes `retrying` when retry budget remains, otherwise `failed`.
+- `pending` task with `scheduled_at <= now` becomes `queued`.
+- `retrying` task with retry delay elapsed becomes `queued`.
+- `waiting_approval` is not auto-executed and must resume through approval flow.
+- `completed`, `cancelled`, and `expired` tasks are not recovered.
+
+Admin Dashboard now shows Scheduler Health, lease status, recoverable badge, diagnostics panel, and manual recover control. Worker Console Web/Desktop show simplified scheduler and task recovery status.
+
+Runtime verifier marker: TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS=10.0
