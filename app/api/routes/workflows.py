@@ -22,14 +22,24 @@ from app.schemas.workflow import (
     WorkflowGraphCreateRequest,
     WorkflowGraphListResponse,
     WorkflowGraphResponse,
+    WorkflowExecutionTraceListResponse,
+    WorkflowExecutionTraceResponse,
+    WorkflowObservabilityAnalyticsResponse,
     WorkflowPlannerResultResponse,
     WorkflowReplayCreateRequest,
     WorkflowReplayResponse,
+    WorkflowReplaySessionCreateRequest,
+    WorkflowReplaySessionListResponse,
+    WorkflowReplaySessionResponse,
+    WorkflowRuntimeDiagnosticListResponse,
+    WorkflowRuntimeDiagnosticResponse,
+    WorkflowRuntimeSummaryResponse,
     WorkflowRunListResponse,
     WorkflowRunResponse,
     WorkflowStepListResponse,
     WorkflowStepResponse,
 )
+from app.workflow.observability import WorkflowDiagnosticsService, WorkflowExecutionTraceService
 from app.workflow.services import WorkflowGraphService, WorkflowStateService
 
 logger = logging.getLogger(__name__)
@@ -37,6 +47,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workflow-runs", tags=["workflow-runs"])
 graph_router = APIRouter(prefix="/workflow-graphs", tags=["workflow-graphs"])
 memory_router = APIRouter(prefix="/agent-memory-snapshots", tags=["agent-memory-snapshots"])
+replay_session_router = APIRouter(prefix="/workflow-replay-sessions", tags=["workflow-replay-sessions"])
 
 
 @graph_router.get("", response_model=WorkflowGraphListResponse)
@@ -400,3 +411,171 @@ async def get_workflow_run_planner(
         return WorkflowPlannerResultResponse(**result.as_dict())
     except ValueError as exc:
         raise AppError(str(exc), status_code=404) from exc
+
+
+@router.get("/{workflow_run_id}/traces", response_model=WorkflowExecutionTraceListResponse)
+async def list_workflow_execution_traces(
+    workflow_run_id: UUID,
+    node_key: str | None = Query(default=None),
+    event_type: str | None = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowExecutionTraceListResponse:
+    """List execution traces for one workflow run."""
+
+    try:
+        await WorkflowStateService(session).require_workflow_run(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+        )
+        traces = await WorkflowExecutionTraceService(session).list_traces(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+            node_key=node_key,
+            event_type=event_type,
+            limit=limit,
+        )
+        return WorkflowExecutionTraceListResponse(
+            workflow_run_id=workflow_run_id,
+            items=[WorkflowExecutionTraceResponse.from_model(item) for item in traces],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+
+
+@router.get("/{workflow_run_id}/diagnostics", response_model=WorkflowRuntimeDiagnosticListResponse)
+async def list_workflow_runtime_diagnostics(
+    workflow_run_id: UUID,
+    severity: str | None = Query(default=None),
+    refresh: bool = Query(default=True),
+    limit: int = Query(default=200, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowRuntimeDiagnosticListResponse:
+    """List diagnostics and optionally refresh diagnostics from current traces."""
+
+    try:
+        service = WorkflowDiagnosticsService(session)
+        if refresh:
+            await service.analyze_failed_workflow(
+                workspace_id=context.workspace_id,
+                workflow_run_id=workflow_run_id,
+            )
+        diagnostics = await service.list_diagnostics(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+            severity=severity,
+            limit=limit,
+        )
+        return WorkflowRuntimeDiagnosticListResponse(
+            workflow_run_id=workflow_run_id,
+            items=[WorkflowRuntimeDiagnosticResponse.from_model(item) for item in diagnostics],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+
+
+@router.get("/{workflow_run_id}/analytics", response_model=WorkflowObservabilityAnalyticsResponse)
+async def get_workflow_observability_analytics(
+    workflow_run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowObservabilityAnalyticsResponse:
+    """Return workflow observability analytics for dashboards."""
+
+    try:
+        analytics = await WorkflowDiagnosticsService(session).analytics(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+        )
+        return WorkflowObservabilityAnalyticsResponse(workflow_run_id=workflow_run_id, analytics=analytics)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+
+
+@router.post("/{workflow_run_id}/replay-sessions", response_model=WorkflowReplaySessionResponse, status_code=201)
+async def create_workflow_replay_session(
+    workflow_run_id: UUID,
+    request: WorkflowReplaySessionCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowReplaySessionResponse:
+    """Create a Replay Center session. Only metadata_only and dry_run are enabled."""
+
+    try:
+        replay = await WorkflowDiagnosticsService(session).create_replay_session(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+            replay_source_checkpoint_id=request.replay_source_checkpoint_id,
+            replay_source_node_key=request.replay_source_node_key,
+            replay_mode=request.replay_mode,
+            initiated_by=context.user_id,
+            metadata=request.metadata,
+        )
+        return WorkflowReplaySessionResponse.from_model(replay)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+
+
+@router.get("/{workflow_run_id}/runtime-summary", response_model=WorkflowRuntimeSummaryResponse)
+async def get_workflow_runtime_summary(
+    workflow_run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowRuntimeSummaryResponse:
+    """Return a consolidated runtime summary for Replay Center diagnostics."""
+
+    try:
+        service = WorkflowDiagnosticsService(session)
+        summary = await service.generate_runtime_summary(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+        )
+        diagnostics = await service.list_diagnostics(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+        )
+        return WorkflowRuntimeSummaryResponse(
+            workflow_run_id=workflow_run_id,
+            summary=summary,
+            diagnostics=[WorkflowRuntimeDiagnosticResponse.from_model(item) for item in diagnostics],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+
+
+@replay_session_router.get("", response_model=WorkflowReplaySessionListResponse)
+async def list_workflow_replay_sessions(
+    workflow_run_id: UUID | None = Query(default=None),
+    replay_status: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowReplaySessionListResponse:
+    """List Replay Center sessions in the current workspace."""
+
+    replays = await WorkflowDiagnosticsService(session).list_replay_sessions(
+        workspace_id=context.workspace_id,
+        workflow_run_id=workflow_run_id,
+        replay_status=replay_status,
+        limit=limit,
+    )
+    return WorkflowReplaySessionListResponse(items=[WorkflowReplaySessionResponse.from_model(item) for item in replays])
+
+
+@replay_session_router.get("/{replay_session_id}", response_model=WorkflowReplaySessionResponse)
+async def get_workflow_replay_session(
+    replay_session_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowReplaySessionResponse:
+    """Get a single Replay Center session."""
+
+    replay = await WorkflowDiagnosticsService(session).get_replay_session(
+        workspace_id=context.workspace_id,
+        replay_session_id=replay_session_id,
+    )
+    if replay is None:
+        raise AppError("Workflow replay session not found", status_code=404)
+    return WorkflowReplaySessionResponse.from_model(replay)

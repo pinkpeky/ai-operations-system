@@ -21,6 +21,9 @@ export interface OutputArtifact {
   workflow_template_run_id: string | null;
   producing_node_key: string | null;
   replay_source: string | null;
+  trace_id: string | null;
+  replay_session_id: string | null;
+  diagnostic_reference: string | null;
   graph_lineage: JsonRecord;
   source_type: string;
   artifact_type: string;

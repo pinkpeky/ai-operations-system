@@ -33,6 +33,7 @@ from app.models.enums import (
 )
 from app.models.memory import ConversationMessage
 from app.models.output_artifact import ArtifactRelationship, OutputArtifact
+from app.models.workflow import WorkflowExecutionTrace
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,9 @@ class OutputArtifactService:
         governance_state: str | None = None,
         producing_node_key: str | None = None,
         replay_source: str | None = None,
+        trace_id: UUID | None = None,
+        replay_session_id: UUID | None = None,
+        diagnostic_reference: str | None = None,
         graph_lineage: dict[str, Any] | None = None,
         artifact_role: str | None = None,
         artifact_stage: str = OutputArtifactStage.PROCESSED.value,
@@ -124,6 +128,9 @@ class OutputArtifactService:
             governance_state=governance_state,
             producing_node_key=producing_node_key,
             replay_source=replay_source,
+            trace_id=trace_id,
+            replay_session_id=replay_session_id,
+            diagnostic_reference=diagnostic_reference,
             graph_lineage=graph_lineage or {},
             source_type=source_type,
             artifact_type=artifact_type,
@@ -203,6 +210,9 @@ class OutputArtifactService:
         governance_state: str | None = None,
         producing_node_key: str | None = None,
         replay_source: str | None = None,
+        trace_id: UUID | None = None,
+        replay_session_id: UUID | None = None,
+        diagnostic_reference: str | None = None,
         exportable: bool | None = None,
         archived: bool | None = None,
         retention_policy: str | None = None,
@@ -260,6 +270,12 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.producing_node_key == producing_node_key)
         if replay_source is not None:
             statement = statement.where(OutputArtifact.replay_source == replay_source)
+        if trace_id is not None:
+            statement = statement.where(OutputArtifact.trace_id == trace_id)
+        if replay_session_id is not None:
+            statement = statement.where(OutputArtifact.replay_session_id == replay_session_id)
+        if diagnostic_reference is not None:
+            statement = statement.where(OutputArtifact.diagnostic_reference == diagnostic_reference)
         if exportable is not None:
             statement = statement.where(OutputArtifact.exportable.is_(exportable))
         if retention_policy is not None:
@@ -426,6 +442,7 @@ class OutputArtifactService:
         playbook = await self._get_playbook(workspace_id=workspace_id, playbook_id=run.playbook_id)
         playbook_name = (run.output_payload or {}).get("playbook_name") or (playbook.name if playbook else "playbook")
         workflow_run_id = self._uuid_or_none((run.output_payload or {}).get("workflow_run_id"))
+        trace_id = await self._latest_trace_id_for_workflow(workspace_id=workspace_id, workflow_run_id=workflow_run_id)
         artifact_specs = self._artifact_specs_from_playbook_run(run=run, playbook_name=str(playbook_name))
         artifacts: list[OutputArtifact] = []
         for spec in artifact_specs:
@@ -437,6 +454,7 @@ class OutputArtifactService:
                     source_playbook_run_id=run.id,
                     source_conversation_id=run.thread_id,
                     workflow_run_id=workflow_run_id,
+                    trace_id=trace_id,
                     generated_by="ConversationPlaybookService",
                     created_by=created_by,
                     commit=False,
@@ -448,6 +466,24 @@ class OutputArtifactService:
             for artifact in artifacts:
                 await self.session.refresh(artifact)
         return artifacts
+
+    async def _latest_trace_id_for_workflow(self, *, workspace_id: str, workflow_run_id: UUID | None) -> UUID | None:
+        """Return the latest completed trace for artifact provenance."""
+
+        if workflow_run_id is None:
+            return None
+        result = await self.session.execute(
+            select(WorkflowExecutionTrace)
+            .where(
+                WorkflowExecutionTrace.workspace_id == workspace_id,
+                WorkflowExecutionTrace.workflow_run_id == workflow_run_id,
+                WorkflowExecutionTrace.event_type == "node_completed",
+            )
+            .order_by(WorkflowExecutionTrace.created_at.desc())
+            .limit(1)
+        )
+        trace = result.scalar_one_or_none()
+        return trace.id if trace is not None else None
 
     async def create_from_conversation_message(
         self,
@@ -917,6 +953,9 @@ class OutputArtifactService:
             "memory_snapshot_id": str(artifact.memory_snapshot_id) if artifact.memory_snapshot_id else None,
             "producing_node_key": artifact.producing_node_key,
             "replay_source": artifact.replay_source,
+            "trace_id": str(artifact.trace_id) if artifact.trace_id else None,
+            "replay_session_id": str(artifact.replay_session_id) if artifact.replay_session_id else None,
+            "diagnostic_reference": artifact.diagnostic_reference,
             "graph_lineage": artifact.graph_lineage or {},
             "generated_by": artifact.generated_by,
             "exportable": artifact.exportable,

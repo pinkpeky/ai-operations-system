@@ -145,6 +145,24 @@ class OutputArtifact(IdTimestampMixin, Base):
         nullable=True,
         comment="Replay source marker for graph lineage",
     )
+    trace_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_execution_traces.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Workflow execution trace associated with this artifact",
+    )
+    replay_session_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_replay_sessions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Replay Center session associated with this artifact",
+    )
+    diagnostic_reference: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Workflow diagnostic reference associated with this artifact",
+    )
     graph_lineage: Mapped[dict[str, Any]] = mapped_column(
         JSON,
         default=dict,

@@ -59,6 +59,41 @@ export type WorkflowPlannerResult = {
   condition_results: Record<string, unknown>[];
 };
 
+export type WorkflowExecutionTrace = {
+  id: string;
+  workflow_run_id: string;
+  node_key: string | null;
+  event_type: string;
+  execution_phase: string | null;
+  status: string | null;
+  retry_count: number;
+  fallback_triggered: boolean;
+  duration_ms: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type WorkflowRuntimeDiagnostic = {
+  id: string;
+  workflow_run_id: string;
+  diagnostic_type: string;
+  severity: string;
+  summary: string;
+  suggested_action: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+};
+
+export type WorkflowReplaySession = {
+  id: string;
+  workflow_run_id: string;
+  replay_status: string;
+  replay_mode: string;
+  replay_source_node_key: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
 function normalizeApiBase(rawBase: string): string {
   const trimmed = rawBase.replace(/\/$/, "");
   return trimmed.endsWith("/api/v1") ? trimmed : `${trimmed}/api/v1`;
@@ -91,6 +126,18 @@ export const workflowClient = {
     requestJson<{ workflow_run_id: string; items: AgentMemorySnapshot[] }>(`/workflow-runs/${workflowRunId}/memory-snapshots`, {}, settings),
   getPlanner: (workflowRunId: string, settings?: ConversationSettings) =>
     requestJson<WorkflowPlannerResult>(`/workflow-runs/${workflowRunId}/planner`, {}, settings),
+  listTraces: (workflowRunId: string, settings?: ConversationSettings) =>
+    requestJson<{ workflow_run_id: string; items: WorkflowExecutionTrace[] }>(`/workflow-runs/${workflowRunId}/traces`, {}, settings),
+  listDiagnostics: (workflowRunId: string, settings?: ConversationSettings) =>
+    requestJson<{ workflow_run_id: string; items: WorkflowRuntimeDiagnostic[] }>(`/workflow-runs/${workflowRunId}/diagnostics`, {}, settings),
+  getAnalytics: (workflowRunId: string, settings?: ConversationSettings) =>
+    requestJson<{ workflow_run_id: string; analytics: Record<string, unknown> }>(`/workflow-runs/${workflowRunId}/analytics`, {}, settings),
+  createReplaySession: (workflowRunId: string, settings?: ConversationSettings) =>
+    requestJson<WorkflowReplaySession>(
+      `/workflow-runs/${workflowRunId}/replay-sessions`,
+      { method: "POST", body: JSON.stringify({ replay_mode: "metadata_only", metadata: { source: "worker_console" } }) },
+      settings,
+    ),
   createReplay: (workflowRunId: string, settings?: ConversationSettings) =>
     requestJson<{ id: string; replay_status: string; metadata: Record<string, unknown> }>(
       `/workflow-runs/${workflowRunId}/replay`,

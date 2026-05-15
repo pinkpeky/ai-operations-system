@@ -133,6 +133,50 @@ export interface WorkflowReplay {
   created_at: string;
 }
 
+export interface WorkflowExecutionTrace {
+  id: string;
+  workflow_run_id: string;
+  workflow_step_id: string | null;
+  node_key: string | null;
+  event_type: string;
+  execution_phase: string | null;
+  status: string | null;
+  input_snapshot: JsonRecord;
+  output_snapshot: JsonRecord;
+  planner_snapshot: JsonRecord;
+  retry_count: number;
+  fallback_triggered: boolean;
+  duration_ms: number | null;
+  metadata: JsonRecord;
+  created_at: string;
+}
+
+export interface WorkflowRuntimeDiagnostic {
+  id: string;
+  workflow_run_id: string;
+  diagnostic_type: string;
+  severity: string;
+  summary: string;
+  details: JsonRecord;
+  suggested_action: string | null;
+  metadata: JsonRecord;
+  created_at: string;
+}
+
+export interface WorkflowReplaySession {
+  id: string;
+  workflow_run_id: string;
+  replay_source_checkpoint_id: string | null;
+  replay_source_node_key: string | null;
+  replay_status: string;
+  replay_mode: string;
+  initiated_by: string | null;
+  metadata: JsonRecord;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
 export const workflowClient = {
   listRuns: (
     settings: AdminSettings = readAdminSettings(),
@@ -168,6 +212,27 @@ export const workflowClient = {
       method: "POST",
       body: JSON.stringify({ replay_reason: "Replay metadata requested from Admin Dashboard" }),
     }, settings),
+  listTraces: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<{ workflow_run_id: string; items: WorkflowExecutionTrace[] }>(`/workflow-runs/${workflowRunId}/traces`, {}, settings),
+  listDiagnostics: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<{ workflow_run_id: string; items: WorkflowRuntimeDiagnostic[] }>(`/workflow-runs/${workflowRunId}/diagnostics`, {}, settings),
+  getAnalytics: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<{ workflow_run_id: string; analytics: JsonRecord }>(`/workflow-runs/${workflowRunId}/analytics`, {}, settings),
+  getRuntimeSummary: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<{ workflow_run_id: string; summary: JsonRecord; diagnostics: WorkflowRuntimeDiagnostic[] }>(
+      `/workflow-runs/${workflowRunId}/runtime-summary`,
+      {},
+      settings,
+    ),
+  createReplaySession: (workflowRunId: string, settings: AdminSettings = readAdminSettings(), mode = "metadata_only") =>
+    requestJson<WorkflowReplaySession>(`/workflow-runs/${workflowRunId}/replay-sessions`, {
+      method: "POST",
+      body: JSON.stringify({ replay_mode: mode, metadata: { source: "admin_dashboard" } }),
+    }, settings),
+  listReplaySessions: (settings: AdminSettings = readAdminSettings(), workflowRunId?: string) => {
+    const suffix = workflowRunId ? `?workflow_run_id=${encodeURIComponent(workflowRunId)}` : "";
+    return requestJson<ApiList<WorkflowReplaySession>>(`/workflow-replay-sessions${suffix}`, {}, settings);
+  },
   pause: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
     requestJson<WorkflowRun>(`/workflow-runs/${workflowRunId}/pause`, {
       method: "POST",

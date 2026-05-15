@@ -11,10 +11,13 @@ from pydantic import BaseModel, Field
 from app.models.workflow import (
     AgentMemorySnapshot,
     WorkflowCheckpoint,
+    WorkflowExecutionTrace,
     WorkflowGraph,
     WorkflowGraphEdge,
     WorkflowGraphNode,
     WorkflowReplay,
+    WorkflowReplaySession,
+    WorkflowRuntimeDiagnostic,
     WorkflowRun,
     WorkflowStep,
 )
@@ -44,6 +47,7 @@ WorkflowNodeTypeLiteral = Literal[
     "no_op",
 ]
 WorkflowNodeExecutionModeLiteral = Literal["sync", "async", "background"]
+WorkflowReplayModeLiteral = Literal["dry_run", "metadata_only", "replay_execution"]
 
 
 class WorkflowRunResponse(BaseModel):
@@ -332,6 +336,144 @@ class WorkflowReplayResponse(BaseModel):
         )
 
 
+class WorkflowExecutionTraceResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    workflow_run_id: UUID
+    workflow_step_id: UUID | None
+    node_key: str | None
+    event_type: str
+    execution_phase: str | None
+    status: str | None
+    input_snapshot: dict[str, Any]
+    output_snapshot: dict[str, Any]
+    planner_snapshot: dict[str, Any]
+    retry_count: int
+    fallback_triggered: bool
+    duration_ms: int | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, trace: WorkflowExecutionTrace) -> "WorkflowExecutionTraceResponse":
+        return cls(
+            id=trace.id,
+            workspace_id=trace.workspace_id,
+            workflow_run_id=trace.workflow_run_id,
+            workflow_step_id=trace.workflow_step_id,
+            node_key=trace.node_key,
+            event_type=trace.event_type,
+            execution_phase=trace.execution_phase,
+            status=trace.status,
+            input_snapshot=trace.input_snapshot or {},
+            output_snapshot=trace.output_snapshot or {},
+            planner_snapshot=trace.planner_snapshot or {},
+            retry_count=trace.retry_count,
+            fallback_triggered=trace.fallback_triggered,
+            duration_ms=trace.duration_ms,
+            metadata=trace.trace_metadata or {},
+            created_at=trace.created_at,
+            updated_at=trace.updated_at,
+        )
+
+
+class WorkflowExecutionTraceListResponse(BaseModel):
+    workflow_run_id: UUID
+    items: list[WorkflowExecutionTraceResponse]
+
+
+class WorkflowRuntimeDiagnosticResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    workflow_run_id: UUID
+    diagnostic_type: str
+    severity: str
+    summary: str
+    details: dict[str, Any]
+    suggested_action: str | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, diagnostic: WorkflowRuntimeDiagnostic) -> "WorkflowRuntimeDiagnosticResponse":
+        return cls(
+            id=diagnostic.id,
+            workspace_id=diagnostic.workspace_id,
+            workflow_run_id=diagnostic.workflow_run_id,
+            diagnostic_type=diagnostic.diagnostic_type,
+            severity=diagnostic.severity,
+            summary=diagnostic.summary,
+            details=diagnostic.details or {},
+            suggested_action=diagnostic.suggested_action,
+            metadata=diagnostic.diagnostic_metadata or {},
+            created_at=diagnostic.created_at,
+            updated_at=diagnostic.updated_at,
+        )
+
+
+class WorkflowRuntimeDiagnosticListResponse(BaseModel):
+    workflow_run_id: UUID
+    items: list[WorkflowRuntimeDiagnosticResponse]
+
+
+class WorkflowReplaySessionCreateRequest(BaseModel):
+    replay_source_checkpoint_id: UUID | None = None
+    replay_source_node_key: str | None = Field(default=None, max_length=128)
+    replay_mode: WorkflowReplayModeLiteral = "metadata_only"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkflowReplaySessionResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    workflow_run_id: UUID
+    replay_source_checkpoint_id: UUID | None
+    replay_source_node_key: str | None
+    replay_status: str
+    replay_mode: str
+    initiated_by: str | None
+    metadata: dict[str, Any]
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, replay: WorkflowReplaySession) -> "WorkflowReplaySessionResponse":
+        return cls(
+            id=replay.id,
+            workspace_id=replay.workspace_id,
+            workflow_run_id=replay.workflow_run_id,
+            replay_source_checkpoint_id=replay.replay_source_checkpoint_id,
+            replay_source_node_key=replay.replay_source_node_key,
+            replay_status=replay.replay_status,
+            replay_mode=replay.replay_mode,
+            initiated_by=replay.initiated_by,
+            metadata=replay.replay_metadata or {},
+            started_at=replay.started_at,
+            completed_at=replay.completed_at,
+            created_at=replay.created_at,
+            updated_at=replay.updated_at,
+        )
+
+
+class WorkflowReplaySessionListResponse(BaseModel):
+    items: list[WorkflowReplaySessionResponse]
+
+
+class WorkflowRuntimeSummaryResponse(BaseModel):
+    workflow_run_id: UUID
+    summary: dict[str, Any]
+    diagnostics: list[WorkflowRuntimeDiagnosticResponse] = Field(default_factory=list)
+
+
+class WorkflowObservabilityAnalyticsResponse(BaseModel):
+    workflow_run_id: UUID
+    analytics: dict[str, Any]
+
+
 class WorkflowCheckpointCreateRequest(BaseModel):
     checkpoint_name: str = Field(default="manual checkpoint", min_length=1, max_length=255)
     checkpoint_type: WorkflowCheckpointTypeLiteral = "manual"
@@ -398,6 +540,8 @@ class AgentMemorySnapshotResponse(BaseModel):
     workflow_template_id: UUID | None
     workflow_template_version_id: UUID | None
     workflow_template_run_id: UUID | None
+    replay_session_id: UUID | None
+    diagnostic_id: UUID | None
     node_key: str | None
     memory_type: str
     summary: str | None
@@ -419,6 +563,8 @@ class AgentMemorySnapshotResponse(BaseModel):
             workflow_template_id=snapshot.workflow_template_id,
             workflow_template_version_id=snapshot.workflow_template_version_id,
             workflow_template_run_id=snapshot.workflow_template_run_id,
+            replay_session_id=snapshot.replay_session_id,
+            diagnostic_id=snapshot.diagnostic_id,
             node_key=snapshot.node_key,
             memory_type=snapshot.memory_type,
             summary=snapshot.summary,

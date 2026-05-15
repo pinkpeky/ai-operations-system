@@ -35,7 +35,16 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
-import { workflowClient, AgentMemorySnapshot, WorkflowPlannerResult, WorkflowRun, WorkflowStep } from "./api/workflowClient";
+import {
+  workflowClient,
+  AgentMemorySnapshot,
+  WorkflowExecutionTrace,
+  WorkflowPlannerResult,
+  WorkflowReplaySession,
+  WorkflowRuntimeDiagnostic,
+  WorkflowRun,
+  WorkflowStep,
+} from "./api/workflowClient";
 import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
 import "./styles.css";
@@ -126,6 +135,10 @@ function ChatPanel() {
   const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
   const [memorySnapshots, setMemorySnapshots] = useState<AgentMemorySnapshot[]>([]);
+  const [workflowTraces, setWorkflowTraces] = useState<WorkflowExecutionTrace[]>([]);
+  const [workflowDiagnostics, setWorkflowDiagnostics] = useState<WorkflowRuntimeDiagnostic[]>([]);
+  const [workflowReplaySessions, setWorkflowReplaySessions] = useState<WorkflowReplaySession[]>([]);
+  const [workflowAnalytics, setWorkflowAnalytics] = useState<Record<string, unknown> | null>(null);
   const [selectedWorkflowRunId, setSelectedWorkflowRunId] = useState<string | null>(null);
   const [workflowPlanner, setWorkflowPlanner] = useState<WorkflowPlannerResult | null>(null);
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplate[]>([]);
@@ -198,14 +211,26 @@ function ChatPanel() {
           workflowClient.listMemorySnapshots(workflowId, settings),
           workflowClient.getPlanner(workflowId, settings).catch(() => null),
         ]);
+        const [traces, diagnostics, analytics] = await Promise.all([
+          workflowClient.listTraces(workflowId, settings).catch(() => ({ items: [] })),
+          workflowClient.listDiagnostics(workflowId, settings).catch(() => ({ items: [] })),
+          workflowClient.getAnalytics(workflowId, settings).catch(() => ({ analytics: {} })),
+        ]);
         setWorkflowSteps(steps.items);
         setMemorySnapshots(memories.items);
         setWorkflowPlanner(planner);
+        setWorkflowTraces(traces.items);
+        setWorkflowDiagnostics(diagnostics.items);
+        setWorkflowAnalytics(analytics.analytics);
       }
     } catch {
       setWorkflowRuns([]);
       setWorkflowSteps([]);
       setMemorySnapshots([]);
+      setWorkflowTraces([]);
+      setWorkflowDiagnostics([]);
+      setWorkflowReplaySessions([]);
+      setWorkflowAnalytics(null);
       setWorkflowPlanner(null);
       setWorkflowTemplates([]);
       setWorkflowTemplateRuns([]);
@@ -804,6 +829,7 @@ function ChatPanel() {
               <button className="refresh-button" onClick={() => void workflowClient.pause(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Pause</button>
               <button className="refresh-button" onClick={() => void workflowClient.resume(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Resume</button>
               <button className="refresh-button" onClick={() => void workflowClient.createReplay(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Replay metadata</button>
+              <button className="refresh-button" onClick={() => void workflowClient.createReplaySession(workflow.id, settings).then((replay) => { setWorkflowReplaySessions((current) => [replay, ...current]); return refreshWorkflows(); })} disabled={chatLoading}>Replay Center</button>
             </div>
           </div>
         )) : (
@@ -820,7 +846,26 @@ function ChatPanel() {
           retry_paths: workflowPlanner?.retry_paths ?? [],
           fallback_paths: workflowPlanner?.fallback_paths ?? [],
           condition_results: workflowPlanner?.condition_results ?? [],
+          analytics: workflowAnalytics ?? {},
+          trace_count: workflowTraces.length,
+          diagnostics: workflowDiagnostics.map((item) => ({ type: item.diagnostic_type, severity: item.severity, summary: item.summary })),
+          replay_sessions: workflowReplaySessions.map((item) => ({ id: item.id, mode: item.replay_mode, status: item.replay_status })),
         }, null, 2)}</pre>
+        <h4>Execution Traces / Diagnostics</h4>
+        {workflowTraces.length > 0 ? workflowTraces.slice(0, 8).map((trace) => (
+          <div key={trace.id} className="event-item">
+            <strong>{trace.event_type}</strong>
+            <span>{trace.node_key ?? "-"} | retry: {trace.retry_count} | fallback: {String(trace.fallback_triggered)}</span>
+          </div>
+        )) : (
+          <div className="empty-chat">No execution traces yet.</div>
+        )}
+        {workflowDiagnostics.length > 0 ? workflowDiagnostics.slice(0, 4).map((diagnostic) => (
+          <div key={diagnostic.id} className="event-item">
+            <strong>{diagnostic.severity}: {diagnostic.diagnostic_type}</strong>
+            <span>{diagnostic.summary}</span>
+          </div>
+        )) : null}
         {workflowSteps.length > 0 ? workflowSteps.map((step) => (
           <div key={step.id} className="event-item">
             <strong>{step.step_name}</strong>

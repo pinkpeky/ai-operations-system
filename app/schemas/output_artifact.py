@@ -85,6 +85,9 @@ class OutputArtifactCreateRequest(BaseModel):
     governance_state: str | None = Field(default=None, max_length=64)
     producing_node_key: str | None = Field(default=None, max_length=128)
     replay_source: str | None = Field(default=None, max_length=255)
+    trace_id: UUID | None = None
+    replay_session_id: UUID | None = None
+    diagnostic_reference: str | None = Field(default=None, max_length=128)
     graph_lineage: dict[str, Any] = Field(default_factory=dict)
     artifact_role: ArtifactRoleLiteral | None = None
     artifact_stage: ArtifactStageLiteral = "processed"
@@ -136,6 +139,9 @@ class OutputArtifactResponse(BaseModel):
     governance_state: str | None
     producing_node_key: str | None
     replay_source: str | None
+    trace_id: UUID | None
+    replay_session_id: UUID | None
+    diagnostic_reference: str | None
     graph_lineage: dict[str, Any]
     source_type: str
     artifact_type: str
@@ -181,6 +187,9 @@ class OutputArtifactResponse(BaseModel):
             governance_state=artifact.governance_state,
             producing_node_key=artifact.producing_node_key,
             replay_source=artifact.replay_source,
+            trace_id=artifact.trace_id,
+            replay_session_id=artifact.replay_session_id,
+            diagnostic_reference=artifact.diagnostic_reference,
             graph_lineage=artifact.graph_lineage or {},
             source_type=artifact.source_type,
             artifact_type=artifact.artifact_type,

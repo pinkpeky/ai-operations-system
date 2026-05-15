@@ -56,9 +56,12 @@ import {
   workflowClient,
   AgentMemorySnapshot,
   WorkflowCheckpoint,
+  WorkflowExecutionTrace,
   WorkflowGraph,
   WorkflowPlannerResult,
   WorkflowReplay,
+  WorkflowReplaySession,
+  WorkflowRuntimeDiagnostic,
   WorkflowRun,
   WorkflowStep,
 } from "./api/workflowClient";
@@ -83,6 +86,7 @@ type PageKey =
   | "output-library"
   | "tasks"
   | "workflows"
+  | "workflow-observability"
   | "workflow-graphs"
   | "workflow-templates"
   | "template-governance"
@@ -113,6 +117,7 @@ const pages: PageDefinition[] = [
   { key: "output-library", label: "Output Library", icon: <FileText size={18} /> },
   { key: "tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
   { key: "workflows", label: "Workflows", icon: <GitBranch size={18} /> },
+  { key: "workflow-observability", label: "Replay Center", icon: <Activity size={18} /> },
   { key: "workflow-graphs", label: "Workflow Graphs", icon: <GitBranch size={18} /> },
   { key: "workflow-templates", label: "Workflow Templates", icon: <GitBranch size={18} /> },
   { key: "template-governance", label: "Template Governance", icon: <ShieldCheck size={18} /> },
@@ -1702,6 +1707,142 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
+function WorkflowObservabilityPage({ settings }: { settings: AdminSettings }) {
+  const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
+  const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
+  const [traces, setTraces] = useState<WorkflowExecutionTrace[]>([]);
+  const [diagnostics, setDiagnostics] = useState<WorkflowRuntimeDiagnostic[]>([]);
+  const [analytics, setAnalytics] = useState<JsonRecord | null>(null);
+  const [summary, setSummary] = useState<JsonRecord | null>(null);
+  const [replaySessions, setReplaySessions] = useState<WorkflowReplaySession[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setRuns((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await workflowClient.listRuns(settings, { status: undefined });
+      const rows = response.items ?? [];
+      setRuns({ data: rows, error: null, loading: false, updatedAt: nowLabel() });
+      if (!selectedRun && rows.length > 0) {
+        setSelectedRun(rows[0]);
+      }
+    } catch (error) {
+      setRuns({
+        data: null,
+        error: error instanceof Error ? error.message : "Workflow observability API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [selectedRun, settings]);
+
+  const loadObservability = useCallback(
+    async (workflow: WorkflowRun | null) => {
+      if (!workflow) {
+        return;
+      }
+      setActionError(null);
+      try {
+        const [traceList, diagnosticList, analyticsResult, runtimeSummary, replayList] = await Promise.all([
+          workflowClient.listTraces(workflow.id, settings),
+          workflowClient.listDiagnostics(workflow.id, settings),
+          workflowClient.getAnalytics(workflow.id, settings),
+          workflowClient.getRuntimeSummary(workflow.id, settings),
+          workflowClient.listReplaySessions(settings, workflow.id),
+        ]);
+        setTraces(traceList.items ?? []);
+        setDiagnostics(diagnosticList.items ?? []);
+        setAnalytics(analyticsResult.analytics ?? {});
+        setSummary(runtimeSummary.summary ?? {});
+        setReplaySessions(replayList.items ?? []);
+      } catch (error) {
+        setTraces([]);
+        setDiagnostics([]);
+        setAnalytics(null);
+        setSummary(null);
+        setReplaySessions([]);
+        setActionError(error instanceof Error ? error.message : "Replay Center detail unavailable");
+      }
+    },
+    [settings],
+  );
+
+  const createReplaySession = async () => {
+    if (!selectedRun) {
+      return;
+    }
+    setActionError(null);
+    try {
+      await workflowClient.createReplaySession(selectedRun.id, settings, "metadata_only");
+      await loadObservability(selectedRun);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Replay session creation failed");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    void loadObservability(selectedRun);
+  }, [loadObservability, selectedRun]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Workflow Observability"
+        description="Execution trace timeline, node inspection, retry/fallback visualization, diagnostics, runtime summary, and Replay Center. This is not OpenTelemetry and not deterministic replay."
+        action={<RefreshButton onClick={load} />}
+      >
+        <LoadNotice state={runs} />
+        <Table
+          rows={(runs.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedRun?.id ?? null}
+          onSelect={(row) => setSelectedRun(row as unknown as WorkflowRun)}
+          emptyLabel="No workflow runs available for Replay Center."
+          columns={[
+            { key: "id", label: "workflow_run_id" },
+            { key: "source_type", label: "source" },
+            { key: "status", label: "status" },
+            { key: "current_node_key", label: "current_node" },
+            { key: "planned_next_nodes", label: "next" },
+            { key: "updated_at", label: "updated_at" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <div className="detail-title">
+          <h2>Replay Center</h2>
+          <button className="primary-button" onClick={() => void createReplaySession()} disabled={!selectedRun}>
+            <History size={15} />
+            Create replay session
+          </button>
+        </div>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <p className="foundation-note">Replay sessions are metadata_only or dry_run. They do not re-execute browser/OpenClaw actions or bypass approvals.</p>
+        <h3>Runtime Summary</h3>
+        <JsonPreview value={summary || { status: "select a workflow run" }} />
+        <h3>Analytics</h3>
+        <div className="metrics-grid compact">
+          <DataCard title="Fallbacks" value={String(analytics?.fallback_frequency ?? 0)} icon={<GitBranch size={20} />} />
+          <DataCard title="Approvals" value={String(analytics?.approval_wait_frequency ?? 0)} icon={<ShieldCheck size={20} />} />
+          <DataCard title="Replays" value={String(analytics?.replay_frequency ?? 0)} icon={<History size={20} />} />
+        </div>
+        <JsonPreview value={analytics || { status: "unavailable" }} />
+        <h3>Execution Trace Timeline</h3>
+        <Timeline rows={traces as unknown as JsonRecord[]} primary="event_type" secondary="node_key" />
+        <h3>Node Inspection</h3>
+        <JsonPreview value={(traces[0] as unknown as JsonRecord) || { status: "no traces" }} />
+        <h3>Diagnostics</h3>
+        <Timeline rows={diagnostics as unknown as JsonRecord[]} primary="diagnostic_type" secondary="summary" />
+        <h3>Replay Sessions</h3>
+        <Timeline rows={replaySessions as unknown as JsonRecord[]} primary="replay_mode" secondary="replay_status" />
+      </aside>
+    </div>
+  );
+}
+
 function WorkflowGraphsPage({ settings }: { settings: AdminSettings }) {
   const [graphs, setGraphs] = useState<AsyncState<WorkflowGraph[]>>(emptyState());
   const [selectedGraph, setSelectedGraph] = useState<WorkflowGraph | null>(null);
@@ -2448,6 +2589,7 @@ function App() {
           {activePage === "output-library" ? <OutputLibraryPage settings={settings} /> : null}
           {activePage === "tasks" ? <TasksPage settings={settings} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
+          {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} /> : null}
           {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
           {activePage === "workflow-templates" ? <WorkflowTemplatesPage settings={settings} /> : null}
           {activePage === "template-governance" ? <TemplateGovernancePage settings={settings} /> : null}

@@ -170,6 +170,7 @@ class DocsRuntimeVerifier:
             "app/models/workflow.py",
             "app/workflow/services.py",
             "app/workflow/planner.py",
+            "app/workflow/observability.py",
             "app/workflow/template_definitions.py",
             "app/workflow/template_registry.py",
             "app/schemas/workflow.py",
@@ -466,6 +467,13 @@ class DocsRuntimeVerifier:
             "/api/v1/workflow-runs/{workflow_run_id}/replay",
             "/api/v1/workflow-runs/{workflow_run_id}/graph",
             "/api/v1/workflow-runs/{workflow_run_id}/planner",
+            "/api/v1/workflow-runs/{workflow_run_id}/traces",
+            "/api/v1/workflow-runs/{workflow_run_id}/diagnostics",
+            "/api/v1/workflow-runs/{workflow_run_id}/analytics",
+            "/api/v1/workflow-runs/{workflow_run_id}/replay-sessions",
+            "/api/v1/workflow-runs/{workflow_run_id}/runtime-summary",
+            "/api/v1/workflow-replay-sessions",
+            "/api/v1/workflow-replay-sessions/{replay_session_id}",
             "/api/v1/workflow-graphs",
             "/api/v1/workflow-graphs/{graph_id}",
             "/api/v1/workflow-graphs/{graph_id}/validate",
@@ -1065,6 +1073,19 @@ class DocsRuntimeVerifier:
             "rollback",
             "deprecated",
             "public marketplace",
+            "workflow_execution_traces",
+            "workflow_runtime_diagnostics",
+            "workflow_replay_sessions",
+            "WorkflowExecutionTraceService",
+            "WorkflowDiagnosticsService",
+            "Execution Trace",
+            "Replay Center",
+            "Runtime Summary",
+            "Failure Hotspots",
+            "metadata_only",
+            "dry_run",
+            "not distributed tracing platform",
+            "not deterministic replay engine",
             "not ComfyUI",
             "not Celery",
             "not Kubernetes",
@@ -1540,6 +1561,19 @@ class DocsRuntimeVerifier:
             "Compatibility Matrix",
             "Marketplace View",
             "not public marketplace",
+            "Phase 49",
+            "Workflow Run Observability & Replay Center",
+            "workflow_execution_traces",
+            "workflow_runtime_diagnostics",
+            "workflow_replay_sessions",
+            "WorkflowExecutionTraceService",
+            "WorkflowDiagnosticsService",
+            "Execution Trace",
+            "Replay Center",
+            "Runtime Summary",
+            "Failure Hotspots",
+            "not distributed tracing platform",
+            "not deterministic replay engine",
             "not ComfyUI",
         ]
         for term in required_terms:
@@ -1736,8 +1770,24 @@ class DocsRuntimeVerifier:
                 or "not ComfyUI" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 48 scope")
+            elif not re.search(r"Phase\s+49", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 49")
+            elif (
+                "Workflow Run Observability & Replay Center" not in text
+                or "workflow_execution_traces" not in text
+                or "workflow_runtime_diagnostics" not in text
+                or "workflow_replay_sessions" not in text
+                or "WorkflowExecutionTraceService" not in text
+                or "WorkflowDiagnosticsService" not in text
+                or "Replay Center" not in text
+                or "Failure Hotspots" not in text
+                or "not distributed tracing platform" not in text
+                or "not deterministic replay engine" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 49 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, and Phase 48")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, and Phase 49")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

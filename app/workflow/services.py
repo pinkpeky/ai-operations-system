@@ -30,6 +30,7 @@ from app.models.workflow import (
     WorkflowStep,
 )
 from app.workflow.planner import WorkflowExecutionPlanner, WorkflowPlannerResult
+from app.workflow.observability import WorkflowExecutionTraceService
 
 
 class WorkflowStateService:
@@ -214,6 +215,7 @@ class WorkflowStateService:
             message=f"Workflow step started: {step.step_name}",
             payload={"workflow_run_id": str(workflow.id), "workflow_step_id": str(step.id), "step_index": step_index},
         )
+        await self._safe_trace("trace_node_start", workflow=workflow, step=step, commit=False)
         if commit:
             await self.session.commit()
             await self.session.refresh(step)
@@ -243,7 +245,9 @@ class WorkflowStateService:
         workflow.current_step = max(workflow.current_step, step.step_index + 1)
         if step.node_key:
             workflow.current_node_key = step.node_key
-        await self._refresh_graph_plan(workflow=workflow, current_node=step.node_key, status="success")
+        planner_result = await self._refresh_graph_plan(workflow=workflow, current_node=step.node_key, status="success")
+        await self._safe_trace("trace_node_complete", workflow=workflow, step=step, planner_result=planner_result, commit=False)
+        await self._safe_trace("trace_planner_decision", workflow=workflow, planner_result=planner_result, node_key=step.node_key, commit=False)
         await self._append_conversation_event(
             workflow,
             event_type="workflow_step_completed",
@@ -276,7 +280,14 @@ class WorkflowStateService:
         flag_modified(step, "output_payload")
         if step.node_key:
             workflow.current_node_key = step.node_key
-        await self._refresh_graph_plan(workflow=workflow, current_node=step.node_key, status="failure")
+        planner_result = await self._refresh_graph_plan(workflow=workflow, current_node=step.node_key, status="failure")
+        await self._safe_trace("trace_node_failure", workflow=workflow, step=step, planner_result=planner_result, error=error, commit=False)
+        await self._safe_trace("trace_planner_decision", workflow=workflow, planner_result=planner_result, node_key=step.node_key, commit=False)
+        if planner_result is not None:
+            if any(item.get("matched") for item in planner_result.retry_paths):
+                await self._safe_trace("trace_retry", workflow=workflow, node_key=step.node_key, retry_count=1, commit=False)
+            if any(item.get("matched") for item in planner_result.fallback_paths):
+                await self._safe_trace("trace_fallback", workflow=workflow, node_key=step.node_key, commit=False)
         await self._append_conversation_event(
             workflow,
             event_type="workflow_step_failed",
@@ -306,6 +317,8 @@ class WorkflowStateService:
             message=reason or "Workflow paused",
             payload={"workflow_run_id": str(workflow.id), "status": workflow.status},
         )
+        if waiting_approval:
+            await self._safe_trace("trace_approval_wait", workflow=workflow, node_key=workflow.current_node_key, commit=False)
         if commit:
             await self.session.commit()
             await self.session.refresh(workflow)
@@ -327,6 +340,14 @@ class WorkflowStateService:
             event_type="workflow_resumed",
             message=reason or "Workflow resumed",
             payload={"workflow_run_id": str(workflow.id)},
+        )
+        await self._safe_create_trace(
+            workflow=workflow,
+            event_type="approval_resume",
+            execution_phase="approval",
+            status=workflow.status,
+            metadata={"reason": reason},
+            commit=False,
         )
         if commit:
             await self.session.commit()
@@ -625,6 +646,22 @@ class WorkflowStateService:
             message="Workflow replay metadata created",
             payload={"workflow_run_id": str(workflow.id), "workflow_replay_id": str(replay.id)},
         )
+        await self._safe_create_trace(
+            workflow=workflow,
+            event_type="replay_started",
+            execution_phase="replay",
+            status=replay.replay_status,
+            metadata={"workflow_replay_id": str(replay.id), "legacy_replay_metadata": True},
+            commit=False,
+        )
+        await self._safe_create_trace(
+            workflow=workflow,
+            event_type="replay_completed",
+            execution_phase="replay",
+            status=replay.replay_status,
+            metadata={"workflow_replay_id": str(replay.id), "metadata_only": True},
+            commit=False,
+        )
         if commit:
             await self.session.commit()
             await self.session.refresh(replay)
@@ -670,9 +707,9 @@ class WorkflowStateService:
             payload=payload or {},
         )
 
-    async def _refresh_graph_plan(self, *, workflow: WorkflowRun, current_node: str | None, status: str) -> None:
+    async def _refresh_graph_plan(self, *, workflow: WorkflowRun, current_node: str | None, status: str) -> WorkflowPlannerResult | None:
         if not workflow.graph_execution or workflow.workflow_graph_id is None:
-            return
+            return None
         graph = await WorkflowGraphService(self.session).require_graph(
             workspace_id=workflow.workspace_id,
             graph_id=workflow.workflow_graph_id,
@@ -693,6 +730,40 @@ class WorkflowStateService:
         flag_modified(workflow, "skipped_nodes")
         flag_modified(workflow, "retry_state")
         flag_modified(workflow, "fallback_state")
+        return result
+
+    async def _safe_trace(self, method_name: str, **kwargs: Any) -> None:
+        """Best-effort tracing that must never break workflow execution."""
+
+        try:
+            method = getattr(WorkflowExecutionTraceService(self.session), method_name)
+            await method(**kwargs)
+        except Exception:
+            return
+
+    async def _safe_create_trace(
+        self,
+        *,
+        workflow: WorkflowRun,
+        event_type: str,
+        execution_phase: str,
+        status: str | None,
+        metadata: dict[str, Any] | None = None,
+        commit: bool = False,
+    ) -> None:
+        try:
+            await WorkflowExecutionTraceService(self.session).create_trace(
+                workspace_id=workflow.workspace_id,
+                workflow_run_id=workflow.id,
+                node_key=workflow.current_node_key,
+                event_type=event_type,
+                execution_phase=execution_phase,
+                status=status,
+                metadata=metadata or {},
+                commit=commit,
+            )
+        except Exception:
+            return
 
     def _validate_workflow_status(self, status: str) -> None:
         if status not in {item.value for item in WorkflowRunStatus}:

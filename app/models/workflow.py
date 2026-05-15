@@ -14,8 +14,11 @@ from app.models.enums import (
     AgentMemorySnapshotType,
     WorkflowCheckpointType,
     WorkflowGraphEdgeType,
+    WorkflowDiagnosticSeverity,
     WorkflowNodeExecutionMode,
     WorkflowNodeType,
+    WorkflowReplayMode,
+    WorkflowReplaySessionStatus,
     WorkflowReplayStatus,
     WorkflowRunStatus,
     WorkflowStepStatus,
@@ -175,6 +178,18 @@ class WorkflowRun(IdTimestampMixin, Base):
         back_populates="workflow_run",
         cascade="save-update, merge, delete, delete-orphan",
     )
+    execution_traces: Mapped[list["WorkflowExecutionTrace"]] = relationship(
+        back_populates="workflow_run",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    diagnostics: Mapped[list["WorkflowRuntimeDiagnostic"]] = relationship(
+        back_populates="workflow_run",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    replay_sessions: Mapped[list["WorkflowReplaySession"]] = relationship(
+        back_populates="workflow_run",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
 
 
 class WorkflowStep(IdTimestampMixin, Base):
@@ -209,6 +224,7 @@ class WorkflowStep(IdTimestampMixin, Base):
     step_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
     workflow_run: Mapped[WorkflowRun] = relationship(back_populates="steps")
+    execution_traces: Mapped[list["WorkflowExecutionTrace"]] = relationship(back_populates="workflow_step")
 
 
 class WorkflowCheckpoint(IdTimestampMixin, Base):
@@ -273,6 +289,16 @@ class AgentMemorySnapshot(IdTimestampMixin, Base):
         index=True,
         nullable=True,
     )
+    replay_session_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_replay_sessions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    diagnostic_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_runtime_diagnostics.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     memory_type: Mapped[str] = mapped_column(
         String(64),
@@ -315,6 +341,101 @@ class WorkflowReplay(IdTimestampMixin, Base):
     replay_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
     workflow_run: Mapped[WorkflowRun] = relationship(back_populates="replay_records")
+
+
+class WorkflowExecutionTrace(IdTimestampMixin, Base):
+    """Structured execution trace for workflow graph/runtime diagnostics."""
+
+    __tablename__ = "workflow_execution_traces"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    workflow_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    workflow_step_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_steps.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    execution_phase: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    status: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    input_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    output_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    planner_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    fallback_triggered: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    trace_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    workflow_run: Mapped[WorkflowRun] = relationship(back_populates="execution_traces")
+    workflow_step: Mapped[WorkflowStep | None] = relationship(back_populates="execution_traces")
+
+
+class WorkflowRuntimeDiagnostic(IdTimestampMixin, Base):
+    """Workflow runtime diagnostic produced from traces, tasks, artifacts, and checkpoints."""
+
+    __tablename__ = "workflow_runtime_diagnostics"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    workflow_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    diagnostic_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    severity: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowDiagnosticSeverity.INFO.value,
+        index=True,
+        nullable=False,
+    )
+    summary: Mapped[str] = mapped_column(String(512), nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    suggested_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    diagnostic_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    workflow_run: Mapped[WorkflowRun] = relationship(back_populates="diagnostics")
+
+
+class WorkflowReplaySession(IdTimestampMixin, Base):
+    """Replay Center session metadata. This does not re-execute dangerous actions."""
+
+    __tablename__ = "workflow_replay_sessions"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    workflow_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    replay_source_checkpoint_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_checkpoints.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    replay_source_node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    replay_status: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowReplaySessionStatus.CREATED.value,
+        index=True,
+        nullable=False,
+    )
+    replay_mode: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowReplayMode.METADATA_ONLY.value,
+        index=True,
+        nullable=False,
+    )
+    initiated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    replay_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    workflow_run: Mapped[WorkflowRun] = relationship(back_populates="replay_sessions")
 
 
 class WorkflowTemplate(IdTimestampMixin, Base):

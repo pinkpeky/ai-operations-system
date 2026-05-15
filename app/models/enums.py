@@ -325,6 +325,47 @@ class WorkflowReplayStatus(StrEnum):
     FAILED = "failed"
 
 
+class WorkflowTraceEventType(StrEnum):
+    """Workflow execution trace event type."""
+
+    NODE_STARTED = "node_started"
+    NODE_COMPLETED = "node_completed"
+    NODE_FAILED = "node_failed"
+    RETRY_TRIGGERED = "retry_triggered"
+    FALLBACK_TRIGGERED = "fallback_triggered"
+    REPLAY_STARTED = "replay_started"
+    REPLAY_COMPLETED = "replay_completed"
+    PLANNER_DECISION = "planner_decision"
+    APPROVAL_WAIT = "approval_wait"
+    APPROVAL_RESUME = "approval_resume"
+
+
+class WorkflowDiagnosticSeverity(StrEnum):
+    """Workflow runtime diagnostic severity."""
+
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+class WorkflowReplaySessionStatus(StrEnum):
+    """Workflow replay center session status."""
+
+    CREATED = "created"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class WorkflowReplayMode(StrEnum):
+    """Workflow replay center mode."""
+
+    DRY_RUN = "dry_run"
+    METADATA_ONLY = "metadata_only"
+    REPLAY_EXECUTION = "replay_execution"
+
+
 class WorkflowTemplateStatus(StrEnum):
     """Workflow template lifecycle status."""
 
