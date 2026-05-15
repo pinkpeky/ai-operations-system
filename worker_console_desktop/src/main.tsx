@@ -19,7 +19,7 @@ import {
   WifiOff,
   XCircle,
 } from "lucide-react";
-import { listenForTrayControls, TrayControlAction, updateTrayTooltip } from "./desktopBridge";
+import { listenForTrayControls, startWorkerClientRuntime, TrayControlAction, updateTrayTooltip } from "./desktopBridge";
 import {
   browserRuntimeClient,
   BrowserRuntimeEvent,
@@ -84,6 +84,22 @@ type ControlAction =
   | "stopHeartbeat";
 
 type ConnectionState = "connected" | "reconnecting" | "disconnected" | "online" | "offline" | "error";
+type RuntimeActionStatus =
+  | "idle"
+  | "starting"
+  | "started"
+  | "failed"
+  | "unavailable"
+  | "port_conflict"
+  | "missing_config"
+  | "server_environment_warning";
+
+type RuntimeActionState = {
+  status: RuntimeActionStatus;
+  lastAttemptedAction: ControlAction | null;
+  lastErrorDetail: string | null;
+  lastCommand: string | null;
+};
 
 function StatusBadge({ label, active }: { label: string; active: boolean }) {
   return (
@@ -134,6 +150,70 @@ function buildTrayTooltip(status: WorkerStatus, connectionState: ConnectionState
     `heartbeat_running: ${status.heartbeat_running}`,
   ].join("\n");
 }
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForWorkerRuntime(client: LocalWorkerClient, timeoutMs = 30000): Promise<WorkerStatus> {
+  const startedAt = Date.now();
+  let lastError = "Worker Runtime did not become reachable before timeout.";
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const nextStatus = await client.getStatus();
+      if (nextStatus.runtime_running) {
+        return nextStatus;
+      }
+      lastError = `Worker API responded but runtime_running=${String(nextStatus.runtime_running)}.`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await sleep(1000);
+  }
+
+  throw new Error(lastError);
+}
+
+function classifyRuntimeStartError(message: string): RuntimeActionStatus {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("missing_config") || normalized.includes("worker config not found") || normalized.includes("missing worker config")) {
+    return "missing_config";
+  }
+  if (normalized.includes("port_conflict") || normalized.includes("already in use")) {
+    return "port_conflict";
+  }
+  if (normalized.includes("server_environment_warning")) {
+    return "server_environment_warning";
+  }
+  if (normalized.includes("unreachable")) {
+    return "unavailable";
+  }
+  return "failed";
+}
+
+function runtimeStatusLabel(status: RuntimeActionStatus): string {
+  const labels: Record<RuntimeActionStatus, string> = {
+    idle: "idle",
+    starting: "starting",
+    started: "started",
+    failed: "failed",
+    unavailable: "unavailable",
+    port_conflict: "port_conflict",
+    missing_config: "missing_config",
+    server_environment_warning: "server_environment_warning",
+  };
+  return labels[status];
+}
+
+const WORKER_UNREACHABLE_HINT =
+  "Worker Runtime 未启动. 请先启动 worker_client，或使用本地 Start Runtime 按钮，也可以使用 packaging 脚本启动. Tauri Desktop 内的 Start Runtime 会尝试启动本仓库的 worker_client；如果失败，请检查 worker_config.yaml、Python 环境，或使用 packaging 脚本启动.";
+
+const DESKTOP_BOUNDARY_EN =
+  "This desktop console controls the worker runtime on this local machine. If running on the server host, Start Runtime starts a server-local worker, not a remote customer machine. For real client E2E, run this app on the customer machine.";
+
+const DESKTOP_BOUNDARY_ZH =
+  "桌面控制台控制的是当前本机 Worker Runtime。如果在服务器上运行，它启动的是服务器本机 worker，不是远程客户机 worker。真实客户机 E2E 请在客户机上运行 Desktop Console。";
 
 function resolveConnectionState(health: WorkerHealth | null, error: string | null, hasSuccessfulSync: boolean): ConnectionState {
   if (health?.success && health.runtime_running) {
@@ -1204,6 +1284,13 @@ function App() {
   const [logs, setLogs] = useState<WorkerLogs>({ lines: [] });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<ControlAction | null>(null);
+  const [controlMessage, setControlMessage] = useState<string | null>(null);
+  const [runtimeActionState, setRuntimeActionState] = useState<RuntimeActionState>({
+    status: "idle",
+    lastAttemptedAction: null,
+    lastErrorDetail: null,
+    lastCommand: null,
+  });
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
@@ -1245,12 +1332,76 @@ function App() {
     async (action: ControlAction) => {
       setActionLoading(action);
       setError(null);
+      setControlMessage(null);
+      setRuntimeActionState({
+        status: action === "startRuntime" || action === "restartRuntime" ? "starting" : "idle",
+        lastAttemptedAction: action,
+        lastErrorDetail: null,
+        lastCommand: action,
+      });
       try {
         const nextStatus = await client[action]();
         setStatus({ ...fallbackStatus, ...nextStatus });
+        setControlMessage(`${action} completed through ${client.baseUrl}.`);
+        setRuntimeActionState({
+          status: action === "startRuntime" || action === "restartRuntime" ? "started" : "idle",
+          lastAttemptedAction: action,
+          lastErrorDetail: null,
+          lastCommand: `${client.baseUrl}/local/${action.includes("Heartbeat") ? "heartbeat" : "runtime"}`,
+        });
         await refresh();
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : "Worker API unreachable");
+        const originalMessage = nextError instanceof Error ? nextError.message : "Worker API unreachable";
+        if (action === "startRuntime" || action === "restartRuntime") {
+          try {
+            setRuntimeActionState({
+              status: "unavailable",
+              lastAttemptedAction: action,
+              lastErrorDetail: originalMessage,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage("Worker API is unreachable. Launching local worker_client from the Tauri desktop shell...");
+            const launchMessage = await startWorkerClientRuntime();
+            setRuntimeActionState({
+              status: "starting",
+              lastAttemptedAction: action,
+              lastErrorDetail: null,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage(launchMessage);
+            const nextStatus = await waitForWorkerRuntime(client);
+            setStatus({ ...fallbackStatus, ...nextStatus });
+            setRuntimeActionState({
+              status: "started",
+              lastAttemptedAction: action,
+              lastErrorDetail: null,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage("Worker Runtime started and local API is reachable.");
+            setError(null);
+            await refresh();
+            return;
+          } catch (launchError) {
+            const launchMessage = launchError instanceof Error ? launchError.message : String(launchError);
+            const classifiedStatus = classifyRuntimeStartError(launchMessage);
+            setError(`Start Runtime failed. ${launchMessage} Original local API error: ${originalMessage}`);
+            setRuntimeActionState({
+              status: classifiedStatus,
+              lastAttemptedAction: action,
+              lastErrorDetail: launchMessage,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage("Start Runtime failed. See the error banner for details.");
+            return;
+          }
+        }
+        setRuntimeActionState({
+          status: "unavailable",
+          lastAttemptedAction: action,
+          lastErrorDetail: originalMessage,
+          lastCommand: `${client.baseUrl}/local/${action.includes("Heartbeat") ? "heartbeat" : "runtime"}`,
+        });
+        setError(originalMessage);
       } finally {
         setActionLoading(null);
       }
@@ -1328,13 +1479,20 @@ function App() {
           <WifiOff size={22} />
           <div>
             <strong>Worker API unreachable</strong>
-            <p>
-              Worker Runtime 未启动. 请先启动 worker_client，或使用本地 Start Runtime 按钮，也可以使用 packaging 脚本启动.
-            </p>
+            <p>{WORKER_UNREACHABLE_HINT}</p>
             <code>{client.baseUrl}/local/status</code>
           </div>
         </section>
       ) : null}
+
+      <section className="alert-panel boundary-panel">
+        <AlertTriangle size={22} />
+        <div>
+          <strong>Server / Client environment boundary</strong>
+          <p>{DESKTOP_BOUNDARY_EN}</p>
+          <p>{DESKTOP_BOUNDARY_ZH}</p>
+        </div>
+      </section>
 
       <section className="layout-grid">
         <section className="panel dashboard-panel">
@@ -1396,9 +1554,11 @@ function App() {
           <div className="control-note">
             {actionLoading
               ? `Running ${actionLoading}...`
-              : loading
-                ? "Loading local worker state..."
-                : `Last refresh: ${lastRefresh ?? "-"}`}
+              : controlMessage
+                ? controlMessage
+                : loading
+                  ? "Loading local worker state..."
+                  : `Last refresh: ${lastRefresh ?? "-"}`}
           </div>
         </section>
 
@@ -1417,6 +1577,30 @@ function App() {
             <Field label="minimize_to_tray" value={String(settings.minimizeToTray)} />
             <Field label="refresh_interval_ms" value={settings.refreshIntervalMs} />
           </div>
+        </section>
+
+        <section className="panel diagnostics-panel">
+          <div className="panel-title">
+            <AlertTriangle size={18} />
+            <h2>Local Worker Diagnostics</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="runtime_action_status" value={runtimeStatusLabel(runtimeActionState.status)} />
+            <Field label="last_attempted_action" value={runtimeActionState.lastAttemptedAction ?? "-"} />
+            <Field label="last_attempted_command" value={runtimeActionState.lastCommand ?? "-"} />
+            <Field label="last_error_detail" value={runtimeActionState.lastErrorDetail ?? error ?? "-"} />
+            <Field label="status_endpoint" value={`${client.baseUrl}/local/status`} />
+            <Field label="health_endpoint" value={`${client.baseUrl}/local/health`} />
+            <Field label="runtime_reachable" value={String(Boolean(health))} />
+            <Field label="runtime_port" value={status.runtime_port ?? "9100"} />
+            <Field label="server_url" value={status.server_url ?? "unavailable until local status is reachable"} />
+            <Field label="worker_base_url" value={status.worker_base_url ?? "unavailable until local status is reachable"} />
+            <Field label="last_successful_sync" value={lastSuccessfulSync ?? "-"} />
+          </div>
+          <p className="chat-note">
+            Missing config: copy worker_config.example.yaml first. Port conflict: port 9100 already in use; change
+            runtime_port or stop the conflicting service.
+          </p>
         </section>
 
         <ChatPanel />

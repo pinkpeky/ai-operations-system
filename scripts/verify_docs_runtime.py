@@ -1087,6 +1087,19 @@ class DocsRuntimeVerifier:
             "not distributed tracing platform",
             "not deterministic replay engine",
             "not ComfyUI",
+            "Desktop Console Runtime UX & Client Packaging Readiness",
+            "Tauri icon resource",
+            "icons/icon.ico",
+            "bundle.icon",
+            "Start Runtime diagnostics",
+            "missing_config",
+            "port_conflict",
+            "server_environment_warning",
+            "local worker diagnostics",
+            "customer machine",
+            "not final installer",
+            "no code signing",
+            "no auto updater",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1575,6 +1588,20 @@ class DocsRuntimeVerifier:
             "not distributed tracing platform",
             "not deterministic replay engine",
             "not ComfyUI",
+            "Phase 50",
+            "Desktop Console Runtime UX & Client Packaging Readiness",
+            "Tauri icon resource",
+            "icons/icon.ico",
+            "bundle.icon",
+            "Start Runtime diagnostics",
+            "missing_config",
+            "port_conflict",
+            "server_environment_warning",
+            "local worker diagnostics",
+            "customer machine",
+            "not final installer",
+            "no code signing",
+            "no auto updater",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1786,8 +1813,26 @@ class DocsRuntimeVerifier:
                 or "not ComfyUI" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 49 scope")
+            elif not re.search(r"Phase\s+50", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 50")
+            elif (
+                "Desktop Console Runtime UX & Client Packaging Readiness" not in text
+                or "Tauri icon resource" not in text
+                or "icons/icon.ico" not in text
+                or "bundle.icon" not in text
+                or "Start Runtime diagnostics" not in text
+                or "missing_config" not in text
+                or "port_conflict" not in text
+                or "server_environment_warning" not in text
+                or "local worker diagnostics" not in text
+                or "customer machine" not in text
+                or "not final installer" not in text
+                or "no code signing" not in text
+                or "no auto updater" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 50 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, and Phase 49")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, Phase 49, and Phase 50")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

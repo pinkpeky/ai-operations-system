@@ -41,6 +41,13 @@ export async function hideConsoleWindow(): Promise<void> {
   await invoke("hide_console_window");
 }
 
+export async function startWorkerClientRuntime(): Promise<string> {
+  if (!isTauriRuntime()) {
+    throw new Error("Native runtime launch is only available inside the Tauri desktop app.");
+  }
+  return await invoke<string>("start_worker_client_runtime");
+}
+
 export async function listenForTrayControls(handler: (action: TrayControlAction) => void): Promise<UnlistenFn | null> {
   if (!isTauriRuntime()) {
     return null;
