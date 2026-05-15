@@ -35,6 +35,7 @@ class DocsRuntimeVerifier:
         """执行所有校验并输出结果。"""
 
         self.check_markdown_encoding()
+        self.check_docs_stabilization_quality()
         self.check_docx_render_qa()
         self.check_required_docs()
         self.check_runtime_config()
@@ -66,6 +67,7 @@ class DocsRuntimeVerifier:
 
         required = [
             "docs/PROJECT_OVERVIEW.md",
+            "docs/PROJECT_STATUS.md",
             "docs/CURRENT_RUNTIME.md",
             "docs/PHASE_INDEX.md",
             "docs/CURRENT_NEXT_PHASE.md",
@@ -291,6 +293,101 @@ class DocsRuntimeVerifier:
                     break
         if not failed:
             self.pass_(f"Markdown encoding validation passed for {len(markdown_files)} files")
+
+    def check_docs_stabilization_quality(self) -> None:
+        """Validate docs stabilization guardrails for titles, status, and render examples."""
+
+        self.check_phase_index_title()
+        self.check_doc_render_qa_examples()
+        self.check_project_status_consistency()
+        self.check_question_mark_pollution()
+
+    def check_phase_index_title(self) -> None:
+        """Ensure the Phase Index title has no replacement marker."""
+
+        text = self.read_text("docs/PHASE_INDEX.md")
+        first_line = text.splitlines()[0] if text.splitlines() else ""
+        allowed_titles = {
+            "# AI Operations System - Phase Index",
+            "# AI Operations System — Phase Index",
+        }
+        if first_line not in allowed_titles:
+            self.error("PHASE_INDEX.md title is not clean")
+        else:
+            self.pass_("PHASE_INDEX.md title is clean")
+
+    def check_doc_render_qa_examples(self) -> None:
+        """Ensure DOC_RENDER_QA keeps intact docs/rendered paths."""
+
+        text = self.read_text("docs/DOC_RENDER_QA.md")
+        if "docs\\rendered" not in text:
+            self.error("DOC_RENDER_QA.md missing intact Windows docs\\rendered path")
+        elif "docs\nendered" in text or "docs\r\nendered" in text:
+            self.error("DOC_RENDER_QA.md contains broken docs\\rendered path split")
+        elif "ignored QA output directory" not in text:
+            self.error("DOC_RENDER_QA.md does not explain docs\\rendered is ignored QA output")
+        else:
+            self.pass_("DOC_RENDER_QA.md render paths are intact")
+
+    def check_project_status_consistency(self) -> None:
+        """Ensure docs do not imply that Phase 43-52 are merged into main."""
+
+        required_terms = [
+            "`main` remains the Phase 42 stable baseline",
+            "PR #3-#12 cover Phase 43-52 and remain open",
+            "PR #13 is the Docs Stabilization Sprint",
+            "does not mean all phases are merged into `main`",
+        ]
+        status_files = [
+            "docs/PROJECT_OVERVIEW.md",
+            "docs/PHASE_INDEX.md",
+            "docs/CURRENT_NEXT_PHASE.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/en/PROJECT_STATUS.md",
+            "docs/zh/PROJECT_STATUS.md",
+        ]
+        failed = False
+        for relative_path in status_files:
+            text = self.read_text(relative_path)
+            for term in required_terms:
+                if term not in text:
+                    self.error(f"{relative_path} missing status consistency term: {term}")
+                    failed = True
+        if not failed:
+            self.pass_("Project status wording is consistent across overview, phase index, and status docs")
+
+    def check_question_mark_pollution(self) -> None:
+        """Detect suspicious question-mark separators without flagging URL query strings."""
+
+        query_marker = re.compile(r"\?[A-Za-z_][A-Za-z0-9_-]*=")
+        suspicious_backtick_separator = re.compile(r"`[^`\n]+`\?`[^`\n]+`")
+        suspicious_phase_separator = re.compile(r"Phase\s+\d+[A-Z]?\s*\?")
+        failed = False
+        for path in sorted(self.docs.rglob("*.md")):
+            relative = path.relative_to(self.root).as_posix()
+            text = path.read_text(encoding="utf-8")
+            for line_number, line in enumerate(text.splitlines(), start=1):
+                protected = query_marker.sub("__QUERY_MARK__=", line)
+                suspicious = False
+                reason = ""
+                if protected.lstrip().startswith("#") and "?" in protected:
+                    suspicious = True
+                    reason = "heading contains suspicious question-mark replacement"
+                elif protected.count("?") >= 2:
+                    suspicious = True
+                    reason = "line contains repeated question-mark separators"
+                elif suspicious_backtick_separator.search(protected):
+                    suspicious = True
+                    reason = "inline code terms separated by question-mark replacement"
+                elif suspicious_phase_separator.search(protected):
+                    suspicious = True
+                    reason = "Phase heading/title contains question-mark replacement"
+                if suspicious:
+                    self.error(f"Markdown question-mark pollution in {relative}:{line_number}: {reason}")
+                    failed = True
+                    break
+        if not failed:
+            self.pass_("Markdown question-mark pollution check passed")
 
     def check_docx_render_qa(self) -> None:
         """Render the canonical DOCX to PDF when LibreOffice is available."""

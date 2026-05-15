@@ -16,13 +16,12 @@ DOCX/PDF Render QA is the required gate for documentation bundles that include W
 Windows examples:
 
 ```powershell
-mkdir docs
-endered -Force
-soffice --headless --convert-to pdf --outdir docs
-endered "docs\Aiops Project Documentation Update Request For Codex.docx"
-Get-Item "docs
-endered\Aiops Project Documentation Update Request For Codex.pdf"
+New-Item -ItemType Directory -Force -Path "docs\rendered" | Out-Null
+& "C:\Program Files\LibreOffice\program\soffice.exe" --headless --convert-to pdf --outdir "docs\rendered" "docs\Aiops Project Documentation Update Request For Codex.docx"
+Get-Item "docs\rendered\Aiops Project Documentation Update Request For Codex.pdf"
 ```
+
+The `docs\rendered` directory is an ignored QA output directory and must not be committed.
 
 Cross-platform shape:
 

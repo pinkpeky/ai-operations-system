@@ -1,8 +1,10 @@
-# AI Operations System ? Phase Index
+# AI Operations System - Phase Index
 
 ## Current Stable Baseline
 
-`main` is the current stable baseline at Phase 42. It includes the runtime, browser worker, worker console, admin dashboard, conversation runtime, approval flow, playbooks, output artifacts, and task orchestration foundation that were squash-merged through PR #2.
+`main` remains the Phase 42 stable baseline. It includes the runtime, browser worker, worker console, admin dashboard, conversation runtime, approval flow, playbooks, output artifacts, and task orchestration foundation that were squash-merged through PR #2.
+
+`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint. This documentation branch records the complete Phase 1-52 development state, but that does not mean all phases are merged into `main`.
 
 ## Current Active Development Branch
 
@@ -23,6 +25,7 @@
 | #10 | Phase 50 Desktop Runtime UX and Packaging Readiness | `codex/phase-50-desktop-runtime-ux-packaging-readiness` | Open |
 | #11 | Phase 51 Release Packaging and Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | Open |
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Open |
+| #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
 
 ## Phase Timeline Table
 
