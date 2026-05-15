@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.browser.remote.services.browser_worker_auth_service import BrowserWorkerAuthService
 from worker.browser_worker.config import WorkerSettings
@@ -22,6 +23,22 @@ from worker.browser_worker.schemas import (
     WorkerUIAccessCapabilitiesResponse,
 )
 from worker_client.config import WorkerClientConfig, WorkerClientState, load_worker_state
+from worker_client.browser_runtime import (
+    BrowserRuntime,
+    BrowserRuntimeCreateSessionRequest,
+    BrowserRuntimeNavigateRequest,
+    BrowserRuntimePageResponse,
+    BrowserRuntimeScreenshotRequest,
+    BrowserRuntimeSessionResponse,
+)
+from worker_client.logging import get_recent_logs, log_event
+from worker_client.openclaw import (
+    OpenClawActionRequest,
+    OpenClawActionResponse,
+    OpenClawCapabilitiesResponse,
+    OpenClawHealthResponse,
+    OpenClawRuntime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +65,35 @@ def create_worker_client_app(
     *,
     runtime: PlaywrightBrowserWorkerRuntime | None = None,
     state: WorkerClientState | None = None,
+    manager: Any | None = None,
 ) -> FastAPI:
     """创建客户机本地 Worker API，与现有 browser-worker 协议兼容。"""
 
+    config.validate_config()
     worker_state = state or load_worker_state(config.state_path)
     worker_secret = (worker_state.worker_secret if worker_state is not None else None) or config.worker_secret or ""
     worker_settings = build_worker_settings(config)
     if worker_secret:
         worker_settings.browser_worker_secret = worker_secret
     runtime_instance = runtime or PlaywrightBrowserWorkerRuntime(settings=worker_settings)
+    browser_runtime = BrowserRuntime.from_worker_client_config(config)
+    openclaw_runtime = OpenClawRuntime(
+        provider_name=config.openclaw_provider,
+        enabled=config.openclaw_enabled,
+    )
+    runtime_manager = manager
+    if runtime_manager is None:
+        from worker_client.runtime_manager import WorkerRuntimeManager
+
+        runtime_manager = WorkerRuntimeManager(config)
+
+    def safe_local_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        """本地管理 API 响应不允许包含 worker_secret。"""
+
+        clean = dict(payload)
+        clean.pop("worker_secret", None)
+        clean.pop("secret", None)
+        return clean
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -64,8 +101,16 @@ def create_worker_client_app(
             yield
         finally:
             await runtime_instance.close_all()
+            await browser_runtime.close_all()
 
-    app = FastAPI(title="AI Ops Customer Machine Worker", version="27.0.0", lifespan=lifespan)
+    app = FastAPI(title="AI Ops Customer Machine Worker", version="30.0.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     async def verify_worker_request(request: Request) -> None:
         """校验 AI Server -> 客户机 worker runtime 的签名。"""
@@ -104,9 +149,11 @@ def create_worker_client_app(
             capabilities={
                 **config.capabilities,
                 "headless": True,
+                "browser_runtime": True,
                 "click": True,
                 "type_text": True,
                 "scroll": True,
+                "openclaw": config.openclaw_enabled,
                 "ui_access_placeholder": True,
             },
             message="customer machine worker reachable",
@@ -117,6 +164,80 @@ def create_worker_client_app(
         """声明当前仍是 UI access placeholder。"""
 
         return WorkerUIAccessCapabilitiesResponse(vnc=False, novnc=False, devtools=False, placeholder=True)
+
+    @app.get("/openclaw/health", response_model=OpenClawHealthResponse)
+    async def openclaw_health() -> OpenClawHealthResponse:
+        """返回 OpenClaw mock runtime health。"""
+
+        return await openclaw_runtime.health_check()
+
+    @app.get("/openclaw/capabilities", response_model=OpenClawCapabilitiesResponse)
+    async def openclaw_capabilities() -> OpenClawCapabilitiesResponse:
+        """返回 OpenClaw mock runtime capabilities。"""
+
+        return await openclaw_runtime.capabilities()
+
+    @app.post("/openclaw/actions", response_model=OpenClawActionResponse)
+    async def execute_openclaw_action(
+        request: OpenClawActionRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> OpenClawActionResponse:
+        """执行 OpenClaw mock action。"""
+
+        return await openclaw_runtime.execute_action(request)
+
+    @app.get("/local/status")
+    async def local_status() -> dict[str, Any]:
+        """返回本地 Worker Console 状态，不包含 worker_secret。"""
+
+        return safe_local_payload(runtime_manager.runtime_state())
+
+    @app.get("/local/health")
+    async def local_health() -> dict[str, Any]:
+        """返回本地 Runtime Manager 健康信息。"""
+
+        return safe_local_payload(runtime_manager.runtime_health())
+
+    @app.post("/local/runtime/start")
+    async def local_runtime_start() -> dict[str, Any]:
+        """通过本地管理 API 启动 runtime。"""
+
+        log_event("local api runtime start requested")
+        return safe_local_payload(runtime_manager.start_runtime())
+
+    @app.post("/local/runtime/stop")
+    async def local_runtime_stop() -> dict[str, Any]:
+        """通过本地管理 API 停止 runtime。"""
+
+        log_event("local api runtime stop requested")
+        return safe_local_payload(runtime_manager.stop_runtime())
+
+    @app.post("/local/runtime/restart")
+    async def local_runtime_restart() -> dict[str, Any]:
+        """通过本地管理 API 重启 runtime。"""
+
+        log_event("local api runtime restart requested")
+        return safe_local_payload(runtime_manager.restart_runtime())
+
+    @app.post("/local/heartbeat/start")
+    async def local_heartbeat_start() -> dict[str, Any]:
+        """通过本地管理 API 启动 heartbeat。"""
+
+        log_event("local api heartbeat start requested")
+        return safe_local_payload(runtime_manager.start_heartbeat())
+
+    @app.post("/local/heartbeat/stop")
+    async def local_heartbeat_stop() -> dict[str, Any]:
+        """通过本地管理 API 停止 heartbeat。"""
+
+        log_event("local api heartbeat stop requested")
+        return safe_local_payload(runtime_manager.stop_heartbeat())
+
+    @app.get("/local/logs")
+    async def local_logs(lines: int = 100) -> dict[str, Any]:
+        """返回本地最近日志，供未来 Worker Console GUI 使用。"""
+
+        return {"lines": get_recent_logs(lines=lines)}
 
     @app.post("/sessions", response_model=WorkerSessionResponse, status_code=status.HTTP_201_CREATED)
     async def create_session(request: WorkerSessionRequest, _: None = Depends(verify_worker_request)) -> WorkerSessionResponse:
@@ -148,6 +269,58 @@ def create_worker_client_app(
 
         return await runtime_instance.close_session(remote_session_id=session_id)
 
+    @app.post("/browser/session/create", response_model=BrowserRuntimeSessionResponse, status_code=status.HTTP_201_CREATED)
+    async def create_browser_runtime_session(
+        request: BrowserRuntimeCreateSessionRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> BrowserRuntimeSessionResponse:
+        """Create a Phase 34 Playwright browser runtime session."""
+
+        log_event("browser runtime session create requested")
+        return await browser_runtime.create_session(request)
+
+    @app.post("/browser/session/{session_id}/navigate")
+    async def navigate_browser_runtime_session(
+        session_id: str,
+        request: BrowserRuntimeNavigateRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> dict[str, Any]:
+        """Navigate a Phase 34 browser runtime session."""
+
+        log_event(f"browser runtime navigate requested session={session_id}")
+        return (await browser_runtime.navigate(session_id=session_id, request=request)).model_dump()
+
+    @app.post("/browser/session/{session_id}/screenshot")
+    async def screenshot_browser_runtime_session(
+        session_id: str,
+        request: BrowserRuntimeScreenshotRequest,
+        _: None = Depends(verify_worker_request),
+    ) -> dict[str, Any]:
+        """Capture a Phase 34 browser runtime screenshot."""
+
+        log_event(f"browser runtime screenshot requested session={session_id}")
+        return (await browser_runtime.screenshot(session_id=session_id, request=request)).model_dump()
+
+    @app.get("/browser/session/{session_id}/page", response_model=BrowserRuntimePageResponse)
+    async def get_browser_runtime_page(
+        session_id: str,
+        _: None = Depends(verify_worker_request),
+    ) -> BrowserRuntimePageResponse:
+        """Return current Phase 34 browser runtime page content."""
+
+        log_event(f"browser runtime page requested session={session_id}")
+        return await browser_runtime.get_page(session_id=session_id)
+
+    @app.post("/browser/session/{session_id}/close", response_model=BrowserRuntimeSessionResponse)
+    async def close_browser_runtime_session(
+        session_id: str,
+        _: None = Depends(verify_worker_request),
+    ) -> BrowserRuntimeSessionResponse:
+        """Close a Phase 34 browser runtime session."""
+
+        log_event(f"browser runtime close requested session={session_id}")
+        return await browser_runtime.close_session(session_id=session_id)
+
     @app.post("/human-control/start", response_model=WorkerHumanControlResponse)
     async def start_human_control(request: WorkerHumanControlRequest) -> WorkerHumanControlResponse:
         """进入 metadata-level human control。"""
@@ -176,4 +349,3 @@ def create_worker_client_app(
         return await runtime_instance.get_human_control_status(remote_session_id=session_id)
 
     return app
-

@@ -1,4 +1,25 @@
-# Deployment
+﻿# Deployment
+
+## Phase 28 OpenClaw Adapter Smoke Test
+
+Current OpenClaw runtime is mock only:
+
+```env
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
+```
+
+Docker / local smoke flow:
+
+1. Start the API stack with `docker compose up --build -d`.
+2. Start or register a worker that advertises `"openclaw": true` in capabilities.
+3. Call `GET /api/v1/openclaw/health` with `X-Workspace-Id`.
+4. Call `GET /api/v1/openclaw/capabilities`.
+5. Call `POST /api/v1/openclaw/actions` with a mock action such as `mock_inspect`.
+6. Confirm `openclaw_action_logs`, `tool_call_logs` when using `openclaw_tool`, and `browser_security_audit_logs`.
+
+Boundary: this does not call real OpenClaw and must not be used for TikTok / YouTube / X, login, cookies, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
 
 ## Phase 20 browser-worker Startup and Verification
 
@@ -975,3 +996,256 @@ Security notes:
 - The heartbeat flow sends `X-Worker-Secret` plus Phase 26 signed request headers.
 
 Boundary: Phase 27 is Customer Machine Worker Bootstrap only. It does not implement OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha handling, or real platform automation.
+
+## Phase 29 Worker Client Packaging
+
+Windows:
+
+```powershell
+copy worker_client\worker_config.example.yaml worker_client\worker_config.yaml
+.\packaging\windows_install_requirements.ps1
+.\packaging\windows_register_worker.ps1
+.\packaging\windows_start_worker.ps1
+```
+
+Mac:
+
+```bash
+cp worker_client/worker_config.example.yaml worker_client/worker_config.yaml
+bash packaging/mac_install_requirements.sh
+bash packaging/mac_register_worker.sh
+bash packaging/mac_start_worker.sh
+```
+
+Local verification:
+
+```text
+GET http://127.0.0.1:9100/local/status
+GET http://127.0.0.1:9100/local/health
+GET http://127.0.0.1:9100/local/logs
+```
+
+Scripts include `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`. Runtime writes `worker_client/runtime_state/status.json` and `worker_client/logs/worker.log`; both are ignored by Git. This is Worker Console Foundation only: no GUI, no exe/dmg packaging.
+
+## Phase 30 Worker Console Deployment
+
+Local development:
+
+```powershell
+python -m worker_client.cli start
+cd worker_console
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The console uses `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`. Build with `npm run build`.
+
+This is Web GUI Foundation only: no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg packaging.
+## Phase 31: Worker Console Desktop Local Run
+
+The desktop app still depends on the local customer-machine Worker API. Start `worker_client` first:
+
+```bash
+python -m worker_client.cli start
+```
+
+Then start the Tauri desktop shell:
+
+```bash
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+Default connection:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+If the machine lacks Rust or Tauri platform dependencies, use `npm run build` for frontend validation and inspect `worker_console_desktop/src-tauri/tauri.conf.json`. This phase does not ship a formal exe / dmg, system tray, or auto update.
+
+## Phase 32: System Tray Desktop Run
+
+The run mode is still development mode:
+
+```bash
+python -m worker_client.cli start
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+This phase has System Tray and Minimize To Tray support, but still has no formal installer, no exe / dmg release, no real autostart registration, and no auto-update.
+
+Configuration files:
+
+- `worker_console_desktop/settings.example.json`
+- `worker_console_desktop/src-tauri/desktop-runtime.json`
+- `worker_console_desktop/autostart/README.md`
+
+Security note: tray menu actions only trigger the local Worker API. They do not execute shell commands or remote commands.
+
+## Phase 33 Runtime Notes
+
+Conversation Runtime adds no new environment variable. It depends on the existing workspace headers and existing provider defaults.
+
+Current defaults remain:
+
+```text
+LLM_PROVIDER=mock
+EMBEDDING_PROVIDER=mock
+RERANKER_PROVIDER=mock
+DEFAULT_SEARCH_MODE=hybrid
+BROWSER_PROVIDER=mock
+OPENCLAW_PROVIDER=mock
+```
+
+Conversation APIs require:
+
+```text
+X-Workspace-Id: demo-workspace
+X-User-Id: demo-user
+```
+
+Worker Console chat clients use:
+
+```text
+VITE_AI_SERVER_API=http://localhost:8000/api/v1
+VITE_WORKSPACE_ID=demo-workspace
+VITE_USER_ID=demo-user
+```
+
+Event feed mode: polling only through `GET /api/v1/conversations/{thread_id}/events`. WebSocket and SSE are placeholders only.
+
+## Phase 34 Remote Browser Runtime Deployment
+
+Deployment requirements:
+
+- API Server must expose `BROWSER_RUNTIME_SCREENSHOT_DIR=storage/browser_screenshots`.
+- `docker-compose.yml` mounts `./storage:/app/storage` so runtime screenshots survive container restarts.
+- Remote customer-machine workers must run the Worker Runtime API from `worker_client/runtime.py`.
+- Customer machines that execute the real browser runtime must run `playwright install chromium`.
+- Registered workers should include capabilities such as `{"browser_runtime": true, "browser": "chromium"}`.
+
+Smoke test sequence:
+
+1. Register or heartbeat an online worker.
+2. `POST /api/v1/browser-runtime/sessions`
+3. `POST /api/v1/browser-runtime/sessions/{session_id}/navigate`
+4. `POST /api/v1/browser-runtime/sessions/{session_id}/screenshot`
+5. `GET /api/v1/browser-runtime/sessions/{session_id}/page`
+6. `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+Current deployment boundary: no stealth browser, no proxy, no login persistence, no cookie injection, no captcha bypass, no remote desktop stream, and no real platform automation.
+
+## Phase 35B Real Client Worker E2E Deployment Check
+
+Run after AI Server is online:
+
+```bash
+python scripts/validate_real_client_worker_e2e.py \
+  --server-url http://localhost:8000 \
+  --workspace-id demo-workspace \
+  --user-id demo-user \
+  --expected-worker-name customer-machine-worker-1
+```
+
+Expected result before a real customer machine is connected: `SKIPPED` with reason `real client worker not online`.
+
+Expected result when the customer machine worker is online: `PASS`, with screenshot metadata under `storage/browser_screenshots`.
+
+Do not expose customer-machine port 9100 to the public internet. Use Tailscale, VPN, or LAN routing.
+
+## Phase 35A Browser Runtime Observability Smoke Test
+
+Docker verification:
+
+```powershell
+docker compose up --build -d
+```
+
+Swagger / API flow:
+
+1. `GET /api/v1/health`
+2. `POST /api/v1/browser-runtime/sessions`
+3. `POST /api/v1/browser-runtime/sessions/{session_id}/navigate`
+4. `POST /api/v1/browser-runtime/sessions/{session_id}/screenshot`
+5. `GET /api/v1/browser-runtime/sessions/{session_id}/page`
+6. `GET /api/v1/browser-runtime/sessions/{session_id}/events`
+7. `GET /api/v1/browser-runtime/sessions/{session_id}/snapshots`
+8. `POST /api/v1/browser-runtime/sessions/{session_id}/replay`
+9. `GET /api/v1/browser-runtime/replays/{replay_id}/export`
+10. `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+Runtime directories:
+
+```text
+BROWSER_RUNTIME_SCREENSHOT_DIR=storage/browser_screenshots
+BROWSER_RUNTIME_SNAPSHOT_DIR=storage/browser_runtime_snapshots
+```
+
+Replay is currently metadata-only replay. It does not re-run browser actions and is not live stream, VNC/noVNC, or DevTools remote control.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+`admin_dashboard` is now part of the docs SSOT. It is a read-only monitoring foundation for Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings. Runtime config is `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, and `VITE_USER_ID=demo-user`. The API client lives at `admin_dashboard/src/api/client.ts` and exports `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`. Current boundaries: no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Status: completed, Phase 37.
+
+Phase 37 connects the Conversation Runtime to Server Admin Dashboard, Worker Console Web, and Worker Console Desktop. The current scope is Conversation frontend integration and a basic conversation entrypoint. It is not a full ChatGPT UI and it is not WebSocket / SSE streaming.
+
+Completed:
+
+- Admin Dashboard Conversation page: `admin_dashboard` Conversations supports create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` supports `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: `worker_console` supports AI Server URL, Workspace ID, User ID settings, create thread, send and run, Polling Event Timeline, and AI Server connected / disconnected / unreachable state.
+- Desktop Chat Panel: `worker_console_desktop` mirrors the Chat Panel foundation. Tauri native validation still depends on the customer machine Rust/MSVC environment.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds and show `event_type`, `message`, `created_at`, and `payload JSON`.
+- Frontend config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- Development CORS: backend `CORS_ALLOWED_ORIGINS` allows `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5180`, `http://127.0.0.1:5180`, `tauri://localhost`, and related local development origins.
+
+Boundaries: current implementation is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real platform automation, real OpenClaw, or ComfyUI.
+## Phase 38 Deployment Verification
+
+Conversation Tool Execution Bridge does not add a separate service. After deployment, create a conversation and call `POST /api/v1/conversations/{thread_id}/run`. Verify `route_name`, `selected_tool`, `events_created`, `success`, `summary`, and `result_metadata`, then call `GET /api/v1/conversations/{thread_id}/events` to inspect `route_selected`, `tool_execution_started`, `tool_execution_completed`, `agent_execution_started`, and `planning_execution_started`.
+
+Boundaries: not autonomous agent, not WebSocket, not SSE, no real platform publishing, no real OpenClaw, and no ComfyUI.
+
+## Phase 39 Deployment Verification
+
+After deployment, verify the Approval Flow:
+
+1. `POST /api/v1/conversations` to create a thread.
+2. `POST /api/v1/conversations/{thread_id}/run` with `mode=review_first`.
+3. `GET /api/v1/conversations/{thread_id}/approvals` and confirm `approval_status=pending`.
+4. `POST /api/v1/conversation-approvals/{approval_id}/approve`.
+5. `POST /api/v1/conversation-approvals/{approval_id}/execute`.
+6. Repeating execute should return an error to prevent duplicate execution.
+
+No extra environment variable is required. The flow depends on the `conversation_approvals` migration. Run Alembic before serving the updated Admin Dashboard / Worker Console assets. This is not a full permission system and not real platform publishing.
+## Phase 40 Deployment Smoke Test: Conversation Playbooks
+
+Recommended post-deploy checks:
+
+1. `GET /api/v1/conversation-playbooks`
+2. `POST /api/v1/conversation-playbooks/{playbook_id}/run`, starting with `content_generation`
+3. `POST /api/v1/conversations/{thread_id}/run` with `playbook_name=browser_screenshot_report` and `mode=review_first`
+4. Approve the generated approval
+5. `POST /api/v1/conversation-approvals/{approval_id}/execute`
+6. `GET /api/v1/conversation-playbook-runs`
+
+If a browser Playbook stops at `waiting_approval`, that is expected. Medium/high risk steps must not execute before approval.
+
+## Phase 41 Deployment Addendum
+
+Output Library requires the API container to write `OUTPUT_ARTIFACT_DIR=storage/output_artifacts`. This phase exports markdown/json/txt to local disk; screenshots and HTML snapshots keep existing path references. There is no S3 / MinIO integration, no full DAM, and no production publishing asset management.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

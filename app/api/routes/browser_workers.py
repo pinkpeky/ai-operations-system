@@ -35,6 +35,7 @@ from app.browser.remote.services import BrowserSessionCleanupService, BrowserWor
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
+from app.openclaw.schemas import OpenClawActionRequest, OpenClawActionResponse, OpenClawCapabilitiesResponse, OpenClawHealthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +270,7 @@ async def browser_worker_runtime_health() -> BrowserWorkerRuntimeHealthResponse:
             "persistent_profile": True,
             "human_control": True,
             "ui_access_placeholder": True,
+            "openclaw": True,
         },
         message="mock browser worker runtime reachable",
     )
@@ -279,6 +281,69 @@ async def mock_worker_ui_access_capabilities() -> BrowserWorkerUIAccessCapabilit
     """Mock worker runtime UI access placeholder capabilities."""
 
     return BrowserWorkerUIAccessCapabilitiesResponse(vnc=False, novnc=False, devtools=False, placeholder=True)
+
+
+@runtime_router.get("/openclaw/health", response_model=OpenClawHealthResponse)
+async def mock_worker_openclaw_health() -> OpenClawHealthResponse:
+    """Mock worker runtime OpenClaw health。"""
+
+    return OpenClawHealthResponse(
+        success=True,
+        provider="mock",
+        enabled=True,
+        reachable=True,
+        mock=True,
+        version="mock-openclaw-0.1",
+        error=None,
+        raw={"real_openclaw_called": False},
+    )
+
+
+@runtime_router.get("/openclaw/capabilities", response_model=OpenClawCapabilitiesResponse)
+async def mock_worker_openclaw_capabilities() -> OpenClawCapabilitiesResponse:
+    """Mock worker runtime OpenClaw capabilities。"""
+
+    return OpenClawCapabilitiesResponse(
+        success=True,
+        provider="mock",
+        enabled=True,
+        mock=True,
+        capabilities={
+            "openclaw": True,
+            "provider": "mock",
+            "real_openclaw": False,
+            "platform_automation": False,
+            "browser_worker_adapter": True,
+        },
+        actions=["health_check", "list_capabilities", "execute_action"],
+        error=None,
+        raw={"real_openclaw_called": False},
+    )
+
+
+@runtime_router.post("/openclaw/actions", response_model=OpenClawActionResponse)
+async def mock_worker_openclaw_action(request: OpenClawActionRequest) -> OpenClawActionResponse:
+    """Mock worker runtime OpenClaw action。"""
+
+    return OpenClawActionResponse(
+        success=True,
+        action_type=request.action_type,
+        output_payload={
+            "message": "mock openclaw action success",
+            "target": request.target,
+            "profile_id": request.profile_id,
+            "browser_session_id": request.browser_session_id,
+            "input_payload": request.input_payload,
+            "metadata": request.metadata,
+            "real_openclaw_called": False,
+        },
+        error=None,
+        duration_ms=0,
+        provider="mock",
+        mock=True,
+        worker_id=None,
+        log_id=None,
+    )
 
 
 @runtime_router.post("/sessions", response_model=BrowserWorkerRuntimeSessionResponse, status_code=201)
@@ -341,6 +406,92 @@ async def close_mock_worker_session(session_id: str) -> BrowserWorkerRuntimeSess
         message="mock remote browser session closed",
         data={"remote_session_id": session_id},
     )
+
+
+@runtime_router.post("/browser/session/create")
+async def create_mock_browser_runtime_session(request: dict) -> dict:
+    """Mock Phase 34 browser runtime session create endpoint."""
+
+    remote_session_id = f"mock-browser-runtime-session-{uuid4()}"
+    return {
+        "success": True,
+        "remote_session_id": remote_session_id,
+        "session_id": remote_session_id,
+        "message": "mock browser runtime session created",
+        "data": {
+            "remote_session_id": remote_session_id,
+            "session_id": remote_session_id,
+            "browser": request.get("browser", "chromium"),
+            "current_url": None,
+            "page_title": None,
+        },
+    }
+
+
+@runtime_router.post("/browser/session/{session_id}/navigate")
+async def navigate_mock_browser_runtime_session(session_id: str, request: dict) -> dict:
+    """Mock Phase 34 browser runtime navigate endpoint."""
+
+    url = request.get("url")
+    return {
+        "success": True,
+        "remote_action_id": f"mock-browser-runtime-action-{uuid4()}",
+        "message": "mock browser runtime navigate success",
+        "data": {
+            "remote_session_id": session_id,
+            "current_url": url,
+            "target_url": url,
+            "page_title": "Example Domain",
+        },
+    }
+
+
+@runtime_router.post("/browser/session/{session_id}/screenshot")
+async def screenshot_mock_browser_runtime_session(session_id: str, request: dict) -> dict:
+    """Mock Phase 34 browser runtime screenshot endpoint."""
+
+    return {
+        "success": True,
+        "remote_action_id": f"mock-browser-runtime-action-{uuid4()}",
+        "message": "mock browser runtime screenshot success",
+        "data": {
+            "remote_session_id": session_id,
+            "screenshot_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+            "page_title": "Example Domain",
+            "current_url": "https://example.com",
+        },
+    }
+
+
+@runtime_router.get("/browser/session/{session_id}/page")
+async def get_mock_browser_runtime_page(session_id: str) -> dict:
+    """Mock Phase 34 browser runtime page endpoint."""
+
+    return {
+        "success": True,
+        "message": "mock browser runtime page fetched",
+        "data": {
+            "remote_session_id": session_id,
+            "page_title": "Example Domain",
+            "title": "Example Domain",
+            "current_url": "https://example.com",
+            "url": "https://example.com",
+            "content": "<html><body><h1>Example Domain</h1></body></html>",
+        },
+    }
+
+
+@runtime_router.post("/browser/session/{session_id}/close")
+async def close_mock_browser_runtime_session(session_id: str) -> dict:
+    """Mock Phase 34 browser runtime close endpoint."""
+
+    return {
+        "success": True,
+        "remote_session_id": session_id,
+        "session_id": session_id,
+        "message": "mock browser runtime session closed",
+        "data": {"remote_session_id": session_id, "session_id": session_id},
+    }
 
 
 @runtime_router.post("/human-control/start", response_model=BrowserWorkerHumanControlResponse)

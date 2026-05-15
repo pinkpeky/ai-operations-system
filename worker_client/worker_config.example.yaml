@@ -4,7 +4,7 @@ worker_type: playwright
 workspace_id: demo-workspace
 worker_secret: null
 worker_base_url: http://localhost:9100
-runtime_host: 0.0.0.0
+runtime_host: 127.0.0.1
 runtime_port: 9100
 state_path: worker_client/worker_state.json
 heartbeat_interval_seconds: 30
@@ -18,11 +18,16 @@ screenshot_dir: worker/screenshots
 profile_dir: worker/profiles
 capabilities:
   browser: chromium
+  browser_runtime: true
   screenshot: true
   page_content: true
   persistent_profile: true
   human_control: true
   ui_access_placeholder: true
+  openclaw: true
+openclaw:
+  enabled: true
+  provider: mock
 allowed_actions:
   - navigate
   - click

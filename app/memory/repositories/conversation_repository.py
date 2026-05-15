@@ -78,7 +78,7 @@ class ConversationRepository:
         """追加会话消息。"""
 
         if role not in {item.value for item in ConversationRole}:
-            raise ValueError("role must be system, user, assistant, or tool")
+            raise ValueError("role must be system, user, assistant, tool, or event")
         message = ConversationMessage(
             session_id=session_id,
             workspace_id=workspace_id,

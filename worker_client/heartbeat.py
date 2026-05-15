@@ -11,6 +11,8 @@ import httpx
 
 from app.browser.remote.services.browser_worker_auth_service import BrowserWorkerAuthService
 from worker_client.config import WorkerClientConfig, WorkerClientState, load_worker_state
+from worker_client.logging import log_event
+from worker_client.status import update_status
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ async def send_heartbeat_once(
 ) -> WorkerHeartbeatResult:
     """发送一次 heartbeat。"""
 
+    config.validate_config()
     state = load_worker_state(config.state_path)
     if state is None:
         raise FileNotFoundError("worker_state.json not found. Run `python -m worker_client.cli register` first.")
@@ -60,8 +63,23 @@ async def send_heartbeat_once(
         payload = response.json()
         if response.status_code >= 400:
             logger.error("Worker heartbeat failed", extra={"worker_id": state.worker_id, "status_code": response.status_code})
+            update_status({"current_status": "error", "last_error": f"heartbeat failed: {response.status_code}"})
+            log_event("worker heartbeat failed", extra={"worker_id": state.worker_id, "status_code": response.status_code})
         else:
             logger.info("Worker heartbeat sent", extra={"worker_id": state.worker_id, "status": status})
+            update_status(
+                {
+                    "worker_id": state.worker_id,
+                    "worker_name": state.worker_name,
+                    "workspace_id": state.workspace_id,
+                    "server_url": state.server_url,
+                    "registered": True,
+                    "last_heartbeat_at": response.headers.get("date"),
+                    "current_status": status,
+                    "last_error": None,
+                }
+            )
+            log_event("worker heartbeat sent", extra={"worker_id": state.worker_id, "status": status})
         return WorkerHeartbeatResult(
             success=response.status_code < 400,
             status_code=response.status_code,
@@ -89,4 +107,3 @@ async def heartbeat_loop(config: WorkerClientConfig, *, status: str = "online", 
             await asyncio.wait_for(event.wait(), timeout=config.heartbeat_interval_seconds)
         except asyncio.TimeoutError:
             continue
-

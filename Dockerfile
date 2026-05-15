@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY app ./app
 COPY worker ./worker
+COPY worker_client ./worker_client
 COPY docs/CURRENT_RUNTIME.md ./docs/CURRENT_RUNTIME.md
 COPY alembic.ini .
 COPY alembic ./alembic

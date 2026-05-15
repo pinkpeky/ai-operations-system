@@ -1,4 +1,22 @@
-# 开发指南
+﻿# 开发指南
+
+## Phase 28 ????
+
+?? OpenClaw Worker Adapter Foundation ???????????? docs ???
+
+- `worker_client/openclaw/` ????? OpenClaw phase ????? mock-only?
+- `OpenClawWorkerClient` ??????? Browser Worker ? `base_url` ??????? Workspace Isolation?
+- `openclaw_tool` ?????? `tool_call_logs`?OpenClaw action ?????? `openclaw_action_logs` ? `browser_security_audit_logs`?
+- ?? OpenClaw runtime routes ????????? `API_REFERENCE.md`?
+- ??????? TikTok / YouTube / X ?????????Cookie ???????????????????????????
+
+???????
+
+```powershell
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
 
 ## Phase 20 开发规则
 
@@ -350,3 +368,185 @@ python -m pytest
 docker compose up --build -d
 python scripts/verify_docs_runtime.py
 ```
+
+## Phase 29 Development Notes
+
+When changing Worker Client runtime behavior, update these together: `worker_client/runtime_manager.py`, `worker_client/status.py`, `worker_client/logging.py`, `worker_client/runtime.py`, `worker_client/local_api_client.py`, packaging scripts, and docs. Run `python -m pytest`, `docker compose up --build -d`, and `python scripts/verify_docs_runtime.py`.
+
+Do not log `worker_secret`. Do not commit `worker_client/runtime_state/status.json`, `worker_client/logs/worker.log`, `worker_client/worker_config.yaml`, or `worker_client/worker_state.json`.
+
+Phase 29 remains Worker Console Foundation only: no GUI, no Electron/Tauri/PySide, no system tray, and no exe/dmg packaging.
+
+## Phase 30 Worker Console Development Guide
+
+When changing `worker_console`, run `npm install` when dependencies change, then `npm run build`. Keep `worker_console/src/api/localWorkerClient.ts`, docs, and `scripts/verify_docs_runtime.py` synchronized. Do not add Electron, Tauri, PySide, system tray, auto update, exe / dmg packaging, or platform automation in Phase 30.
+## Phase 31：Worker Console Desktop 开发规则
+
+桌面壳位于 `worker_console_desktop`，使用 Tauri + React + Vite + TypeScript + Tailwind。新增桌面端能力时必须保持 Local API 契约稳定，优先复用 `worker_console_desktop/src/api/localWorkerClient.ts`。
+
+固定验证流程：
+
+```powershell
+cd worker_console_desktop
+npm install
+npm run build
+cd ..
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+当前不允许加入正式安装包、exe / dmg、system tray、autostart、auto update 或真实平台自动化能力。相关能力只能作为规划中路线写入 docs，不能写成已完成。
+
+## Phase 32：System Tray 开发规则
+
+Phase 32 已允许在 Tauri 中实现 System Tray、Minimize To Tray 和本地 Runtime 控制，但仍禁止：
+
+- formal installer
+- exe / dmg 正式发布
+- 真正开机自启
+- auto-update
+- arbitrary shell
+- remote shell
+- 远程命令执行
+
+托盘菜单只能通过 `tray-control` 事件通知前端，再由前端调用 `localWorkerClient.ts` 的本地 HTTP API。不要在 Rust 或 TypeScript 中加入 `std::process`、shell plugin、process plugin 或任意命令执行逻辑。
+
+## Phase 33?Conversation Runtime Foundation
+
+???????
+
+????`conversation_threads`?`conversation_events`??? `conversation_messages.thread_id`?`ConversationService`?`run_conversation_turn`?Conversation APIs?Worker Console Chat Panel Foundation?Event Timeline?polling event feed?
+
+???????`message_received`?`planning_started`?`plan_created`?`agent_started`?`tool_called`?`worker_action_started`?`worker_action_completed`?`assistant_response`?`error`?
+
+??????? Conversation Runtime Foundation???? WebSocket/SSE????? OpenClaw??? ComfyUI??? TikTok / YouTube / X??????Cookie ????????????????????????
+
+## Phase 34 Remote Browser Runtime Development Notes
+
+Remote browser runtime development must keep the dispatch boundary clear:
+
+- API orchestration belongs in `BrowserRuntimeSessionService`.
+- Remote worker calls belong in `app/browser/providers/remote_provider.py` and `BrowserWorkerClient`.
+- Customer-machine execution belongs in `worker_client/browser_runtime`.
+- Do not add platform automation, stealth behavior, proxy logic, cookie injection, or captcha bypass.
+- Do not bypass workspace isolation when querying `browser_runtime_sessions`.
+- Do not store screenshot base64 in database metadata; store files under `storage/browser_screenshots` and keep metadata paths.
+
+Required verification after changes:
+
+```powershell
+python -m pytest
+python scripts/verify_docs_runtime.py
+```
+
+For real customer-machine runtime checks, install Chromium with:
+
+```powershell
+playwright install chromium
+```
+
+## Phase 35B Real Client Worker E2E Development Rule
+
+When changing `scripts/validate_real_client_worker_e2e.py`, preserve these rules:
+
+- Missing `expected_worker_name` returns `SKIPPED`, not PASS.
+- Browser actions are executed only after the expected worker is online and available.
+- JSON output must include checks, warnings, summary, and exit code.
+- `BROWSER_PROVIDER=remote` mismatch is a WARNING only.
+- Never fabricate a real customer-machine E2E result.
+
+Required tests:
+
+```powershell
+python -m pytest tests\test_real_client_worker_e2e_script.py tests\test_real_client_worker_e2e_docs.py
+```
+
+## Phase 35A 开发规则：Browser Runtime Observability
+
+新增或修改 Browser Runtime 动作时，必须同步维护：
+
+- `BrowserRuntimeObservabilityService`
+- `browser_runtime_events`
+- `browser_runtime_snapshots`
+- `browser_runtime_replays`
+- `docs/zh/API_REFERENCE.md`
+- `docs/en/API_REFERENCE.md`
+- Worker Console Timeline / Snapshots / Replay metadata 面板
+
+固定自测流程：
+
+```powershell
+python -m pytest
+cd worker_console
+npm install
+npm run build
+cd ..\worker_console_desktop
+npm install
+npm run build
+cd ..
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+边界：Replay 只能是 metadata-only replay，不能重新执行浏览器动作；不得加入 live stream、VNC/noVNC、DevTools remote control 或真实平台自动化。
+
+## Phase 36：Server Admin Dashboard Foundation
+
+`admin_dashboard` 已加入 docs SSOT。它是 read-only monitoring foundation，用于查看 Overview、Workers、Browser Runtime、Conversations、Tasks、OpenClaw、Audit Logs、RAG / Documents、Settings。运行配置为 `VITE_AI_SERVER_API=http://localhost:8000`、`VITE_WORKSPACE_ID=demo-workspace`、`VITE_USER_ID=demo-user`，API client 位于 `admin_dashboard/src/api/client.ts`，包含 `workersApi`、`browserRuntimeApi`、`conversationsApi`、`tasksApi`、`openclawApi`、`auditApi`、`ragApi`。当前 no login UI、no permission UI、no publishing business flow、no real social platform control、no production-grade operations backend。
+
+## Phase 37：Conversation Runtime Frontend Integration
+
+状态：已完成，Phase 37。
+
+Phase 37 将 Conversation Runtime 接入 Server Admin Dashboard、Worker Console Web 与 Worker Console Desktop。当前能力是 Conversation frontend integration 和基础对话入口，不是完整 ChatGPT UI，也不是 WebSocket / SSE streaming。
+
+已完成：
+
+- Admin Dashboard Conversation page：`admin_dashboard` 的 Conversations 页面支持 create thread、thread list、thread detail、message list、event timeline、send message、run conversation、refresh messages、refresh events。
+- Admin Dashboard client：新增 `admin_dashboard/src/api/conversationClient.ts`，支持 `createThread`、`listThreads`、`getThread`、`sendMessage`、`listMessages`、`listEvents`、`runConversation`。
+- Worker Console Chat Panel：`worker_console` 支持 AI Server URL、Workspace ID、User ID 配置，支持 create thread、send and run、Polling Event Timeline、AI Server connected / disconnected / unreachable 状态。
+- Desktop Chat Panel：`worker_console_desktop` 同步 Chat Panel 基础能力；Tauri native validation 仍取决于客户机 Rust/MSVC 环境。
+- Polling Event Timeline：前端通过 `GET /api/v1/conversations/{thread_id}/events` 手动刷新或 5 秒 polling，展示 `event_type`、`message`、`created_at`、`payload JSON`。
+- Frontend config：`VITE_AI_SERVER_API=http://localhost:8000`，`VITE_WORKSPACE_ID=demo-workspace`，`VITE_USER_ID=demo-user`。
+- Development CORS：后端通过 `CORS_ALLOWED_ORIGINS` 允许 `http://localhost:5173`、`http://127.0.0.1:5173`、`http://localhost:5180`、`http://127.0.0.1:5180`、`tauri://localhost` 等开发来源。
+
+边界：当前不是 WebSocket，not WebSocket；当前不是 SSE，not SSE；当前不是完整 ChatGPT UI，not a full ChatGPT UI；不做 TikTok / YouTube / X 自动化，不做登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实平台自动化、真实 OpenClaw 或 ComfyUI。
+## Phase 38 开发规则补充
+
+新增 Conversation bridge 能力时必须先扩展 `ConversationToolRouter` 的 Routing Rules，再在 `ConversationService` 中实现受控 bridge。所有执行必须写入 `route_selected`、`tool_execution_started` / `tool_execution_completed` / `tool_execution_failed` 或对应 agent / planning event，并把完整结果放入 `result_metadata`。不得把本阶段描述为 autonomous agent、WebSocket、SSE 或真实平台发布。
+
+## Phase 39 开发规则
+
+新增可能触发 Tool / Browser / OpenClaw / Task 的 Conversation route 时，必须同步更新 `ConversationRiskPolicy`。medium/high risk 不允许绕过 `ConversationApprovalService` 和 Tool Execution Gate。
+
+固定检查：
+
+- 是否创建 `conversation_approvals` 或明确说明 low risk 自动执行。
+- 是否写入 approval events。
+- 是否保证 rejected / cancelled / expired / executed approval 不可执行。
+- 是否更新 Admin Dashboard、Worker Console、Worker Console Desktop 的 pending approvals panel。
+- 是否更新 docs 和 `scripts/verify_docs_runtime.py`。
+
+禁止把 Phase 39 描述为完整权限系统、真实平台发布或 autonomous agent。
+## Phase 40 开发规则：Playbooks
+
+新增 Playbook 时必须同步：
+
+- `app/conversation/playbook_definitions.py`
+- `ConversationPlaybookService`
+- API_REFERENCE
+- Admin Dashboard / Worker Console Playbook UI
+- pytest
+- `python scripts/verify_docs_runtime.py`
+
+Playbook step 不允许绕过 `ConversationRiskPolicy` 和 `ConversationApprovalService`。如果新增高风险 step，只能创建 approval，不得直接执行。
+
+## Phase 41 开发规则
+
+新增 Conversation / Playbook / Tool 产物时，优先通过 `OutputArtifactService` 写入 `output_artifacts`，不要把超大 raw payload 直接塞进 `content`。文件型 artifact 保存路径和 metadata；文本型 artifact 可保存 bounded content。每个 Phase 完成后必须同步 Output Library API、前端页面、pytest、前端 build、Docker smoke 和 docs verifier。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

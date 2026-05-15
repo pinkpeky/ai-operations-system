@@ -4,7 +4,6 @@ from app.browser.providers.base import BaseBrowserProvider, BrowserProviderResul
 from app.browser.providers.mock_browser_provider import MockBrowserProvider
 from app.browser.providers.playwright_browser_provider import PlaywrightBrowserProvider
 from app.browser.providers.playwright_provider import PlaywrightLocalProvider
-from app.browser.providers.remote_browser_provider import RemoteBrowserProvider
 
 __all__ = [
     "BaseBrowserProvider",
@@ -12,5 +11,4 @@ __all__ = [
     "MockBrowserProvider",
     "PlaywrightBrowserProvider",
     "PlaywrightLocalProvider",
-    "RemoteBrowserProvider",
 ]

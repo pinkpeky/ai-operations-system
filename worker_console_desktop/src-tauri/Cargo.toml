@@ -1,0 +1,15 @@
+[package]
+name = "aiops-worker-console-desktop"
+version = "32.0.0"
+description = "AI Ops Worker Console System Tray & Desktop Runtime Foundation"
+authors = ["AI Ops"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

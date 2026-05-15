@@ -1,4 +1,5 @@
-"""业务服务模块包。
+"""Service package exports."""
 
-该目录放置可被 API、调度器和后台任务复用的业务服务。
-"""
+from app.services.output_artifact_service import OutputArtifactService
+
+__all__ = ["OutputArtifactService"]

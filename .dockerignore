@@ -12,4 +12,8 @@ dist/
 build/
 *.egg-info/
 screenshots/
+storage/browser_screenshots/
+storage/browser_runtime_snapshots/
 worker/screenshots/
+worker_client/runtime_state/
+worker_client/logs/

@@ -64,7 +64,7 @@ class ConversationMessageResponse(BaseModel):
     """会话消息响应。"""
 
     id: UUID
-    session_id: UUID
+    session_id: UUID | None
     workspace_id: str
     role: str
     content: str

@@ -85,6 +85,45 @@ class BrowserWorkerClient:
 
         return await self._request("POST", f"/sessions/{remote_session_id}/close")
 
+    async def create_runtime_session(self, *, payload: dict[str, Any]) -> BrowserWorkerClientResult:
+        """Create a Phase 34 browser runtime session on the remote worker."""
+
+        return await self._request("POST", "/browser/session/create", json=payload)
+
+    async def runtime_navigate(self, *, remote_session_id: str, payload: dict[str, Any]) -> BrowserWorkerClientResult:
+        """Navigate a Phase 34 remote browser runtime session."""
+
+        return await self._request(
+            "POST",
+            f"/browser/session/{remote_session_id}/navigate",
+            json=payload,
+            timeout_seconds=self.action_timeout_seconds,
+        )
+
+    async def runtime_screenshot(self, *, remote_session_id: str, payload: dict[str, Any]) -> BrowserWorkerClientResult:
+        """Capture a screenshot from a Phase 34 remote browser runtime session."""
+
+        return await self._request(
+            "POST",
+            f"/browser/session/{remote_session_id}/screenshot",
+            json=payload,
+            timeout_seconds=self.action_timeout_seconds,
+        )
+
+    async def runtime_page(self, *, remote_session_id: str) -> BrowserWorkerClientResult:
+        """Fetch page title/content from a Phase 34 remote browser runtime session."""
+
+        return await self._request(
+            "GET",
+            f"/browser/session/{remote_session_id}/page",
+            timeout_seconds=self.action_timeout_seconds,
+        )
+
+    async def runtime_close(self, *, remote_session_id: str) -> BrowserWorkerClientResult:
+        """Close a Phase 34 remote browser runtime session."""
+
+        return await self._request("POST", f"/browser/session/{remote_session_id}/close")
+
     async def start_human_control(self, *, remote_session_id: str, payload: dict[str, Any]) -> BrowserWorkerClientResult:
         """请求 worker 进入人工接管 metadata 状态。"""
 
@@ -186,7 +225,17 @@ class BrowserWorkerClient:
         data = dict(payload.get("data") or {})
         data["retry_count"] = retry_count
         data["retry_logs"] = logs
-        for key in ("remote_session_id", "remote_action_id"):
+        for key in (
+            "remote_session_id",
+            "remote_action_id",
+            "session_id",
+            "title",
+            "url",
+            "content",
+            "page_title",
+            "current_url",
+            "screenshot_base64",
+        ):
             if payload.get(key) is not None:
                 data[key] = payload.get(key)
         return BrowserWorkerClientResult(

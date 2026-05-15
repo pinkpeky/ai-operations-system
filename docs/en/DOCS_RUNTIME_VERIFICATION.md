@@ -1,4 +1,4 @@
-# Docs Runtime Verification
+﻿# Docs Runtime Verification
 
 ## Phase 20 Verification Scope
 
@@ -292,3 +292,185 @@ If Phase 27 CLI behavior, config shape, local runtime protocol, or Worker Client
 ```powershell
 python scripts/verify_docs_runtime.py
 ```
+
+## Phase 29 Worker Client Runtime Verification
+
+Docs verification now also checks Worker Console Foundation files: `worker_client/runtime_manager.py`, `worker_client/status.py`, `worker_client/logging.py`, `worker_client/local_api_client.py`, `packaging/windows_start_worker.ps1`, `packaging/mac_start_worker.sh`, and Worker Client install docs.
+
+After any Worker Client runtime change, run:
+
+```powershell
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+The local runtime API is documented as local-only: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, `GET /local/logs`.
+
+## Phase 30 Worker Console Docs Verification
+
+Docs verifier checks `worker_console`, `worker_console/src/api/localWorkerClient.ts`, `VITE_LOCAL_WORKER_API`, `http://127.0.0.1:9100`, Worker Console GUI Foundation docs, and the explicit no system tray / no exe / dmg boundary.
+## Phase 31 Verification Addition
+
+Docs Runtime Verification now covers the Worker Console Desktop App Foundation. Checked items include:
+
+- `worker_console_desktop/package.json`
+- `worker_console_desktop/src/api/localWorkerClient.ts`
+- `worker_console_desktop/src-tauri/tauri.conf.json`
+- `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`
+- `npm run tauri dev`
+- `Worker Console Desktop App Foundation`
+
+After Phase 31, the required verification flow remains:
+
+```bash
+python -m pytest
+docker compose up --build -d
+python scripts/verify_docs_runtime.py
+```
+
+The desktop app is only a Tauri foundation shell: no formal installer, no exe / dmg, no system tray, and no auto update.
+
+## Phase 32 Verification Addition
+
+Docs Runtime Verification now covers the Worker Console System Tray & Desktop Runtime Foundation. Checked items include:
+
+- `worker_console_desktop/src-tauri/src/main.rs`
+- `worker_console_desktop/src-tauri/desktop-runtime.json`
+- `worker_console_desktop/src/settings.ts`
+- `worker_console_desktop/src/desktopBridge.ts`
+- `worker_console_desktop/settings.example.json`
+- `worker_console_desktop/autostart/README.md`
+- `System Tray`
+- `Minimize To Tray`
+- `Tray Runtime Control`
+- `Desktop Status Sync`
+- `AutoStart Placeholder`
+
+The docs must still distinguish completed and missing capabilities: there is no formal installer, no auto-update, and no real autostart registration.
+
+## Phase 33: Conversation Runtime Foundation
+
+Status: completed.
+
+Completed: `conversation_threads`, `conversation_events`, extended `conversation_messages.thread_id`, `ConversationService`, `run_conversation_turn`, Conversation APIs, Worker Console Chat Panel Foundation, Event Timeline, and polling event feed.
+
+Events include `message_received`, `planning_started`, `plan_created`, `agent_started`, `tool_called`, `worker_action_started`, `worker_action_completed`, `assistant_response`, and `error`.
+
+Boundary: this is Conversation Runtime Foundation only. It is not real WebSocket/SSE streaming, not real OpenClaw, not ComfyUI, and not TikTok / YouTube / X automation, login automation, cookie injection, proxy pool, fingerprint bypass, captcha automation, or real platform automation.
+
+## Phase 34 Docs Runtime Verification
+
+The verifier now checks that Phase 34 Remote Browser Runtime Foundation is reflected in runtime docs:
+
+- `browser_runtime_sessions`
+- `BrowserRuntimeSessionService`
+- `app/browser/providers/remote_provider.py`
+- `worker_client/browser_runtime`
+- `/browser/session/create`
+- `/browser/session/{session_id}/navigate`
+- `/browser/session/{session_id}/screenshot`
+- `/browser/session/{session_id}/page`
+- `/browser/session/{session_id}/close`
+- `storage/browser_screenshots`
+- `BROWSER_RUNTIME_SCREENSHOT_DIR`
+- `Browser Sessions Panel`
+- `playwright install chromium`
+
+Run:
+
+```bash
+python scripts/verify_docs_runtime.py
+```
+
+The expected result is `SUMMARY: PASS`.
+
+## Phase 35B Docs Runtime Verification
+
+The verifier now requires:
+
+- `scripts/validate_real_client_worker_e2e.py`
+- `docs/zh/REAL_CLIENT_WORKER_E2E.md`
+- `docs/en/REAL_CLIENT_WORKER_E2E.md`
+- `Real Client Worker E2E Validation Plan`
+- `expected_worker_name`
+- `SKIPPED`
+- `real client worker not online`
+- `do not expose port 9100 to the public internet`
+- `Tailscale`
+- `VPN`
+
+This keeps docs honest: Phase 35B prepares validation ability and does not claim a real customer-machine E2E pass until the customer machine is actually online.
+
+## Phase 35A Verification Items
+
+Docs Runtime Verification now checks that Browser Runtime Observability & Replay matches runtime code, including:
+
+- `BrowserRuntimeObservabilityService`
+- `browser_runtime_events`
+- `browser_runtime_snapshots`
+- `browser_runtime_replays`
+- `BROWSER_RUNTIME_SNAPSHOT_DIR=storage/browser_runtime_snapshots`
+- events / snapshots / replay / replay export APIs
+- API_REFERENCE coverage for metadata-only replay, Snapshot Storage, Timeline Event Flow, and Failure Debug
+
+Run:
+
+```powershell
+python scripts/verify_docs_runtime.py
+```
+
+Expected result: `SUMMARY: PASS`. Replay is not live stream, not VNC/noVNC, not DevTools remote control, and it does not re-run browser actions.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+`admin_dashboard` is now part of the docs SSOT. It is a read-only monitoring foundation for Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings. Runtime config is `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, and `VITE_USER_ID=demo-user`. The API client lives at `admin_dashboard/src/api/client.ts` and exports `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`. Current boundaries: no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Status: completed, Phase 37.
+
+Phase 37 connects the Conversation Runtime to Server Admin Dashboard, Worker Console Web, and Worker Console Desktop. The current scope is Conversation frontend integration and a basic conversation entrypoint. It is not a full ChatGPT UI and it is not WebSocket / SSE streaming.
+
+Completed:
+
+- Admin Dashboard Conversation page: `admin_dashboard` Conversations supports create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` supports `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: `worker_console` supports AI Server URL, Workspace ID, User ID settings, create thread, send and run, Polling Event Timeline, and AI Server connected / disconnected / unreachable state.
+- Desktop Chat Panel: `worker_console_desktop` mirrors the Chat Panel foundation. Tauri native validation still depends on the customer machine Rust/MSVC environment.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds and show `event_type`, `message`, `created_at`, and `payload JSON`.
+- Frontend config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- Development CORS: backend `CORS_ALLOWED_ORIGINS` allows `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5180`, `http://127.0.0.1:5180`, `tauri://localhost`, and related local development origins.
+
+Boundaries: current implementation is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real platform automation, real OpenClaw, or ComfyUI.
+## Phase 38 Docs Runtime Verification
+
+`scripts/verify_docs_runtime.py` now checks `app/conversation/tool_router.py`, `Conversation Runtime Tool Execution Bridge`, `ConversationToolRouter`, `route_selected`, `tool_execution_started`, `route_name`, `selected_tool`, `events_created`, `success`, `summary`, `result_metadata`, and the boundaries: not autonomous agent, not WebSocket, and not SSE.
+
+After Phase 39, the verifier also checks `app/conversation/risk_policy.py`, `app/conversation/services/approval_service.py`, `app/api/routes/conversation_approvals.py`, `conversation_approvals`, `ConversationApprovalService`, `ConversationRiskPolicy`, `review_first`, `auto_safe`, `execute_after_approval`, approval events, pending approvals panel, and the boundary: not a full permission system.
+## Phase 40 Docs Runtime Verification
+
+The verifier now checks:
+
+- `app/conversation/services/playbook_service.py`
+- `app/conversation/playbook_definitions.py`
+- `app/api/routes/conversation_playbooks.py`
+- OpenAPI Playbook routes
+- `conversation_playbooks`
+- `conversation_playbook_runs`
+- `playbook_name`
+- `playbook_run_id`
+- `playbook_step_started`
+- `playbook_waiting_approval`
+- `playbook_completed`
+
+If Playbook APIs are added or removed, update `scripts/verify_docs_runtime.py` in the same phase.
+
+## Phase 41 Verification Addendum
+
+The docs verifier now checks Output Library coverage: `output_artifacts`, `OutputArtifactService`, `/api/v1/output-artifacts`, artifact events, Save as Artifact, Export markdown, S3 / MinIO boundaries, and the not a full DAM statement. When Output Artifact APIs, fields, or frontend entry points change, update `scripts/verify_docs_runtime.py` in the same phase.
+## Phase 42: Task Orchestration & Background Execution
+
+This phase adds the Task Orchestration foundation: `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, and `TaskRetryPolicy`. Conversation / Playbook runs can use `execution_mode=background`, then `/api/v1/task-runs` exposes queued, running, waiting_approval, retrying, completed, failed, cancelled, expired state plus timeline events. `scheduled_at` supports scheduled runs; retry uses exponential backoff; approval resume continues to enforce the Phase 39 Approval Gate; Output Library artifacts are linked by `task_run_id`.
+
+Boundary: this is an in-process queue, not Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue. It does not implement real publishing, real OpenClaw, ComfyUI, CAPTCHA handling, proxies, or fingerprint bypass.

@@ -1,18 +1,18 @@
 # AI Operations System Project Overview
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 This is the entry point for `E:\ai-operations-system`. After Phase 10.5, `docs/` is the project Single Source of Truth. After Phase 27, this source of truth is also verified by runtime checks through `scripts/verify_docs_runtime.py`.
 
 ## Project Summary
 
-AI Operations System is a backend-first AI automation platform. It combines task orchestration, Agentic RAG, workspace isolation, knowledge lifecycle management, hybrid retrieval, reranking, evaluation trace storage, content generation, file-based knowledge ingestion, task reliability observability, foundational internal Tool Calling, Agent Memory foundation, fixed-chain Multi-Agent foundation, Agent Planning Foundation, Browser Adapter Foundation, Playwright Local Provider Integration, Remote Browser Worker Foundation, Real Browser Worker Service, Browser Worker Reliability, Persistent Browser Profile Foundation, Browser Profile Health & Recovery, Human-in-the-loop Browser Control, Browser Worker UI Access Placeholder, Browser Worker Security & Access Control, and Customer Machine Worker Bootstrap.
+AI Operations System is a backend-first AI automation platform. It combines task orchestration, Agentic RAG, workspace isolation, knowledge lifecycle management, hybrid retrieval, reranking, evaluation trace storage, content generation, file-based knowledge ingestion, task reliability observability, foundational internal Tool Calling, Agent Memory foundation, fixed-chain Multi-Agent foundation, Agent Planning Foundation, Browser Adapter Foundation, Playwright Local Provider Integration, Remote Browser Worker Foundation, Real Browser Worker Service, Browser Worker Reliability, Persistent Browser Profile Foundation, Browser Profile Health & Recovery, Human-in-the-loop Browser Control, Browser Worker UI Access Placeholder, Browser Worker Security & Access Control, Customer Machine Worker Bootstrap, OpenClaw Worker Adapter Foundation, Remote Browser Runtime Foundation, Real Client Worker E2E Validation Plan, and Browser Runtime Observability & Replay.
 
 The project is not a frontend dashboard. It is a backend foundation for future content agents, support agents, data analysis agents, tool-calling agents, browser automation, monitoring, and more advanced multi-agent workflows.
 
 ## Current Status
 
-Phase 1 through Phase 27 are completed.
+Phase 1 through Phase 35A are completed. Phase 35B is also completed as a validation-plan phase; Phase 35A was implemented afterward to harden runtime observability.
 
 Completed capabilities:
 
@@ -47,6 +47,10 @@ Completed capabilities:
 - Phase 25 Browser Worker UI Access Placeholder with `BrowserUIAccessService`, `browser_ui_access_sessions`, `access_token_hash`, placeholder URL generation, `remote_control_url`, `live_view_url`, `devtools_url=null`, token validation/revoke/expire APIs, worker `/ui-access/capabilities`, and `browser_tool` actions `create_ui_access` / `revoke_ui_access`.
 - Phase 26 Browser Worker Security & Access Control with `BrowserWorkerAuthService`, `worker_secret_hash`, `api_key_hash`, `last_auth_at`, `auth_status`, `allowed_actions`, `allowed_domains`, signed worker request headers (`X-Worker-Signature`, `X-Worker-Timestamp`, `X-Worker-Nonce`), UI Access Scope fields (`scopes`, `one_time`, `used_at`, `revoked_reason`, `client_ip`, `user_agent`), `BrowserActionPolicyService`, `browser_security_audit_logs`, and security policy / audit APIs.
 - Phase 27 Customer Machine Worker Bootstrap with `worker_client`, `worker_config.example.yaml`, local `worker_config.yaml`, local-only `worker_state.json`, CLI commands `python -m worker_client.cli register`, `heartbeat`, `serve`, and `start`, customer machine registration flow, heartbeat flow, local worker runtime, and compatibility with the existing Browser Worker protocol.
+- Phase 28 OpenClaw Worker Adapter Foundation with `worker_client/openclaw`, `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, server-side `OpenClawWorkerClient`, `openclaw_tool`, `openclaw_action_logs`, OpenClaw mock worker runtime routes, and `/api/v1/openclaw/*` APIs.
+- Phase 34 Remote Browser Runtime Foundation with `browser_runtime_sessions`, `BrowserRuntimeSessionService`, `app/browser/providers/remote_provider.py`, `worker_client/browser_runtime`, Browser Session Lifecycle, `storage/browser_screenshots`, Browser Sessions Panel, and `playwright install chromium` customer-worker setup.
+- Phase 35B Real Client Worker E2E Validation Plan with `scripts/validate_real_client_worker_e2e.py`, explicit `SKIPPED` behavior when the real client worker is not online, Swagger validation flow, Worker Console validation checklist, and network safety guidance for Tailscale/VPN/LAN.
+- Phase 35A Browser Runtime Observability & Replay with `browser_runtime_events`, `browser_runtime_snapshots`, `browser_runtime_replays`, `BrowserRuntimeObservabilityService`, Timeline Event Flow, Snapshot Storage, Replay Metadata Flow, Failure Debug, and Worker Console timeline/snapshot/replay panels.
 
 Experimental capabilities:
 
@@ -63,7 +67,7 @@ Planned capabilities:
 - Vector memory and graph memory.
 - Autonomous memory planning and summarization with real LLM.
 - Advanced Multi-Agent orchestration with autonomous planner, dynamic handoff policy, and ReAct-style loops.
-- Browser Agent, OpenClaw, and platform-specific automation.
+- Real OpenClaw integration, Browser Agent, and platform-specific automation.
 - Prometheus, Grafana, and production observability.
 - Full RBAC, JWT, OAuth, and external identity providers.
 
@@ -114,6 +118,20 @@ multipart upload
  -> embedding + Qdrant + DB lifecycle records
  -> temp cleanup
 ```
+
+OpenClaw Worker Adapter Foundation:
+
+```text
+API Server / openclaw_tool
+ -> OpenClawService
+ -> BrowserWorkerSelector capability=openclaw
+ -> OpenClawWorkerClient
+ -> worker_client /openclaw/* mock runtime
+ -> MockOpenClawProvider
+ -> openclaw_action_logs + browser_security_audit_logs
+```
+
+Current OpenClaw boundary: `OPENCLAW_PROVIDER=mock`, `OPENCLAW_ENABLED=True`, and `OPENCLAW_ACTION_TIMEOUT_SECONDS=60.0`. The adapter is a placeholder for future OpenClaw execution. It does not call real OpenClaw, does not automate TikTok / YouTube / X, and does not implement login, cookie injection, proxy pools, fingerprint bypass, or captcha automation.
 
 Docs Runtime Verification Architecture:
 
@@ -412,7 +430,7 @@ Phase 27 adds the `worker_client` package so a real customer machine, Windows PC
 
 The CLI commands are `python -m worker_client.cli register`, `python -m worker_client.cli heartbeat`, `python -m worker_client.cli serve`, and `python -m worker_client.cli start`. `start` reuses an existing worker state unless `--force-register` is passed. `worker_state.json` and local `worker_config.yaml` are ignored by Git and must not be committed.
 
-Phase 27 is a bootstrap foundation only. It does not implement OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
+Phase 27 is a bootstrap foundation only. Phase 28 adds a mock OpenClaw adapter on top of that worker protocol, but it still does not implement real OpenClaw integration, TikTok / YouTube / X automation, automatic login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or real platform automation.
 
 ## Project Structure
 
@@ -427,6 +445,7 @@ app/
   middleware/     Workspace context middleware.
   memory/         Conversation sessions, messages, Agent Memory repositories, and MemoryService.
   multi_agent/    AgentRegistry, MultiAgentService, fixed chain orchestration, run/message/handoff repositories.
+  openclaw/       Server-side OpenClawWorkerClient, schemas, repository, service, and action logs.
   planning/       SimplePlannerAgent, PlanningService, plan/step/review repositories.
   rag/            Embedding, chunking, vector store, retrieval, hybrid search, and Agentic RAG.
   reranker/       Reranker provider abstraction and mock/local providers.
@@ -446,6 +465,7 @@ worker_client/
   registration.py                  AI Server worker registration client.
   heartbeat.py                     Signed heartbeat client and loop.
   runtime.py                       Customer machine Worker Runtime API.
+  openclaw/                       Mock OpenClaw provider, schemas, and runtime routes.
   cli.py                           register / heartbeat / serve / start CLI.
   worker_config.example.yaml       Safe example config; copy to worker_config.yaml locally.
 tests/            Unit and integration-style tests.
@@ -649,8 +669,10 @@ Not supported in Phase 11:
 - `browser-worker` is an independent local Docker service, but production-grade external worker fleets, scheduling, autoscaling, and remote machine deployment are not implemented yet.
 - Browser UI Access is a placeholder only: no real VNC, noVNC, Chrome DevTools remote UI, or live browser screen stream exists yet.
 - Browser Worker Security is a foundation layer only: it adds worker secret hashes, signed request plumbing, UI Access Scope checks, Browser Action Policy, and audit logs, but it is not a full RBAC/JWT/OAuth or real platform account security system.
-- Customer Machine Worker Bootstrap provides `worker_client` only; it does not ship a managed remote worker fleet, OpenClaw integration, platform account automation, or a hosted customer-machine installer.
-- No OpenClaw, Selenium, TikTok, YouTube, X, OCR, visual AI, login automation, cookie injection, fingerprint bypass, proxy pool, captcha automation, real external Browser Worker deployment, or real platform automation.
+- Customer Machine Worker Bootstrap provides `worker_client` only; it does not ship a managed remote worker fleet, platform account automation, or a hosted customer-machine installer.
+- OpenClaw is currently a mock adapter foundation only through `MockOpenClawProvider`; no real OpenClaw runtime is called.
+- Browser Runtime Replay is metadata-only. It exports timeline/snapshot manifests but does not re-execute browser actions and is not live streaming, VNC, noVNC, or DevTools remote control.
+- No Selenium, TikTok, YouTube, X, OCR, visual AI, login automation, cookie injection, fingerprint bypass, proxy pool, captcha automation, real external Browser Worker deployment, or real platform automation.
 - No Grafana or Prometheus.
 - No frontend observability dashboard.
 - No full RBAC, JWT, OAuth, or third-party login.
@@ -679,7 +701,385 @@ Suggested next phases:
 4. Tool Calling advanced planning, function calling compatibility, and permission controls.
 5. Dynamic Multi-Agent orchestration and policy-driven handoff.
 6. Real noVNC / DevTools UI access and production Browser Worker fleet management after the placeholder protocol and safety model are hardened.
-7. OpenClaw Worker route after worker bootstrap, profile safety, and human takeover boundaries are production-hardened.
+7. Real OpenClaw Worker route after worker bootstrap, profile safety, and human takeover boundaries are production-hardened.
 8. Harder security policy management for worker fleets, scoped browser profiles, and production identity integration.
 9. External observability with Prometheus and Grafana.
 10. Full authentication and authorization.
+
+## Phase 29: Worker Client Packaging & Worker Console Foundation
+
+Phase 29 is completed. It upgrades the customer-machine `worker_client` from a set of CLI scripts into a locally manageable runtime foundation. This is not a GUI phase; it is the base layer that a future Worker Console GUI can call.
+
+Completed runtime foundation:
+
+- `Worker Runtime Manager` in `worker_client/runtime_manager.py` controls `start_runtime`, `stop_runtime`, `restart_runtime`, `runtime_health`, `start_heartbeat`, `stop_heartbeat`, and `runtime_state`.
+- `worker_client/status.py` manages local `worker_client/runtime_state/status.json` with `worker_id`, `worker_name`, `workspace_id`, `server_url`, `runtime_running`, `heartbeat_running`, `registered`, `last_heartbeat_at`, `last_error`, `current_status`, `openclaw_enabled`, and `browser_enabled`.
+- `worker_client/logging.py` writes local logs to `worker_client/logs/worker.log` with simple rotation and worker secret redaction.
+- `worker_client/runtime.py` exposes local management routes: `GET /local/status`, `GET /local/health`, `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, `POST /local/heartbeat/stop`, and `GET /local/logs`.
+- `worker_client/local_api_client.py` provides a Python client for future Worker Console Foundation integration.
+- `Packaging Scripts` live under `packaging/`, including `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`.
+- `Desktop Runtime Placeholder` lives under `worker_client/desktop/` and documents future Tauri, Electron, PySide, system tray, auto start, Worker Console GUI, and embedded browser control routes.
+
+Current Phase 29 limits:
+
+- no GUI
+- no system tray
+- no Electron
+- no Tauri
+- no PySide
+- no EXE / DMG packaging
+- no embedded browser-control UI
+- no TikTok, YouTube, X, login automation, cookie injection, fingerprint bypass, proxy pool, captcha automation, or real platform automation
+
+## Phase 30: Worker Console GUI Foundation
+
+Phase 30 is completed. `worker_console` is an independent Vite + React + TypeScript + Tailwind local Web GUI for customer-machine Worker management. It connects to `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100` by default and calls the Worker Client Local API from Phase 29.
+
+Completed Worker Console GUI Foundation:
+
+- Dashboard for `worker_name`, `worker_id`, `workspace_id`, `server_url`, `registered`, `runtime_running`, `heartbeat_running`, `current_status`, `last_heartbeat_at`, and `last_error`.
+- Runtime Control for `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, and `POST /local/heartbeat/stop`.
+- Logs view backed by `GET /local/logs`, with refresh and error highlighting.
+- Connection Info for `server_url`, `worker_base_url`, `runtime_port`, `openclaw_enabled`, and `browser_enabled`.
+- Frontend Local API client: `worker_console/src/api/localWorkerClient.ts`.
+- Error state: `Worker API unreachable`, `请确认 worker_client 是否启动`, and `请确认端口是否为 9100`.
+
+Phase 30 current boundary: local Web GUI Foundation only, no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg, no TikTok / YouTube / X automation, no login automation, no proxy pools, no fingerprint bypass, no captcha automation, and no real platform automation.
+
+## Phase 31: Worker Console Desktop App Foundation
+
+Phase 31 is completed. `worker_console_desktop` upgrades the Phase 30 web console into a Tauri desktop shell foundation while preserving the same local Worker API contract. It is a desktop app foundation, not a production installer release.
+
+Completed Worker Console Desktop App Foundation:
+
+- Desktop shell project: `worker_console_desktop`.
+- Tauri configuration: `worker_console_desktop/src-tauri/tauri.conf.json`.
+- React + Vite + TypeScript + Tailwind frontend reused from the Worker Console workflow.
+- Default local Worker API: `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`.
+- Default status check: `http://127.0.0.1:9100/local/status`.
+- Desktop window shows Worker status, runtime state, heartbeat state, connection info, and logs.
+- Runtime controls call `POST /local/runtime/start`, `POST /local/runtime/stop`, `POST /local/runtime/restart`, `POST /local/heartbeat/start`, and `POST /local/heartbeat/stop`.
+- Local API client: `worker_console_desktop/src/api/localWorkerClient.ts`.
+- Development command: `npm run tauri dev`.
+- Frontend build command: `npm run build`.
+- Worker API unreachable state explicitly says the Worker Runtime is not started, asks the operator to start `worker_client`, or to use the packaging scripts.
+- UI text includes `Worker Runtime 未启动` for local runtime detection failures.
+
+Current Phase 31 boundary:
+
+- no exe / dmg
+- no system tray
+- no auto update
+- no autostart
+- no formal installer release
+- no TikTok / YouTube / X automation
+- no login automation
+- no cookie injection
+- no proxy pool
+- no fingerprint bypass
+- no captcha automation
+- no real platform automation
+
+Future Worker Console Desktop roadmap: tray / autostart / installer can be layered on top of this Tauri shell after Worker security, profile safety, and human-control boundaries remain stable.
+
+## Phase 32: Worker Console System Tray & Desktop Runtime Foundation
+
+Phase 32 is completed. `worker_console_desktop` now moves from a desktop shell foundation to a desktop runtime foundation with Tauri System Tray support, minimize-to-tray behavior, local runtime controls, and desktop status sync.
+
+Completed Desktop Runtime Foundation:
+
+- System Tray menu in `worker_console_desktop/src-tauri/src/main.rs`.
+- Tray menu entries: Show Console, Hide Window, Start Runtime, Stop Runtime, Restart Runtime, Start Heartbeat, Stop Heartbeat, Refresh Status, and Quit.
+- Minimize To Tray is enabled by default through `worker_console_desktop/src-tauri/desktop-runtime.json` with `minimize_to_tray=true`.
+- Closing the desktop window hides it to the tray; Quit is the only tray menu item that exits the process.
+- Tray Runtime Control emits local frontend events and the React app calls only the local Worker Client API.
+- Desktop Status Sync calls `GET /local/status` and `GET /local/health` on a configurable interval.
+- Tray tooltip shows `worker_name`, `current_status`, `runtime_running`, and `heartbeat_running`.
+- Desktop settings live in `worker_console_desktop/src/settings.ts` and `worker_console_desktop/settings.example.json`.
+- Desktop setting fields: `localWorkerApi`, `minimizeToTray`, and `refreshIntervalMs`.
+- Logs panel now supports auto refresh, manual refresh, error highlight, clear display, and last updated time. Clear display only clears the frontend view and does not delete log files.
+- AutoStart Placeholder docs live under `worker_console_desktop/autostart/`.
+- Tauri Security stays minimal: no shell plugin, no filesystem-wide plugin, no process plugin, no arbitrary shell, and no remote command execution.
+
+Current Phase 32 boundary:
+
+- no formal installer
+- no exe / dmg release
+- no real autostart registration
+- no auto-update
+- no remote shell
+- no arbitrary command execution
+- no TikTok / YouTube / X automation
+- no login automation
+- no cookie injection
+- no proxy pool
+- no fingerprint bypass
+- no captcha automation
+- no real platform automation
+
+## Phase 33: Conversation Runtime Foundation
+
+Phase 33 is completed. It adds the first real Conversation Runtime layer so a frontend can send one sentence, persist it in a conversation thread, run bounded rule-based routing, and poll an event timeline.
+
+Completed runtime components:
+
+- Database tables and model layer: `conversation_threads`, `conversation_events`, and an extended `conversation_messages.thread_id` column. `conversation_messages.session_id` is nullable so Phase 14 Memory sessions and Phase 33 threads can share the message table without breaking old Memory APIs.
+- Service layer: `ConversationService` in `app/conversation/services/conversation_service.py` with `create_thread`, `list_threads`, `get_thread`, `append_message`, `append_event`, `run_conversation_turn`, and `archive_thread`.
+- API layer: `POST /api/v1/conversations`, `GET /api/v1/conversations`, `GET /api/v1/conversations/{thread_id}`, `POST /api/v1/conversations/{thread_id}/messages`, `GET /api/v1/conversations/{thread_id}/messages`, `GET /api/v1/conversations/{thread_id}/events`, and `POST /api/v1/conversations/{thread_id}/run`.
+- Event timeline records `message_received`, `planning_started`, `plan_created`, `agent_started`, `tool_called`, `worker_action_started`, `worker_action_completed`, `assistant_response`, and `error` events.
+- Rule-based routing only: messages containing search/browser/open-page keywords call `browser_tool`; messages containing content/copy/generate keywords call `ContentAgent`; messages containing `OpenClaw` call `openclaw_tool` mock.
+- Worker Console Chat Panel Foundation in both `worker_console` and `worker_console_desktop`, including input box, Send button, Message list, Event Timeline, Refresh events, planning/tool/worker status display, and `conversationClient.ts`.
+- Event feed is polling via `GET /api/v1/conversations/{thread_id}/events`. WebSocket and SSE are placeholders only and are not implemented.
+
+Current Phase 33 boundaries:
+
+- no TikTok / YouTube / X automation
+- no login automation, cookie injection, proxy pool, fingerprint bypass, or captcha automation
+- no real platform automation
+- no real OpenClaw runtime
+- no ComfyUI
+- no real WebSocket or SSE streaming
+- no Scheduler, TaskExecutor, Workspace Isolation, or Hybrid Search core logic changes
+
+## Phase 34: Remote Browser Runtime Foundation
+
+Phase 34 is completed. It upgrades the browser path from mock/local-only execution to a real Remote Browser Runtime foundation where the AI Server dispatches browser sessions and actions to a registered customer-machine worker.
+
+Completed runtime components:
+
+- Database model and migration for `browser_runtime_sessions`.
+- Service layer: `BrowserRuntimeSessionService` manages create, get, navigate, screenshot, page fetch, close, activity updates, and stale status handling.
+- Provider layer: `app/browser/providers/remote_provider.py` selects a healthy remote worker and calls the worker runtime through `BrowserWorkerClient`.
+- Worker runtime layer: `worker_client/browser_runtime` implements the Playwright-backed runtime, session manager, schemas, and browser provider.
+- Worker Runtime API: `/browser/session/create`, `/browser/session/{session_id}/navigate`, `/browser/session/{session_id}/screenshot`, `/browser/session/{session_id}/page`, and `/browser/session/{session_id}/close`.
+- API Server routes: `/api/v1/browser-runtime/sessions`, `/api/v1/browser-runtime/sessions/{session_id}`, `/api/v1/browser-runtime/sessions/{session_id}/navigate`, `/api/v1/browser-runtime/sessions/{session_id}/screenshot`, `/api/v1/browser-runtime/sessions/{session_id}/page`, and `/api/v1/browser-runtime/sessions/{session_id}/close`.
+- Browser Session Lifecycle: create remote session, persist local runtime session, navigate, capture screenshot, fetch page title/content, close remote session, and close local record.
+- Screenshot Storage: runtime screenshots are saved under `storage/browser_screenshots` and configured by `BROWSER_RUNTIME_SCREENSHOT_DIR`.
+- Worker Console Browser Sessions Panel: `worker_console` and `worker_console_desktop` now list active runtime sessions and can close them.
+- Customer worker setup now explicitly includes `playwright install chromium`.
+
+Current Phase 34 boundaries:
+
+- no stealth browser
+- no anti-detect browser
+- no proxy rotation
+- no cookie injection
+- no captcha bypass
+- no TikTok / YouTube / X automation
+- no persistent login cloning
+- no remote desktop streaming
+- no DevTools remote control
+- no OpenClaw real device
+- no ComfyUI
+
+## Phase 35A: Browser Runtime Observability & Replay
+
+Phase 35A is completed. It adds observability and replay metadata around the Phase 34 Remote Browser Runtime. It does not require a real customer-machine worker; Docker `browser-worker` can be used for validation.
+
+Completed runtime components:
+
+- Database model and migration for `browser_runtime_events`, `browser_runtime_snapshots`, and `browser_runtime_replays`.
+- Service layer: `BrowserRuntimeObservabilityService` supports event append, page snapshot capture, screenshot snapshot capture, error snapshot capture, event listing, snapshot listing, replay creation, and replay JSON export.
+- Timeline Event Flow: create session writes `session_created`; navigate writes `navigate_started` / `navigate_completed` / `action_failed`; screenshot writes `screenshot_started` / `screenshot_completed`; page fetch writes `page_snapshot_captured`; close writes `session_closed`; replay creation writes `replay_requested`.
+- Snapshot Storage: page HTML/text snapshots are stored under `storage/browser_runtime_snapshots/{workspace_id}/{session_id}/`; screenshots continue to use `storage/browser_screenshots`.
+- Replay Metadata Flow: `browser_runtime_replays.replay_steps` stores readable timeline metadata and snapshot references. Replay is metadata-only and does not re-run browser actions.
+- Failure Debug: failed actions write `action_failed` events and `snapshot_type=error` records with action type, target/url, worker id, error, duration, last known URL, and last page title when available.
+- API routes: `GET /api/v1/browser-runtime/sessions/{session_id}/events`, `GET /api/v1/browser-runtime/sessions/{session_id}/snapshots`, `POST /api/v1/browser-runtime/sessions/{session_id}/replay`, `GET /api/v1/browser-runtime/replays/{replay_id}`, and `GET /api/v1/browser-runtime/replays/{replay_id}/export`.
+- Worker Console Timeline: `worker_console` and `worker_console_desktop` Browser Sessions Panel now includes Timeline, Screenshot history, Page snapshots, Replay metadata, Refresh events, and Refresh snapshots.
+
+Phase 35A boundaries:
+
+- metadata-only replay, not browser action re-execution
+- not live stream
+- not VNC
+- not noVNC
+- not DevTools remote control
+- no TikTok / YouTube / X automation
+- no login automation, cookie injection, proxy pool, fingerprint bypass, captcha automation, or real platform automation
+
+## Phase 35B: Real Client Worker E2E Validation Plan
+
+Phase 35B is completed as a validation plan and script. It does not claim that a real customer machine was available during implementation.
+
+Completed validation assets:
+
+- `scripts/validate_real_client_worker_e2e.py`
+- `docs/zh/REAL_CLIENT_WORKER_E2E.md`
+- `docs/en/REAL_CLIENT_WORKER_E2E.md`
+- pytest coverage for script behavior and documentation coverage
+- docs verifier coverage for the new docs and script
+
+The script validates:
+
+- API health
+- worker health summary
+- available workers
+- `expected_worker_name` online and available
+- browser runtime session create
+- navigate to `https://example.com`
+- screenshot metadata
+- page title/content
+- close session
+
+If the real customer-machine worker is unavailable, the script returns `SKIPPED` and reason `real client worker not online`; it does not execute browser actions and does not fabricate a successful E2E result.
+
+Swagger validation flow:
+
+1. `GET /api/v1/health`
+2. `GET /api/v1/browser-workers/health/summary`
+3. `GET /api/v1/browser-workers/available`
+4. `POST /api/v1/browser-runtime/sessions`
+5. `POST /api/v1/browser-runtime/sessions/{session_id}/navigate`
+6. `POST /api/v1/browser-runtime/sessions/{session_id}/screenshot`
+7. `GET /api/v1/browser-runtime/sessions/{session_id}/page`
+8. `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+Worker Console validation checklist includes Web Console status/log checks and Desktop Console `npm run tauri dev` when Rust/MSVC is ready.
+
+Security reminder: do not expose port 9100 to the public internet. Prefer Tailscale, VPN, or a trusted LAN.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+Phase 36 is completed. It adds `admin_dashboard`, a standalone Vite + React + TypeScript + Tailwind Server Admin Dashboard Foundation for read-only monitoring of the AI Operations System.
+
+Completed dashboard architecture:
+
+- Admin Dashboard Foundation project: `admin_dashboard`.
+- API client: `admin_dashboard/src/api/client.ts`.
+- Runtime config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- API modules: `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`.
+- Required headers: `X-Workspace-Id` and `X-User-Id`.
+- Pages: Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings.
+- Auto refresh: Overview, Workers, and Browser Runtime refresh every 10 seconds; logs, events, and snapshots are manually refreshed.
+- Browser Runtime page can create metadata-only replay records for debugging. It does not re-execute browser actions.
+
+Admin Dashboard page map:
+
+- Overview shows API health, Worker online/offline, Browser runtime session count, Task summary, Conversation count, OpenClaw mock status, and Recent errors.
+- Workers shows registered browser workers, available workers, health summary, capabilities, capacity, heartbeat, and auth status.
+- Browser Runtime shows sessions, Timeline events, Snapshots, and Replay metadata.
+- Conversations shows conversation threads, messages, and polling events, and labels Conversation Runtime as a foundation.
+- Tasks shows task list, events, logs, and payload summary in read-only mode.
+- OpenClaw shows health, capabilities, and mock status only.
+- Audit Logs shows browser security audit logs and basic event_type / success / target_type filtering.
+- RAG / Documents shows embedding health, documents, collection metadata, and a simple hybrid search form.
+- Settings stores `aiServerUrl`, `workspaceId`, and `userId` in localStorage.
+
+Current Phase 36 boundaries:
+
+- read-only monitoring foundation
+- no login UI
+- no permission UI
+- no publishing business flow
+- no real social platform control
+- no production-grade operations backend
+- no TikTok / YouTube / X automation
+- no auto login, cookie injection, proxy pool, fingerprint bypass, captcha automation, or real platform automation
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Phase 37 is completed. It connects the Phase 33 Conversation Runtime to the Server Admin Dashboard, Worker Console Web, and Worker Console Desktop so operators can create conversation threads, send messages, run a conversation turn, and inspect a polling event timeline from the frontends.
+
+Completed frontend architecture:
+
+- Admin Dashboard Conversation page: create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` with `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: AI Server URL, Workspace ID, User ID, create thread, send and run, AI Server connected / disconnected / unreachable state, latest assistant message, and Polling Event Timeline.
+- Desktop Chat Panel: same foundation as Worker Console Web; native Tauri validation still depends on customer-machine Rust/MSVC setup.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds. The UI shows `event_type`, `message`, `created_at`, and `payload JSON`.
+- Development CORS: backend config `CORS_ALLOWED_ORIGINS` allows local dashboard, console, desktop, and `tauri://localhost` origins for development.
+
+Current boundaries: this is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement real platform automation, real OpenClaw, ComfyUI, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, or publishing workflows.
+
+## Phase 38: Conversation Runtime Tool Execution Bridge
+
+Phase 38 is completed. Conversation Runtime now has a deterministic Tool Execution Bridge that turns one user message into a bounded route, executes the selected internal capability, writes readable events, and returns structured run metadata.
+
+Completed:
+- `ConversationToolRouter` in `app/conversation/tool_router.py` performs rule-based routing and returns `route_name`, `selected_tool`, `reason`, `confidence`, `tool_input`, and fallback route metadata.
+- Routing Rules cover browser/search/page/screenshot requests, OpenClaw mock requests, RAG / knowledge-base search, background task creation, content generation, and planning / step decomposition.
+- Browser Bridge Flow maps “open page and screenshot” to `browser_tool` composite execution: create runtime session, navigate, screenshot, get page metadata, and close session when possible.
+- OpenClaw Mock Bridge Flow maps OpenClaw/device/app messages to `openclaw_tool` with `mock_inspect`; this remains mock-only and never calls real OpenClaw or real devices.
+- RAG bridge calls `rag_search_tool` when `collection_name` is present; without a collection it returns a clear fallback message instead of silently searching the wrong knowledge base.
+- Content bridge calls `ContentAgent` and stores `title`, `description`, `tags`, `cta`, and `raw_response` in `result_metadata`.
+- Planning bridge calls `PlanningService`, creates a plan, returns `plan_id`, `steps`, and status, and does not execute real platform publishing.
+- Conversation events now include `route_selected`, `tool_execution_started`, `tool_execution_completed`, `tool_execution_failed`, `agent_execution_started`, `agent_execution_completed`, `planning_execution_started`, `planning_execution_completed`, `bridge_fallback`, and `bridge_error`.
+- `POST /api/v1/conversations/{thread_id}/run` now returns `user_message_id`, `assistant_message_id`, `route_name`, `selected_tool`, `events_created`, `success`, `summary`, and `result_metadata` while keeping the legacy `route`, `events`, and `output` fields.
+- Admin Dashboard, Worker Console, and Worker Console Desktop show route selected, selected tool, tool status, result summary, event timeline, and full metadata panel.
+
+Current boundaries: this is not autonomous agent planning, not WebSocket, not SSE, and not real platform automation. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real OpenClaw, ComfyUI, or publishing workflows.
+
+## Phase 39: Conversation Execution Review & Approval Flow
+
+Phase 39 is completed. Conversation Runtime now has an execution review gate before risky tool actions run. The goal is to prevent a single sentence from directly triggering medium/high risk Browser, OpenClaw, account/profile, upload, publish, or future platform actions.
+
+Completed:
+- Added `conversation_approvals` with `route_name`, `selected_tool`, `risk_level`, `approval_status`, `proposed_action`, `proposed_payload`, reviewer fields, timestamps, and metadata.
+- Added `ConversationApprovalService` for `create_approval`, `approve`, `reject`, `cancel`, `expire_pending`, and `mark_executed`.
+- Added `ConversationRiskPolicy` with low / medium / high risk classification.
+- Added run modes: `auto_safe`, `review_first`, and `execute_after_approval`.
+- Added Tool Execution Gate: low risk can run under `auto_safe`; medium/high risk creates a pending approval unless explicitly approved and executed.
+- Added approval events: `approval_required`, `approval_created`, `approval_approved`, `approval_rejected`, `approval_cancelled`, `approval_expired`, `approval_executed`, `execution_blocked_pending_approval`, `execution_after_approval_started`, `execution_after_approval_completed`, and `execution_after_approval_failed`.
+- Added approval APIs under `/api/v1/conversations/{thread_id}/approvals` and `/api/v1/conversation-approvals/{approval_id}`.
+- Admin Dashboard, Worker Console, and Worker Console Desktop now show a pending approvals panel with proposed action preview, proposed payload JSON, risk badge, approve / reject / cancel buttons, and execute approved action button.
+
+Risk policy:
+- `low`: content generation, RAG search, and planning create-only actions.
+- `medium`: browser navigate / screenshot / get page and OpenClaw mock inspect.
+- `high`: browser click, form input, upload, publish, account/profile actions, real OpenClaw actions, and future social platform actions.
+
+Current boundaries: this is not a full permission system, not WebSocket, not SSE, not real platform publishing, and not an autonomous agent. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real OpenClaw, or ComfyUI.
+## Phase 40: Conversation Execution Templates & Playbooks
+
+Status: completed.
+
+Phase 40 adds Conversation Playbooks as reusable execution templates on top of the Phase 38 Tool Bridge and Phase 39 Approval Flow. The implemented database tables are `conversation_playbooks` and `conversation_playbook_runs`; step details are stored in `conversation_playbook_runs.output_payload.steps` rather than a separate step table.
+
+Built-in Playbooks:
+- `browser_search_summary`: browser page open/content collection/summary foundation.
+- `browser_screenshot_report`: browser open/screenshot/title-content report foundation.
+- `rag_answer`: knowledge-base retrieval answer foundation.
+- `content_generation`: title, description, hashtags, and CTA generation.
+- `trend_research_draft`: simulated trend research plan plus draft; no social-platform automation.
+- `openclaw_mock_device_check`: mock OpenClaw device check only.
+
+Runtime components:
+- `ConversationPlaybookService` manages playbook listing, creation, updates, disabling, runs, and cancellation.
+- `ConversationPlaybookExecutor` executes step types `message`, `route`, `tool`, `agent`, `planning`, `approval`, and `summarize`.
+- Approval integration keeps Playbook medium/high risk steps behind the Phase 39 gate.
+- Run modes continue to use `auto_safe`, `review_first`, and `execute_after_approval`.
+- Medium/high risk Playbook steps create approvals through the Phase 39 gate; Playbooks do not bypass approval.
+- Frontends now include a Playbook selector, Playbook Runs list, Step Timeline, and approval-aware execution controls.
+
+Current limitation: this is not a full workflow builder, not autonomous agent planning, not WebSocket/SSE streaming, and not real social-media publishing.
+
+## Phase 41: Playbook Run Artifacts & Output Library
+
+Status: completed.
+
+Phase 41 adds an Output Library foundation so reusable results from Conversation, Playbook, Tool, Browser Runtime, RAG, ContentAgent, Planning, and OpenClaw mock flows can be saved, viewed, reused, and exported.
+
+Completed:
+- Added `output_artifacts` for workspace-scoped artifacts linked to `thread_id` and optional `playbook_run_id`.
+- Added `OutputArtifactService` with create, list, get, update, soft delete, export, create from Playbook Run, create from Conversation message, and create from Browser Runtime snapshot.
+- Added artifact events: `artifact_created`, `artifact_exported`, `artifact_deleted`, and `artifact_linked_to_playbook_run`.
+- Playbook completion automatically creates artifacts. Examples: `content_generation` creates a `content_draft`; `browser_screenshot_report` creates `screenshot` and `report`; `rag_answer` creates `rag_answer`; planning creates `plan`; OpenClaw mock creates `json`.
+- Frontends now include Output Library panels. Admin Dashboard has an Output Library page; Conversation pages support Save as Artifact, generated artifacts, preview, and Export markdown.
+- Export formats: markdown, json, and txt. File artifacts keep `file_path` metadata and do not copy large screenshots.
+
+Artifact types: `text`, `markdown`, `json`, `screenshot`, `html_snapshot`, `report`, `plan`, `rag_answer`, `content_draft`.
+
+Source types: `conversation`, `playbook`, `tool`, `browser_runtime`, `rag`, `content_agent`, `planning`, `openclaw_mock`.
+
+Storage: exported files are written under `storage/output_artifacts/{workspace_id}/{artifact_id}/`. The system does not use S3 or MinIO.
+
+Current limitation: this is not a full DAM, not a production file manager, not cloud storage, not real publishing asset management, and not a complete material management system.
+## Phase 42?Task Orchestration & Background Execution
+
+Phase 42 is completed. The system now has `task_runs` and `task_run_events` as a dedicated background execution timeline for Conversation and Playbook work. `TaskOrchestratorService` creates, queues, starts, completes, fails, retries, cancels, schedules, and resumes task runs. `BackgroundTaskExecutor` is a lightweight in-process polling loop started by FastAPI when `TASK_ORCHESTRATOR_ENABLED=true`. `TaskRetryPolicy` provides exponential backoff and keeps approval rejected / validation errors non-retryable.
+
+Conversation Runtime now supports `execution_mode=immediate|background|scheduled`; background responses include `task_run_id`, `task_status`, and `execution_mode`. Scheduled Tasks use `scheduled_at`. Waiting approval runs pause as `waiting_approval` and resume only after Phase 39 approval is approved. Output Library now stores `task_run_id` on artifacts for Artifact linkage.
+
+Current limits: this is not Celery, not RabbitMQ, not Kubernetes scheduler, and not production HA distributed queue. It does not add TikTok / YouTube / X automation, real publishing, login, CAPTCHA handling, proxy rotation, fingerprint bypass, real OpenClaw, or ComfyUI.
+
+Phase 42 marker: Approval resume is supported for approved waiting_approval task runs.

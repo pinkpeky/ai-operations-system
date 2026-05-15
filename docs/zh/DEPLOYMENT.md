@@ -1,4 +1,25 @@
-# 部署与本地验证
+﻿# 部署与本地验证
+
+## Phase 28 OpenClaw Adapter Smoke Test
+
+?? OpenClaw runtime ??? mock?
+
+```env
+OPENCLAW_PROVIDER=mock
+OPENCLAW_ENABLED=true
+OPENCLAW_ACTION_TIMEOUT_SECONDS=60
+```
+
+Docker / ?? smoke flow?
+
+1. ?? `docker compose up --build -d`?
+2. ????? capabilities ?? `"openclaw": true` ? worker?
+3. ? `X-Workspace-Id` ?? `GET /api/v1/openclaw/health`?
+4. ?? `GET /api/v1/openclaw/capabilities`?
+5. ?? `POST /api/v1/openclaw/actions`??? `mock_inspect`?
+6. ?? `openclaw_action_logs`????? `openclaw_tool` ??????? `tool_call_logs` ? `browser_security_audit_logs`?
+
+?????????? OpenClaw???? TikTok / YouTube / X????Cookie?????????????????????????
 
 ## Phase 20 browser-worker 启动与验证
 
@@ -809,3 +830,256 @@ python scripts/verify_docs_runtime.py
 - `heartbeat flow` 会发送 `X-Worker-Secret` 与 Phase 26 签名请求头。
 
 边界：Phase 27 只是 Customer Machine Worker Bootstrap，不接 OpenClaw，不做 TikTok / YouTube / X 自动化、自动登录、Cookie 注入、代理池、指纹绕过、验证码处理或真实平台自动化。
+
+## Phase 29 Worker Client Packaging
+
+Windows:
+
+```powershell
+copy worker_client\worker_config.example.yaml worker_client\worker_config.yaml
+.\packaging\windows_install_requirements.ps1
+.\packaging\windows_register_worker.ps1
+.\packaging\windows_start_worker.ps1
+```
+
+Mac:
+
+```bash
+cp worker_client/worker_config.example.yaml worker_client/worker_config.yaml
+bash packaging/mac_install_requirements.sh
+bash packaging/mac_register_worker.sh
+bash packaging/mac_start_worker.sh
+```
+
+Local verification:
+
+```text
+GET http://127.0.0.1:9100/local/status
+GET http://127.0.0.1:9100/local/health
+GET http://127.0.0.1:9100/local/logs
+```
+
+Scripts include `packaging/windows_start_worker.ps1` and `packaging/mac_start_worker.sh`. Runtime writes `worker_client/runtime_state/status.json` and `worker_client/logs/worker.log`; both are ignored by Git. This is Worker Console Foundation only: no GUI, no exe/dmg packaging.
+
+## Phase 30 Worker Console Deployment
+
+Local development:
+
+```powershell
+python -m worker_client.cli start
+cd worker_console
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The console uses `VITE_LOCAL_WORKER_API=http://127.0.0.1:9100`. Build with `npm run build`.
+
+This is Web GUI Foundation only: no system tray, no auto update, no Electron, no Tauri, no PySide, no exe / dmg packaging.
+## Phase 31：Worker Console Desktop 本地运行
+
+桌面端仍依赖客户机本地 Worker API。先启动 `worker_client`：
+
+```powershell
+python -m worker_client.cli start
+```
+
+再启动 Tauri 桌面壳：
+
+```powershell
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+默认连接：
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+如果当前机器缺少 Rust 或 Tauri 系统依赖，可以先以 `npm run build` 作为前端构建验证，并检查 `worker_console_desktop/src-tauri/tauri.conf.json`。当前没有正式 exe / dmg，没有系统托盘，没有自动更新。
+
+## Phase 32：System Tray 桌面运行
+
+启动方式仍是开发模式：
+
+```powershell
+python -m worker_client.cli start
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+本阶段已有 System Tray 和 Minimize To Tray，但仍没有正式 installer，没有 exe / dmg，没有真正开机自启，没有 auto-update。
+
+配置文件：
+
+- `worker_console_desktop/settings.example.json`
+- `worker_console_desktop/src-tauri/desktop-runtime.json`
+- `worker_console_desktop/autostart/README.md`
+
+安全说明：托盘菜单只触发本地 Worker API，不执行 shell，不执行远程命令。
+
+## Phase 33 Runtime Notes
+
+Conversation Runtime adds no new environment variable. It depends on the existing workspace headers and existing provider defaults.
+
+Current defaults remain:
+
+```text
+LLM_PROVIDER=mock
+EMBEDDING_PROVIDER=mock
+RERANKER_PROVIDER=mock
+DEFAULT_SEARCH_MODE=hybrid
+BROWSER_PROVIDER=mock
+OPENCLAW_PROVIDER=mock
+```
+
+Conversation APIs require:
+
+```text
+X-Workspace-Id: demo-workspace
+X-User-Id: demo-user
+```
+
+Worker Console chat clients use:
+
+```text
+VITE_AI_SERVER_API=http://localhost:8000/api/v1
+VITE_WORKSPACE_ID=demo-workspace
+VITE_USER_ID=demo-user
+```
+
+Event feed mode: polling only through `GET /api/v1/conversations/{thread_id}/events`. WebSocket and SSE are placeholders only.
+
+## Phase 34 Remote Browser Runtime Deployment
+
+Deployment requirements:
+
+- API Server must expose `BROWSER_RUNTIME_SCREENSHOT_DIR=storage/browser_screenshots`.
+- `docker-compose.yml` mounts `./storage:/app/storage` so runtime screenshots survive container restarts.
+- Remote customer-machine workers must run the Worker Runtime API from `worker_client/runtime.py`.
+- Customer machines that execute the real browser runtime must run `playwright install chromium`.
+- Registered workers should include capabilities such as `{"browser_runtime": true, "browser": "chromium"}`.
+
+Smoke test sequence:
+
+1. Register or heartbeat an online worker.
+2. `POST /api/v1/browser-runtime/sessions`
+3. `POST /api/v1/browser-runtime/sessions/{session_id}/navigate`
+4. `POST /api/v1/browser-runtime/sessions/{session_id}/screenshot`
+5. `GET /api/v1/browser-runtime/sessions/{session_id}/page`
+6. `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+Current deployment boundary: no stealth browser, no proxy, no login persistence, no cookie injection, no captcha bypass, no remote desktop stream, and no real platform automation.
+
+## Phase 35B Real Client Worker E2E Deployment Check
+
+Run after AI Server is online:
+
+```powershell
+python scripts\validate_real_client_worker_e2e.py `
+  --server-url http://localhost:8000 `
+  --workspace-id demo-workspace `
+  --user-id demo-user `
+  --expected-worker-name customer-machine-worker-1
+```
+
+Expected result before a real customer machine is connected: `SKIPPED` with reason `real client worker not online`.
+
+Expected result when the customer machine worker is online: `PASS`, with screenshot metadata under `storage/browser_screenshots`.
+
+Do not expose customer-machine port 9100 to the public internet. Use Tailscale, VPN, or LAN routing.
+
+## Phase 35A Browser Runtime Observability Smoke Test
+
+Docker 验证流程：
+
+```powershell
+docker compose up --build -d
+```
+
+Swagger / API 验证：
+
+1. `GET /api/v1/health`
+2. `POST /api/v1/browser-runtime/sessions`
+3. `POST /api/v1/browser-runtime/sessions/{session_id}/navigate`
+4. `POST /api/v1/browser-runtime/sessions/{session_id}/screenshot`
+5. `GET /api/v1/browser-runtime/sessions/{session_id}/page`
+6. `GET /api/v1/browser-runtime/sessions/{session_id}/events`
+7. `GET /api/v1/browser-runtime/sessions/{session_id}/snapshots`
+8. `POST /api/v1/browser-runtime/sessions/{session_id}/replay`
+9. `GET /api/v1/browser-runtime/replays/{replay_id}/export`
+10. `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+运行时目录：
+
+```text
+BROWSER_RUNTIME_SCREENSHOT_DIR=storage/browser_screenshots
+BROWSER_RUNTIME_SNAPSHOT_DIR=storage/browser_runtime_snapshots
+```
+
+Replay 当前只是 metadata-only replay，不重新执行浏览器动作；当前也不是 live stream、VNC/noVNC 或 DevTools remote control。
+
+## Phase 36：Server Admin Dashboard Foundation
+
+`admin_dashboard` 已加入 docs SSOT。它是 read-only monitoring foundation，用于查看 Overview、Workers、Browser Runtime、Conversations、Tasks、OpenClaw、Audit Logs、RAG / Documents、Settings。运行配置为 `VITE_AI_SERVER_API=http://localhost:8000`、`VITE_WORKSPACE_ID=demo-workspace`、`VITE_USER_ID=demo-user`，API client 位于 `admin_dashboard/src/api/client.ts`，包含 `workersApi`、`browserRuntimeApi`、`conversationsApi`、`tasksApi`、`openclawApi`、`auditApi`、`ragApi`。当前 no login UI、no permission UI、no publishing business flow、no real social platform control、no production-grade operations backend。
+
+## Phase 37：Conversation Runtime Frontend Integration
+
+状态：已完成，Phase 37。
+
+Phase 37 将 Conversation Runtime 接入 Server Admin Dashboard、Worker Console Web 与 Worker Console Desktop。当前能力是 Conversation frontend integration 和基础对话入口，不是完整 ChatGPT UI，也不是 WebSocket / SSE streaming。
+
+已完成：
+
+- Admin Dashboard Conversation page：`admin_dashboard` 的 Conversations 页面支持 create thread、thread list、thread detail、message list、event timeline、send message、run conversation、refresh messages、refresh events。
+- Admin Dashboard client：新增 `admin_dashboard/src/api/conversationClient.ts`，支持 `createThread`、`listThreads`、`getThread`、`sendMessage`、`listMessages`、`listEvents`、`runConversation`。
+- Worker Console Chat Panel：`worker_console` 支持 AI Server URL、Workspace ID、User ID 配置，支持 create thread、send and run、Polling Event Timeline、AI Server connected / disconnected / unreachable 状态。
+- Desktop Chat Panel：`worker_console_desktop` 同步 Chat Panel 基础能力；Tauri native validation 仍取决于客户机 Rust/MSVC 环境。
+- Polling Event Timeline：前端通过 `GET /api/v1/conversations/{thread_id}/events` 手动刷新或 5 秒 polling，展示 `event_type`、`message`、`created_at`、`payload JSON`。
+- Frontend config：`VITE_AI_SERVER_API=http://localhost:8000`，`VITE_WORKSPACE_ID=demo-workspace`，`VITE_USER_ID=demo-user`。
+- Development CORS：后端通过 `CORS_ALLOWED_ORIGINS` 允许 `http://localhost:5173`、`http://127.0.0.1:5173`、`http://localhost:5180`、`http://127.0.0.1:5180`、`tauri://localhost` 等开发来源。
+
+边界：当前不是 WebSocket，not WebSocket；当前不是 SSE，not SSE；当前不是完整 ChatGPT UI，not a full ChatGPT UI；不做 TikTok / YouTube / X 自动化，不做登录、Cookie 注入、代理池、指纹绕过、验证码自动化、真实平台自动化、真实 OpenClaw 或 ComfyUI。
+## Phase 38 部署与验证补充
+
+Conversation Tool Execution Bridge 不新增独立服务。部署后使用已有 AI Server API 验证：创建 conversation，调用 `POST /api/v1/conversations/{thread_id}/run`，检查响应中的 `route_name`、`selected_tool`、`events_created`、`success`、`summary`、`result_metadata`，并通过 `GET /api/v1/conversations/{thread_id}/events` 查看 `route_selected`、`tool_execution_started`、`tool_execution_completed`、`agent_execution_started`、`planning_execution_started` 等事件。
+
+边界：not autonomous agent，not WebSocket，not SSE，不做真实平台发布，不做真实 OpenClaw，不做 ComfyUI。
+
+## Phase 39 部署验证
+
+部署后需要验证 Approval Flow：
+
+1. `POST /api/v1/conversations` 创建 thread。
+2. `POST /api/v1/conversations/{thread_id}/run`，使用 `mode=review_first`。
+3. `GET /api/v1/conversations/{thread_id}/approvals` 确认 `approval_status=pending`。
+4. `POST /api/v1/conversation-approvals/{approval_id}/approve`。
+5. `POST /api/v1/conversation-approvals/{approval_id}/execute`。
+6. 再次 execute 应返回错误，避免重复执行。
+
+当前不需要额外环境变量；审批流依赖数据库 migration `conversation_approvals`。生产迁移前必须先运行 Alembic，再更新 Admin Dashboard / Worker Console 静态包。当前不是完整权限系统，不做真实平台发布。
+## Phase 40 部署验证：Conversation Playbooks
+
+部署后建议 smoke test：
+
+1. `GET /api/v1/conversation-playbooks`
+2. `POST /api/v1/conversation-playbooks/{playbook_id}/run`，优先测试 `content_generation`
+3. `POST /api/v1/conversations/{thread_id}/run`，传入 `playbook_name=browser_screenshot_report` 与 `mode=review_first`
+4. 审批生成的 approval
+5. `POST /api/v1/conversation-approvals/{approval_id}/execute`
+6. `GET /api/v1/conversation-playbook-runs`
+
+如果 browser 类 Playbook 卡在 `waiting_approval`，这是预期行为；不得在未批准时执行 medium/high risk step。
+
+## Phase 41 部署补充
+
+Output Library 需要 API 容器可写 `OUTPUT_ARTIFACT_DIR=storage/output_artifacts`。本阶段导出 markdown/json/txt 到本地磁盘；截图和 HTML snapshot 只引用既有路径。当前不接 S3 / MinIO，不是完整 DAM，也不做真实平台发布资产管理。
+## Phase 42?Task Orchestration & Background Execution
+
+????? Task Orchestration foundation?`task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy`?Conversation / Playbook ??? `execution_mode=background` ??????? `/api/v1/task-runs` ?? queued?running?waiting_approval?retrying?completed?failed?cancelled?expired ??? timeline?`scheduled_at` ?? scheduled run?retry ?? exponential backoff?approval resume ???? Phase 39 Approval Gate?Output Library artifacts ?? `task_run_id` ?? artifact linkage?
+
+???????? in-process queue??? Celery / RabbitMQ / Kubernetes scheduler / production HA distributed queue???????????? OpenClaw?ComfyUI?????????????

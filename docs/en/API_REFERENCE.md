@@ -1,6 +1,6 @@
-# API Reference
+﻿# API Reference
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 All current APIs are mounted under `/api/v1`.
 
@@ -12,6 +12,135 @@ Workspace-scoped APIs require:
 X-Workspace-Id: <workspace id>
 X-User-Id: <optional user id>
 ```
+
+## Phase 28 OpenClaw Worker Adapter Foundation
+
+Status: production foundation / mock placeholder. Phase 28 adds an OpenClaw Adapter Foundation on top of the customer-machine Browser Worker protocol. It implements `BaseOpenClawProvider`, `MockOpenClawProvider`, `OpenClawRuntime`, server-side `OpenClawWorkerClient`, `openclaw_tool`, `openclaw_action_logs`, and mock worker runtime routes. It does not call real OpenClaw, automate TikTok / YouTube / X, perform automatic login, inject cookies, use proxy pools, bypass fingerprints, or automate captchas.
+
+Runtime config: `OPENCLAW_PROVIDER=mock`, `OPENCLAW_ENABLED=true`, `OPENCLAW_ACTION_TIMEOUT_SECONDS=60`.
+
+Tables: `openclaw_action_logs`; security audit events continue to use `browser_security_audit_logs`.
+
+Worker Client files: `worker_client/openclaw/provider.py`, `worker_client/openclaw/mock_provider.py`, `worker_client/openclaw/schemas.py`, and `worker_client/openclaw/runtime.py`.
+
+### GET `/api/v1/openclaw/health`
+
+Required headers: `X-Workspace-Id`, optional `X-User-Id`.
+
+Response JSON:
+
+```json
+{
+  "success": true,
+  "provider": "mock",
+  "enabled": true,
+  "reachable": true,
+  "worker_id": "WORKER_ID",
+  "worker_name": "local-windows-worker-1",
+  "mock": true,
+  "version": "mock-openclaw-0.1",
+  "error": null,
+  "raw": {
+    "real_openclaw_called": false
+  }
+}
+```
+
+### GET `/api/v1/openclaw/capabilities`
+
+Required headers: `X-Workspace-Id`, optional `X-User-Id`.
+
+Response JSON:
+
+```json
+{
+  "success": true,
+  "provider": "mock",
+  "enabled": true,
+  "worker_id": "WORKER_ID",
+  "worker_name": "local-windows-worker-1",
+  "mock": true,
+  "capabilities": {
+    "openclaw": true,
+    "real_openclaw": false,
+    "platform_automation": false
+  },
+  "actions": ["health_check", "list_capabilities", "execute_action"],
+  "error": null,
+  "raw": {}
+}
+```
+
+### POST `/api/v1/openclaw/actions`
+
+Required headers: `X-Workspace-Id`, optional `X-User-Id`.
+
+Request JSON:
+
+```json
+{
+  "action_type": "mock_inspect",
+  "target": "https://example.com",
+  "input_payload": {
+    "note": "phase28 smoke"
+  },
+  "profile_id": null,
+  "browser_session_id": null,
+  "metadata": {
+    "phase": "28"
+  }
+}
+```
+
+Response JSON:
+
+```json
+{
+  "success": true,
+  "action_type": "mock_inspect",
+  "output_payload": {
+    "message": "mock openclaw action success",
+    "real_openclaw_called": false
+  },
+  "error": null,
+  "duration_ms": 0,
+  "provider": "mock",
+  "mock": true,
+  "worker_id": "WORKER_ID",
+  "log_id": "OPENCLAW_ACTION_LOG_ID"
+}
+```
+
+### Worker Runtime OpenClaw Mock Routes
+
+Worker Runtime protocol endpoints:
+
+- `GET /api/v1/browser-worker-runtime/openclaw/health`
+- `GET /api/v1/browser-worker-runtime/openclaw/capabilities`
+- `POST /api/v1/browser-worker-runtime/openclaw/actions`
+- `GET /openclaw/health` on worker_client runtime
+- `GET /openclaw/capabilities` on worker_client runtime
+- `POST /openclaw/actions` on worker_client runtime
+
+### `openclaw_tool`
+
+The Tool Registry now includes `openclaw_tool`, supporting `health_check`, `list_capabilities`, and `execute_action`.
+
+Tool input:
+
+```json
+{
+  "action_type": "execute_action",
+  "openclaw_action_type": "mock_inspect",
+  "target": "https://example.com",
+  "input_payload": {},
+  "metadata": {
+    "phase": "28"
+  }
+}
+```
+
+Boundary: `openclaw_tool` only calls the mock worker adapter and writes `tool_call_logs`, `openclaw_action_logs`, and `browser_security_audit_logs`. It is not a Browser Agent, does not do autonomous planning, does not call real OpenClaw, and does not execute real platform actions.
 
 ## Phase 27 Customer Machine Worker Bootstrap
 
@@ -1078,7 +1207,7 @@ Task observability tables:
 
 ## Tool Calling
 
-Status: production foundation. The current implementation is an internal Tool Framework with manual tool calls only. It does not include Browser Agent, OpenClaw, Playwright, Selenium, autonomous planner, or ReAct.
+Status: production foundation. The current implementation is an internal Tool Framework with manual tool calls only. `openclaw_tool` is a Phase 28 mock/placeholder adapter; this layer does not include Browser Agent, real OpenClaw, Playwright, Selenium, autonomous planner, or ReAct.
 
 ### GET `/api/v1/tools`
 
@@ -2379,3 +2508,849 @@ Response:
   ]
 }
 ```
+
+## Phase 29 Worker Client Local Management API
+
+Status: completed runtime foundation. These endpoints are exposed by the customer-machine `worker_client.runtime` service, not by the central AI Server OpenAPI.
+
+Required local host: default `runtime_host: 127.0.0.1`, `runtime_port: 9100`.
+
+- `GET /local/status`
+  - response: local runtime state from `worker_client/status.py`, backed by `worker_client/runtime_state/status.json`.
+  - fields: `worker_id`, `worker_name`, `workspace_id`, `server_url`, `runtime_running`, `heartbeat_running`, `registered`, `last_heartbeat_at`, `last_error`, `current_status`, `openclaw_enabled`, `browser_enabled`.
+- `GET /local/health`
+  - response: `Worker Runtime Manager` health with `runtime_running`, `heartbeat_running`, `host`, `port`, and `localhost_only`.
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+- `GET /local/logs`
+  - response: recent lines from `worker_client/logs/worker.log`.
+
+Implementation files:
+
+- `worker_client/runtime_manager.py`
+- `worker_client/status.py`
+- `worker_client/logging.py`
+- `worker_client/local_api_client.py`
+- `worker_client/runtime_state/status.json`
+- `worker_client/logs/worker.log`
+
+Packaging Scripts:
+
+- `packaging/windows_start_worker.ps1`
+- `packaging/mac_start_worker.sh`
+
+Worker Console Foundation:
+
+- `Desktop Runtime Placeholder` exists under `worker_client/desktop/`.
+- Current state is `no GUI`; no Electron, no Tauri, no PySide, no system tray, no exe/dmg packaging.
+
+## Phase 30 Worker Console Local Web API Usage
+
+Worker Console frontend calls the local worker client API through `worker_console/src/api/localWorkerClient.ts`.
+
+Config:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+```
+
+Used local endpoints:
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+UI unreachable state: `Worker API unreachable`, `请确认 worker_client 是否启动`, `请确认端口是否为 9100`.
+
+Phase 30 API doc marker: Worker Console GUI Foundation uses Vite, React, TypeScript, and Tailwind. Runtime Control is local-only. Current boundary: no exe / dmg.
+## Phase 31: Worker Console Desktop Local API
+
+Status: completed, local desktop shell capability. Scope name: Worker Console Desktop App Foundation.
+
+`worker_console_desktop` does not add new AI Server APIs. It reuses the customer-machine `worker_client` Local API:
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+Default configuration:
+
+```text
+VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
+status_url=http://127.0.0.1:9100/local/status
+tauri_config=worker_console_desktop/src-tauri/tauri.conf.json
+src-tauri/tauri.conf.json
+```
+
+Unreachable-state text includes `Worker Runtime 未启动`.
+
+Development commands:
+
+```bash
+cd worker_console_desktop
+npm install
+npm run build
+npm run tauri dev
+```
+
+Current boundary: no exe / dmg, no system tray, no auto update, and no formal installer.
+
+## Phase 32: Worker Console Desktop Tray Runtime
+
+Status: completed, local desktop runtime capability. Scope name: Worker Console System Tray & Desktop Runtime Foundation.
+
+Capability keywords: System Tray, Minimize To Tray, Tray Runtime Control, Desktop Status Sync, AutoStart Placeholder.
+
+This phase does not add new AI Server APIs. The desktop app continues to call the local `worker_client` Local API:
+
+- `GET /local/status`
+- `GET /local/health`
+- `GET /local/logs`
+- `POST /local/runtime/start`
+- `POST /local/runtime/stop`
+- `POST /local/runtime/restart`
+- `POST /local/heartbeat/start`
+- `POST /local/heartbeat/stop`
+
+Desktop settings:
+
+```json
+{
+  "localWorkerApi": "http://127.0.0.1:9100",
+  "minimizeToTray": true,
+  "refreshIntervalMs": 5000
+}
+```
+
+Settings example file: `worker_console_desktop/settings.example.json`.
+Tauri runtime config: `worker_console_desktop/src-tauri/desktop-runtime.json`, with `minimize_to_tray=true`.
+
+Tauri System Tray menu: Show Console, Hide Window, Start Runtime, Stop Runtime, Restart Runtime, Start Heartbeat, Stop Heartbeat, Refresh Status, Quit.
+
+Security boundary: no arbitrary shell, no remote shell, no remote command execution, and no filesystem-wide access. There is no formal installer, no formal installer release, and no auto-update.
+
+## Phase 33 Conversation Runtime APIs
+
+Status: completed foundation.
+
+Required headers for all endpoints:
+
+```text
+X-Workspace-Id: demo-workspace
+X-User-Id: demo-user
+```
+
+### POST /api/v1/conversations
+
+Request:
+
+```json
+{
+  "title": "??????????",
+  "metadata": {"phase": "33"}
+}
+```
+
+Response includes `id`, `workspace_id`, `user_id`, `title`, `status`, `metadata`, `created_at`, and `updated_at`.
+
+### GET /api/v1/conversations
+
+Lists `conversation_threads` filtered by current workspace.
+
+### GET /api/v1/conversations/{thread_id}
+
+Returns one workspace-scoped conversation thread.
+
+### POST /api/v1/conversations/{thread_id}/messages
+
+Request:
+
+```json
+{
+  "role": "user",
+  "content": "?????????????????????????",
+  "metadata": {"source": "swagger"}
+}
+```
+
+Writes to `conversation_messages` with `thread_id` and emits `message_received` for user messages.
+
+### GET /api/v1/conversations/{thread_id}/messages
+
+Returns the message list for the current workspace thread.
+
+### GET /api/v1/conversations/{thread_id}/events
+
+Polling event feed. Returns `conversation_events` such as `message_received`, `planning_started`, `plan_created`, `agent_started`, `tool_called`, `worker_action_started`, `worker_action_completed`, `assistant_response`, and `error`.
+
+This is not WebSocket streaming and not SSE streaming. WebSocket and SSE are placeholders only.
+
+### POST /api/v1/conversations/{thread_id}/run
+
+Request:
+
+```json
+{
+  "input": {
+    "message": "?????????????????????????"
+  }
+}
+```
+
+Response includes `assistant_message`, `route`, `events`, `output`, `websocket_placeholder=true`, and `sse_placeholder=true`.
+
+Rule-based routing:
+
+- search/browser/open-page keywords -> `browser_tool`
+- content/copy/generate keywords -> `ContentAgent`
+- `OpenClaw` keyword -> `openclaw_tool` mock
+
+### Phase 33 API Reference Markers
+
+Conversation Runtime Foundation implementation markers for docs verifier: `ConversationService`, `run_conversation_turn`, `Chat Panel Foundation`, `Event Timeline`, `polling`.
+
+The polling event feed uses `GET /api/v1/conversations/{thread_id}/events`. WebSocket and SSE are placeholders only.
+
+## Phase 34 Remote Browser Runtime API
+
+Status: completed foundation. Workspace headers are required for all AI Server routes:
+
+```text
+X-Workspace-Id: demo-workspace
+X-User-Id: demo-user
+```
+
+Implementation markers: `Remote Browser Runtime Foundation`, `browser_runtime_sessions`, `BrowserRuntimeSessionService`, `app/browser/providers/remote_provider.py`, `worker_client/browser_runtime`, `storage/browser_screenshots`, `BROWSER_RUNTIME_SCREENSHOT_DIR`, `Browser Sessions Panel`, `playwright install chromium`.
+
+### POST /api/v1/browser-runtime/sessions
+
+Create a remote browser runtime session.
+
+Request:
+
+```json
+{
+  "browser": "chromium",
+  "metadata": {
+    "phase": "34"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "id": "RUNTIME_SESSION_ID",
+  "workspace_id": "demo-workspace",
+  "worker_id": "WORKER_ID",
+  "provider": "remote",
+  "browser": "chromium",
+  "session_status": "active",
+  "last_activity_at": "2026-05-14T00:00:00Z",
+  "metadata": {
+    "remote_session_id": "REMOTE_SESSION_ID"
+  }
+}
+```
+
+### GET /api/v1/browser-runtime/sessions
+
+Lists browser runtime sessions for the current workspace. Supports status filtering, for example `?status=active`.
+
+### GET /api/v1/browser-runtime/sessions/{session_id}
+
+Returns one `browser_runtime_sessions` record scoped to the current workspace.
+
+### POST /api/v1/browser-runtime/sessions/{session_id}/navigate
+
+Request:
+
+```json
+{
+  "url": "https://example.com"
+}
+```
+
+Response includes `title`, `url`, `remote_action_id`, and structured remote worker data.
+
+### POST /api/v1/browser-runtime/sessions/{session_id}/screenshot
+
+Request:
+
+```json
+{
+  "full_page": true,
+  "screenshot_name": "example-home"
+}
+```
+
+Response includes the saved screenshot path under `storage/browser_screenshots`.
+
+### GET /api/v1/browser-runtime/sessions/{session_id}/page
+
+Returns page title, current URL, and HTML/text content fetched from the remote worker page.
+
+### POST /api/v1/browser-runtime/sessions/{session_id}/close
+
+Closes the remote browser session and marks the local runtime session closed.
+
+### Worker Runtime API
+
+The registered worker exposes these compatible runtime endpoints:
+
+- `POST /browser/session/create`
+- `POST /browser/session/{session_id}/navigate`
+- `POST /browser/session/{session_id}/screenshot`
+- `GET /browser/session/{session_id}/page`
+- `POST /browser/session/{session_id}/close`
+
+The in-project mock worker runtime exposes equivalent test routes under `/api/v1/browser-worker-runtime/browser/session/create`, `/api/v1/browser-worker-runtime/browser/session/{session_id}/navigate`, `/api/v1/browser-worker-runtime/browser/session/{session_id}/screenshot`, `/api/v1/browser-worker-runtime/browser/session/{session_id}/page`, and `/api/v1/browser-worker-runtime/browser/session/{session_id}/close`.
+
+Boundary: current runtime supports basic Chromium create / navigate / screenshot / page / close only. It does not implement stealth, proxy rotation, cookie injection, captcha bypass, platform automation, remote desktop streaming, or DevTools remote control.
+
+## Phase 35B Real Client Worker E2E Validation Plan
+
+Status: completed validation plan and script. This phase adds `validate_real_client_worker_e2e.py`; it does not claim that a real customer machine was online during implementation.
+
+Script:
+
+```bash
+python scripts/validate_real_client_worker_e2e.py \
+  --server-url http://localhost:8000 \
+  --workspace-id demo-workspace \
+  --user-id demo-user \
+  --expected-worker-name customer-machine-worker-1
+```
+
+Parameters:
+
+- `server_url`
+- `workspace_id`
+- `user_id`
+- `expected_worker_name`
+
+Exit codes:
+
+- `0`: PASS
+- `1`: FAIL
+- `2`: SKIPPED
+
+If `expected_worker_name` is not online, the script returns `SKIPPED` with reason `real client worker not online` and does not execute browser actions.
+
+Swagger validation flow:
+
+1. `GET /api/v1/health`
+2. `GET /api/v1/browser-workers/health/summary`
+3. `GET /api/v1/browser-workers/available`
+4. `POST /api/v1/browser-runtime/sessions`
+5. `POST /api/v1/browser-runtime/sessions/{session_id}/navigate`
+6. `POST /api/v1/browser-runtime/sessions/{session_id}/screenshot`
+7. `GET /api/v1/browser-runtime/sessions/{session_id}/page`
+8. `POST /api/v1/browser-runtime/sessions/{session_id}/close`
+
+Security note: do not expose port 9100 to the public internet. Prefer Tailscale, VPN, or LAN.
+
+## Phase 35A Browser Runtime Observability & Replay
+
+Status: completed. Every route requires workspace headers:
+
+Service: `BrowserRuntimeObservabilityService`.
+
+Concept map: Browser Runtime Timeline, Browser Runtime Snapshots, Browser Runtime Replay Metadata, Snapshot Storage, Timeline Event Flow, Failure Debug, metadata-only replay.
+
+```http
+X-Workspace-Id: demo-workspace
+X-User-Id: demo-user
+```
+
+### GET /api/v1/browser-runtime/sessions/{session_id}/events
+
+Lists `browser_runtime_events` for one runtime session. Events include `session_created`, `navigate_started`, `navigate_completed`, `screenshot_started`, `screenshot_completed`, `page_snapshot_captured`, `action_failed`, `session_closed`, and `replay_requested`.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "event_type": "navigate_completed",
+      "status": "completed",
+      "message": "Browser runtime navigation completed",
+      "payload": {
+        "url": "https://example.com"
+      },
+      "duration_ms": 120,
+      "error": null
+    }
+  ]
+}
+```
+
+### GET /api/v1/browser-runtime/sessions/{session_id}/snapshots
+
+Lists `browser_runtime_snapshots`. Optional query: `snapshot_type=page|screenshot|error|final`.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "snapshot_type": "page",
+      "url": "https://example.com",
+      "page_title": "Example Domain",
+      "html_path": "storage/browser_runtime_snapshots/demo-workspace/SESSION/page-SNAPSHOT.html",
+      "text_path": "storage/browser_runtime_snapshots/demo-workspace/SESSION/page-SNAPSHOT.txt",
+      "screenshot_path": null,
+      "metadata": {
+        "source": "get_page"
+      }
+    }
+  ]
+}
+```
+
+### POST /api/v1/browser-runtime/sessions/{session_id}/replay
+
+Creates a `browser_runtime_replays` record. Replay is metadata-only and does not re-run browser actions.
+
+Request:
+
+```json
+{
+  "metadata": {
+    "reason": "debug browser runtime session"
+  }
+}
+```
+
+### GET /api/v1/browser-runtime/replays/{replay_id}
+
+Returns replay metadata, including `replay_steps`, `source_event_ids`, and `source_snapshot_ids`.
+
+### GET /api/v1/browser-runtime/replays/{replay_id}/export
+
+Writes and returns `replay-{replay_id}.json` under `BROWSER_RUNTIME_SNAPSHOT_DIR=storage/browser_runtime_snapshots`.
+
+Boundary: Browser Runtime Observability & Replay is not live stream, not VNC, not noVNC, not DevTools remote control, and not browser action re-execution.
+
+## Phase 36: Server Admin Dashboard Foundation
+
+`admin_dashboard` is now part of the docs SSOT. It is a read-only monitoring foundation for Overview, Workers, Browser Runtime, Conversations, Tasks, OpenClaw, Audit Logs, RAG / Documents, and Settings. Runtime config is `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, and `VITE_USER_ID=demo-user`. The API client lives at `admin_dashboard/src/api/client.ts` and exports `workersApi`, `browserRuntimeApi`, `conversationsApi`, `tasksApi`, `openclawApi`, `auditApi`, and `ragApi`. Current boundaries: no login UI, no permission UI, no publishing business flow, no real social platform control, no production-grade operations backend.
+
+## Phase 37: Conversation Runtime Frontend Integration
+
+Status: completed, Phase 37.
+
+Phase 37 connects the Conversation Runtime to Server Admin Dashboard, Worker Console Web, and Worker Console Desktop. The current scope is Conversation frontend integration and a basic conversation entrypoint. It is not a full ChatGPT UI and it is not WebSocket / SSE streaming.
+
+Completed:
+
+- Admin Dashboard Conversation page: `admin_dashboard` Conversations supports create thread, thread list, thread detail, message list, event timeline, send message, run conversation, refresh messages, and refresh events.
+- Admin Dashboard client: `admin_dashboard/src/api/conversationClient.ts` supports `createThread`, `listThreads`, `getThread`, `sendMessage`, `listMessages`, `listEvents`, and `runConversation`.
+- Worker Console Chat Panel: `worker_console` supports AI Server URL, Workspace ID, User ID settings, create thread, send and run, Polling Event Timeline, and AI Server connected / disconnected / unreachable state.
+- Desktop Chat Panel: `worker_console_desktop` mirrors the Chat Panel foundation. Tauri native validation still depends on the customer machine Rust/MSVC environment.
+- Polling Event Timeline: frontends call `GET /api/v1/conversations/{thread_id}/events` manually or every 5 seconds and show `event_type`, `message`, `created_at`, and `payload JSON`.
+- Frontend config: `VITE_AI_SERVER_API=http://localhost:8000`, `VITE_WORKSPACE_ID=demo-workspace`, `VITE_USER_ID=demo-user`.
+- Development CORS: backend `CORS_ALLOWED_ORIGINS` allows `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5180`, `http://127.0.0.1:5180`, `tauri://localhost`, and related local development origins.
+
+Boundaries: current implementation is not WebSocket, not SSE, and not a full ChatGPT UI. It does not implement TikTok / YouTube / X automation, login, cookie injection, proxy pools, fingerprint bypass, captcha automation, real platform automation, real OpenClaw, or ComfyUI.
+
+Phase 37 UI error state exact marker: AI Server unreachable.
+## Phase 38: Conversation Tool Execution Bridge API
+
+Conversation Runtime Tool Execution Bridge: completed / foundation.
+
+### POST `/api/v1/conversations/{thread_id}/run`
+
+Status: completed / foundation. Required headers: `X-Workspace-Id`, `X-User-Id`.
+
+Request:
+
+```json
+{
+  "input": {
+    "message": "Please open https://example.com and take a screenshot."
+  }
+}
+```
+
+New response fields:
+
+```json
+{
+  "thread_id": "uuid",
+  "user_message_id": "uuid",
+  "assistant_message_id": "uuid",
+  "route": "browser",
+  "route_name": "browser",
+  "selected_tool": "browser_tool",
+  "events_created": 8,
+  "success": true,
+  "summary": "Browser bridge opened https://example.com...",
+  "result_metadata": {
+    "runtime_session_id": "uuid",
+    "target": "https://example.com"
+  },
+  "events": [],
+  "output": {}
+}
+```
+
+Route / Tool fields:
+- `ConversationToolRouter`
+- `app/conversation/tool_router.py`
+- `route_selected`
+- `tool_execution_started`
+- `tool_execution_completed`
+- `tool_execution_failed`
+- `agent_execution_started`
+- `agent_execution_completed`
+- `planning_execution_started`
+- `planning_execution_completed`
+- `bridge_fallback`
+- `bridge_error`
+- `route_name`
+- `selected_tool`
+- `events_created`
+- `success`
+- `summary`
+- `result_metadata`
+
+Routing Rules:
+- Browser Bridge / Browser Bridge Flow: `browser_tool`, using create session -> navigate -> screenshot -> get page -> close session.
+- OpenClaw mock bridge / OpenClaw Mock Bridge Flow: `openclaw_tool` mock, `mock_inspect` only.
+- RAG bridge: `rag_search_tool`, requires `collection_name`.
+- Content bridge: `ContentAgent`.
+- Planning bridge: `PlanningService`, returns `plan_id` and steps.
+
+Boundaries: not autonomous agent, not WebSocket, not SSE, no real platform publishing, no real OpenClaw, and no ComfyUI.
+
+## Conversation Approval Flow API (Phase 39)
+
+Status: completed Conversation Execution Review & Approval Flow / Approval Flow Foundation. `ConversationApprovalService` owns the state transitions. `Tool Execution Gate` blocks unapproved medium/high risk actions. This is not a full permission system.
+
+### `GET /api/v1/conversations/{thread_id}/approvals`
+
+Required headers: `X-Workspace-Id`, `X-User-Id`.
+
+Response:
+
+```json
+{
+  "thread_id": "THREAD_ID",
+  "items": [
+    {
+      "id": "APPROVAL_ID",
+      "workspace_id": "demo-workspace",
+      "thread_id": "THREAD_ID",
+      "message_id": "MESSAGE_ID",
+      "route_name": "browser",
+      "selected_tool": "browser_tool",
+      "risk_level": "medium",
+      "approval_status": "pending",
+      "proposed_action": "browser_tool:navigate_and_screenshot",
+      "proposed_payload": {
+        "decision": {},
+        "tool_input": {},
+        "source_message": "open https://example.com and screenshot"
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/v1/conversation-approvals/{approval_id}`
+
+Returns one `conversation_approvals` record, including `risk_level`, `approval_status`, `proposed_action`, and `proposed_payload`.
+
+### `POST /api/v1/conversation-approvals/{approval_id}/approve`
+
+```json
+{
+  "reviewer_notes": "Looks safe to execute."
+}
+```
+
+State transition: `pending -> approved`, with `approval_approved` event.
+
+### `POST /api/v1/conversation-approvals/{approval_id}/reject`
+
+```json
+{
+  "reviewer_notes": "Need to rewrite before execution."
+}
+```
+
+State transition: `pending -> rejected`, with `approval_rejected`. Rejected approval cannot execute.
+
+### `POST /api/v1/conversation-approvals/{approval_id}/cancel`
+
+```json
+{
+  "reviewer_notes": "Cancelled before execution."
+}
+```
+
+State transition: `pending/approved -> cancelled`, with `approval_cancelled`.
+
+### `POST /api/v1/conversation-approvals/{approval_id}/execute`
+
+```json
+{
+  "input": {
+    "approval_id": "APPROVAL_ID"
+  }
+}
+```
+
+The approval must be `approved`. Execution writes `approval_executed`, `execution_after_approval_started`, `execution_after_approval_completed`, or `execution_after_approval_failed`.
+
+### Conversation Run Mode
+
+`POST /api/v1/conversations/{thread_id}/run` now accepts `mode`:
+
+```json
+{
+  "input": {
+    "message": "Please open https://example.com and take a screenshot."
+  },
+  "mode": "review_first"
+}
+```
+
+Supported modes:
+
+- `auto_safe`: low risk executes; medium/high risk creates approval and does not execute.
+- `review_first`: every route creates approval first and does not execute.
+- `execute_after_approval`: requires `input.approval_id`; approval must already be approved.
+
+Response additions:
+
+```json
+{
+  "approval_required": true,
+  "approval_id": "APPROVAL_ID",
+  "approval_status": "pending",
+  "risk_level": "medium",
+  "proposed_action": "browser_tool:navigate_and_screenshot"
+}
+```
+
+Risk Policy / `ConversationRiskPolicy`:
+
+- `low`: content generation, RAG search, planning create-only.
+- `medium`: browser navigate / screenshot / get page, OpenClaw mock inspect.
+- `high`: browser click, form input, upload, publish, account/profile actions, real OpenClaw actions, future social platform actions.
+
+Conversation events: `approval_required`, `approval_created`, `approval_approved`, `approval_rejected`, `approval_cancelled`, `approval_expired`, `approval_executed`, `execution_blocked_pending_approval`, `execution_after_approval_started`, `execution_after_approval_completed`, and `execution_after_approval_failed`.
+
+Frontend: Admin Dashboard, Worker Console, and Worker Console Desktop include a pending approvals panel, proposed payload JSON, risk badge, approve / reject / cancel / execute approved action. Current implementation remains polling-only and is not WebSocket/SSE or a full permission system.
+## Phase 40 Conversation Playbooks API
+
+Required headers: `X-Workspace-Id`, `X-User-Id`.
+
+Database tables: `conversation_playbooks`, `conversation_playbook_runs`.
+
+### `GET /api/v1/conversation-playbooks`
+
+Lists active/disabled/archived playbooks in the current workspace. Built-in templates are seeded on demand.
+
+The response includes `name`, `category`, `status`, `risk_level`, `steps`, `default_inputs`, and `metadata`.
+
+### `GET /api/v1/conversation-playbooks/{playbook_id}`
+
+Returns one Playbook definition.
+
+### `POST /api/v1/conversation-playbooks`
+
+Creates a custom Playbook. This is a foundation API, not a visual workflow builder.
+
+### `PATCH /api/v1/conversation-playbooks/{playbook_id}`
+
+Updates an existing Playbook definition or disables it by setting `status=disabled`.
+
+### `POST /api/v1/conversation-playbooks/{playbook_id}/run`
+
+Runs a Playbook directly.
+
+```json
+{
+  "input": {
+    "topic": "AI automation operations",
+    "platform": "short_video",
+    "style": "professional concise"
+  },
+  "mode": "auto_safe"
+}
+```
+
+The response stores run state in `conversation_playbook_runs` and includes `playbook_id`, `thread_id`, `status`, `input_payload`, `output_payload`, `current_step`, and `error`.
+
+### `GET /api/v1/conversation-playbook-runs`
+
+Lists Playbook Runs. Step Timeline is stored in `output_payload.steps`.
+
+### `GET /api/v1/conversation-playbook-runs/{run_id}`
+
+Returns one Playbook Run.
+
+### `POST /api/v1/conversation-playbook-runs/{run_id}/cancel`
+
+Cancels a pending/running/waiting Playbook Run.
+
+### Conversation run with Playbook
+
+`POST /api/v1/conversations/{thread_id}/run` now supports:
+
+```json
+{
+  "input": {
+    "message": "Open https://example.com, take a screenshot, and generate a report."
+  },
+  "playbook_name": "browser_screenshot_report",
+  "mode": "review_first"
+}
+```
+
+Additional response fields: `playbook_name`, `playbook_run_id`, `playbook_status`.
+
+Events include `playbook_selected`, `playbook_run_started`, `playbook_step_started`, `playbook_step_completed`, `playbook_approval_required`, `playbook_waiting_approval`, `playbook_resumed_after_approval`, `playbook_completed`, `playbook_failed`, and `playbook_cancelled`.
+
+Current limitation: this is not a full workflow builder and does not implement real social-platform publishing.
+
+## Phase 41 Output Artifacts / Output Library API
+
+Required headers: `X-Workspace-Id`, `X-User-Id`.
+
+Database table: `output_artifacts`.
+
+Service: `OutputArtifactService` handles workspace-scoped artifact creation, listing, soft delete, message/playbook conversion, and markdown/json/txt export.
+
+Core fields: `source_type`, `artifact_type`, `title`, `summary`, `content`, `file_path`, `mime_type`, `metadata`, `thread_id`, `playbook_run_id`, `created_by`, `status`.
+
+Source types: `conversation`, `playbook`, `tool`, `browser_runtime`, `rag`, `content_agent`, `planning`, `openclaw_mock`.
+
+Artifact types: `text`, `markdown`, `json`, `screenshot`, `html_snapshot`, `report`, `plan`, `rag_answer`, `content_draft`.
+
+Events: `artifact_created`, `artifact_exported`, `artifact_deleted`, `artifact_linked_to_playbook_run`.
+
+### `GET /api/v1/output-artifacts`
+
+Lists active artifacts in the current workspace. Supports filters: `artifact_type`, `source_type`, `thread_id`, `playbook_run_id`, created_at range (`created_from`, `created_to`), `include_deleted`, and `limit`.
+
+### `GET /api/v1/output-artifacts/{artifact_id}`
+
+Returns one artifact.
+
+### `PATCH /api/v1/output-artifacts/{artifact_id}`
+
+Updates editable fields such as `title`, `summary`, `content`, `file_path`, `mime_type`, and `metadata`.
+
+### `DELETE /api/v1/output-artifacts/{artifact_id}`
+
+Soft deletes the artifact by setting status to `deleted`; physical files are not removed.
+
+### `POST /api/v1/output-artifacts/from-message/{message_id}`
+
+Creates an artifact from a Conversation message. Assistant messages in the Conversation UI expose Save as Artifact.
+
+### `POST /api/v1/output-artifacts/from-playbook-run/{run_id}`
+
+Creates or returns generated artifacts for one Playbook Run. Completed Playbook Runs also create artifacts automatically.
+
+### `GET /api/v1/output-artifacts/{artifact_id}/export`
+
+Exports an artifact as markdown/json/txt.
+
+```text
+GET /api/v1/output-artifacts/{artifact_id}/export?format=markdown
+GET /api/v1/output-artifacts/{artifact_id}/export?format=json
+GET /api/v1/output-artifacts/{artifact_id}/export?format=txt
+```
+
+Export files are written under `storage/output_artifacts/{workspace_id}/{artifact_id}/`. Screenshot and `html_snapshot` artifacts return/retain file path metadata and do not copy large files.
+
+Frontend: Admin Dashboard has an Output Library page with artifact list/detail, type badge, source type, related thread, related Playbook Run, preview content, Export markdown/json/txt, and filters. Conversation pages show generated artifacts and Save as Artifact.
+
+Boundary: this is not a full DAM, not S3, not MinIO, and not production publishing asset management.
+## Phase 42 API: Task Orchestration & Background Execution
+
+### `GET /api/v1/task-runs`
+Required headers: `X-Workspace-Id`, `X-User-Id`. Query filters: `status`, `task_type`, `source_type`, `created_from`, `created_to`, `limit`.
+
+Response JSON:
+```json
+{
+  "items": [
+    {
+      "id": "TASK_RUN_ID",
+      "workspace_id": "demo-workspace",
+      "task_type": "playbook",
+      "source_type": "conversation",
+      "source_id": "THREAD_ID",
+      "status": "queued",
+      "priority": "normal",
+      "retry_count": 0,
+      "max_retries": 3,
+      "scheduled_at": null,
+      "current_step": 0,
+      "input_payload": {},
+      "output_payload": {},
+      "metadata": {},
+      "created_by": "demo-user"
+    }
+  ]
+}
+```
+
+### `GET /api/v1/task-runs/{task_run_id}`
+Returns one `task_runs` record with queued, running, waiting_approval, retrying, completed, failed, cancelled, or expired status.
+
+### `GET /api/v1/task-runs/{task_run_id}/events`
+Returns the `task_run_events` timeline, including `task_queued`, `task_started`, `task_step_started`, `task_step_completed`, `task_waiting_approval`, `task_retry_scheduled`, `task_completed`, `task_cancelled`, and `artifact_created`.
+
+### `POST /api/v1/task-runs/{task_run_id}/retry`
+```json
+{ "reason": "manual retry" }
+```
+Only failed / retryable tasks can retry. `TaskRetryPolicy` uses exponential backoff. `approval rejected` and validation errors are not retried.
+
+### `POST /api/v1/task-runs/{task_run_id}/cancel`
+```json
+{ "reason": "manual cancel" }
+```
+Cancels unfinished task runs and writes task timeline events.
+
+### `POST /api/v1/task-runs/{task_run_id}/resume`
+Only `waiting_approval` tasks with an approved linked approval can resume. Resume re-queues the task and does not bypass the Phase 39 Approval Gate.
+
+### Conversation Background Run
+`POST /api/v1/conversations/{thread_id}/run` adds:
+```json
+{
+  "input": { "message": "Open https://example.com, take a screenshot, and generate a report." },
+  "playbook_name": "browser_screenshot_report",
+  "mode": "review_first",
+  "execution_mode": "background"
+}
+```
+The response includes `task_run_id`, `task_status`, and `execution_mode`. `scheduled` mode requires `scheduled_at`.
+
+Current boundary: Task Orchestration is a Background Execution foundation, not Celery / RabbitMQ / Kubernetes / production HA queue.
+
+Phase 42 verifier markers: `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, artifact linkage, not Celery, not Kubernetes, not production HA.

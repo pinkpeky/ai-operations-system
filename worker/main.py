@@ -27,10 +27,19 @@ from worker.browser_worker.schemas import (
     WorkerSessionResponse,
     WorkerUIAccessCapabilitiesResponse,
 )
+from worker_client.browser_runtime import (
+    BrowserRuntime,
+    BrowserRuntimeCreateSessionRequest,
+    BrowserRuntimeNavigateRequest,
+    BrowserRuntimePageResponse,
+    BrowserRuntimeScreenshotRequest,
+    BrowserRuntimeSessionResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 _runtime: PlaywrightBrowserWorkerRuntime | None = None
+_browser_runtime: BrowserRuntime | None = None
 
 
 def get_runtime() -> PlaywrightBrowserWorkerRuntime:
@@ -40,6 +49,15 @@ def get_runtime() -> PlaywrightBrowserWorkerRuntime:
     if _runtime is None:
         _runtime = PlaywrightBrowserWorkerRuntime(settings=get_worker_settings())
     return _runtime
+
+
+def get_browser_runtime() -> BrowserRuntime:
+    """Return the Phase 34 browser runtime singleton."""
+
+    global _browser_runtime
+    if _browser_runtime is None:
+        _browser_runtime = BrowserRuntime.from_worker_settings(get_worker_settings())
+    return _browser_runtime
 
 
 async def verify_worker_request(request: Request) -> None:
@@ -85,6 +103,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     finally:
         if _runtime is not None:
             await _runtime.close_all()
+        if _browser_runtime is not None:
+            await _browser_runtime.close_all()
 
 
 def create_app(settings: WorkerSettings | None = None) -> FastAPI:
@@ -112,6 +132,7 @@ def create_app(settings: WorkerSettings | None = None) -> FastAPI:
                 "browser": worker_settings.worker_browser_type,
                 "headless": worker_settings.worker_headless,
                 "screenshot": True,
+                "browser_runtime": True,
                 "page_content": True,
                 "click": True,
                 "type_text": True,
@@ -184,6 +205,58 @@ def create_app(settings: WorkerSettings | None = None) -> FastAPI:
         """Close a worker browser session."""
 
         return await runtime.close_session(remote_session_id=session_id)
+
+    @app.post("/browser/session/create", response_model=BrowserRuntimeSessionResponse, status_code=status.HTTP_201_CREATED)
+    async def create_browser_runtime_session(
+        request: BrowserRuntimeCreateSessionRequest,
+        _: None = Depends(verify_worker_request),
+        runtime: BrowserRuntime = Depends(get_browser_runtime),
+    ) -> BrowserRuntimeSessionResponse:
+        """Create a Phase 34 Playwright browser runtime session."""
+
+        return await runtime.create_session(request)
+
+    @app.post("/browser/session/{session_id}/navigate")
+    async def navigate_browser_runtime_session(
+        session_id: str,
+        request: BrowserRuntimeNavigateRequest,
+        _: None = Depends(verify_worker_request),
+        runtime: BrowserRuntime = Depends(get_browser_runtime),
+    ) -> dict:
+        """Navigate a Phase 34 browser runtime session."""
+
+        return (await runtime.navigate(session_id=session_id, request=request)).model_dump()
+
+    @app.post("/browser/session/{session_id}/screenshot")
+    async def screenshot_browser_runtime_session(
+        session_id: str,
+        request: BrowserRuntimeScreenshotRequest,
+        _: None = Depends(verify_worker_request),
+        runtime: BrowserRuntime = Depends(get_browser_runtime),
+    ) -> dict:
+        """Capture a Phase 34 browser runtime screenshot."""
+
+        return (await runtime.screenshot(session_id=session_id, request=request)).model_dump()
+
+    @app.get("/browser/session/{session_id}/page", response_model=BrowserRuntimePageResponse)
+    async def get_browser_runtime_page(
+        session_id: str,
+        _: None = Depends(verify_worker_request),
+        runtime: BrowserRuntime = Depends(get_browser_runtime),
+    ) -> BrowserRuntimePageResponse:
+        """Return current Phase 34 browser runtime page content."""
+
+        return await runtime.get_page(session_id=session_id)
+
+    @app.post("/browser/session/{session_id}/close", response_model=BrowserRuntimeSessionResponse)
+    async def close_browser_runtime_session(
+        session_id: str,
+        _: None = Depends(verify_worker_request),
+        runtime: BrowserRuntime = Depends(get_browser_runtime),
+    ) -> BrowserRuntimeSessionResponse:
+        """Close a Phase 34 browser runtime session."""
+
+        return await runtime.close_session(session_id=session_id)
 
     @app.post("/human-control/start", response_model=WorkerHumanControlResponse)
     async def start_human_control(

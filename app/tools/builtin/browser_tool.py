@@ -12,6 +12,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.browser.services import BrowserHumanControlService, BrowserService, BrowserUIAccessService
+from app.browser.services.browser_runtime_session_service import BrowserRuntimeSessionService
+from app.schemas.browser_runtime import BrowserRuntimeSessionResponse
 from app.schemas.browser import (
     BrowserActionResponse,
     BrowserHumanControlSessionResponse,
@@ -30,12 +32,16 @@ class BrowserToolInput(BaseModel):
         "type_text",
         "screenshot",
         "get_page_content",
+        "create_session",
+        "get_page",
+        "close_session",
         "request_human_control",
         "complete_human_control",
         "create_ui_access",
         "revoke_ui_access",
     ] = Field(description="Browser action type")
     session_id: UUID | None = Field(default=None, description="Optional existing browser session")
+    runtime_session_id: UUID | None = Field(default=None, description="Optional Phase 34 browser runtime session")
     control_session_id: UUID | None = Field(default=None, description="Human control session for completion")
     human_control_session_id: UUID | None = Field(default=None, description="Human control session for UI access")
     access_session_id: UUID | None = Field(default=None, description="UI access session for revoke")
@@ -45,6 +51,9 @@ class BrowserToolInput(BaseModel):
     )
     one_time: bool = Field(default=False, description="Whether UI access token is single-use")
     target: str | None = Field(default=None, description="URL, selector, or semantic target")
+    url: str | None = Field(default=None, description="URL for remote browser runtime navigation")
+    browser: str = Field(default="chromium", description="Browser engine for create_session")
+    full_page: bool = Field(default=True, description="Whether screenshot should capture full page")
     selector: str | None = Field(default=None, description="DOM selector for click/type_text")
     text: str | None = Field(default=None, description="Text for type_text")
     reason: str | None = Field(default=None, description="Reason for request_human_control")
@@ -81,7 +90,13 @@ class BrowserTool(BaseTool):
         service = BrowserService(session, settings=context.effective_settings)
         human_control_service = BrowserHumanControlService(session, settings=context.effective_settings)
         ui_access_service = BrowserUIAccessService(session, settings=context.effective_settings)
+        runtime_service = BrowserRuntimeSessionService(session, settings=context.effective_settings)
         browser_session = None
+
+        if request.action_type in {"create_session", "navigate", "screenshot", "get_page", "close_session"} and (
+            request.runtime_session_id is not None or request.action_type in {"create_session", "get_page", "close_session"}
+        ):
+            return await self._execute_runtime_action(request=request, context=context, runtime_service=runtime_service)
 
         if request.action_type == "complete_human_control":
             if request.control_session_id is None:
@@ -237,3 +252,91 @@ class BrowserTool(BaseTool):
             error=action.error,
             latency_ms=action.duration_ms,
         )
+
+    async def _execute_runtime_action(
+        self,
+        *,
+        request: BrowserToolInput,
+        context: ToolExecutionContext,
+        runtime_service: BrowserRuntimeSessionService,
+    ) -> BrowserToolOutput:
+        """Execute Phase 34 remote browser runtime actions."""
+
+        workspace_id = context.require_workspace()
+        if request.action_type == "create_session":
+            runtime_session = await runtime_service.create_session(
+                workspace_id=workspace_id,
+                browser=request.browser,
+                metadata={
+                    **request.metadata,
+                    "created_by": self.name,
+                    "task_id": context.task_id,
+                    "agent_name": context.agent_name,
+                },
+            )
+            return BrowserToolOutput(
+                success=True,
+                session=BrowserRuntimeSessionResponse.from_model(runtime_session).model_dump(mode="json"),
+                action={"action_type": "create_session", "status": "completed"},
+                error=None,
+                latency_ms=None,
+            )
+
+        if request.runtime_session_id is None:
+            raise ValueError("runtime_session_id is required for remote browser runtime actions")
+        if request.action_type == "navigate":
+            url = request.url or request.target
+            if not url:
+                raise ValueError("url or target is required for navigate")
+            runtime_session = await runtime_service.navigate(
+                workspace_id=workspace_id,
+                session_id=request.runtime_session_id,
+                url=url,
+            )
+            return BrowserToolOutput(
+                success=True,
+                session=BrowserRuntimeSessionResponse.from_model(runtime_session).model_dump(mode="json"),
+                action={"action_type": "navigate", "status": "completed", "url": url},
+                error=None,
+                latency_ms=None,
+            )
+        if request.action_type == "screenshot":
+            runtime_session = await runtime_service.screenshot(
+                workspace_id=workspace_id,
+                session_id=request.runtime_session_id,
+                full_page=request.full_page,
+                screenshot_name=request.screenshot_name,
+            )
+            return BrowserToolOutput(
+                success=True,
+                session=BrowserRuntimeSessionResponse.from_model(runtime_session).model_dump(mode="json"),
+                action={
+                    "action_type": "screenshot",
+                    "status": "completed",
+                    "screenshot_path": runtime_session.runtime_metadata.get("last_screenshot_path"),
+                },
+                error=None,
+                latency_ms=None,
+            )
+        if request.action_type == "get_page":
+            page = await runtime_service.get_page(workspace_id=workspace_id, session_id=request.runtime_session_id)
+            runtime_session = await runtime_service.get_session(workspace_id=workspace_id, session_id=request.runtime_session_id)
+            if runtime_session is None:
+                raise ValueError("Browser runtime session not found")
+            return BrowserToolOutput(
+                success=True,
+                session=BrowserRuntimeSessionResponse.from_model(runtime_session).model_dump(mode="json"),
+                action={"action_type": "get_page", "status": "completed", **page},
+                error=None,
+                latency_ms=None,
+            )
+        if request.action_type == "close_session":
+            runtime_session = await runtime_service.close_session(workspace_id=workspace_id, session_id=request.runtime_session_id)
+            return BrowserToolOutput(
+                success=runtime_session.session_status == "closed",
+                session=BrowserRuntimeSessionResponse.from_model(runtime_session).model_dump(mode="json"),
+                action={"action_type": "close_session", "status": runtime_session.session_status},
+                error=None,
+                latency_ms=None,
+            )
+        raise ValueError(f"Unsupported browser runtime action: {request.action_type}")

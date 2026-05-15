@@ -108,6 +108,117 @@ class ConversationRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+    EVENT = "event"
+
+
+class ConversationThreadStatus(StrEnum):
+    """Conversation Runtime thread lifecycle status."""
+
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    DELETED = "deleted"
+
+
+class ConversationApprovalStatus(StrEnum):
+    """Conversation approval lifecycle status."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    EXECUTED = "executed"
+
+
+class ConversationApprovalRiskLevel(StrEnum):
+    """Conversation approval risk level."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class ConversationRunMode(StrEnum):
+    """Conversation execution review mode."""
+
+    AUTO_SAFE = "auto_safe"
+    REVIEW_FIRST = "review_first"
+    EXECUTE_AFTER_APPROVAL = "execute_after_approval"
+
+
+class ConversationPlaybookStatus(StrEnum):
+    """Conversation playbook lifecycle status."""
+
+    ACTIVE = "active"
+    DISABLED = "disabled"
+    ARCHIVED = "archived"
+
+
+class ConversationPlaybookRunStatus(StrEnum):
+    """Conversation playbook run lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    WAITING_APPROVAL = "waiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class OutputArtifactStatus(StrEnum):
+    """Output artifact lifecycle status."""
+
+    ACTIVE = "active"
+    DELETED = "deleted"
+
+
+class OutputArtifactSourceType(StrEnum):
+    """Source system that produced an output artifact."""
+
+    CONVERSATION = "conversation"
+    PLAYBOOK = "playbook"
+    TOOL = "tool"
+    BROWSER_RUNTIME = "browser_runtime"
+    RAG = "rag"
+    CONTENT_AGENT = "content_agent"
+    PLANNING = "planning"
+    OPENCLAW_MOCK = "openclaw_mock"
+
+
+class OutputArtifactType(StrEnum):
+    """Reusable artifact type."""
+
+    TEXT = "text"
+    MARKDOWN = "markdown"
+    JSON = "json"
+    SCREENSHOT = "screenshot"
+    HTML_SNAPSHOT = "html_snapshot"
+    REPORT = "report"
+    PLAN = "plan"
+    RAG_ANSWER = "rag_answer"
+    CONTENT_DRAFT = "content_draft"
+
+
+class TaskRunStatus(StrEnum):
+    """Task orchestration run lifecycle status."""
+
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    WAITING_APPROVAL = "waiting_approval"
+    RETRYING = "retrying"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class TaskRunPriority(StrEnum):
+    """Task orchestration priority."""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
 
 
 class AgentMemoryType(StrEnum):
@@ -228,6 +339,15 @@ class BrowserWorkerActionStatus(StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class BrowserRuntimeSessionStatus(StrEnum):
+    """Remote browser runtime session lifecycle status."""
+
+    ACTIVE = "active"
+    CLOSED = "closed"
+    ERROR = "error"
+    STALE = "stale"
 
 
 class BrowserHumanControlStatus(StrEnum):

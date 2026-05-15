@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
+    cors_allowed_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5180,http://127.0.0.1:5180,tauri://localhost",
+        alias="CORS_ALLOWED_ORIGINS",
+    )
 
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
@@ -55,6 +59,15 @@ class Settings(BaseSettings):
     )
     task_executor_enabled: bool = Field(default=True, alias="TASK_EXECUTOR_ENABLED")
     task_executor_dequeue_timeout_seconds: int = Field(default=5, alias="TASK_EXECUTOR_DEQUEUE_TIMEOUT_SECONDS")
+    task_orchestrator_enabled: bool = Field(default=True, alias="TASK_ORCHESTRATOR_ENABLED")
+    task_orchestrator_poll_interval_seconds: float = Field(
+        default=2.0,
+        ge=0.2,
+        le=60.0,
+        alias="TASK_ORCHESTRATOR_POLL_INTERVAL_SECONDS",
+    )
+    task_orchestrator_batch_size: int = Field(default=5, ge=1, le=100, alias="TASK_ORCHESTRATOR_BATCH_SIZE")
+    task_run_default_max_retries: int = Field(default=3, ge=0, le=20, alias="TASK_RUN_DEFAULT_MAX_RETRIES")
     llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     local_llm_base_url: str = Field(
         default="http://host.docker.internal:11434",
@@ -96,6 +109,15 @@ class Settings(BaseSettings):
     browser_viewport_width: int = Field(default=1280, ge=320, le=3840, alias="BROWSER_VIEWPORT_WIDTH")
     browser_viewport_height: int = Field(default=720, ge=240, le=2160, alias="BROWSER_VIEWPORT_HEIGHT")
     browser_screenshot_dir: str = Field(default="screenshots", alias="BROWSER_SCREENSHOT_DIR")
+    browser_runtime_screenshot_dir: str = Field(
+        default="storage/browser_screenshots",
+        alias="BROWSER_RUNTIME_SCREENSHOT_DIR",
+    )
+    browser_runtime_snapshot_dir: str = Field(
+        default="storage/browser_runtime_snapshots",
+        alias="BROWSER_RUNTIME_SNAPSHOT_DIR",
+    )
+    output_artifact_dir: str = Field(default="storage/output_artifacts", alias="OUTPUT_ARTIFACT_DIR")
     browser_profile_root: str = Field(default="worker/profiles", alias="BROWSER_PROFILE_ROOT")
     browser_profile_lock_timeout_seconds: int = Field(
         default=1800,
@@ -160,6 +182,9 @@ class Settings(BaseSettings):
         alias="BROWSER_ACTION_RETRY_BACKOFF_SECONDS",
     )
     screenshot_retention_days: int = Field(default=7, ge=1, le=3650, alias="SCREENSHOT_RETENTION_DAYS")
+    openclaw_provider: str = Field(default="mock", alias="OPENCLAW_PROVIDER")
+    openclaw_enabled: bool = Field(default=True, alias="OPENCLAW_ENABLED")
+    openclaw_action_timeout_seconds: float = Field(default=60.0, ge=1.0, le=600.0, alias="OPENCLAW_ACTION_TIMEOUT_SECONDS")
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:
@@ -184,6 +209,12 @@ class Settings(BaseSettings):
         except Exception as exc:
             logger.exception("Failed to parse allowed file types")
             raise RuntimeError("Invalid upload file type settings") from exc
+
+    @property
+    def cors_allowed_origin_list(self) -> list[str]:
+        """Parse development CORS origins from CSV config."""
+
+        return [item.strip() for item in self.cors_allowed_origins.split(",") if item.strip()]
 
     @property
     def database_url(self) -> str:
