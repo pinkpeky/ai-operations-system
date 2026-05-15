@@ -1141,3 +1141,24 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46: Workflow Graph Runtime & Conditional Execution
+
+Status: completed.
+
+Phase 46 upgrades Workflow State from a linear foundation into Workflow Graph Runtime & Conditional Execution. It adds `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, and `workflow_replays`, plus `WorkflowExecutionPlanner` and `SafeConditionEvaluator` for safe graph validation, dependency resolution, conditional routing, retry/fallback planning, and replay metadata.
+
+Completed scope:
+
+- Workflow Graph Runtime stores graph definitions, node configuration, edge conditions, entry node, graph version, retry policy, timeout metadata, and execution mode.
+- Conditional Execution supports safe expressions over `workflow.variables`, `workflow.status`, `step.output`, `artifact.metadata`, and `approval.status` with `==`, `!=`, `and`, `or`, `in`, and `exists`; it does not use Python `eval`.
+- `workflow_runs` now records graph execution metadata: `workflow_graph_id`, `graph_execution`, `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `retry_state`, and `fallback_state`.
+- `workflow_steps` now records `node_key`, `parent_node_key`, and `dependency_state` so step execution can be traced to graph nodes.
+- Output Artifact lineage adds `producing_node_key`, `replay_source`, and `graph_lineage`; Agent Memory Snapshots can record `node_key`.
+- Replay Foundation creates `workflow_replays` metadata from checkpoints; it does not re-execute browser, OpenClaw, tool, or task actions.
+- Admin Dashboard adds a Workflow Graphs view with graph summary, node list, edge list, planner result, conditional routing result, Retry/Fallback Path, retry path, fallback path, and replay panel.
+- Worker Console and Worker Console Desktop show a simplified graph execution panel with current node, planned next nodes, skipped nodes, retry/fallback state, and replay status.
+
+Boundaries: Phase 46 is not a visual DAG builder, not a drag/drop graph editor, not distributed orchestration engine, not a distributed orchestration engine, not Kubernetes/Celery orchestration, not WebSocket/SSE streaming, and not ComfyUI. It does not add TikTok / YouTube / X automation, real platform publishing, automatic login, CAPTCHA automation, proxy pools, fingerprint bypass, or real OpenClaw.
+<!-- PHASE46_SYNC:END -->

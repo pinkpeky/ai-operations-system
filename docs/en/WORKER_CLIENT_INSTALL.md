@@ -289,3 +289,9 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 Note
+
+Worker client installation is unchanged. Workflow Graph Runtime and Conditional Execution run on the AI Server and UI surfaces; customer machines continue to expose the same worker runtime APIs. Phase 46 does not add ComfyUI, a distributed orchestration engine, or platform automation.
+<!-- PHASE46_SYNC:END -->

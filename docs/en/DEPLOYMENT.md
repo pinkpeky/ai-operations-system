@@ -1322,3 +1322,9 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 Deployment Notes
+
+Phase 46 adds workflow graph database tables and API routes only. Deploy migrations for `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, and nullable graph lineage fields before enabling the updated Admin Dashboard and Worker Console builds. Runtime remains in-process and is not a distributed orchestration engine, not Kubernetes/Celery scheduling, and not ComfyUI.
+<!-- PHASE46_SYNC:END -->

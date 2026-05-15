@@ -2934,3 +2934,44 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 API: Workflow Graph Runtime & Conditional Execution
+
+New graph runtime routes:
+
+- `GET /api/v1/workflow-graphs`
+- `POST /api/v1/workflow-graphs`
+- `GET /api/v1/workflow-graphs/{graph_id}`
+- `POST /api/v1/workflow-graphs/{graph_id}/validate`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/replay`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/graph`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/planner`
+
+New runtime tables and services:
+
+- `workflow_graphs`
+- `workflow_graph_nodes`
+- `workflow_graph_edges`
+- `workflow_replays`
+- `WorkflowExecutionPlanner`
+- `SafeConditionEvaluator`
+
+Fields and events:
+
+- `current_node_key`
+- `planned_next_nodes`
+- `skipped_nodes`
+- `retry_state`
+- `fallback_state`
+- `node_key`
+- `parent_node_key`
+- `dependency_state`
+- `producing_node_key`
+- `replay_source`
+- `graph_lineage`
+
+Supported routing concepts: Workflow Graph Runtime, Conditional Execution, Retry/Fallback Path, Replay Foundation, conditional routing, dependency resolution, graph replay metadata, and safe evaluator conditions over `workflow.variables`, `workflow.status`, `step.output`, `artifact.metadata`, and `approval.status`.
+
+Boundaries: not a visual DAG builder, not distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, and not real platform publishing.
+<!-- PHASE46_SYNC:END -->

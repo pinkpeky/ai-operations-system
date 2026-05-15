@@ -52,7 +52,16 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunDiagnostics, TaskRunEvent, TaskSchedulerHealth } from "./api/taskRunClient";
-import { workflowClient, AgentMemorySnapshot, WorkflowCheckpoint, WorkflowRun, WorkflowStep } from "./api/workflowClient";
+import {
+  workflowClient,
+  AgentMemorySnapshot,
+  WorkflowCheckpoint,
+  WorkflowGraph,
+  WorkflowPlannerResult,
+  WorkflowReplay,
+  WorkflowRun,
+  WorkflowStep,
+} from "./api/workflowClient";
 import "./styles.css";
 
 type PageKey =
@@ -64,6 +73,7 @@ type PageKey =
   | "output-library"
   | "tasks"
   | "workflows"
+  | "workflow-graphs"
   | "openclaw"
   | "audit-logs"
   | "rag-documents"
@@ -91,6 +101,7 @@ const pages: PageDefinition[] = [
   { key: "output-library", label: "Output Library", icon: <FileText size={18} /> },
   { key: "tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
   { key: "workflows", label: "Workflows", icon: <GitBranch size={18} /> },
+  { key: "workflow-graphs", label: "Workflow Graphs", icon: <GitBranch size={18} /> },
   { key: "openclaw", label: "OpenClaw", icon: <Bot size={18} /> },
   { key: "audit-logs", label: "Audit Logs", icon: <ShieldCheck size={18} /> },
   { key: "rag-documents", label: "RAG / Documents", icon: <Database size={18} /> },
@@ -1265,6 +1276,8 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <span>workflow_step_id: {selectedArtifact.workflow_step_id ?? "-"}</span>
               <span>checkpoint_id: {selectedArtifact.checkpoint_id ?? "-"}</span>
               <span>memory_snapshot_id: {selectedArtifact.memory_snapshot_id ?? "-"}</span>
+              <span>producing_node_key: {selectedArtifact.producing_node_key ?? "-"}</span>
+              <span>replay_source: {selectedArtifact.replay_source ?? "-"}</span>
             </div>
             <div className="approval-card">
               <div className="approval-card-header">
@@ -1281,7 +1294,9 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
                 <span>exportable: {String(selectedArtifact.exportable)}</span>
               </div>
               <p>{selectedArtifact.summary ?? selectedArtifact.file_path ?? "No summary"}</p>
-              <JsonPreview value={selectedArtifact.metadata} />
+            <JsonPreview value={selectedArtifact.metadata} />
+            <h4>Graph lineage</h4>
+            <JsonPreview value={selectedArtifact.graph_lineage || {}} />
             </div>
             <h3>Preview content</h3>
             <pre className="json-preview">{selectedArtifact.content || selectedArtifact.file_path || "File-only artifact; see metadata/path."}</pre>
@@ -1487,6 +1502,9 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
   const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
   const [memories, setMemories] = useState<AgentMemorySnapshot[]>([]);
   const [linkedArtifacts, setLinkedArtifacts] = useState<OutputArtifact[]>([]);
+  const [planner, setPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [runGraph, setRunGraph] = useState<WorkflowGraph | null>(null);
+  const [replay, setReplay] = useState<WorkflowReplay | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -1514,20 +1532,30 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
         workflowClient.listMemorySnapshots(row.id, settings),
         outputArtifactClient.listArtifacts(settings, { workflowRunId: row.id }),
       ]);
+      const [plannerResult, graphResult] = await Promise.all([
+        workflowClient.getPlanner(row.id, settings).catch(() => null),
+        workflowClient.getRunGraph(row.id, settings).catch(() => null),
+      ]);
       setSteps(stepList.items ?? []);
       setCheckpoints(checkpointList.items ?? []);
       setMemories(memoryList.items ?? []);
       setLinkedArtifacts(artifactList.items ?? []);
+      setPlanner(plannerResult);
+      setRunGraph(graphResult);
+      setReplay(null);
     } catch (error) {
       setSteps([]);
       setCheckpoints([]);
       setMemories([]);
       setLinkedArtifacts([]);
+      setPlanner(null);
+      setRunGraph(null);
+      setReplay(null);
       setActionError(error instanceof Error ? error.message : "Workflow detail unavailable");
     }
   };
 
-  const mutateWorkflow = async (action: "pause" | "resume" | "checkpoint") => {
+  const mutateWorkflow = async (action: "pause" | "resume" | "checkpoint" | "replay") => {
     if (!selectedRun) {
       return;
     }
@@ -1541,6 +1569,10 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
         const updated = await workflowClient.resume(selectedRun.id, settings);
         setSelectedRun(updated);
         await loadWorkflow(updated);
+      } else if (action === "replay") {
+        const replayResult = await workflowClient.createReplay(selectedRun.id, settings);
+        await loadWorkflow(selectedRun);
+        setReplay(replayResult);
       } else {
         await workflowClient.createCheckpoint(selectedRun.id, settings);
         await loadWorkflow(selectedRun);
@@ -1583,6 +1615,8 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
             { key: "id", label: "workflow_run_id" },
             { key: "source_type", label: "source_type" },
             { key: "status", label: "status" },
+            { key: "workflow_graph_id", label: "graph_id" },
+            { key: "current_node_key", label: "current_node" },
             { key: "current_step", label: "current_step" },
             { key: "conversation_thread_id", label: "thread" },
             { key: "playbook_run_id", label: "playbook_run" },
@@ -1605,7 +1639,25 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
           <button className="ghost-button" onClick={() => void mutateWorkflow("checkpoint")} disabled={!selectedRun}>
             Create checkpoint
           </button>
+          <button className="ghost-button" onClick={() => void mutateWorkflow("replay")} disabled={!selectedRun}>
+            Create replay metadata
+          </button>
         </div>
+        <h3>Graph execution</h3>
+        <JsonPreview
+          value={{
+            workflow_graph_id: selectedRun?.workflow_graph_id ?? null,
+            graph_execution: selectedRun?.graph_execution ?? false,
+            current_node_key: selectedRun?.current_node_key ?? null,
+            planned_next_nodes: selectedRun?.planned_next_nodes ?? [],
+            skipped_nodes: selectedRun?.skipped_nodes ?? [],
+            retry_state: selectedRun?.retry_state ?? {},
+            fallback_state: selectedRun?.fallback_state ?? {},
+            planner,
+            replay,
+            linked_graph: runGraph ? { id: runGraph.id, name: runGraph.name, entry_node: runGraph.entry_node } : null,
+          }}
+        />
         <h3>Step timeline</h3>
         <Timeline rows={steps as unknown as JsonRecord[]} primary="step_name" secondary="status" />
         <h3>Variables / Context</h3>
@@ -1628,6 +1680,87 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
         ) : (
           <div className="empty-chat">No artifacts linked to this workflow yet.</div>
         )}
+      </aside>
+    </div>
+  );
+}
+
+function WorkflowGraphsPage({ settings }: { settings: AdminSettings }) {
+  const [graphs, setGraphs] = useState<AsyncState<WorkflowGraph[]>>(emptyState());
+  const [selectedGraph, setSelectedGraph] = useState<WorkflowGraph | null>(null);
+  const [planner, setPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setGraphs((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await workflowClient.listGraphs(settings);
+      setGraphs({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setGraphs({
+        data: null,
+        error: error instanceof Error ? error.message : "Workflow Graphs API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadGraph = async (graph: WorkflowGraph) => {
+    setSelectedGraph(graph);
+    setActionError(null);
+    try {
+      const result = await workflowClient.validateGraph(graph.id, settings);
+      setPlanner(result);
+    } catch (error) {
+      setPlanner(null);
+      setActionError(error instanceof Error ? error.message : "Graph validation unavailable");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Workflow Graphs"
+        description="Workflow Graph Runtime with conditional routing, retry/fallback paths, and replay foundation. This is not a visual DAG builder or distributed orchestration engine."
+        action={<RefreshButton onClick={load} />}
+      >
+        <LoadNotice state={graphs} />
+        <Table
+          rows={(graphs.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedGraph?.id ?? null}
+          onSelect={(row) => void loadGraph(row as unknown as WorkflowGraph)}
+          emptyLabel="No workflow graphs."
+          columns={[
+            { key: "id", label: "workflow_graph_id" },
+            { key: "name", label: "name" },
+            { key: "version", label: "version" },
+            { key: "entry_node", label: "entry_node" },
+            { key: "updated_at", label: "updated_at" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Graph Planner</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <JsonPreview value={planner || { status: "select a workflow graph" }} />
+        <h3>Node list</h3>
+        <Timeline rows={(selectedGraph?.nodes || []) as unknown as JsonRecord[]} primary="node_key" secondary="node_type" />
+        <h3>Edge list</h3>
+        <Timeline rows={(selectedGraph?.edges || []) as unknown as JsonRecord[]} primary="source_node_key" secondary="edge_type" />
+        <h3>Dependency visualization</h3>
+        <JsonPreview
+          value={{
+            dependency_state: planner?.dependency_state ?? {},
+            conditional_routing_result: planner?.condition_results ?? [],
+            retry_path: planner?.retry_paths ?? [],
+            fallback_path: planner?.fallback_paths ?? [],
+          }}
+        />
       </aside>
     </div>
   );
@@ -1943,6 +2076,7 @@ function App() {
           {activePage === "output-library" ? <OutputLibraryPage settings={settings} /> : null}
           {activePage === "tasks" ? <TasksPage settings={settings} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
+          {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
           {activePage === "openclaw" ? <OpenClawPage settings={settings} /> : null}
           {activePage === "audit-logs" ? <AuditLogsPage settings={settings} /> : null}
           {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} /> : null}

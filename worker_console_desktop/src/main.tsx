@@ -38,7 +38,7 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
-import { workflowClient, AgentMemorySnapshot, WorkflowRun, WorkflowStep } from "./api/workflowClient";
+import { workflowClient, AgentMemorySnapshot, WorkflowPlannerResult, WorkflowRun, WorkflowStep } from "./api/workflowClient";
 import {
   createLocalWorkerClient,
   LocalWorkerClient,
@@ -166,6 +166,7 @@ function ChatPanel() {
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
   const [memorySnapshots, setMemorySnapshots] = useState<AgentMemorySnapshot[]>([]);
   const [selectedWorkflowRunId, setSelectedWorkflowRunId] = useState<string | null>(null);
+  const [workflowPlanner, setWorkflowPlanner] = useState<WorkflowPlannerResult | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -221,17 +222,20 @@ function ChatPanel() {
         response.items[0]?.id;
       if (workflowId) {
         setSelectedWorkflowRunId(workflowId);
-        const [steps, memories] = await Promise.all([
+        const [steps, memories, planner] = await Promise.all([
           workflowClient.listSteps(workflowId, settings),
           workflowClient.listMemorySnapshots(workflowId, settings),
+          workflowClient.getPlanner(workflowId, settings).catch(() => null),
         ]);
         setWorkflowSteps(steps.items);
         setMemorySnapshots(memories.items);
+        setWorkflowPlanner(planner);
       }
     } catch {
       setWorkflowRuns([]);
       setWorkflowSteps([]);
       setMemorySnapshots([]);
+      setWorkflowPlanner(null);
     }
   }, [selectedWorkflowRunId, settings]);
 
@@ -704,7 +708,7 @@ function ChatPanel() {
               <span>{artifact.source_type}</span>
             </div>
             <div className="chat-meta">
-              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"} | workflow_run_id: {artifact.workflow_run_id ?? "-"}
+              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"} | workflow_run_id: {artifact.workflow_run_id ?? "-"} | producing_node_key: {artifact.producing_node_key ?? "-"} | replay_source: {artifact.replay_source ?? "-"}
             </div>
             <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
             <div className="chat-actions">
@@ -740,24 +744,37 @@ function ChatPanel() {
               <strong>{workflow.source_type}</strong>
               <span>{workflow.status}</span>
               <span>step {workflow.current_step}</span>
+              <span>node {workflow.current_node_key ?? "-"}</span>
             </div>
             <div className="chat-meta">
-              workflow_run_id: {workflow.id} | task_run_id: {workflow.task_run_id ?? "-"} | playbook_run_id: {workflow.playbook_run_id ?? "-"} | checkpoints: {workflow.checkpoints.length}
+              workflow_run_id: {workflow.id} | graph_execution: {String(workflow.graph_execution)} | workflow_graph_id: {workflow.workflow_graph_id ?? "-"} | next: {(workflow.planned_next_nodes ?? []).join(",") || "-"} | checkpoints: {workflow.checkpoints.length}
             </div>
             <div className="chat-actions">
               <button className="refresh-button" onClick={() => { setSelectedWorkflowRunId(workflow.id); void refreshWorkflows(); }}>Inspect</button>
               <button className="refresh-button" onClick={() => void workflowClient.pause(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Pause</button>
               <button className="refresh-button" onClick={() => void workflowClient.resume(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Resume</button>
+              <button className="refresh-button" onClick={() => void workflowClient.createReplay(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Replay metadata</button>
             </div>
           </div>
         )) : (
           <div className="empty-chat">No workflow runs yet.</div>
         )}
         <h4>Workflow timeline {selectedWorkflowRunId ? `for ${selectedWorkflowRunId}` : ""}</h4>
+        <div className="chat-note">
+          Graph execution panel: current node, planned next nodes, skipped nodes, retry/fallback state. This is not a visual DAG editor.
+        </div>
+        <pre className="metadata-preview">{JSON.stringify({
+          current_node: workflowPlanner?.current_node ?? null,
+          next_nodes: workflowPlanner?.next_nodes ?? [],
+          skipped_nodes: workflowPlanner?.skipped_nodes ?? [],
+          retry_paths: workflowPlanner?.retry_paths ?? [],
+          fallback_paths: workflowPlanner?.fallback_paths ?? [],
+          condition_results: workflowPlanner?.condition_results ?? [],
+        }, null, 2)}</pre>
         {workflowSteps.length > 0 ? workflowSteps.map((step) => (
           <div key={step.id} className="event-item">
             <strong>{step.step_name}</strong>
-            <span>{step.status} | {step.step_type} | duration: {step.duration_ms ?? "-"}ms</span>
+            <span>{step.status} | {step.step_type} | node: {step.node_key ?? "-"} | duration: {step.duration_ms ?? "-"}ms</span>
             {step.error ? <code>{step.error}</code> : null}
           </div>
         )) : (

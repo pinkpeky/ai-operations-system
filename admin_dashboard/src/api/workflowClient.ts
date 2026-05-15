@@ -8,6 +8,13 @@ export interface WorkflowRun {
   conversation_thread_id: string | null;
   playbook_run_id: string | null;
   task_run_id: string | null;
+  workflow_graph_id: string | null;
+  graph_execution: boolean;
+  current_node_key: string | null;
+  planned_next_nodes: string[];
+  skipped_nodes: string[];
+  retry_state: JsonRecord;
+  fallback_state: JsonRecord;
   status: string;
   current_step: number;
   variables: JsonRecord;
@@ -29,6 +36,9 @@ export interface WorkflowStep {
   step_index: number;
   step_name: string;
   step_type: string;
+  node_key: string | null;
+  parent_node_key: string | null;
+  dependency_state: JsonRecord;
   status: string;
   input_payload: JsonRecord;
   output_payload: JsonRecord;
@@ -50,11 +60,76 @@ export interface WorkflowCheckpoint {
 export interface AgentMemorySnapshot {
   id: string;
   workflow_run_id: string | null;
+  node_key: string | null;
   memory_type: string;
   summary: string | null;
   memory_payload: JsonRecord;
   source_event_ids: string[];
   source_artifact_ids: string[];
+  created_at: string;
+}
+
+export interface WorkflowGraphNode {
+  id: string;
+  workflow_graph_id: string;
+  node_key: string;
+  node_type: string;
+  execution_mode: string;
+  configuration: JsonRecord;
+  retry_policy: JsonRecord;
+  timeout_seconds: number | null;
+  metadata: JsonRecord;
+  created_at: string;
+}
+
+export interface WorkflowGraphEdge {
+  id: string;
+  workflow_graph_id: string;
+  source_node_key: string;
+  target_node_key: string;
+  edge_type: string;
+  condition_expression: string | null;
+  priority: number;
+  metadata: JsonRecord;
+  created_at: string;
+}
+
+export interface WorkflowGraph {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  version: string;
+  graph_definition: JsonRecord;
+  entry_node: string;
+  metadata: JsonRecord;
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowPlannerResult {
+  valid: boolean;
+  errors: string[];
+  entry_node: string | null;
+  execution_order: string[];
+  current_node: string | null;
+  next_nodes: string[];
+  skipped_nodes: string[];
+  retry_paths: JsonRecord[];
+  fallback_paths: JsonRecord[];
+  condition_results: JsonRecord[];
+  dependency_state: JsonRecord;
+}
+
+export interface WorkflowReplay {
+  id: string;
+  workflow_run_id: string;
+  replay_source_checkpoint_id: string | null;
+  replay_reason: string | null;
+  replay_status: string;
+  metadata: JsonRecord;
   created_at: string;
 }
 
@@ -80,6 +155,19 @@ export const workflowClient = {
     requestJson<{ workflow_run_id: string; items: WorkflowCheckpoint[] }>(`/workflow-runs/${workflowRunId}/checkpoints`, {}, settings),
   listMemorySnapshots: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
     requestJson<{ workflow_run_id: string; items: AgentMemorySnapshot[] }>(`/workflow-runs/${workflowRunId}/memory-snapshots`, {}, settings),
+  listGraphs: (settings: AdminSettings = readAdminSettings()) =>
+    requestJson<ApiList<WorkflowGraph>>("/workflow-graphs", {}, settings),
+  getRunGraph: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowGraph>(`/workflow-runs/${workflowRunId}/graph`, {}, settings),
+  getPlanner: (workflowRunId: string, settings: AdminSettings = readAdminSettings(), status = "success") =>
+    requestJson<WorkflowPlannerResult>(`/workflow-runs/${workflowRunId}/planner?status=${encodeURIComponent(status)}`, {}, settings),
+  validateGraph: (graphId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowPlannerResult>(`/workflow-graphs/${graphId}/validate`, { method: "POST" }, settings),
+  createReplay: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowReplay>(`/workflow-runs/${workflowRunId}/replay`, {
+      method: "POST",
+      body: JSON.stringify({ replay_reason: "Replay metadata requested from Admin Dashboard" }),
+    }, settings),
   pause: (workflowRunId: string, settings: AdminSettings = readAdminSettings()) =>
     requestJson<WorkflowRun>(`/workflow-runs/${workflowRunId}/pause`, {
       method: "POST",

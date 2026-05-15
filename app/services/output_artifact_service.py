@@ -74,6 +74,9 @@ class OutputArtifactService:
         workflow_step_id: UUID | None = None,
         checkpoint_id: UUID | None = None,
         memory_snapshot_id: UUID | None = None,
+        producing_node_key: str | None = None,
+        replay_source: str | None = None,
+        graph_lineage: dict[str, Any] | None = None,
         artifact_role: str | None = None,
         artifact_stage: str = OutputArtifactStage.PROCESSED.value,
         generated_by: str | None = None,
@@ -109,6 +112,9 @@ class OutputArtifactService:
             workflow_step_id=workflow_step_id,
             checkpoint_id=checkpoint_id,
             memory_snapshot_id=memory_snapshot_id,
+            producing_node_key=producing_node_key,
+            replay_source=replay_source,
+            graph_lineage=graph_lineage or {},
             source_type=source_type,
             artifact_type=artifact_type,
             artifact_role=artifact_role or self._role_from_artifact_type(artifact_type),
@@ -180,6 +186,8 @@ class OutputArtifactService:
         workflow_step_id: UUID | None = None,
         checkpoint_id: UUID | None = None,
         memory_snapshot_id: UUID | None = None,
+        producing_node_key: str | None = None,
+        replay_source: str | None = None,
         exportable: bool | None = None,
         archived: bool | None = None,
         retention_policy: str | None = None,
@@ -223,6 +231,10 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.checkpoint_id == checkpoint_id)
         if memory_snapshot_id is not None:
             statement = statement.where(OutputArtifact.memory_snapshot_id == memory_snapshot_id)
+        if producing_node_key is not None:
+            statement = statement.where(OutputArtifact.producing_node_key == producing_node_key)
+        if replay_source is not None:
+            statement = statement.where(OutputArtifact.replay_source == replay_source)
         if exportable is not None:
             statement = statement.where(OutputArtifact.exportable.is_(exportable))
         if retention_policy is not None:
@@ -874,6 +886,13 @@ class OutputArtifactService:
             "source_playbook_run_id": str(artifact.source_playbook_run_id) if artifact.source_playbook_run_id else None,
             "source_conversation_id": str(artifact.source_conversation_id) if artifact.source_conversation_id else None,
             "source_runtime_session_id": str(artifact.source_runtime_session_id) if artifact.source_runtime_session_id else None,
+            "workflow_run_id": str(artifact.workflow_run_id) if artifact.workflow_run_id else None,
+            "workflow_step_id": str(artifact.workflow_step_id) if artifact.workflow_step_id else None,
+            "checkpoint_id": str(artifact.checkpoint_id) if artifact.checkpoint_id else None,
+            "memory_snapshot_id": str(artifact.memory_snapshot_id) if artifact.memory_snapshot_id else None,
+            "producing_node_key": artifact.producing_node_key,
+            "replay_source": artifact.replay_source,
+            "graph_lineage": artifact.graph_lineage or {},
             "generated_by": artifact.generated_by,
             "exportable": artifact.exportable,
             "retention_policy": artifact.retention_policy,

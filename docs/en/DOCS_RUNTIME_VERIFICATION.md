@@ -547,3 +547,9 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 Docs Verification
+
+Docs verifier now checks Workflow Graph Runtime terms and routes: `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, `WorkflowExecutionPlanner`, `SafeConditionEvaluator`, Conditional Execution, Retry/Fallback Path, Replay Foundation, `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `producing_node_key`, `graph_lineage`, and the boundaries not a visual DAG builder, not distributed orchestration engine, and not ComfyUI.
+<!-- PHASE46_SYNC:END -->

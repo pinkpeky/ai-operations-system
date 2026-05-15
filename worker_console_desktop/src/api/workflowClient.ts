@@ -7,6 +7,13 @@ export type WorkflowRun = {
   conversation_thread_id: string | null;
   playbook_run_id: string | null;
   task_run_id: string | null;
+  workflow_graph_id: string | null;
+  graph_execution: boolean;
+  current_node_key: string | null;
+  planned_next_nodes: string[];
+  skipped_nodes: string[];
+  retry_state: Record<string, unknown>;
+  fallback_state: Record<string, unknown>;
   status: string;
   current_step: number;
   variables: Record<string, unknown>;
@@ -23,6 +30,9 @@ export type WorkflowStep = {
   step_index: number;
   step_name: string;
   step_type: string;
+  node_key: string | null;
+  parent_node_key: string | null;
+  dependency_state: Record<string, unknown>;
   status: string;
   duration_ms: number | null;
   error: string | null;
@@ -32,9 +42,21 @@ export type WorkflowStep = {
 export type AgentMemorySnapshot = {
   id: string;
   workflow_run_id: string | null;
+  node_key: string | null;
   memory_type: string;
   summary: string | null;
   created_at: string;
+};
+
+export type WorkflowPlannerResult = {
+  valid: boolean;
+  errors: string[];
+  current_node: string | null;
+  next_nodes: string[];
+  skipped_nodes: string[];
+  retry_paths: Record<string, unknown>[];
+  fallback_paths: Record<string, unknown>[];
+  condition_results: Record<string, unknown>[];
 };
 
 function normalizeApiBase(rawBase: string): string {
@@ -67,6 +89,14 @@ export const workflowClient = {
     requestJson<{ workflow_run_id: string; items: WorkflowStep[] }>(`/workflow-runs/${workflowRunId}/steps`, {}, settings),
   listMemorySnapshots: (workflowRunId: string, settings?: ConversationSettings) =>
     requestJson<{ workflow_run_id: string; items: AgentMemorySnapshot[] }>(`/workflow-runs/${workflowRunId}/memory-snapshots`, {}, settings),
+  getPlanner: (workflowRunId: string, settings?: ConversationSettings) =>
+    requestJson<WorkflowPlannerResult>(`/workflow-runs/${workflowRunId}/planner`, {}, settings),
+  createReplay: (workflowRunId: string, settings?: ConversationSettings) =>
+    requestJson<{ id: string; replay_status: string; metadata: Record<string, unknown> }>(
+      `/workflow-runs/${workflowRunId}/replay`,
+      { method: "POST", body: JSON.stringify({ replay_reason: "Replay metadata requested from Desktop Console" }) },
+      settings,
+    ),
   pause: (workflowRunId: string, settings?: ConversationSettings) =>
     requestJson<WorkflowRun>(`/workflow-runs/${workflowRunId}/pause`, { method: "POST", body: JSON.stringify({ reason: "Desktop Console pause" }) }, settings),
   resume: (workflowRunId: string, settings?: ConversationSettings) =>

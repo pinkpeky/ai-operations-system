@@ -19,17 +19,99 @@ from app.schemas.workflow import (
     WorkflowCheckpointListResponse,
     WorkflowCheckpointResponse,
     WorkflowControlRequest,
+    WorkflowGraphCreateRequest,
+    WorkflowGraphListResponse,
+    WorkflowGraphResponse,
+    WorkflowPlannerResultResponse,
+    WorkflowReplayCreateRequest,
+    WorkflowReplayResponse,
     WorkflowRunListResponse,
     WorkflowRunResponse,
     WorkflowStepListResponse,
     WorkflowStepResponse,
 )
-from app.workflow.services import WorkflowStateService
+from app.workflow.services import WorkflowGraphService, WorkflowStateService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/workflow-runs", tags=["workflow-runs"])
+graph_router = APIRouter(prefix="/workflow-graphs", tags=["workflow-graphs"])
 memory_router = APIRouter(prefix="/agent-memory-snapshots", tags=["agent-memory-snapshots"])
+
+
+@graph_router.get("", response_model=WorkflowGraphListResponse)
+async def list_workflow_graphs(
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowGraphListResponse:
+    """List workflow graph definitions in the current workspace."""
+
+    graphs = await WorkflowGraphService(session).list_graphs(
+        workspace_id=context.workspace_id,
+        limit=limit,
+    )
+    return WorkflowGraphListResponse(items=[WorkflowGraphResponse.from_model(item) for item in graphs])
+
+
+@graph_router.post("", response_model=WorkflowGraphResponse, status_code=201)
+async def create_workflow_graph(
+    request: WorkflowGraphCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowGraphResponse:
+    """Create a workflow graph definition and validate it before commit."""
+
+    try:
+        graph = await WorkflowGraphService(session).create_graph(
+            workspace_id=context.workspace_id,
+            name=request.name,
+            description=request.description,
+            version=request.version,
+            graph_definition=request.graph_definition,
+            entry_node=request.entry_node,
+            nodes=[item.model_dump() for item in request.nodes],
+            edges=[item.model_dump() for item in request.edges],
+            metadata=request.metadata,
+        )
+        return WorkflowGraphResponse.from_model(graph)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+
+
+@graph_router.get("/{graph_id}", response_model=WorkflowGraphResponse)
+async def get_workflow_graph(
+    graph_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowGraphResponse:
+    """Get one workflow graph definition."""
+
+    graph = await WorkflowGraphService(session).get_graph(
+        workspace_id=context.workspace_id,
+        graph_id=graph_id,
+    )
+    if graph is None:
+        raise AppError("Workflow graph not found", status_code=404)
+    return WorkflowGraphResponse.from_model(graph)
+
+
+@graph_router.post("/{graph_id}/validate", response_model=WorkflowPlannerResultResponse)
+async def validate_workflow_graph(
+    graph_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowPlannerResultResponse:
+    """Validate a graph definition without executing it."""
+
+    try:
+        result = await WorkflowGraphService(session).validate_graph(
+            workspace_id=context.workspace_id,
+            graph_id=graph_id,
+        )
+        return WorkflowPlannerResultResponse(**result.as_dict())
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
 
 
 @router.get("", response_model=WorkflowRunListResponse)
@@ -218,6 +300,7 @@ async def create_workflow_memory_snapshot(
             memory_type=request.memory_type,
             summary=request.summary,
             memory_payload=request.memory_payload,
+            node_key=request.node_key,
             source_event_ids=request.source_event_ids,
             source_artifact_ids=request.source_artifact_ids,
             metadata=request.metadata,
@@ -251,3 +334,69 @@ async def list_agent_memory_snapshots(
         workflow_run_id=workflow_run_id,
         items=[AgentMemorySnapshotResponse.from_model(item) for item in snapshots],
     )
+
+
+@router.post("/{workflow_run_id}/replay", response_model=WorkflowReplayResponse, status_code=201)
+async def create_workflow_replay(
+    workflow_run_id: UUID,
+    request: WorkflowReplayCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowReplayResponse:
+    """Create replay metadata from a workflow checkpoint without re-executing actions."""
+
+    try:
+        replay = await WorkflowStateService(session).create_replay(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+            replay_source_checkpoint_id=request.replay_source_checkpoint_id,
+            replay_reason=request.replay_reason,
+            metadata=request.metadata,
+        )
+        return WorkflowReplayResponse.from_model(replay)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+
+
+@router.get("/{workflow_run_id}/graph", response_model=WorkflowGraphResponse)
+async def get_workflow_run_graph(
+    workflow_run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowGraphResponse:
+    """Return the graph definition linked to a workflow run."""
+
+    try:
+        workflow = await WorkflowStateService(session).require_workflow_run(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+        )
+        if workflow.workflow_graph_id is None:
+            raise AppError("Workflow run is not linked to a workflow graph", status_code=404)
+        graph = await WorkflowGraphService(session).require_graph(
+            workspace_id=context.workspace_id,
+            graph_id=workflow.workflow_graph_id,
+        )
+        return WorkflowGraphResponse.from_model(graph)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+
+
+@router.get("/{workflow_run_id}/planner", response_model=WorkflowPlannerResultResponse)
+async def get_workflow_run_planner(
+    workflow_run_id: UUID,
+    status: str = Query(default="success", pattern="^(success|failure|retry)$"),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> WorkflowPlannerResultResponse:
+    """Return graph planner state for a workflow run."""
+
+    try:
+        result = await WorkflowStateService(session).planner_result(
+            workspace_id=context.workspace_id,
+            workflow_run_id=workflow_run_id,
+            status=status,
+        )
+        return WorkflowPlannerResultResponse(**result.as_dict())
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc

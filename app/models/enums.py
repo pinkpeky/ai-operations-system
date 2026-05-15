@@ -283,6 +283,48 @@ class AgentMemorySnapshotType(StrEnum):
     ARTIFACT_SUMMARY = "artifact_summary"
 
 
+class WorkflowGraphEdgeType(StrEnum):
+    """Workflow graph edge routing type."""
+
+    SUCCESS = "success"
+    FAILURE = "failure"
+    CONDITIONAL = "conditional"
+    RETRY = "retry"
+    FALLBACK = "fallback"
+    ALWAYS = "always"
+
+
+class WorkflowNodeType(StrEnum):
+    """Supported workflow graph node type."""
+
+    PLAYBOOK_STEP = "playbook_step"
+    APPROVAL_GATE = "approval_gate"
+    TOOL_CALL = "tool_call"
+    ARTIFACT_TRANSFORM = "artifact_transform"
+    CONDITIONAL_ROUTER = "conditional_router"
+    DELAY = "delay"
+    RETRY = "retry"
+    WORKFLOW_CHECKPOINT = "workflow_checkpoint"
+    MEMORY_SNAPSHOT = "memory_snapshot"
+    NO_OP = "no_op"
+
+
+class WorkflowNodeExecutionMode(StrEnum):
+    """Workflow graph node execution mode."""
+
+    SYNC = "sync"
+    ASYNC = "async"
+    BACKGROUND = "background"
+
+
+class WorkflowReplayStatus(StrEnum):
+    """Workflow replay metadata lifecycle."""
+
+    CREATED = "created"
+    PLANNED = "planned"
+    FAILED = "failed"
+
+
 class TaskRunStatus(StrEnum):
     """Task orchestration run lifecycle status."""
 

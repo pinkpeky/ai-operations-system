@@ -1290,3 +1290,9 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 Architecture: Workflow Graph Runtime
+
+Phase 46 adds `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, `workflow_replays`, `WorkflowExecutionPlanner`, and `SafeConditionEvaluator` above the Phase 45 Workflow State layer. Graph runtime supports Conditional Execution, dependency resolution, Retry/Fallback Path planning, and Replay Foundation metadata while preserving boundaries: not a visual DAG builder, not distributed orchestration engine, and not ComfyUI.
+<!-- PHASE46_SYNC:END -->

@@ -623,3 +623,9 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 Development Notes
+
+Workflow Graph Runtime development centers on `WorkflowExecutionPlanner`, `SafeConditionEvaluator`, `WorkflowGraphService`, and `WorkflowStateService`. Tests should cover graph validation, Conditional Execution, Retry/Fallback Path planning, Replay Foundation metadata, `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `producing_node_key`, and `graph_lineage`. Do not use Python eval for conditions; do not build a visual DAG builder or distributed orchestration engine.
+<!-- PHASE46_SYNC:END -->

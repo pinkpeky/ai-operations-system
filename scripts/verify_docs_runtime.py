@@ -169,6 +169,7 @@ class DocsRuntimeVerifier:
             "app/task_orchestration/recovery_service.py",
             "app/models/workflow.py",
             "app/workflow/services.py",
+            "app/workflow/planner.py",
             "app/schemas/workflow.py",
             "app/api/routes/workflows.py",
             "app/api/routes/output_artifacts.py",
@@ -455,6 +456,12 @@ class DocsRuntimeVerifier:
             "/api/v1/workflow-runs/{workflow_run_id}/pause",
             "/api/v1/workflow-runs/{workflow_run_id}/resume",
             "/api/v1/workflow-runs/{workflow_run_id}/memory-snapshots",
+            "/api/v1/workflow-runs/{workflow_run_id}/replay",
+            "/api/v1/workflow-runs/{workflow_run_id}/graph",
+            "/api/v1/workflow-runs/{workflow_run_id}/planner",
+            "/api/v1/workflow-graphs",
+            "/api/v1/workflow-graphs/{graph_id}",
+            "/api/v1/workflow-graphs/{graph_id}/validate",
             "/api/v1/agent-memory-snapshots",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
@@ -969,6 +976,23 @@ class DocsRuntimeVerifier:
             "Workflow lineage",
             "not a full workflow builder",
             "not ComfyUI",
+            "workflow_graphs",
+            "workflow_graph_nodes",
+            "workflow_graph_edges",
+            "workflow_replays",
+            "WorkflowExecutionPlanner",
+            "SafeConditionEvaluator",
+            "Workflow Graph Runtime",
+            "Conditional Execution",
+            "Retry/Fallback Path",
+            "Replay Foundation",
+            "current_node_key",
+            "planned_next_nodes",
+            "skipped_nodes",
+            "producing_node_key",
+            "graph_lineage",
+            "not a visual DAG builder",
+            "not distributed orchestration engine",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1401,6 +1425,18 @@ class DocsRuntimeVerifier:
             "Workflow lineage",
             "not a full workflow builder",
             "not ComfyUI",
+            "Phase 46",
+            "Workflow Graph Runtime & Conditional Execution",
+            "workflow_graphs",
+            "workflow_graph_nodes",
+            "workflow_graph_edges",
+            "workflow_replays",
+            "WorkflowExecutionPlanner",
+            "Conditional Execution",
+            "Retry/Fallback Path",
+            "Replay Foundation",
+            "not a visual DAG builder",
+            "not distributed orchestration engine",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1548,8 +1584,25 @@ class DocsRuntimeVerifier:
                 or "not ComfyUI" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 45 scope")
+            elif not re.search(r"Phase\s+46", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 46")
+            elif (
+                "Workflow Graph Runtime & Conditional Execution" not in text
+                or "workflow_graphs" not in text
+                or "workflow_graph_nodes" not in text
+                or "workflow_graph_edges" not in text
+                or "workflow_replays" not in text
+                or "WorkflowExecutionPlanner" not in text
+                or "Conditional Execution" not in text
+                or "Retry/Fallback Path" not in text
+                or "Replay Foundation" not in text
+                or "not a visual DAG builder" not in text
+                or "not distributed orchestration engine" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 46 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, and Phase 45")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, and Phase 46")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

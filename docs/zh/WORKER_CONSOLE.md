@@ -426,3 +426,20 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46: Workflow Graph Runtime in Worker Console
+
+Worker Console and Worker Console Desktop now show a simplified graph execution panel:
+
+- `current_node_key`
+- `planned_next_nodes`
+- `skipped_nodes`
+- `retry_state`
+- `fallback_state`
+- Workflow step `node_key`
+- replay metadata request for `workflow_replays`
+- Artifact graph lineage summary with `producing_node_key`, `replay_source`, and `graph_lineage`
+
+This is a status and debugging view for Workflow Graph Runtime & Conditional Execution. It is not a visual DAG builder, not a drag/drop workflow editor, not distributed orchestration engine, and not ComfyUI.
+<!-- PHASE46_SYNC:END -->

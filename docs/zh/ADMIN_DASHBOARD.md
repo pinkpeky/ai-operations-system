@@ -273,3 +273,21 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46: Workflow Graph Runtime Admin Dashboard
+
+Admin Dashboard now includes Workflow Graphs for Workflow Graph Runtime & Conditional Execution:
+
+- graph summary for `workflow_graphs`
+- node list from `workflow_graph_nodes`
+- edge list from `workflow_graph_edges`
+- planner result from `WorkflowExecutionPlanner`
+- conditional routing result
+- Retry/Fallback Path display
+- replay panel for `workflow_replays`
+- Workflow detail fields: `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `retry_state`, and `fallback_state`
+- Artifact detail fields: `producing_node_key`, `replay_source`, and `graph_lineage`
+
+Boundaries: this Admin Dashboard view is not a visual DAG builder, not drag/drop workflow editing, not distributed orchestration engine, and not ComfyUI.
+<!-- PHASE46_SYNC:END -->

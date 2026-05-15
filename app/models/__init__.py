@@ -57,6 +57,10 @@ from app.models.enums import (
     DocumentIngestStatus,
     DocumentStatus,
     AgentMemorySnapshotType,
+    WorkflowGraphEdgeType,
+    WorkflowNodeExecutionMode,
+    WorkflowNodeType,
+    WorkflowReplayStatus,
     OutputArtifactSourceType,
     OutputArtifactRole,
     OutputArtifactStage,
@@ -90,7 +94,16 @@ from app.models.task_observability import TaskEvent, TaskLog
 from app.models.task_run import TaskRun, TaskRunEvent, TaskSchedulerState
 from app.models.tool_call import ToolCallLog
 from app.models.user import User
-from app.models.workflow import AgentMemorySnapshot, WorkflowCheckpoint, WorkflowRun, WorkflowStep
+from app.models.workflow import (
+    AgentMemorySnapshot,
+    WorkflowCheckpoint,
+    WorkflowGraph,
+    WorkflowGraphEdge,
+    WorkflowGraphNode,
+    WorkflowReplay,
+    WorkflowRun,
+    WorkflowStep,
+)
 from app.models.workspace import Workspace, WorkspaceMember
 
 __all__ = [
@@ -190,6 +203,14 @@ __all__ = [
     "UserStatus",
     "WorkflowCheckpoint",
     "WorkflowCheckpointType",
+    "WorkflowGraph",
+    "WorkflowGraphEdge",
+    "WorkflowGraphEdgeType",
+    "WorkflowGraphNode",
+    "WorkflowNodeExecutionMode",
+    "WorkflowNodeType",
+    "WorkflowReplay",
+    "WorkflowReplayStatus",
     "WorkflowRun",
     "WorkflowRunStatus",
     "WorkflowStep",

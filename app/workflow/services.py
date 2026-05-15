@@ -8,16 +8,28 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.conversation.repositories import ConversationRuntimeRepository
 from app.models.enums import (
     AgentMemorySnapshotType,
     WorkflowCheckpointType,
+    WorkflowReplayStatus,
     WorkflowRunStatus,
     WorkflowStepStatus,
 )
-from app.models.workflow import AgentMemorySnapshot, WorkflowCheckpoint, WorkflowRun, WorkflowStep
+from app.models.workflow import (
+    AgentMemorySnapshot,
+    WorkflowCheckpoint,
+    WorkflowGraph,
+    WorkflowGraphEdge,
+    WorkflowGraphNode,
+    WorkflowReplay,
+    WorkflowRun,
+    WorkflowStep,
+)
+from app.workflow.planner import WorkflowExecutionPlanner, WorkflowPlannerResult
 
 
 class WorkflowStateService:
@@ -36,6 +48,9 @@ class WorkflowStateService:
         conversation_thread_id: UUID | None = None,
         playbook_run_id: UUID | None = None,
         task_run_id: UUID | None = None,
+        workflow_graph_id: UUID | None = None,
+        graph_execution: bool = False,
+        current_node_key: str | None = None,
         status: str = WorkflowRunStatus.PENDING.value,
         variables: dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
@@ -53,6 +68,13 @@ class WorkflowStateService:
             conversation_thread_id=conversation_thread_id,
             playbook_run_id=playbook_run_id,
             task_run_id=task_run_id,
+            workflow_graph_id=workflow_graph_id,
+            graph_execution=graph_execution,
+            current_node_key=current_node_key,
+            planned_next_nodes=[],
+            skipped_nodes=[],
+            retry_state={},
+            fallback_state={},
             status=status,
             variables=variables or {},
             context=context or {},
@@ -151,6 +173,9 @@ class WorkflowStateService:
         step_index: int,
         step_name: str,
         step_type: str,
+        node_key: str | None = None,
+        parent_node_key: str | None = None,
+        dependency_state: dict[str, Any] | None = None,
         input_payload: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         commit: bool = True,
@@ -160,12 +185,17 @@ class WorkflowStateService:
         workflow.status = WorkflowRunStatus.RUNNING.value
         workflow.started_at = workflow.started_at or now
         workflow.current_step = step_index
+        if node_key:
+            workflow.current_node_key = node_key
         step = WorkflowStep(
             workspace_id=workspace_id,
             workflow_run_id=workflow.id,
             step_index=step_index,
             step_name=step_name[:255],
             step_type=step_type,
+            node_key=node_key,
+            parent_node_key=parent_node_key,
+            dependency_state=dependency_state or {},
             status=WorkflowStepStatus.RUNNING.value,
             input_payload=input_payload or {},
             output_payload={},
@@ -207,6 +237,9 @@ class WorkflowStateService:
         flag_modified(step, "output_payload")
         flag_modified(step, "step_metadata")
         workflow.current_step = max(workflow.current_step, step.step_index + 1)
+        if step.node_key:
+            workflow.current_node_key = step.node_key
+        await self._refresh_graph_plan(workflow=workflow, current_node=step.node_key, status="success")
         await self._append_conversation_event(
             workflow,
             event_type="workflow_step_completed",
@@ -237,6 +270,9 @@ class WorkflowStateService:
         if step.started_at is not None:
             step.duration_ms = self._duration_ms(started_at=step.started_at, completed_at=now)
         flag_modified(step, "output_payload")
+        if step.node_key:
+            workflow.current_node_key = step.node_key
+        await self._refresh_graph_plan(workflow=workflow, current_node=step.node_key, status="failure")
         await self._append_conversation_event(
             workflow,
             event_type="workflow_step_failed",
@@ -424,6 +460,7 @@ class WorkflowStateService:
         workflow_run_id: UUID | None = None,
         conversation_thread_id: UUID | None = None,
         task_run_id: UUID | None = None,
+        node_key: str | None = None,
         source_event_ids: list[str] | None = None,
         source_artifact_ids: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
@@ -440,6 +477,7 @@ class WorkflowStateService:
             workflow_run_id=workflow_run_id,
             conversation_thread_id=conversation_thread_id,
             task_run_id=task_run_id,
+            node_key=node_key,
             memory_type=memory_type,
             summary=summary,
             memory_payload=memory_payload or {},
@@ -529,6 +567,81 @@ class WorkflowStateService:
             raise ValueError("Workflow checkpoint not found in workspace")
         return checkpoint
 
+    async def create_replay(
+        self,
+        *,
+        workspace_id: str,
+        workflow_run_id: UUID,
+        replay_source_checkpoint_id: UUID | None = None,
+        replay_reason: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        commit: bool = True,
+    ) -> WorkflowReplay:
+        """Create replay metadata without re-executing browser/tool actions."""
+
+        workflow = await self.require_workflow_run(workspace_id=workspace_id, workflow_run_id=workflow_run_id)
+        checkpoint_payload: dict[str, Any] = {}
+        if replay_source_checkpoint_id is not None:
+            checkpoint = await self.require_checkpoint(workspace_id=workspace_id, checkpoint_id=replay_source_checkpoint_id)
+            if checkpoint.workflow_run_id != workflow.id:
+                raise ValueError("Replay checkpoint does not belong to workflow")
+            checkpoint_payload = {
+                "checkpoint_name": checkpoint.checkpoint_name,
+                "checkpoint_type": checkpoint.checkpoint_type,
+                "state_payload": checkpoint.state_payload or {},
+            }
+        replay = WorkflowReplay(
+            workspace_id=workspace_id,
+            workflow_run_id=workflow.id,
+            replay_source_checkpoint_id=replay_source_checkpoint_id,
+            replay_reason=replay_reason,
+            replay_status=WorkflowReplayStatus.CREATED.value,
+            replay_metadata={
+                **(metadata or {}),
+                "workflow_run_id": str(workflow.id),
+                "current_node_key": workflow.current_node_key,
+                "checkpoint": checkpoint_payload,
+                "replay_lineage": {
+                    "source_workflow_run_id": str(workflow.id),
+                    "source_checkpoint_id": str(replay_source_checkpoint_id) if replay_source_checkpoint_id else None,
+                },
+            },
+        )
+        self.session.add(replay)
+        await self.session.flush()
+        await self._append_conversation_event(
+            workflow,
+            event_type="workflow_replay_requested",
+            message="Workflow replay metadata created",
+            payload={"workflow_run_id": str(workflow.id), "workflow_replay_id": str(replay.id)},
+        )
+        if commit:
+            await self.session.commit()
+            await self.session.refresh(replay)
+        return replay
+
+    async def planner_result(
+        self,
+        *,
+        workspace_id: str,
+        workflow_run_id: UUID,
+        status: str = "success",
+    ) -> WorkflowPlannerResult:
+        """Return graph planner metadata for a workflow run."""
+
+        workflow = await self.require_workflow_run(workspace_id=workspace_id, workflow_run_id=workflow_run_id)
+        if workflow.workflow_graph_id is None:
+            return WorkflowPlannerResult(valid=False, errors=["workflow is not linked to a workflow graph"])
+        graph = await WorkflowGraphService(self.session).require_graph(workspace_id=workspace_id, graph_id=workflow.workflow_graph_id)
+        steps = await self.list_steps(workspace_id=workspace_id, workflow_run_id=workflow_run_id)
+        return WorkflowExecutionPlanner().plan_next(
+            graph=graph,
+            workflow=workflow,
+            completed_steps=steps,
+            current_node=workflow.current_node_key,
+            status=status,
+        )
+
     async def _append_conversation_event(
         self,
         workflow: WorkflowRun,
@@ -546,6 +659,30 @@ class WorkflowStateService:
             message=message,
             payload=payload or {},
         )
+
+    async def _refresh_graph_plan(self, *, workflow: WorkflowRun, current_node: str | None, status: str) -> None:
+        if not workflow.graph_execution or workflow.workflow_graph_id is None:
+            return
+        graph = await WorkflowGraphService(self.session).require_graph(
+            workspace_id=workflow.workspace_id,
+            graph_id=workflow.workflow_graph_id,
+        )
+        steps = await self.list_steps(workspace_id=workflow.workspace_id, workflow_run_id=workflow.id)
+        result = WorkflowExecutionPlanner().plan_next(
+            graph=graph,
+            workflow=workflow,
+            completed_steps=steps,
+            current_node=current_node,
+            status=status,
+        )
+        workflow.planned_next_nodes = result.next_nodes
+        workflow.skipped_nodes = result.skipped_nodes
+        workflow.retry_state = {"paths": result.retry_paths}
+        workflow.fallback_state = {"paths": result.fallback_paths}
+        flag_modified(workflow, "planned_next_nodes")
+        flag_modified(workflow, "skipped_nodes")
+        flag_modified(workflow, "retry_state")
+        flag_modified(workflow, "fallback_state")
 
     def _validate_workflow_status(self, status: str) -> None:
         if status not in {item.value for item in WorkflowRunStatus}:
@@ -565,3 +702,111 @@ class WorkflowStateService:
         elif started_at.tzinfo is not None and completed_at.tzinfo is None:
             completed_at = completed_at.replace(tzinfo=started_at.tzinfo)
         return int((completed_at - started_at).total_seconds() * 1000)
+
+
+class WorkflowGraphService:
+    """Workspace-scoped workflow graph definition service."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create_graph(
+        self,
+        *,
+        workspace_id: str,
+        name: str,
+        entry_node: str,
+        description: str | None = None,
+        version: str = "1",
+        graph_definition: dict[str, Any] | None = None,
+        nodes: list[dict[str, Any]] | None = None,
+        edges: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+        commit: bool = True,
+    ) -> WorkflowGraph:
+        graph = WorkflowGraph(
+            workspace_id=workspace_id,
+            name=name,
+            description=description,
+            version=version,
+            graph_definition=graph_definition or {},
+            entry_node=entry_node,
+            graph_metadata=metadata or {},
+        )
+        self.session.add(graph)
+        await self.session.flush()
+        normalized_nodes = nodes or self._nodes_from_definition(graph.graph_definition)
+        normalized_edges = edges or self._edges_from_definition(graph.graph_definition)
+        for node in normalized_nodes:
+            self.session.add(
+                WorkflowGraphNode(
+                    workspace_id=workspace_id,
+                    workflow_graph_id=graph.id,
+                    node_key=str(node["node_key"]),
+                    node_type=node.get("node_type", "no_op"),
+                    execution_mode=node.get("execution_mode", "sync"),
+                    configuration=node.get("configuration") or {},
+                    retry_policy=node.get("retry_policy") or {},
+                    timeout_seconds=node.get("timeout_seconds"),
+                    node_metadata=node.get("metadata") or {},
+                )
+            )
+        for edge in normalized_edges:
+            self.session.add(
+                WorkflowGraphEdge(
+                    workspace_id=workspace_id,
+                    workflow_graph_id=graph.id,
+                    source_node_key=str(edge["source_node_key"]),
+                    target_node_key=str(edge["target_node_key"]),
+                    edge_type=edge.get("edge_type", "success"),
+                    condition_expression=edge.get("condition_expression"),
+                    priority=int(edge.get("priority", 100)),
+                    edge_metadata=edge.get("metadata") or {},
+                )
+            )
+        await self.session.flush()
+        loaded = await self.require_graph(workspace_id=workspace_id, graph_id=graph.id)
+        validation = WorkflowExecutionPlanner().validate_graph(graph=loaded)
+        if not validation.valid:
+            await self.session.rollback()
+            raise ValueError("; ".join(validation.errors))
+        if commit:
+            await self.session.commit()
+            loaded = await self.require_graph(workspace_id=workspace_id, graph_id=graph.id)
+        return loaded
+
+    async def list_graphs(self, *, workspace_id: str, limit: int = 100) -> list[WorkflowGraph]:
+        result = await self.session.execute(
+            select(WorkflowGraph)
+            .options(selectinload(WorkflowGraph.nodes), selectinload(WorkflowGraph.edges))
+            .where(WorkflowGraph.workspace_id == workspace_id)
+            .order_by(WorkflowGraph.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def get_graph(self, *, workspace_id: str, graph_id: UUID) -> WorkflowGraph | None:
+        result = await self.session.execute(
+            select(WorkflowGraph)
+            .options(selectinload(WorkflowGraph.nodes), selectinload(WorkflowGraph.edges))
+            .where(WorkflowGraph.workspace_id == workspace_id, WorkflowGraph.id == graph_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def require_graph(self, *, workspace_id: str, graph_id: UUID) -> WorkflowGraph:
+        graph = await self.get_graph(workspace_id=workspace_id, graph_id=graph_id)
+        if graph is None:
+            raise ValueError("Workflow graph not found in workspace")
+        return graph
+
+    async def validate_graph(self, *, workspace_id: str, graph_id: UUID) -> WorkflowPlannerResult:
+        graph = await self.require_graph(workspace_id=workspace_id, graph_id=graph_id)
+        return WorkflowExecutionPlanner().validate_graph(graph=graph)
+
+    def _nodes_from_definition(self, graph_definition: dict[str, Any]) -> list[dict[str, Any]]:
+        nodes = graph_definition.get("nodes") if isinstance(graph_definition, dict) else None
+        return list(nodes or [])
+
+    def _edges_from_definition(self, graph_definition: dict[str, Any]) -> list[dict[str, Any]]:
+        edges = graph_definition.get("edges") if isinstance(graph_definition, dict) else None
+        return list(edges or [])

@@ -103,6 +103,24 @@ class OutputArtifact(IdTimestampMixin, Base):
         nullable=True,
         comment="Agent memory snapshot associated with this artifact",
     )
+    producing_node_key: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Workflow graph node that produced this artifact",
+    )
+    replay_source: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Replay source marker for graph lineage",
+    )
+    graph_lineage: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Workflow graph lineage metadata",
+    )
     source_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Artifact source type")
     artifact_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Artifact type")
     artifact_role: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True, comment="Pipeline role")

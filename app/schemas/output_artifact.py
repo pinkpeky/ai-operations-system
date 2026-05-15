@@ -78,6 +78,9 @@ class OutputArtifactCreateRequest(BaseModel):
     workflow_step_id: UUID | None = None
     checkpoint_id: UUID | None = None
     memory_snapshot_id: UUID | None = None
+    producing_node_key: str | None = Field(default=None, max_length=128)
+    replay_source: str | None = Field(default=None, max_length=255)
+    graph_lineage: dict[str, Any] = Field(default_factory=dict)
     artifact_role: ArtifactRoleLiteral | None = None
     artifact_stage: ArtifactStageLiteral = "processed"
     generated_by: str | None = None
@@ -121,6 +124,9 @@ class OutputArtifactResponse(BaseModel):
     workflow_step_id: UUID | None
     checkpoint_id: UUID | None
     memory_snapshot_id: UUID | None
+    producing_node_key: str | None
+    replay_source: str | None
+    graph_lineage: dict[str, Any]
     source_type: str
     artifact_type: str
     artifact_role: str | None
@@ -158,6 +164,9 @@ class OutputArtifactResponse(BaseModel):
             workflow_step_id=artifact.workflow_step_id,
             checkpoint_id=artifact.checkpoint_id,
             memory_snapshot_id=artifact.memory_snapshot_id,
+            producing_node_key=artifact.producing_node_key,
+            replay_source=artifact.replay_source,
+            graph_lineage=artifact.graph_lineage or {},
             source_type=artifact.source_type,
             artifact_type=artifact.artifact_type,
             artifact_role=artifact.artifact_role,

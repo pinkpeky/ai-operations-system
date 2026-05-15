@@ -1461,3 +1461,50 @@ Artifact lineage fields: `workflow_run_id`, `workflow_step_id`, `checkpoint_id`,
 
 Boundaries: not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real platform automation.
 <!-- PHASE45_RUNTIME:END -->
+
+<!-- PHASE46_RUNTIME:START -->
+## Phase 46 Runtime: Workflow Graph Runtime & Conditional Execution
+
+Runtime database tables:
+
+- `workflow_graphs`
+- `workflow_graph_nodes`
+- `workflow_graph_edges`
+- `workflow_replays`
+
+Runtime services:
+
+- `WorkflowExecutionPlanner` validates graphs, resolves entry nodes, performs topological traversal, detects cycles, plans next nodes, tracks dependency state, and exposes retry/fallback paths.
+- `SafeConditionEvaluator` evaluates only safe condition expressions over `workflow.variables`, `workflow.status`, `step.output`, `artifact.metadata`, and `approval.status`. It supports `==`, `!=`, `and`, `or`, `in`, and `exists`, and does not use Python `eval`.
+- `WorkflowGraphService` creates, lists, gets, and validates workflow graph definitions.
+- `WorkflowStateService` records graph execution metadata on workflow runs and steps.
+
+Runtime API routes:
+
+- `GET /api/v1/workflow-graphs`
+- `POST /api/v1/workflow-graphs`
+- `GET /api/v1/workflow-graphs/{graph_id}`
+- `POST /api/v1/workflow-graphs/{graph_id}/validate`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/replay`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/graph`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/planner`
+
+Runtime fields:
+
+- `workflow_runs.workflow_graph_id`
+- `workflow_runs.graph_execution`
+- `workflow_runs.current_node_key`
+- `workflow_runs.planned_next_nodes`
+- `workflow_runs.skipped_nodes`
+- `workflow_runs.retry_state`
+- `workflow_runs.fallback_state`
+- `workflow_steps.node_key`
+- `workflow_steps.parent_node_key`
+- `workflow_steps.dependency_state`
+- `output_artifacts.producing_node_key`
+- `output_artifacts.replay_source`
+- `output_artifacts.graph_lineage`
+- `agent_memory_snapshots.node_key`
+
+Boundaries: current replay is metadata-only and does not re-run actions. The runtime is not a visual DAG builder, not a distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, and not real platform automation.
+<!-- PHASE46_RUNTIME:END -->

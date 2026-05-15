@@ -16,6 +16,9 @@ export interface OutputArtifact {
   workflow_step_id: string | null;
   checkpoint_id: string | null;
   memory_snapshot_id: string | null;
+  producing_node_key: string | null;
+  replay_source: string | null;
+  graph_lineage: JsonRecord;
   source_type: string;
   artifact_type: string;
   artifact_role: string | null;

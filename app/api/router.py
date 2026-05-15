@@ -37,6 +37,7 @@ from app.api.routes.tasks import router as tasks_router
 from app.api.routes.tools import router as tools_router
 from app.api.routes.users import router as users_router
 from app.api.routes.workflows import memory_router as agent_memory_snapshots_router
+from app.api.routes.workflows import graph_router as workflow_graphs_router
 from app.api.routes.workflows import router as workflow_runs_router
 from app.api.routes.workspaces import router as workspaces_router
 
@@ -76,6 +77,7 @@ def create_api_router() -> APIRouter:
         router.include_router(tasks_router)
         router.include_router(tools_router)
         router.include_router(users_router)
+        router.include_router(workflow_graphs_router)
         router.include_router(workflow_runs_router)
         router.include_router(agent_memory_snapshots_router)
         router.include_router(workspaces_router)

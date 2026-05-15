@@ -440,6 +440,9 @@ class ConversationPlaybookExecutor:
             step = playbook.steps[index]
             started_at = time.perf_counter()
             step_record = self._existing_or_new_step_record(output=output, index=index, step=step)
+            node_key = str(step.get("node_key") or step.get("id") or f"step-{index}") if isinstance(step, dict) else f"step-{index}"
+            parent_node_key = f"step-{index - 1}" if index > 0 else None
+            step_record["node_key"] = node_key
             workflow_step_id: UUID | None = None
             if workflow_run_id is not None:
                 workflow_step = await workflow_service.start_step(
@@ -448,6 +451,9 @@ class ConversationPlaybookExecutor:
                     step_index=index,
                     step_name=step_record["title"],
                     step_type=step_record["step_type"],
+                    node_key=node_key,
+                    parent_node_key=parent_node_key,
+                    dependency_state={"parent_node_key": parent_node_key, "playbook_step_index": index},
                     input_payload=step,
                     metadata={"playbook_run_id": str(run.id), "playbook_name": playbook.name},
                     commit=False,

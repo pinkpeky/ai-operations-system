@@ -763,3 +763,24 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46: Workflow Graph Runtime & Conditional Execution
+
+Status: completed.
+
+Phase 46 adds a graph-capable workflow runtime on top of the Phase 45 Workflow State foundation. It introduces `workflow_graphs`, `workflow_graph_nodes`, `workflow_graph_edges`, and `workflow_replays`, plus `WorkflowExecutionPlanner` for graph validation, dependency resolution, conditional routing, retry/fallback planning, and replay metadata.
+
+Completed:
+
+- Workflow Graph Runtime stores graph definitions, nodes, edges, entry node, version, retry policy, timeout metadata, and execution mode.
+- Conditional Execution uses `SafeConditionEvaluator` for `workflow.variables`, `workflow.status`, `step.output`, `artifact.metadata`, and `approval.status` conditions. Supported operators are `==`, `!=`, `and`, `or`, `in`, and `exists`.
+- Workflow runs now track `workflow_graph_id`, `graph_execution`, `current_node_key`, `planned_next_nodes`, `skipped_nodes`, `retry_state`, and `fallback_state`.
+- Workflow steps now track `node_key`, `parent_node_key`, and `dependency_state`.
+- Replay Foundation creates `workflow_replays` metadata from checkpoints; it does not re-execute actions.
+- Output Artifact graph lineage adds `producing_node_key`, `replay_source`, and `graph_lineage`; Agent Memory Snapshots can store `node_key`.
+- Admin Dashboard adds Workflow Graphs with node list, edge list, planner result, conditional routing result, Retry/Fallback Path, and replay panel.
+- Worker Console and Desktop show simplified graph execution state.
+
+Boundaries: not a visual DAG builder, not a drag/drop workflow editor, not distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, not real platform publishing, and not TikTok / YouTube / X automation.
+<!-- PHASE46_SYNC:END -->

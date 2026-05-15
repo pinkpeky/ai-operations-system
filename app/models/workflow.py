@@ -6,16 +6,101 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IdTimestampMixin
 from app.models.enums import (
     AgentMemorySnapshotType,
     WorkflowCheckpointType,
+    WorkflowGraphEdgeType,
+    WorkflowNodeExecutionMode,
+    WorkflowNodeType,
+    WorkflowReplayStatus,
     WorkflowRunStatus,
     WorkflowStepStatus,
 )
+
+
+class WorkflowGraph(IdTimestampMixin, Base):
+    """Reusable workflow graph definition for conditional execution."""
+
+    __tablename__ = "workflow_graphs"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    version: Mapped[str] = mapped_column(String(64), default="1", nullable=False)
+    graph_definition: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    entry_node: Mapped[str] = mapped_column(String(128), nullable=False)
+    graph_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    nodes: Mapped[list["WorkflowGraphNode"]] = relationship(
+        back_populates="workflow_graph",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    edges: Mapped[list["WorkflowGraphEdge"]] = relationship(
+        back_populates="workflow_graph",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+
+
+class WorkflowGraphNode(IdTimestampMixin, Base):
+    """One executable node in a workflow graph."""
+
+    __tablename__ = "workflow_graph_nodes"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    workflow_graph_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_graphs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    node_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    node_type: Mapped[str] = mapped_column(
+        String(64),
+        default=WorkflowNodeType.NO_OP.value,
+        index=True,
+        nullable=False,
+    )
+    execution_mode: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowNodeExecutionMode.SYNC.value,
+        index=True,
+        nullable=False,
+    )
+    configuration: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    retry_policy: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    node_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    workflow_graph: Mapped[WorkflowGraph] = relationship(back_populates="nodes")
+
+
+class WorkflowGraphEdge(IdTimestampMixin, Base):
+    """Directed edge between workflow graph nodes."""
+
+    __tablename__ = "workflow_graph_edges"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    workflow_graph_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_graphs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    source_node_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    target_node_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    edge_type: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowGraphEdgeType.SUCCESS.value,
+        index=True,
+        nullable=False,
+    )
+    condition_expression: Mapped[str | None] = mapped_column(Text, nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, default=100, index=True, nullable=False)
+    edge_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    workflow_graph: Mapped[WorkflowGraph] = relationship(back_populates="edges")
 
 
 class WorkflowRun(IdTimestampMixin, Base):
@@ -41,6 +126,17 @@ class WorkflowRun(IdTimestampMixin, Base):
         index=True,
         nullable=True,
     )
+    workflow_graph_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_graphs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    graph_execution: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    current_node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    planned_next_nodes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    skipped_nodes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    retry_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    fallback_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     status: Mapped[str] = mapped_column(
         String(32),
         default=WorkflowRunStatus.PENDING.value,
@@ -70,6 +166,10 @@ class WorkflowRun(IdTimestampMixin, Base):
         back_populates="workflow_run",
         cascade="save-update, merge, delete, delete-orphan",
     )
+    replay_records: Mapped[list["WorkflowReplay"]] = relationship(
+        back_populates="workflow_run",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
 
 
 class WorkflowStep(IdTimestampMixin, Base):
@@ -86,6 +186,9 @@ class WorkflowStep(IdTimestampMixin, Base):
     step_index: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     step_name: Mapped[str] = mapped_column(String(255), nullable=False)
     step_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    parent_node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    dependency_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     status: Mapped[str] = mapped_column(
         String(32),
         default=WorkflowStepStatus.PENDING.value,
@@ -150,6 +253,7 @@ class AgentMemorySnapshot(IdTimestampMixin, Base):
         index=True,
         nullable=True,
     )
+    node_key: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     memory_type: Mapped[str] = mapped_column(
         String(64),
         default=AgentMemorySnapshotType.TASK_CONTEXT.value,
@@ -163,3 +267,31 @@ class AgentMemorySnapshot(IdTimestampMixin, Base):
     snapshot_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
     workflow_run: Mapped[WorkflowRun | None] = relationship(back_populates="memory_snapshots")
+
+
+class WorkflowReplay(IdTimestampMixin, Base):
+    """Replay metadata for a workflow run; does not re-execute runtime actions."""
+
+    __tablename__ = "workflow_replays"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    workflow_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    replay_source_checkpoint_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_checkpoints.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    replay_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    replay_status: Mapped[str] = mapped_column(
+        String(32),
+        default=WorkflowReplayStatus.CREATED.value,
+        index=True,
+        nullable=False,
+    )
+    replay_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    workflow_run: Mapped[WorkflowRun] = relationship(back_populates="replay_records")

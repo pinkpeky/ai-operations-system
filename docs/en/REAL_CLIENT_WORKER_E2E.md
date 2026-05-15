@@ -314,3 +314,9 @@ API coverage:
 
 Boundaries: this is not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real OpenClaw, not real social-platform publishing, and not TikTok / YouTube / X automation. It does not add automatic login, CAPTCHA automation, proxy pools, or fingerprint bypass.
 <!-- PHASE45_SYNC:END -->
+
+<!-- PHASE46_SYNC:START -->
+## Phase 46 Note
+
+Real client worker E2E validation is unchanged by Workflow Graph Runtime. Graph planner and Replay Foundation metadata may reference browser/runtime artifacts through `producing_node_key`, `replay_source`, and `graph_lineage`, but this does not add remote desktop streaming, ComfyUI, real OpenClaw, or social platform automation.
+<!-- PHASE46_SYNC:END -->
