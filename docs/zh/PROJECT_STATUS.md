@@ -1,4 +1,4 @@
-﻿# 项目状态
+# 项目状态
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
 
@@ -414,15 +414,15 @@ npm run tauri dev
 
 边界：当前没有正式 installer、没有 exe / dmg、没有真正开机自启、没有 auto-update、没有远程 shell、没有任意命令执行、没有真实平台自动化。
 
-## Phase 33?Conversation Runtime Foundation
+## Phase 33: Conversation Runtime Foundation
 
-???????
 
-????`conversation_threads`?`conversation_events`??? `conversation_messages.thread_id`?`ConversationService`?`run_conversation_turn`?Conversation APIs?Worker Console Chat Panel Foundation?Event Timeline?polling event feed?
 
-???????`message_received`?`planning_started`?`plan_created`?`agent_started`?`tool_called`?`worker_action_started`?`worker_action_completed`?`assistant_response`?`error`?
+ `conversation_threads`?`conversation_events`  `conversation_messages.thread_id`?`ConversationService`?`run_conversation_turn`?Conversation APIs?Worker Console Chat Panel Foundation?Event Timeline?polling event feed?
 
-??????? Conversation Runtime Foundation???? WebSocket/SSE????? OpenClaw??? ComfyUI??? TikTok / YouTube / X??????Cookie ????????????????????????
+ `message_received`?`planning_started`?`plan_created`?`agent_started`?`tool_called`?`worker_action_started`?`worker_action_completed`?`assistant_response`?`error`?
+
+  Conversation Runtime Foundation  WebSocket/SSE  OpenClaw  ComfyUI  TikTok / YouTube / X Cookie
 
 ## Phase 34: Remote Browser Runtime Foundation
 
@@ -591,61 +591,61 @@ Phase 41 新增 `output_artifacts`，把 Conversation、Playbook、Tool、Browse
 - 不接 S3 / MinIO。
 - 不做真实平台发布资产管理。
 - 不做 TikTok / YouTube / X、登录、验证码、代理、指纹、真实 OpenClaw 或 ComfyUI。
-## Phase 42?Task Orchestration & Background Execution?????
+## Phase 42: Task Orchestration & Background Execution
 
-?????? `task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy` ? `/api/v1/task-runs` API?Conversation Runtime ? `POST /api/v1/conversations/{thread_id}/run` ???? `execution_mode=immediate|background|scheduled` ? `scheduled_at`??????? `task_run_id`????? polling ?? task timeline?Playbook / Conversation ??????? queued / running / waiting_approval / retrying / completed / failed / cancelled / expired ????? retry?cancel?approval resume??? Output Library artifacts ?? `task_run_id` ???
+  `task_runs`?`task_run_events`?`TaskOrchestratorService`?`BackgroundTaskExecutor`?`TaskRetryPolicy` ? `/api/v1/task-runs` API?Conversation Runtime ? `POST /api/v1/conversations/{thread_id}/run`   `execution_mode=immediate|background|scheduled` ? `scheduled_at`  `task_run_id`  polling   task timeline?Playbook / Conversation   queued / running / waiting_approval / retrying / completed / failed / cancelled / expired   retry?cancel?approval resume  Output Library artifacts   `task_run_id`
 
-?????? in-process queue foundation??? Celery?RabbitMQ?Kubernetes scheduler??????? HA distributed queue??? TikTok / YouTube / X????????????????????????????? OpenClaw ? ComfyUI?
+  in-process queue foundation  Celery?RabbitMQ?Kubernetes scheduler  HA distributed queue  TikTok / YouTube / X  OpenClaw ? ComfyUI?
 
 Phase 42 verifier markers: not Celery, not Kubernetes, Task Orchestration & Background Execution, `task_runs`, `task_run_events`, `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, `execution_mode`.
-## Phase 43?Task Scheduler Persistence & Worker Recovery?????
+## Phase 43: Task Scheduler Persistence & Worker Recovery
 
-????Task Scheduler Persistence?`task_scheduler_state`?`task_runs` ? Task Lease ???`TaskRecoveryService`?Scheduler Health API?manual recovery API?Failed Diagnostics????? scheduler health ???
+ Task Scheduler Persistence?`task_scheduler_state`?`task_runs` ? Task Lease  `TaskRecoveryService`?Scheduler Health API?manual recovery API?Failed Diagnostics  scheduler health
 
-Task Lease?running task run ??? `lease_owner`?`lease_token`?`lease_expires_at`?`heartbeat_at`?expired lease ? stale heartbeat ??? scan ? manual recover ???
+Task Lease?running task run   `lease_owner`?`lease_token`?`lease_expires_at`?`heartbeat_at`?expired lease ? stale heartbeat   scan ? manual recover
 
-Recovery rules?running + expired lease ? stale heartbeat -> retrying????? retry budget ? failed?pending scheduled due -> queued?retrying delay elapsed -> queued?waiting_approval ??????completed/cancelled/expired ????
+Recovery rules?running + expired lease ? stale heartbeat -> retrying  retry budget ? failed?pending scheduled due -> queued?retrying delay elapsed -> queued?waiting_approval  completed/cancelled/expired
 
-Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics panel?scheduled due indicator?manual recover?Worker Console ? Worker Console Desktop ???? Task recovery ???
+Admin Dashboard   Scheduler Health?lease status?recoverable badge?diagnostics panel?scheduled due indicator?manual recover?Worker Console ? Worker Console Desktop   Task recovery
 
-??????? in-process scheduler foundation??? Celery??? Kubernetes???? production HA distributed queue?
+  in-process scheduler foundation  Celery  Kubernetes  production HA distributed queue?
 
 Phase 43 boundary marker: not Celery, not Kubernetes, not production HA.
 
 <!-- PHASE44_STATUS:START -->
 ## Phase 44 - Output Artifact Pipeline & Export System
 
-???????
 
-??? Artifact lineage?`artifact_relationships`?`ArtifactExportService`?`ArtifactPackagingService`?`ArtifactRetentionService`?export/package APIs?Artifact Explorer UI?lineage graph ???relationship graph ???retention preview?bundle metadata????????? `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
 
-????????? DAM??? production object storage platform??????? S3 / MinIO / CDN ???
+  Artifact lineage?`artifact_relationships`?`ArtifactExportService`?`ArtifactPackagingService`?`ArtifactRetentionService`?export/package APIs?Artifact Explorer UI?lineage graph  relationship graph  retention preview?bundle metadata  `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
+
+  DAM  production object storage platform  S3 / MinIO / CDN
 <!-- PHASE44_STATUS:END -->
 
 <!-- PHASE44_SYNC:START -->
-## Phase 44?Output Artifact Pipeline & Export System
+## Phase 44: Output Artifact Pipeline & Export System
 
-Phase 44 ? Phase 41 Output Library ? Phase 42/43 task runtime ?????? Output Artifact Pipeline????? Artifact lineage?relationship graph???????retention policy preview????? Artifact Explorer ?????
+Phase 44 ? Phase 41 Output Library ? Phase 42/43 task runtime   Output Artifact Pipeline  Artifact lineage?relationship graph retention policy preview  Artifact Explorer
 
-???????
 
-- `output_artifacts` ?? `parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?
-- `artifact_relationships` ?? relationship graph ???? `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
-- `ArtifactExportService` ?? `export_markdown`?`export_html`?`export_json`?`export_bundle_zip`?`export_report_package`??????? browser runtime ? playbook?
-- `ArtifactPackagingService` ?? `package_playbook_run`?`package_task_run`?`package_browser_runtime_session`?`package_conversation`??? package artifact ? `bundle.zip` metadata?
-- `ArtifactRetentionService` ?? retention policy?expiration scan?cleanup preview?soft archive ????? preview ????????
-- API ?? `GET /api/v1/output-artifacts/{artifact_id}/lineage`?`GET /api/v1/output-artifacts/{artifact_id}/relationships`?`POST /api/v1/output-artifacts/{artifact_id}/export`?`POST /api/v1/output-artifacts/{artifact_id}/package`?`POST /api/v1/output-artifacts/cleanup/preview`?
-- Storage roots ?? `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
-- Admin Dashboard ?? Artifact Explorer?lineage graph panel?export actions?package actions?retention badge?archived indicator?bundle metadata preview?
-- Worker Console / Desktop ???? export?package?lineage summary?retention status ???
 
-???
+- `output_artifacts`   `parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?
+- `artifact_relationships`   relationship graph   `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
+- `ArtifactExportService`   `export_markdown`?`export_html`?`export_json`?`export_bundle_zip`?`export_report_package`  browser runtime ? playbook?
+- `ArtifactPackagingService`   `package_playbook_run`?`package_task_run`?`package_browser_runtime_session`?`package_conversation`  package artifact ? `bundle.zip` metadata?
+- `ArtifactRetentionService`   retention policy?expiration scan?cleanup preview?soft archive   preview
+- API   `GET /api/v1/output-artifacts/{artifact_id}/lineage`?`GET /api/v1/output-artifacts/{artifact_id}/relationships`?`POST /api/v1/output-artifacts/{artifact_id}/export`?`POST /api/v1/output-artifacts/{artifact_id}/package`?`POST /api/v1/output-artifacts/cleanup/preview`?
+- Storage roots   `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
+- Admin Dashboard   Artifact Explorer?lineage graph panel?export actions?package actions?retention badge?archived indicator?bundle metadata preview?
+- Worker Console / Desktop   export?package?lineage summary?retention status
 
-- ?????? DAM ???
-- ???? production object storage platform?
-- ??????? S3 / MinIO / CDN?
-- Export ?????? Browser Runtime?Playbook?Conversation?OpenClaw ? Task action?
-- ????? TikTok / YouTube / X automation???????????????????????? OpenClaw ? ComfyUI?
+
+
+-   DAM
+-   production object storage platform?
+-   S3 / MinIO / CDN?
+- Export   Browser Runtime?Playbook?Conversation?OpenClaw ? Task action?
+-   TikTok / YouTube / X automation  OpenClaw ? ComfyUI?
 <!-- PHASE44_SYNC:END -->
 
 <!-- PHASE45_SYNC:START -->
@@ -722,24 +722,24 @@ Phase 47 在 Phase 46 Workflow Graph Runtime 之上新增 Workflow Template Regi
 <!-- PHASE47_SYNC:END -->
 
 <!-- PHASE48_SYNC:START -->
-## Phase 48?Workflow Template Marketplace & Governance Foundation
+## Phase 48: Workflow Template Marketplace & Governance Foundation
 
 Status: completed.
 
-Phase 48 ? Phase 47 Workflow Template Registry & Versioning ??????????? Marketplace foundation???????????????? public marketplace????????????? SaaS marketplace?????? DAG editor???? ComfyUI?
+Phase 48 ? Phase 47 Workflow Template Registry & Versioning   Marketplace foundation  public marketplace  SaaS marketplace  DAG editor  ComfyUI?
 
 Completed scope:
 
-- ?? `workflow_template_reviews`??? review queue?`review_status`?`risk_assessment`?`compatibility_report`?approve / reject / request changes?
-- ?? `workflow_template_promotions`??? activate?rollback?deprecate?archive ? `promotion_type`??????????? reason?
-- ?? `workflow_template_audit_logs`????? audit trail?actor?previous_state?new_state?metadata?
-- ?? `workflow_template_compatibility_matrix`?? runtime capability ?? `browser_runtime`?`approval_gate`?`task_scheduler`?`artifact_pipeline`?`workflow_graph_runtime`?`openclaw_mock`?`rag_pipeline` ??????
-- ?? `WorkflowTemplateGovernanceService`??? `submit_for_review`?`approve_review`?`reject_review`?`request_changes`?`activate_template_version`?`rollback_template_version`?`deprecate_template`?`archive_template`?`list_review_queue`?`list_governance_events`?
-- Template lifecycle?draft -> review -> approved -> active -> deprecated -> archived?review ????? activate?active version ?????deprecated ???????archived ??????rollback ???????
-- Marketplace foundation ? `workflow_templates` ??? `featured`?`verified`?`recommended`?`usage_count`?`success_rate`?`average_runtime_ms`?`average_step_count`???? governance badges?risk badge?verified badge?featured templates?recommended templates?
-- Output Artifact lineage ?? `source_template_review_id` ? `governance_state`?Workflow Runs ??? template governance state ? compatibility snapshot?
-- Admin Dashboard ?? Template Governance ????? Review Queue?Approval / Reject / Request Changes?Template Lifecycle View?Audit Log View?Marketplace View?Compatibility Matrix View?Rollback UI?
-- Worker Console ? Worker Console Desktop ? Template Library ??? governance status?template verification status ? compatibility summary?
+-   `workflow_template_reviews`  review queue?`review_status`?`risk_assessment`?`compatibility_report`?approve / reject / request changes?
+-   `workflow_template_promotions`  activate?rollback?deprecate?archive ? `promotion_type`  reason?
+-   `workflow_template_audit_logs`  audit trail?actor?previous_state?new_state?metadata?
+-   `workflow_template_compatibility_matrix`  runtime capability   `browser_runtime`?`approval_gate`?`task_scheduler`?`artifact_pipeline`?`workflow_graph_runtime`?`openclaw_mock`?`rag_pipeline`
+-   `WorkflowTemplateGovernanceService`  `submit_for_review`?`approve_review`?`reject_review`?`request_changes`?`activate_template_version`?`rollback_template_version`?`deprecate_template`?`archive_template`?`list_review_queue`?`list_governance_events`?
+- Template lifecycle?draft -> review -> approved -> active -> deprecated -> archived?review   activate?active version  deprecated  archived  rollback
+- Marketplace foundation ? `workflow_templates`   `featured`?`verified`?`recommended`?`usage_count`?`success_rate`?`average_runtime_ms`?`average_step_count`  governance badges?risk badge?verified badge?featured templates?recommended templates?
+- Output Artifact lineage   `source_template_review_id` ? `governance_state`?Workflow Runs   template governance state ? compatibility snapshot?
+- Admin Dashboard   Template Governance   Review Queue?Approval / Reject / Request Changes?Template Lifecycle View?Audit Log View?Marketplace View?Compatibility Matrix View?Rollback UI?
+- Worker Console ? Worker Console Desktop ? Template Library   governance status?template verification status ? compatibility summary?
 
 API coverage:
 
@@ -770,15 +770,15 @@ Boundaries: Phase 48 is not public marketplace, not a visual DAG builder, not a 
 
 Keywords: not distributed tracing platform; not deterministic replay engine; not ComfyUI.
 
-## Phase 50?Desktop Console Runtime UX & Client Packaging Readiness
+## Phase 50: Desktop Console Runtime UX & Client Packaging Readiness
 
-Phase 50 ?? Desktop Console Runtime UX & Client Packaging Readiness?Tauri icon resource ??????`worker_console_desktop/src-tauri/icons/icon.ico` ??????????`bundle.icon` ?? `["icons/icon.ico"]`?
+Phase 50   Desktop Console Runtime UX & Client Packaging Readiness?Tauri icon resource  `worker_console_desktop/src-tauri/icons/icon.ico`  `bundle.icon`   `["icons/icon.ico"]`?
 
-Start Runtime diagnostics ??????????`starting`?`started`?`failed`?`unavailable`?`port_conflict`?`missing_config`?`server_environment_warning`?Desktop Console ??? local worker diagnostics??? `/local/status`?`/local/health`?runtime port?`server_url`?`worker_base_url`?last attempted action?last error detail?last successful sync?
+Start Runtime diagnostics  `starting`?`started`?`failed`?`unavailable`?`port_conflict`?`missing_config`?`server_environment_warning`?Desktop Console   local worker diagnostics  `/local/status`?`/local/health`?runtime port?`server_url`?`worker_base_url`?last attempted action?last error detail?last successful sync?
 
-???/??????????????????? Worker Runtime????????????????????? worker???????? worker?????? E2E ???????? Desktop Console?
+ /  Worker Runtime  worker  worker  E2E   Desktop Console?
 
-????? packaging readiness?not final installer?no code signing?no auto updater?no MSI/EXE release packaging??? not ComfyUI?
+  packaging readiness?not final installer?no code signing?no auto updater?no MSI/EXE release packaging  not ComfyUI?
 
 Keywords: Desktop Console Runtime UX & Client Packaging Readiness; Tauri icon resource; icons/icon.ico; bundle.icon; Start Runtime diagnostics; missing_config; port_conflict; server_environment_warning; local worker diagnostics; customer machine; not final installer; no code signing; no auto updater.
 <!-- PHASE51_SYNC:START -->
@@ -799,7 +799,7 @@ Packaging architecture:
 
 Boundaries: Phase 51 is not a formal production release, no code signing, no auto updater, no MSI/EXE formal installer, no DMG/notarization, no Kubernetes/Helm packaging, no ComfyUI, and no real social platform publishing.
 
-?????Phase 51 ?????????????????????????????????? release readiness???????????????????????????????? code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
+ Phase 51   release readiness  code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
 
 Keywords: Phase 51; Release Packaging & Deployment Bundle Foundation; release/manifest.json; release/version.json; server deployment bundle; frontend production build bundle; desktop release readiness; aiops.release.env.template; validate_release_packaging.py; Windows / Mac startup scripts; not a formal production release; no code signing; no auto updater; no MSI/EXE; no DMG/notarization; no Kubernetes/Helm.
 <!-- PHASE51_SYNC:END -->
@@ -824,3 +824,9 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
+
+## Docs Stabilization Sprint
+
+This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
+
+The canonical project recovery state is: `main` remains the Phase 42 stable baseline, the active docs branch is `codex/docs-stabilization-sprint`, and Phase 43-52 remain open PRs layered on top of the Phase 42 baseline. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.

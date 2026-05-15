@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +34,8 @@ class DocsRuntimeVerifier:
     def run(self) -> int:
         """执行所有校验并输出结果。"""
 
+        self.check_markdown_encoding()
+        self.check_docx_render_qa()
         self.check_required_docs()
         self.check_runtime_config()
         self.check_openapi_and_api_docs()
@@ -63,6 +67,11 @@ class DocsRuntimeVerifier:
         required = [
             "docs/PROJECT_OVERVIEW.md",
             "docs/CURRENT_RUNTIME.md",
+            "docs/PHASE_INDEX.md",
+            "docs/CURRENT_NEXT_PHASE.md",
+            "docs/SYSTEM_BOUNDARIES.md",
+            "docs/DOC_RENDER_QA.md",
+            "docs/ARCHITECTURE_TIMELINE.md",
             "docs/zh/PROJECT_STATUS.md",
             "docs/zh/ARCHITECTURE.md",
             "docs/zh/API_REFERENCE.md",
@@ -246,6 +255,118 @@ class DocsRuntimeVerifier:
                 self.error(f"Missing required docs file: {path}")
         else:
             self.pass_("Required zh/en docs structure exists")
+
+    def check_markdown_encoding(self) -> None:
+        """Validate Markdown files as UTF-8 without BOM or obvious mojibake."""
+
+        markdown_files = sorted(self.docs.rglob("*.md"))
+        if not markdown_files:
+            self.error("No Markdown docs found")
+            return
+
+        suspicious_patterns = [
+            (re.compile(r"\ufeff"), "UTF-8 BOM"),
+            (re.compile(r"\ufffd"), "Unicode replacement character"),
+            (re.compile(r"\?{3,}"), "repeated question-mark encoding corruption"),
+            (re.compile(r"\u00c3|\u00c2|\u00e2\u20ac|\u9225|\u951b|\u9428"), "common mojibake marker"),
+        ]
+        failed = False
+        for path in markdown_files:
+            relative = path.relative_to(self.root).as_posix()
+            data = path.read_bytes()
+            if data.startswith(b"\xef\xbb\xbf"):
+                self.error(f"Markdown encoding validation failed for {relative}: UTF-8 BOM")
+                failed = True
+                continue
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                self.error(f"Markdown encoding validation failed for {relative}: {exc}")
+                failed = True
+                continue
+            for pattern, label in suspicious_patterns:
+                if pattern.search(text):
+                    self.error(f"Markdown encoding validation failed for {relative}: {label}")
+                    failed = True
+                    break
+        if not failed:
+            self.pass_(f"Markdown encoding validation passed for {len(markdown_files)} files")
+
+    def check_docx_render_qa(self) -> None:
+        """Render the canonical DOCX to PDF when LibreOffice is available."""
+
+        docx_path = self.docs / "Aiops Project Documentation Update Request For Codex.docx"
+        if not docx_path.exists():
+            self.error("DOCX render QA failed: DOCX file is missing")
+            return
+        self.pass_("DOCX render QA: DOCX exists")
+
+        soffice = self.find_soffice()
+        if not soffice:
+            self.warning("DOCX render QA: soffice not found; LibreOffice render check skipped")
+            return
+        self.pass_(f"DOCX render QA: soffice found at {soffice}")
+
+        render_dir = self.docs / "rendered"
+        render_dir.mkdir(parents=True, exist_ok=True)
+        pdf_path = render_dir / f"{docx_path.stem}.pdf"
+        if pdf_path.exists():
+            pdf_path.unlink()
+
+        command = [
+            soffice,
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(render_dir),
+            str(docx_path),
+        ]
+        try:
+            proc = subprocess.run(
+                command,
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=180,
+                check=False,
+            )
+        except Exception as exc:
+            self.error(f"DOCX render QA failed: {exc}")
+            return
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            self.error(f"DOCX render QA failed: soffice exit code {proc.returncode}: {detail}")
+            return
+        self.pass_("DOCX render QA: soffice conversion exit code == 0")
+
+        if not pdf_path.exists():
+            self.error(f"DOCX render QA failed: PDF output missing at {pdf_path}")
+            return
+        self.pass_("DOCX render QA: PDF output exists")
+
+        if pdf_path.stat().st_size <= 0:
+            self.error(f"DOCX render QA failed: PDF output is empty at {pdf_path}")
+            return
+        self.pass_(f"DOCX render QA: PDF output non-empty ({pdf_path.stat().st_size} bytes)")
+
+    def find_soffice(self) -> str | None:
+        """Find LibreOffice soffice on PATH or common Windows install paths."""
+
+        found = shutil.which("soffice")
+        if found:
+            return found
+        candidates = [
+            Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+            Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+        return None
 
     def check_runtime_config(self) -> None:
         """检查 CURRENT_RUNTIME 与 Settings / docker-compose 默认值是否一致。"""

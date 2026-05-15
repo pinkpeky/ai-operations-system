@@ -57,6 +57,9 @@ htmlcov/
 .env.generated
 *.env.generated
 
+# Docs render QA generated output
+/docs/rendered/
+
 # Browser screenshots
 /screenshots/*
 !/screenshots/.gitkeep

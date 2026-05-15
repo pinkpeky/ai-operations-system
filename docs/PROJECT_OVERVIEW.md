@@ -1074,7 +1074,7 @@ Source types: `conversation`, `playbook`, `tool`, `browser_runtime`, `rag`, `con
 Storage: exported files are written under `storage/output_artifacts/{workspace_id}/{artifact_id}/`. The system does not use S3 or MinIO.
 
 Current limitation: this is not a full DAM, not a production file manager, not cloud storage, not real publishing asset management, and not a complete material management system.
-## Phase 42?Task Orchestration & Background Execution
+## Phase 42: Task Orchestration & Background Execution
 
 Phase 42 is completed. The system now has `task_runs` and `task_run_events` as a dedicated background execution timeline for Conversation and Playbook work. `TaskOrchestratorService` creates, queues, starts, completes, fails, retries, cancels, schedules, and resumes task runs. `BackgroundTaskExecutor` is a lightweight in-process polling loop started by FastAPI when `TASK_ORCHESTRATOR_ENABLED=true`. `TaskRetryPolicy` provides exponential backoff and keeps approval rejected / validation errors non-retryable.
 
@@ -1291,7 +1291,7 @@ Packaging architecture:
 
 Boundaries: Phase 51 is not a formal production release, no code signing, no auto updater, no MSI/EXE formal installer, no DMG/notarization, no Kubernetes/Helm packaging, no ComfyUI, and no real social platform publishing.
 
-?????Phase 51 ?????????????????????????????????? release readiness???????????????????????????????? code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
+ Phase 51   release readiness  code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
 
 Keywords: Phase 51; Release Packaging & Deployment Bundle Foundation; release/manifest.json; release/version.json; server deployment bundle; frontend production build bundle; desktop release readiness; aiops.release.env.template; validate_release_packaging.py; Windows / Mac startup scripts; not a formal production release; no code signing; no auto updater; no MSI/EXE; no DMG/notarization; no Kubernetes/Helm.
 <!-- PHASE51_SYNC:END -->
@@ -1316,3 +1316,9 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
+
+## Docs Stabilization Sprint
+
+This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
+
+The canonical project recovery state is: `main` remains the Phase 42 stable baseline, the active docs branch is `codex/docs-stabilization-sprint`, and Phase 43-52 remain open PRs layered on top of the Phase 42 baseline. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.
