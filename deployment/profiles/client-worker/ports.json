@@ -1,0 +1,7 @@
+{
+  "profile_key": "client-worker",
+  "ports": [
+    { "name": "worker-runtime", "port": 9100, "required": true, "description": "Local worker runtime API; do not expose publicly" }
+  ]
+}
+

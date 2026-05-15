@@ -1,0 +1,10 @@
+{
+  "profile_key": "staging",
+  "name": "Staging",
+  "scenario": "Controlled staging validation of server and UI behavior using placeholder secrets.",
+  "recommended_for": ["pre-release smoke", "profile validation", "integration checks"],
+  "not_for": ["production secrets", "HA guarantees", "public marketplace"],
+  "required_env": ["APP_ENV", "API_PORT", "POSTGRES_PASSWORD", "REDIS_PASSWORD", "QDRANT_API_KEY"],
+  "notes": "Use staging-only credentials outside git."
+}
+

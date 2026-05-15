@@ -1,0 +1,12 @@
+{
+  "profile_key": "server-docker",
+  "startup_order": ["postgres", "redis", "qdrant", "browser-worker", "api"],
+  "services": [
+    { "name": "postgres", "command": "docker compose up -d postgres", "required": true },
+    { "name": "redis", "command": "docker compose up -d redis", "required": true },
+    { "name": "qdrant", "command": "docker compose up -d qdrant", "required": true },
+    { "name": "browser-worker", "command": "docker compose up -d browser-worker", "required": true },
+    { "name": "api", "command": "docker compose up -d api", "required": true }
+  ]
+}
+

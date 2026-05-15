@@ -1,0 +1,9 @@
+{
+  "profile_key": "desktop-client",
+  "healthchecks": [
+    { "name": "local-status", "url": "http://127.0.0.1:9100/local/status", "required": false },
+    { "name": "local-health", "url": "http://127.0.0.1:9100/local/health", "required": false },
+    { "name": "server-health", "url": "http://localhost:8000/api/v1/health", "required": false }
+  ]
+}
+

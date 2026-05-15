@@ -1,0 +1,11 @@
+{
+  "profile_key": "local-dev",
+  "ports": [
+    { "name": "api", "port": 8000, "required": true, "description": "FastAPI server" },
+    { "name": "worker-console", "port": 5173, "required": false, "description": "Worker Console Vite dev server" },
+    { "name": "desktop-console-web", "port": 5174, "required": false, "description": "Desktop Console Vite/Tauri dev server" },
+    { "name": "admin-dashboard", "port": 5180, "required": false, "description": "Admin Dashboard Vite dev server" },
+    { "name": "worker-runtime", "port": 9100, "required": false, "description": "Local worker runtime" }
+  ]
+}
+

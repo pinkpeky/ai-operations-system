@@ -186,6 +186,15 @@ function StatusPill({ value }: { value: React.ReactNode }) {
   return <span className={`status-pill status-pill-${variant}`}>{label}</span>;
 }
 
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      <span className="field-value">{value ?? "-"}</span>
+    </div>
+  );
+}
+
 function DataCard({
   title,
   value,
@@ -2475,6 +2484,7 @@ function SettingsPage({
   onSave: (settings: AdminSettings) => void;
 }) {
   const [draft, setDraft] = useState(settings);
+  const profileDocsPath = "docs/en/DEPLOYMENT_PROFILES.md";
 
   return (
     <Panel title="Settings" description="Local browser settings only. No authentication or permissions UI is implemented.">
@@ -2506,6 +2516,20 @@ function SettingsPage({
         <KeyRound size={15} />
         Save local settings
       </button>
+      <section className="detail-panel">
+        <h3>Deployment Profile Help</h3>
+        <div className="field-grid compact">
+          <Field label="recommended_profile" value="server-docker for API host; local-dev for development" />
+          <Field label="ai_server_url" value={draft.aiServerUrl} />
+          <Field label="workspace_id" value={draft.workspaceId} />
+          <Field label="user_id" value={draft.userId} />
+          <Field label="local_worker_api" value="Only required by Worker Console / Desktop Console" />
+          <Field label="profile_bootstrap_docs" value={profileDocsPath} />
+        </div>
+        <p className="muted-copy">
+          Server Docker runs API, browser-worker, PostgreSQL, Redis, and Qdrant. Client Worker runs worker_client on a customer machine. Desktop Client controls only that local machine worker runtime. Bootstrap scripts generate env files and verify dependencies, ports, and health without writing system environment variables.
+        </p>
+      </section>
     </Panel>
   );
 }

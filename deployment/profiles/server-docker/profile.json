@@ -1,0 +1,10 @@
+{
+  "profile_key": "server-docker",
+  "name": "Server Docker",
+  "scenario": "Server-side Docker Compose deployment for API, browser-worker, PostgreSQL, Redis, and Qdrant validation.",
+  "recommended_for": ["server validation", "integration smoke tests", "release bundle verification"],
+  "not_for": ["Kubernetes", "production HA", "public secret storage"],
+  "required_env": ["APP_ENV", "API_PORT", "POSTGRES_PASSWORD", "REDIS_PASSWORD", "QDRANT_API_KEY"],
+  "notes": "Use placeholder secrets in templates and provide real secrets outside git."
+}
+

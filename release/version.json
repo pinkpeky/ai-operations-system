@@ -23,6 +23,21 @@
       "frontend_build": "npm run build",
       "native_release_readiness": "tauri config/icon/dependency checks",
       "signed_installer": false
+    },
+    "deployment_profiles": {
+      "root": "deployment/profiles",
+      "profiles": [
+        "local-dev",
+        "server-docker",
+        "client-worker",
+        "desktop-client",
+        "staging",
+        "production-like"
+      ],
+      "bootstrap": "deployment/scripts/generate_env.py",
+      "dependency_check": "deployment/scripts/check_dependencies.py",
+      "port_check": "deployment/scripts/check_ports.py",
+      "health_verification": "deployment/scripts/verify_environment.py"
     }
   },
   "boundaries": [
@@ -32,8 +47,8 @@
     "no MSI or EXE installer",
     "no macOS DMG or notarization",
     "no Kubernetes or Helm bundle",
+    "no Terraform or Ansible automation",
     "no ComfyUI integration",
     "no real social platform publishing"
   ]
 }
-

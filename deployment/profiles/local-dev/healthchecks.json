@@ -1,0 +1,8 @@
+{
+  "profile_key": "local-dev",
+  "healthchecks": [
+    { "name": "api-health", "url": "http://localhost:8000/api/v1/health", "required": true },
+    { "name": "task-runs", "url": "http://localhost:8000/api/v1/task-runs", "required": false, "headers": { "X-Workspace-Id": "demo-workspace", "X-User-Id": "demo-user" } }
+  ]
+}
+

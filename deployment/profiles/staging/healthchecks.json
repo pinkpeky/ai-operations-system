@@ -1,0 +1,8 @@
+{
+  "profile_key": "staging",
+  "healthchecks": [
+    { "name": "api-health", "url": "http://localhost:8000/api/v1/health", "required": true },
+    { "name": "browser-worker-health", "url": "http://localhost:9100/health", "required": true }
+  ]
+}
+

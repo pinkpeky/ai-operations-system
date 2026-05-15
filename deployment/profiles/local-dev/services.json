@@ -1,0 +1,11 @@
+{
+  "profile_key": "local-dev",
+  "startup_order": ["optional-docker-services", "api", "admin-dashboard", "worker-console", "desktop-console"],
+  "services": [
+    { "name": "api", "command": "python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000", "required": true },
+    { "name": "admin-dashboard", "command": "cd admin_dashboard && npm run dev", "required": false },
+    { "name": "worker-console", "command": "cd worker_console && npm run dev", "required": false },
+    { "name": "desktop-console", "command": "cd worker_console_desktop && npm run tauri dev", "required": false }
+  ]
+}
+

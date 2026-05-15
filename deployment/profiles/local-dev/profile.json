@@ -1,0 +1,10 @@
+{
+  "profile_key": "local-dev",
+  "name": "Local Development",
+  "scenario": "Single developer machine running API, frontends, optional Docker services, and mock providers.",
+  "recommended_for": ["developer workstation", "feature validation", "frontend/backend integration"],
+  "not_for": ["production HA", "public internet exposure", "formal release"],
+  "required_env": ["APP_ENV", "API_PORT", "VITE_AI_SERVER_API", "VITE_WORKSPACE_ID", "VITE_USER_ID"],
+  "notes": "Uses mock LLM/embedding/reranker/browser defaults unless overridden."
+}
+

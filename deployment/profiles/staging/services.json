@@ -1,0 +1,9 @@
+{
+  "profile_key": "staging",
+  "startup_order": ["postgres", "redis", "qdrant", "browser-worker", "api", "frontends"],
+  "services": [
+    { "name": "server-stack", "command": "docker compose up --build -d", "required": true },
+    { "name": "frontends", "command": "npm run build in each frontend", "required": false }
+  ]
+}
+

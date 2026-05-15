@@ -1,0 +1,11 @@
+{
+  "profile_key": "server-docker",
+  "healthchecks": [
+    { "name": "api-health", "url": "http://localhost:8000/api/v1/health", "required": true },
+    { "name": "browser-worker-health", "url": "http://localhost:9100/health", "required": true },
+    { "name": "workflow-replay", "url": "http://localhost:8000/api/v1/workflow-replay-sessions", "required": false, "headers": { "X-Workspace-Id": "demo-workspace", "X-User-Id": "demo-user" } },
+    { "name": "task-runs", "url": "http://localhost:8000/api/v1/task-runs", "required": false, "headers": { "X-Workspace-Id": "demo-workspace", "X-User-Id": "demo-user" } },
+    { "name": "output-artifacts", "url": "http://localhost:8000/api/v1/output-artifacts", "required": false, "headers": { "X-Workspace-Id": "demo-workspace", "X-User-Id": "demo-user" } }
+  ]
+}
+

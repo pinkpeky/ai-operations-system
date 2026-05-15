@@ -1312,6 +1312,24 @@ function App() {
           </div>
         </section>
 
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Server size={18} />
+            <h2>Deployment Profile Help</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="recommended_profile" value="client-worker for worker_client; desktop-client for Tauri Desktop" />
+            <Field label="ai_server_url" value={status.server_url ?? "set VITE_AI_SERVER_API / chat settings"} />
+            <Field label="workspace_id" value={status.workspace_id ?? "set VITE_WORKSPACE_ID"} />
+            <Field label="user_id" value="set VITE_USER_ID for conversation features" />
+            <Field label="local_worker_api" value={localWorkerClient.baseUrl} />
+            <Field label="profile_bootstrap_docs" value="docs/en/DEPLOYMENT_PROFILES.md" />
+          </div>
+          <p className="chat-note">
+            Server Docker is the API/backing-services host. Client Worker is the machine running worker_client. Desktop Client controls only the local machine runtime. The deployment bootstrap scripts can generate env files, check dependencies, check ports, and verify health without writing system environment variables.
+          </p>
+        </section>
+
         <ChatPanel />
         <BrowserSessionsPanel />
 
