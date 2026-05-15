@@ -1,4 +1,4 @@
-﻿# API 参考
+# API 参考
 
 更新日期：2026-05-12
 
@@ -2091,7 +2091,7 @@ Request:
 
 ```json
 {
-  "title": "??????????",
+  "title": " ",
   "metadata": {"phase": "33"}
 }
 ```
@@ -2113,7 +2113,7 @@ Request:
 ```json
 {
   "role": "user",
-  "content": "?????????????????????????",
+  "content": " ",
   "metadata": {"source": "swagger"}
 }
 ```
@@ -2137,7 +2137,7 @@ Request:
 ```json
 {
   "input": {
-    "message": "?????????????????????????"
+    "message": " "
   }
 }
 ```
@@ -2720,7 +2720,7 @@ Export files are written under `storage/output_artifacts/{workspace_id}/{artifac
 Frontend: Admin Dashboard has an Output Library page with artifact list/detail, type badge, source type, related thread, related Playbook Run, preview content, Export markdown/json/txt, and filters. Conversation pages show generated artifacts and Save as Artifact.
 
 Boundary: this is not a full DAM, not S3, not MinIO, and not production publishing asset management.
-## Phase 42 API?Task Orchestration & Background Execution
+## Phase 42 API - Task Orchestration & Background Execution
 
 ### `GET /api/v1/task-runs`
 Required headers: `X-Workspace-Id`, `X-User-Id`. Query filters: `status`, `task_type`, `source_type`, `created_from`, `created_to`, `limit`.
@@ -2751,83 +2751,83 @@ Response JSON:
 ```
 
 ### `GET /api/v1/task-runs/{task_run_id}`
-???? `task_runs` ????? `queued`?`running`?`waiting_approval`?`retrying`?`completed`?`failed`?`cancelled`?`expired` ???
+  `task_runs`  `queued`, `running`, `waiting_approval`, `retrying`, `completed`, `failed`, `cancelled`, `expired`
 
 ### `GET /api/v1/task-runs/{task_run_id}/events`
-?? `task_run_events` timeline??? `task_queued`?`task_started`?`task_step_started`?`task_step_completed`?`task_waiting_approval`?`task_retry_scheduled`?`task_completed`?`task_cancelled`?`artifact_created`?
+  `task_run_events` timeline  `task_queued`, `task_started`, `task_step_started`, `task_step_completed`, `task_waiting_approval`, `task_retry_scheduled`, `task_completed`, `task_cancelled`, `artifact_created`.
 
 ### `POST /api/v1/task-runs/{task_run_id}/retry`
 ```json
 { "reason": "manual retry" }
 ```
-? failed / retryable task ? retry?`TaskRetryPolicy` ?? exponential backoff?`approval rejected` ? validation error ? retry?
+,  failed / retryable task, retry, `TaskRetryPolicy`  exponential backoff, `approval rejected`, validation error, retry.
 
 ### `POST /api/v1/task-runs/{task_run_id}/cancel`
 ```json
 { "reason": "manual cancel" }
 ```
-?????????? task timeline?
+  task timeline?
 
 ### `POST /api/v1/task-runs/{task_run_id}/resume`
-? `waiting_approval` ??? approval ? approved ?????????? queued???? Phase 39 Approval Gate?
+,  `waiting_approval`  approval, approved  queued  Phase 39 Approval Gate.
 
 ### Conversation Background Run
-`POST /api/v1/conversations/{thread_id}/run` ???
+`POST /api/v1/conversations/{thread_id}/run`
 ```json
 {
-  "input": { "message": "??? https://example.com ????????" },
+  "input": { "message": "  https://example.com  " },
   "playbook_name": "browser_screenshot_report",
   "mode": "review_first",
   "execution_mode": "background"
 }
 ```
-???? `task_run_id`?`task_status`?`execution_mode`?`scheduled` ???? `scheduled_at`?
+  `task_run_id`, `task_status`, `execution_mode`, `scheduled`  `scheduled_at`.
 
-?????Task Orchestration ? Background Execution foundation??? Celery / RabbitMQ / Kubernetes / production HA queue?
+ Task Orchestration, Background Execution foundation  Celery / RabbitMQ / Kubernetes / production HA queue.
 
 Phase 42 verifier markers: `TaskOrchestratorService`, `BackgroundTaskExecutor`, `TaskRetryPolicy`, artifact linkage, not Celery, not Kubernetes, not production HA.
-## Phase 43?Task Scheduler Persistence & Worker Recovery?????
+## Phase 43: Task Scheduler Persistence & Worker Recovery
 
-????Task Scheduler Persistence?`task_scheduler_state`?`task_runs` ? Task Lease ???`TaskRecoveryService`?Scheduler Health API?manual recovery API?Failed Diagnostics????? scheduler health ???
+ Task Scheduler Persistence, `task_scheduler_state`, `task_runs`, Task Lease  `TaskRecoveryService`, Scheduler Health API, manual recovery API, Failed Diagnostics  scheduler health
 
-Task Lease?running task run ??? `lease_owner`?`lease_token`?`lease_expires_at`?`heartbeat_at`?expired lease ? stale heartbeat ??? scan ? manual recover ???
+Task Lease, running task run  `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, expired lease, stale heartbeat  scan, manual recover
 
-Recovery rules?running + expired lease ? stale heartbeat -> retrying????? retry budget ? failed?pending scheduled due -> queued?retrying delay elapsed -> queued?waiting_approval ??????completed/cancelled/expired ????
+Recovery rules, running + expired lease, stale heartbeat -> retrying  retry budget, failed, pending scheduled due -> queued, retrying delay elapsed -> queued, waiting_approval  completed/cancelled/expired
 
-Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics panel?scheduled due indicator?manual recover?Worker Console ? Worker Console Desktop ???? Task recovery ???
+Admin Dashboard  Scheduler Health, lease status, recoverable badge, diagnostics panel, scheduled due indicator, manual recover, Worker Console, Worker Console Desktop  Task recovery
 
-??????? in-process scheduler foundation??? Celery??? Kubernetes???? production HA distributed queue?
-## Phase 43 API?Task Scheduler Persistence & Worker Recovery
+  in-process scheduler foundation  Celery  Kubernetes  production HA distributed queue?
+## Phase 43 API - Task Scheduler Persistence & Worker Recovery
 
 Required headers: `X-Workspace-Id`, `X-User-Id`.
 
-????`task_scheduler_state`?
+ `task_scheduler_state`?
 
-`task_runs` ?? Task Lease / Recovery / Failed Diagnostics ???`lease_owner`?`lease_token`?`lease_expires_at`?`heartbeat_at`?`recovery_count`?`last_recovered_at`?`recovery_reason`?`failure_category`?`failure_reason`?`recoverable`?`suggested_action`?`last_event_summary`?
+`task_runs`  Task Lease / Recovery / Failed Diagnostics  `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `last_recovered_at`, `recovery_reason`, `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, `last_event_summary`.
 
 ### `GET /api/v1/task-scheduler/health`
 
-???? workspace ? Scheduler Health?scheduler status?heartbeat?last scan?active task count?recovered task count ? metadata????? in-process foundation??? Celery??? Kubernetes???? production HA distributed queue?
+  workspace, Scheduler Health, scheduler status, heartbeat, last scan, active task count, recovered task count, metadata  in-process foundation  Celery  Kubernetes  production HA distributed queue.
 
 ### `POST /api/v1/task-scheduler/scan`
 
-?????? recovery scan??? scheduled due tasks?retrying due tasks?expired lease?stuck task recovery???? recovered counts ? scheduler health?
+  recovery scan  scheduled due tasks, retrying due tasks, expired lease, stuck task recovery  recovered counts, scheduler health.
 
 ### `GET /api/v1/task-runs/{task_run_id}/diagnostics`
 
-?? Failed Diagnostics?`failure_category`?`failure_reason`?`recoverable`?`suggested_action`?`last_event_summary`?`lease_expired`?`scheduled_due`?`retry_count`?`max_retries`?
+  Failed Diagnostics, `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, `last_event_summary`, `lease_expired`, `scheduled_due`, `retry_count`, `max_retries`.
 
 ### `POST /api/v1/task-runs/{task_run_id}/recover`
 
-???? recoverable task?running + expired lease ? retry policy?failed task ?? `TaskRetryPolicy` ??? retry?waiting_approval ????????? approval resume?
+  recoverable task, running + expired lease, retry policy, failed task  `TaskRetryPolicy`  retry, waiting_approval  approval resume.
 
-### ?? `GET /api/v1/task-runs`
+###   `GET /api/v1/task-runs`
 
-?????`recoverable`?`lease_expired`?`scheduled_due`?
+ `recoverable`, `lease_expired`, `scheduled_due`.
 
-Recovery rules?running + expired lease ? stale heartbeat -> retrying ? failed?queued/pending ??????scheduled due -> queued?retrying delay elapsed -> queued?waiting_approval ??????completed/cancelled/expired ?????? max retries -> failed?
+Recovery rules, running + expired lease, stale heartbeat -> retrying, failed, queued/pending  scheduled due -> queued, retrying delay elapsed -> queued, waiting_approval  completed/cancelled/expired  max retries -> failed.
 
-Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics panel?manual recover button?Worker Console ? Worker Console Desktop ???? Task recovery ???
+Admin Dashboard  Scheduler Health, lease status, recoverable badge, diagnostics panel, manual recover button, Worker Console, Worker Console Desktop  Task recovery
 
 Phase 43 verifier markers: `TaskRecoveryService`, `task_scheduler_state`, `Task Lease`, `Scheduler Health`, `Failed Diagnostics`, `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `failure_category`, `recoverable`, stuck task recovery, expired lease, not Celery, not Kubernetes, not production HA.
 
@@ -2837,47 +2837,47 @@ Phase 43 runtime config markers: `TASK_SCHEDULER_NAME`, `TASK_LEASE_SECONDS`, `T
 ## Phase 44 Output Artifact Pipeline APIs
 
 ### `GET /api/v1/output-artifacts/{artifact_id}/lineage`
-???? artifact ? Artifact lineage??? root artifact?ancestors?descendants ? relationship graph ??
+  artifact, Artifact lineage  root artifact, ancestors, descendants, relationship graph
 
 ### `GET /api/v1/output-artifacts/{artifact_id}/relationships`
-???? artifact ? `artifact_relationships` ??`relationship_type` ?? `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
+  artifact, `artifact_relationships`  `relationship_type`  `derived_from`, `packaged_into`, `summarized_from`, `exported_from`, `replay_of`.
 
 ### `POST /api/v1/output-artifacts/{artifact_id}/export`
-?? `ArtifactExportService` ???? artifact ????? markdown?html?json?txt?bundle_zip?report_package?????? exported child artifacts?????? runtime?
+  `ArtifactExportService`  artifact  markdown, html, json, txt, bundle_zip, report_package  exported child artifacts  runtime.
 
 ### `POST /api/v1/output-artifacts/{artifact_id}/package`
-?? `ArtifactPackagingService` ??? artifact ??? lineage ?? bundle artifact ? `bundle.zip` package metadata?
+  `ArtifactPackagingService`  artifact  lineage  bundle artifact, `bundle.zip` package metadata.
 
 ### `POST /api/v1/output-artifacts/cleanup/preview`
-?? `ArtifactRetentionService` ?? cleanup preview??? retention preview ??????????
+  `ArtifactRetentionService`   cleanup preview  retention preview
 
-Phase 44 ??????`parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?`artifact_relationships`?`relationship_type`?`derived_from`?`packaged_into`?`exported_from`?`ArtifactExportService`?`ArtifactPackagingService`?`ArtifactRetentionService`?`Artifact Explorer`?`lineage graph`?`relationship graph`?`bundle.zip`?`storage/output_packages`?`storage/output_exports`?`retention preview`?`not a full DAM`?`S3`?`MinIO`??????? production object storage platform?
+Phase 44  `parent_artifact_id`, `root_artifact_id`, `source_task_run_id`, `source_playbook_run_id`, `source_conversation_id`, `source_runtime_session_id`, `artifact_role`, `artifact_stage`, `generated_by`, `exportable`, `retention_policy`, `expires_at`, `artifact_relationships`, `relationship_type`, `derived_from`, `packaged_into`, `exported_from`, `ArtifactExportService`, `ArtifactPackagingService`, `ArtifactRetentionService`, `Artifact Explorer`, `lineage graph`, `relationship graph`, `bundle.zip`, `storage/output_packages`, `storage/output_exports`, `retention preview`, `not a full DAM`, `S3`, `MinIO`  production object storage platform.
 <!-- PHASE44_API:END -->
 
 <!-- PHASE44_SYNC:START -->
-## Phase 44?Output Artifact Pipeline & Export System
+## Phase 44: Output Artifact Pipeline & Export System
 
-Phase 44 ? Phase 41 Output Library ? Phase 42/43 task runtime ?????? Output Artifact Pipeline????? Artifact lineage?relationship graph???????retention policy preview????? Artifact Explorer ?????
+Phase 44, Phase 41 Output Library, Phase 42/43 task runtime  Output Artifact Pipeline  Artifact lineage, relationship graph retention policy preview  Artifact Explorer
 
-???????
 
-- `output_artifacts` ?? `parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?
-- `artifact_relationships` ?? relationship graph ???? `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
-- `ArtifactExportService` ?? `export_markdown`?`export_html`?`export_json`?`export_bundle_zip`?`export_report_package`??????? browser runtime ? playbook?
-- `ArtifactPackagingService` ?? `package_playbook_run`?`package_task_run`?`package_browser_runtime_session`?`package_conversation`??? package artifact ? `bundle.zip` metadata?
-- `ArtifactRetentionService` ?? retention policy?expiration scan?cleanup preview?soft archive ????? preview ????????
-- API ?? `GET /api/v1/output-artifacts/{artifact_id}/lineage`?`GET /api/v1/output-artifacts/{artifact_id}/relationships`?`POST /api/v1/output-artifacts/{artifact_id}/export`?`POST /api/v1/output-artifacts/{artifact_id}/package`?`POST /api/v1/output-artifacts/cleanup/preview`?
-- Storage roots ?? `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
-- Admin Dashboard ?? Artifact Explorer?lineage graph panel?export actions?package actions?retention badge?archived indicator?bundle metadata preview?
-- Worker Console / Desktop ???? export?package?lineage summary?retention status ???
 
-???
+- `output_artifacts`  `parent_artifact_id`, `root_artifact_id`, `source_task_run_id`, `source_playbook_run_id`, `source_conversation_id`, `source_runtime_session_id`, `artifact_role`, `artifact_stage`, `generated_by`, `exportable`, `retention_policy`, `expires_at`.
+- `artifact_relationships`  relationship graph  `derived_from`, `packaged_into`, `summarized_from`, `exported_from`, `replay_of`.
+- `ArtifactExportService`  `export_markdown`, `export_html`, `export_json`, `export_bundle_zip`, `export_report_package`  browser runtime, playbook.
+- `ArtifactPackagingService`  `package_playbook_run`, `package_task_run`, `package_browser_runtime_session`, `package_conversation`  package artifact, `bundle.zip` metadata.
+- `ArtifactRetentionService`  retention policy, expiration scan, cleanup preview, soft archive  preview
+- API  `GET /api/v1/output-artifacts/{artifact_id}/lineage`, `GET /api/v1/output-artifacts/{artifact_id}/relationships`, `POST /api/v1/output-artifacts/{artifact_id}/export`, `POST /api/v1/output-artifacts/{artifact_id}/package`, `POST /api/v1/output-artifacts/cleanup/preview`.
+- Storage roots  `storage/output_artifacts`, `storage/output_packages`, `storage/output_exports`.
+- Admin Dashboard  Artifact Explorer, lineage graph panel, export actions, package actions, retention badge, archived indicator, bundle metadata preview.
+- Worker Console / Desktop  export, package, lineage summary, retention status
 
-- ?????? DAM ???
-- ???? production object storage platform?
-- ??????? S3 / MinIO / CDN?
-- Export ?????? Browser Runtime?Playbook?Conversation?OpenClaw ? Task action?
-- ????? TikTok / YouTube / X automation???????????????????????? OpenClaw ? ComfyUI?
+
+
+-   DAM
+-   production object storage platform?
+-   S3 / MinIO / CDN?
+- Export  Browser Runtime, Playbook, Conversation, OpenClaw, Task action.
+-  TikTok / YouTube / X automation  OpenClaw, ComfyUI.
 <!-- PHASE44_SYNC:END -->
 
 <!-- PHASE45_API:START -->
@@ -3022,24 +3022,24 @@ Phase 47 新增 Workflow Template Registry & Versioning。核心表包括 `workf
 <!-- PHASE47_SYNC:END -->
 
 <!-- PHASE48_SYNC:START -->
-## Phase 48?Workflow Template Marketplace & Governance Foundation
+## Phase 48: Workflow Template Marketplace & Governance Foundation
 
 Status: completed.
 
-Phase 48 ? Phase 47 Workflow Template Registry & Versioning ??????????? Marketplace foundation???????????????? public marketplace????????????? SaaS marketplace?????? DAG editor???? ComfyUI?
+Phase 48, Phase 47 Workflow Template Registry & Versioning  Marketplace foundation  public marketplace  SaaS marketplace  DAG editor  ComfyUI.
 
 Completed scope:
 
-- ?? `workflow_template_reviews`??? review queue?`review_status`?`risk_assessment`?`compatibility_report`?approve / reject / request changes?
-- ?? `workflow_template_promotions`??? activate?rollback?deprecate?archive ? `promotion_type`??????????? reason?
-- ?? `workflow_template_audit_logs`????? audit trail?actor?previous_state?new_state?metadata?
-- ?? `workflow_template_compatibility_matrix`?? runtime capability ?? `browser_runtime`?`approval_gate`?`task_scheduler`?`artifact_pipeline`?`workflow_graph_runtime`?`openclaw_mock`?`rag_pipeline` ??????
-- ?? `WorkflowTemplateGovernanceService`??? `submit_for_review`?`approve_review`?`reject_review`?`request_changes`?`activate_template_version`?`rollback_template_version`?`deprecate_template`?`archive_template`?`list_review_queue`?`list_governance_events`?
-- Template lifecycle?draft -> review -> approved -> active -> deprecated -> archived?review ????? activate?active version ?????deprecated ???????archived ??????rollback ???????
-- Marketplace foundation ? `workflow_templates` ??? `featured`?`verified`?`recommended`?`usage_count`?`success_rate`?`average_runtime_ms`?`average_step_count`???? governance badges?risk badge?verified badge?featured templates?recommended templates?
-- Output Artifact lineage ?? `source_template_review_id` ? `governance_state`?Workflow Runs ??? template governance state ? compatibility snapshot?
-- Admin Dashboard ?? Template Governance ????? Review Queue?Approval / Reject / Request Changes?Template Lifecycle View?Audit Log View?Marketplace View?Compatibility Matrix View?Rollback UI?
-- Worker Console ? Worker Console Desktop ? Template Library ??? governance status?template verification status ? compatibility summary?
+-  `workflow_template_reviews`  review queue, `review_status`, `risk_assessment`, `compatibility_report`, approve / reject / request changes.
+-  `workflow_template_promotions`  activate, rollback, deprecate, archive, `promotion_type`  reason.
+-  `workflow_template_audit_logs`  audit trail, actor, previous_state, new_state, metadata.
+-  `workflow_template_compatibility_matrix`  runtime capability  `browser_runtime`, `approval_gate`, `task_scheduler`, `artifact_pipeline`, `workflow_graph_runtime`, `openclaw_mock`, `rag_pipeline`
+-  `WorkflowTemplateGovernanceService`  `submit_for_review`, `approve_review`, `reject_review`, `request_changes`, `activate_template_version`, `rollback_template_version`, `deprecate_template`, `archive_template`, `list_review_queue`, `list_governance_events`.
+- Template lifecycle, draft -> review -> approved -> active -> deprecated -> archived, review  activate, active version  deprecated  archived  rollback
+- Marketplace foundation, `workflow_templates`  `featured`, `verified`, `recommended`, `usage_count`, `success_rate`, `average_runtime_ms`, `average_step_count`  governance badges, risk badge, verified badge, featured templates, recommended templates.
+- Output Artifact lineage  `source_template_review_id`, `governance_state`, Workflow Runs  template governance state, compatibility snapshot.
+- Admin Dashboard  Template Governance  Review Queue, Approval / Reject / Request Changes, Template Lifecycle View, Audit Log View, Marketplace View, Compatibility Matrix View, Rollback UI.
+- Worker Console, Worker Console Desktop, Template Library  governance status, template verification status, compatibility summary.
 
 API coverage:
 
@@ -3070,15 +3070,15 @@ Boundaries: Phase 48 is not public marketplace, not a visual DAG builder, not a 
 
 Keywords: not distributed tracing platform; not deterministic replay engine; not ComfyUI.
 
-## Phase 50?Desktop Console Runtime UX & Client Packaging Readiness
+## Phase 50: Desktop Console Runtime UX & Client Packaging Readiness
 
-Phase 50 ?? Desktop Console Runtime UX & Client Packaging Readiness?Tauri icon resource ??????`worker_console_desktop/src-tauri/icons/icon.ico` ??????????`bundle.icon` ?? `["icons/icon.ico"]`?
+Phase 50  Desktop Console Runtime UX & Client Packaging Readiness, Tauri icon resource  `worker_console_desktop/src-tauri/icons/icon.ico`  `bundle.icon`  `["icons/icon.ico"]`.
 
-Start Runtime diagnostics ??????????`starting`?`started`?`failed`?`unavailable`?`port_conflict`?`missing_config`?`server_environment_warning`?Desktop Console ??? local worker diagnostics??? `/local/status`?`/local/health`?runtime port?`server_url`?`worker_base_url`?last attempted action?last error detail?last successful sync?
+Start Runtime diagnostics  `starting`, `started`, `failed`, `unavailable`, `port_conflict`, `missing_config`, `server_environment_warning`, Desktop Console  local worker diagnostics  `/local/status`, `/local/health`, runtime port, `server_url`, `worker_base_url`, last attempted action, last error detail, last successful sync.
 
-???/??????????????????? Worker Runtime????????????????????? worker???????? worker?????? E2E ???????? Desktop Console?
+ /  Worker Runtime  worker  worker  E2E   Desktop Console?
 
-????? packaging readiness?not final installer?no code signing?no auto updater?no MSI/EXE release packaging??? not ComfyUI?
+  packaging readiness, not final installer, no code signing, no auto updater, no MSI/EXE release packaging  not ComfyUI.
 
 Keywords: Desktop Console Runtime UX & Client Packaging Readiness; Tauri icon resource; icons/icon.ico; bundle.icon; Start Runtime diagnostics; missing_config; port_conflict; server_environment_warning; local worker diagnostics; customer machine; not final installer; no code signing; no auto updater.
 <!-- PHASE51_SYNC:START -->
@@ -3099,7 +3099,7 @@ Packaging architecture:
 
 Boundaries: Phase 51 is not a formal production release, no code signing, no auto updater, no MSI/EXE formal installer, no DMG/notarization, no Kubernetes/Helm packaging, no ComfyUI, and no real social platform publishing.
 
-?????Phase 51 ?????????????????????????????????? release readiness???????????????????????????????? code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
+ Phase 51  release readiness  code signing, auto updater, MSI/EXE, DMG/notarization, Kubernetes/Helm.
 
 Keywords: Phase 51; Release Packaging & Deployment Bundle Foundation; release/manifest.json; release/version.json; server deployment bundle; frontend production build bundle; desktop release readiness; aiops.release.env.template; validate_release_packaging.py; Windows / Mac startup scripts; not a formal production release; no code signing; no auto updater; no MSI/EXE; no DMG/notarization; no Kubernetes/Helm.
 <!-- PHASE51_SYNC:END -->

@@ -1,4 +1,4 @@
-﻿# Real Client Worker E2E Validation
+# Real Client Worker E2E Validation
 
 Status: completed validation plan and script. Real customer-machine E2E success must be executed later when the customer machine is online. Do not fabricate or backfill a passing real-client result.
 
@@ -405,7 +405,7 @@ Packaging architecture:
 
 Boundaries: Phase 51 is not a formal production release, no code signing, no auto updater, no MSI/EXE formal installer, no DMG/notarization, no Kubernetes/Helm packaging, no ComfyUI, and no real social platform publishing.
 
-?????Phase 51 ?????????????????????????????????? release readiness???????????????????????????????? code signing?auto updater?MSI/EXE?DMG/notarization ? Kubernetes/Helm?
+ Phase 51  release readiness  code signing, auto updater, MSI/EXE, DMG/notarization, Kubernetes/Helm.
 
 Keywords: Phase 51; Release Packaging & Deployment Bundle Foundation; release/manifest.json; release/version.json; server deployment bundle; frontend production build bundle; desktop release readiness; aiops.release.env.template; validate_release_packaging.py; Windows / Mac startup scripts; not a formal production release; no code signing; no auto updater; no MSI/EXE; no DMG/notarization; no Kubernetes/Helm.
 <!-- PHASE51_SYNC:END -->
