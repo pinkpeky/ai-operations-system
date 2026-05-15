@@ -81,6 +81,8 @@ class OutputArtifactCreateRequest(BaseModel):
     workflow_template_id: UUID | None = None
     workflow_template_version_id: UUID | None = None
     workflow_template_run_id: UUID | None = None
+    source_template_review_id: UUID | None = None
+    governance_state: str | None = Field(default=None, max_length=64)
     producing_node_key: str | None = Field(default=None, max_length=128)
     replay_source: str | None = Field(default=None, max_length=255)
     graph_lineage: dict[str, Any] = Field(default_factory=dict)
@@ -130,6 +132,8 @@ class OutputArtifactResponse(BaseModel):
     workflow_template_id: UUID | None
     workflow_template_version_id: UUID | None
     workflow_template_run_id: UUID | None
+    source_template_review_id: UUID | None
+    governance_state: str | None
     producing_node_key: str | None
     replay_source: str | None
     graph_lineage: dict[str, Any]
@@ -173,6 +177,8 @@ class OutputArtifactResponse(BaseModel):
             workflow_template_id=artifact.workflow_template_id,
             workflow_template_version_id=artifact.workflow_template_version_id,
             workflow_template_run_id=artifact.workflow_template_run_id,
+            source_template_review_id=artifact.source_template_review_id,
+            governance_state=artifact.governance_state,
             producing_node_key=artifact.producing_node_key,
             replay_source=artifact.replay_source,
             graph_lineage=artifact.graph_lineage or {},

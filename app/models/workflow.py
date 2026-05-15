@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IdTimestampMixin
@@ -140,6 +140,8 @@ class WorkflowRun(IdTimestampMixin, Base):
     skipped_nodes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     retry_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     fallback_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    template_governance_state: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    compatibility_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     status: Mapped[str] = mapped_column(
         String(32),
         default=WorkflowRunStatus.PENDING.value,
@@ -336,6 +338,13 @@ class WorkflowTemplate(IdTimestampMixin, Base):
     latest_version: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     risk_level: Mapped[str] = mapped_column(String(32), default="low", index=True, nullable=False)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    featured: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    recommended: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    success_rate: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    average_runtime_ms: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    average_step_count: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     template_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
     versions: Mapped[list["WorkflowTemplateVersion"]] = relationship(
@@ -343,6 +352,18 @@ class WorkflowTemplate(IdTimestampMixin, Base):
         cascade="save-update, merge, delete, delete-orphan",
     )
     runs: Mapped[list["WorkflowTemplateRun"]] = relationship(
+        back_populates="template",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    reviews: Mapped[list["WorkflowTemplateReview"]] = relationship(
+        back_populates="template",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    promotions: Mapped[list["WorkflowTemplatePromotion"]] = relationship(
+        back_populates="template",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    audit_logs: Mapped[list["WorkflowTemplateAuditLog"]] = relationship(
         back_populates="template",
         cascade="save-update, merge, delete, delete-orphan",
     )
@@ -378,6 +399,14 @@ class WorkflowTemplateVersion(IdTimestampMixin, Base):
 
     template: Mapped[WorkflowTemplate] = relationship(back_populates="versions")
     runs: Mapped[list["WorkflowTemplateRun"]] = relationship(
+        back_populates="template_version",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    reviews: Mapped[list["WorkflowTemplateReview"]] = relationship(
+        back_populates="template_version",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    compatibility_matrix: Mapped[list["WorkflowTemplateCompatibilityMatrix"]] = relationship(
         back_populates="template_version",
         cascade="save-update, merge, delete, delete-orphan",
     )
@@ -420,3 +449,92 @@ class WorkflowTemplateRun(IdTimestampMixin, Base):
 
     template: Mapped[WorkflowTemplate] = relationship(back_populates="runs")
     template_version: Mapped[WorkflowTemplateVersion] = relationship(back_populates="runs")
+
+
+class WorkflowTemplateReview(IdTimestampMixin, Base):
+    """Governance review for one workflow template version."""
+
+    __tablename__ = "workflow_template_reviews"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_id: Mapped[UUID] = mapped_column(ForeignKey("workflow_templates.id", ondelete="CASCADE"), index=True, nullable=False)
+    template_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    reviewer_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    review_status: Mapped[str] = mapped_column(String(32), default="pending", index=True, nullable=False)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    risk_assessment: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    compatibility_report: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+
+    template: Mapped[WorkflowTemplate] = relationship(back_populates="reviews")
+    template_version: Mapped[WorkflowTemplateVersion] = relationship(back_populates="reviews")
+
+
+class WorkflowTemplatePromotion(IdTimestampMixin, Base):
+    """Lifecycle promotion or rollback event for a workflow template."""
+
+    __tablename__ = "workflow_template_promotions"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_id: Mapped[UUID] = mapped_column(ForeignKey("workflow_templates.id", ondelete="CASCADE"), index=True, nullable=False)
+    from_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    to_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    promotion_type: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    promotion_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    promoted_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+
+    template: Mapped[WorkflowTemplate] = relationship(back_populates="promotions")
+
+
+class WorkflowTemplateAuditLog(IdTimestampMixin, Base):
+    """Immutable audit trail entry for template governance."""
+
+    __tablename__ = "workflow_template_audit_logs"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_id: Mapped[UUID | None] = mapped_column(ForeignKey("workflow_templates.id", ondelete="SET NULL"), index=True, nullable=True)
+    template_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    action: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    actor_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    previous_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    new_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    audit_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    template: Mapped[WorkflowTemplate | None] = relationship(back_populates="audit_logs")
+
+
+class WorkflowTemplateCompatibilityMatrix(IdTimestampMixin, Base):
+    """Compatibility matrix entry for one template version and runtime capability."""
+
+    __tablename__ = "workflow_template_compatibility_matrix"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "template_version_id", "runtime_capability", name="uq_workflow_template_matrix_capability"),
+    )
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    template_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    runtime_capability: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    supported: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    matrix_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+    template_version: Mapped[WorkflowTemplateVersion] = relationship(back_populates="compatibility_matrix")

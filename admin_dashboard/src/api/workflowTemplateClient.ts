@@ -28,6 +28,13 @@ export interface WorkflowTemplate {
   latest_version: string | null;
   risk_level: string;
   tags: string[];
+  featured: boolean;
+  verified: boolean;
+  recommended: boolean;
+  usage_count: number;
+  success_rate: number;
+  average_runtime_ms: number;
+  average_step_count: number;
   metadata: JsonRecord;
   versions: WorkflowTemplateVersion[];
   created_at: string;
@@ -58,6 +65,49 @@ export interface WorkflowTemplateCompatibility {
   validation_status: string;
 }
 
+export interface WorkflowTemplateReview {
+  id: string;
+  template_id: string;
+  template_version_id: string;
+  reviewer_id: string | null;
+  review_status: string;
+  review_notes: string | null;
+  risk_assessment: JsonRecord;
+  compatibility_report: JsonRecord;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowTemplateMarketplaceItem {
+  template: WorkflowTemplate;
+  badges: string[];
+  metrics: JsonRecord;
+  governance_status: string;
+  latest_review_status: string | null;
+}
+
+export interface WorkflowTemplateAuditLog {
+  id: string;
+  template_id: string | null;
+  template_version_id: string | null;
+  action: string;
+  actor_id: string | null;
+  previous_state: JsonRecord;
+  new_state: JsonRecord;
+  metadata: JsonRecord;
+  created_at: string;
+}
+
+export interface WorkflowTemplateCompatibilityMatrixRow {
+  id: string;
+  template_version_id: string;
+  runtime_capability: string;
+  supported: boolean;
+  notes: string | null;
+  metadata: JsonRecord;
+  created_at: string;
+}
+
 export const workflowTemplateClient = {
   listTemplates: (settings: AdminSettings = readAdminSettings()) =>
     requestJson<ApiList<WorkflowTemplate>>("/workflow-templates", {}, settings),
@@ -79,4 +129,49 @@ export const workflowTemplateClient = {
     }, settings),
   listRuns: (settings: AdminSettings = readAdminSettings()) =>
     requestJson<ApiList<WorkflowTemplateRun>>("/workflow-template-runs", {}, settings),
+  listReviews: (settings: AdminSettings = readAdminSettings()) =>
+    requestJson<ApiList<WorkflowTemplateReview>>("/workflow-template-reviews", {}, settings),
+  submitReview: (templateId: string, templateVersionId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplateReview>("/workflow-template-reviews", {
+      method: "POST",
+      body: JSON.stringify({ template_id: templateId, template_version_id: templateVersionId, review_notes: "Submitted from Admin Dashboard" }),
+    }, settings),
+  approveReview: (reviewId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplateReview>(`/workflow-template-reviews/${reviewId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ review_notes: "Approved from Admin Dashboard" }),
+    }, settings),
+  rejectReview: (reviewId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplateReview>(`/workflow-template-reviews/${reviewId}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ review_notes: "Rejected from Admin Dashboard" }),
+    }, settings),
+  requestChanges: (reviewId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplateReview>(`/workflow-template-reviews/${reviewId}/request-changes`, {
+      method: "POST",
+      body: JSON.stringify({ review_notes: "Changes requested from Admin Dashboard" }),
+    }, settings),
+  activateVersion: (templateId: string, versionId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplate>(`/workflow-templates/${templateId}/activate-version/${versionId}`, { method: "POST" }, settings),
+  rollbackTemplate: (templateId: string, versionId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplate>(`/workflow-templates/${templateId}/rollback/${versionId}`, {
+      method: "POST",
+      body: JSON.stringify({ reason: "Rollback from Admin Dashboard" }),
+    }, settings),
+  deprecateTemplate: (templateId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplate>(`/workflow-templates/${templateId}/deprecate`, {
+      method: "POST",
+      body: JSON.stringify({ reason: "Deprecated from Admin Dashboard" }),
+    }, settings),
+  archiveTemplate: (templateId: string, settings: AdminSettings = readAdminSettings()) =>
+    requestJson<WorkflowTemplate>(`/workflow-templates/${templateId}/archive`, {
+      method: "POST",
+      body: JSON.stringify({ reason: "Archived from Admin Dashboard" }),
+    }, settings),
+  listAuditLogs: (settings: AdminSettings = readAdminSettings()) =>
+    requestJson<ApiList<WorkflowTemplateAuditLog>>("/workflow-template-audit-logs", {}, settings),
+  listMarketplace: (settings: AdminSettings = readAdminSettings()) =>
+    requestJson<{ items: WorkflowTemplateMarketplaceItem[] }>("/workflow-template-marketplace", {}, settings),
+  listCompatibilityMatrix: (settings: AdminSettings = readAdminSettings()) =>
+    requestJson<ApiList<WorkflowTemplateCompatibilityMatrixRow>>("/workflow-template-compatibility-matrix", {}, settings),
 };

@@ -329,8 +329,11 @@ class WorkflowTemplateStatus(StrEnum):
     """Workflow template lifecycle status."""
 
     DRAFT = "draft"
+    REVIEW = "review"
+    APPROVED = "approved"
     ACTIVE = "active"
     DISABLED = "disabled"
+    DEPRECATED = "deprecated"
     ARCHIVED = "archived"
 
 
@@ -350,6 +353,24 @@ class WorkflowTemplateRunStatus(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class WorkflowTemplateReviewStatus(StrEnum):
+    """Workflow template review queue status."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CHANGES_REQUESTED = "changes_requested"
+
+
+class WorkflowTemplatePromotionType(StrEnum):
+    """Workflow template lifecycle promotion action type."""
+
+    ACTIVATE = "activate"
+    ROLLBACK = "rollback"
+    DEPRECATE = "deprecate"
+    ARCHIVE = "archive"
 
 
 class TaskRunStatus(StrEnum):

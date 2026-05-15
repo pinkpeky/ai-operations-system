@@ -61,6 +61,8 @@ class WorkflowRunResponse(BaseModel):
     skipped_nodes: list[str]
     retry_state: dict[str, Any]
     fallback_state: dict[str, Any]
+    template_governance_state: str | None
+    compatibility_snapshot: dict[str, Any]
     status: str
     current_step: int
     variables: dict[str, Any]
@@ -92,6 +94,8 @@ class WorkflowRunResponse(BaseModel):
             skipped_nodes=workflow.skipped_nodes or [],
             retry_state=workflow.retry_state or {},
             fallback_state=workflow.fallback_state or {},
+            template_governance_state=workflow.template_governance_state,
+            compatibility_snapshot=workflow.compatibility_snapshot or {},
             status=workflow.status,
             current_step=workflow.current_step,
             variables=workflow.variables or {},

@@ -561,3 +561,40 @@ Docs verifier now checks Workflow Graph Runtime terms and routes: `workflow_grap
 
 Run `python scripts/verify_docs_runtime.py`; expected result is `SUMMARY: PASS`.
 <!-- PHASE47_SYNC:END -->
+
+<!-- PHASE48_SYNC:START -->
+## Phase 48: Workflow Template Marketplace & Governance Foundation
+
+Status: completed.
+
+Phase 48 adds an internal Workflow Template Marketplace & Governance foundation on top of Phase 47 Workflow Template Registry & Versioning. It is an internal template library and governance layer, not public marketplace, not a paid marketplace, not multi-tenant SaaS marketplace, not a visual DAG editor, and not ComfyUI.
+
+Completed scope:
+
+- Added `workflow_template_reviews` for review queue, `review_status`, `risk_assessment`, `compatibility_report`, approve / reject / request changes.
+- Added `workflow_template_promotions` to record activate, rollback, deprecate, and archive lifecycle events with `promotion_type`, source version, target version, and reason.
+- Added `workflow_template_audit_logs` for governance audit trail, actor, previous_state, new_state, and metadata.
+- Added `workflow_template_compatibility_matrix` for runtime capabilities: `browser_runtime`, `approval_gate`, `task_scheduler`, `artifact_pipeline`, `workflow_graph_runtime`, `openclaw_mock`, and `rag_pipeline`.
+- Added `WorkflowTemplateGovernanceService` with `submit_for_review`, `approve_review`, `reject_review`, `request_changes`, `activate_template_version`, `rollback_template_version`, `deprecate_template`, `archive_template`, `list_review_queue`, and `list_governance_events`.
+- Template lifecycle is draft -> review -> approved -> active -> deprecated -> archived. Activation requires approved review; only one active version is default; deprecated templates are not default-runnable; archived templates cannot run; rollback does not delete old versions.
+- Marketplace foundation records `featured`, `verified`, `recommended`, `usage_count`, `success_rate`, `average_runtime_ms`, and `average_step_count` on `workflow_templates`, then exposes governance badges, risk badge, verified badge, featured templates, and recommended templates.
+- Output Artifact lineage adds `source_template_review_id` and `governance_state`; Workflow Runs can record template governance state and compatibility snapshot.
+- Admin Dashboard adds Template Governance with Review Queue, Approval / Reject / Request Changes, Template Lifecycle View, Audit Log View, Marketplace View, Compatibility Matrix View, and Rollback UI.
+- Worker Console and Worker Console Desktop show governance status, template verification status, and compatibility summary in Template Library.
+
+API coverage:
+
+- `GET /api/v1/workflow-template-reviews`
+- `POST /api/v1/workflow-template-reviews`
+- `POST /api/v1/workflow-template-reviews/{review_id}/approve`
+- `POST /api/v1/workflow-template-reviews/{review_id}/reject`
+- `POST /api/v1/workflow-template-reviews/{review_id}/request-changes`
+- `POST /api/v1/workflow-templates/{template_id}/rollback/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/deprecate`
+- `POST /api/v1/workflow-templates/{template_id}/archive`
+- `GET /api/v1/workflow-template-audit-logs`
+- `GET /api/v1/workflow-template-marketplace`
+- `GET /api/v1/workflow-template-compatibility-matrix`
+
+Boundaries: Phase 48 is not public marketplace, not a visual DAG builder, not a distributed orchestration platform, not ComfyUI, not TikTok / YouTube / X automation, not real platform publishing, not automatic login, not CAPTCHA automation, not proxy pool, and not fingerprint bypass.
+<!-- PHASE48_SYNC:END -->

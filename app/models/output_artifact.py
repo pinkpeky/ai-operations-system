@@ -121,6 +121,18 @@ class OutputArtifact(IdTimestampMixin, Base):
         nullable=True,
         comment="Workflow template run that produced this artifact",
     )
+    source_template_review_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_reviews.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Template governance review associated with this artifact",
+    )
+    governance_state: Mapped[str | None] = mapped_column(
+        String(64),
+        index=True,
+        nullable=True,
+        comment="Template governance state captured when artifact was created",
+    )
     producing_node_key: Mapped[str | None] = mapped_column(
         String(128),
         index=True,

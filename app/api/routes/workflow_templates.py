@@ -26,6 +26,7 @@ from app.schemas.workflow_template import (
     WorkflowTemplateVersionResponse,
 )
 from app.workflow.template_registry import WorkflowTemplateRegistryService
+from app.workflow.template_governance import WorkflowTemplateGovernanceService
 
 
 router = APIRouter(prefix="/workflow-templates", tags=["workflow-templates"])
@@ -167,10 +168,12 @@ async def activate_workflow_template_version(
     context: WorkspaceContext = Depends(get_workspace_context),
 ) -> WorkflowTemplateResponse:
     try:
-        template = await WorkflowTemplateRegistryService(session).activate_version(
+        template = await WorkflowTemplateGovernanceService(session).activate_template_version(
             workspace_id=context.workspace_id,
             template_id=template_id,
             version_id=version_id,
+            actor_id=context.user_id,
+            reason="Activated through workflow template API",
         )
         return WorkflowTemplateResponse.from_model(template)
     except ValueError as exc:

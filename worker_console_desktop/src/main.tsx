@@ -682,7 +682,7 @@ function ChatPanel() {
       <div className="approval-list">
         <h3>Template Library</h3>
         <div className="chat-note">
-          Workflow Template Registry foundation: select template, run template, view template run status. This is not a visual DAG builder and does not connect ComfyUI.
+          Workflow Template Registry foundation with governance status, verification badges, and compatibility summary. This is not a public marketplace, not a visual DAG builder, and not a ComfyUI integration.
         </div>
         <select value={selectedWorkflowTemplateId ?? ""} onChange={(event) => setSelectedWorkflowTemplateId(event.target.value || null)}>
           {workflowTemplates.map((template) => (
@@ -706,8 +706,14 @@ function ChatPanel() {
               <span>{template.status}</span>
               <span>{template.category ?? "uncategorized"}</span>
               <span>{template.risk_level}</span>
+              <span>{template.verified ? "verified" : "unverified"}</span>
+              <span>{template.featured ? "featured" : "standard"}</span>
+              <span>{template.recommended ? "recommended" : "manual-review"}</span>
             </div>
             <p>{template.description ?? "No description"}</p>
+            <div className="chat-meta">
+              Governance status: {template.status} | success_rate: {Math.round((template.success_rate ?? 0) * 100)}% | runs: {template.usage_count ?? 0} | compatibility: {(template.versions?.[0]?.validation_status ?? "pending")}
+            </div>
           </div>
         ))}
         <h4>Template runs</h4>

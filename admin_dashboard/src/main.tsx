@@ -64,8 +64,12 @@ import {
 } from "./api/workflowClient";
 import {
   workflowTemplateClient,
+  WorkflowTemplateAuditLog,
+  WorkflowTemplateCompatibilityMatrixRow,
   WorkflowTemplate,
   WorkflowTemplateCompatibility,
+  WorkflowTemplateMarketplaceItem,
+  WorkflowTemplateReview,
   WorkflowTemplateRun,
 } from "./api/workflowTemplateClient";
 import "./styles.css";
@@ -81,6 +85,7 @@ type PageKey =
   | "workflows"
   | "workflow-graphs"
   | "workflow-templates"
+  | "template-governance"
   | "openclaw"
   | "audit-logs"
   | "rag-documents"
@@ -110,6 +115,7 @@ const pages: PageDefinition[] = [
   { key: "workflows", label: "Workflows", icon: <GitBranch size={18} /> },
   { key: "workflow-graphs", label: "Workflow Graphs", icon: <GitBranch size={18} /> },
   { key: "workflow-templates", label: "Workflow Templates", icon: <GitBranch size={18} /> },
+  { key: "template-governance", label: "Template Governance", icon: <ShieldCheck size={18} /> },
   { key: "openclaw", label: "OpenClaw", icon: <Bot size={18} /> },
   { key: "audit-logs", label: "Audit Logs", icon: <ShieldCheck size={18} /> },
   { key: "rag-documents", label: "RAG / Documents", icon: <Database size={18} /> },
@@ -1876,6 +1882,9 @@ function WorkflowTemplatesPage({ settings }: { settings: AdminSettings }) {
             { key: "status", label: "status" },
             { key: "current_version", label: "current_version" },
             { key: "risk_level", label: "risk_level" },
+            { key: "verified", label: "verified" },
+            { key: "featured", label: "featured" },
+            { key: "recommended", label: "recommended" },
           ]}
         />
       </Panel>
@@ -1888,6 +1897,24 @@ function WorkflowTemplatesPage({ settings }: { settings: AdminSettings }) {
           <button className="primary-button" disabled={!selectedTemplate} onClick={() => void runTemplate()}>Run template</button>
         </div>
         <JsonPreview value={selectedTemplate || { status: "select a workflow template" }} />
+        <h3>Governance badges</h3>
+        <JsonPreview
+          value={
+            selectedTemplate
+              ? {
+                  status: selectedTemplate.status,
+                  risk_level: selectedTemplate.risk_level,
+                  verified: selectedTemplate.verified,
+                  featured: selectedTemplate.featured,
+                  recommended: selectedTemplate.recommended,
+                  usage_count: selectedTemplate.usage_count,
+                  success_rate: selectedTemplate.success_rate,
+                  average_runtime_ms: selectedTemplate.average_runtime_ms,
+                  average_step_count: selectedTemplate.average_step_count,
+                }
+              : { status: "select a workflow template" }
+          }
+        />
         <h3>Validation result</h3>
         <JsonPreview value={compatibility || { compatible: null, warnings: [], errors: [] }} />
         <h3>Version list</h3>
@@ -1897,6 +1924,215 @@ function WorkflowTemplatesPage({ settings }: { settings: AdminSettings }) {
         <h3>Template runs</h3>
         <LoadNotice state={runs} />
         <Timeline rows={(runs.data || []) as unknown as JsonRecord[]} primary="id" secondary="status" />
+      </aside>
+    </div>
+  );
+}
+
+function TemplateGovernancePage({ settings }: { settings: AdminSettings }) {
+  const [reviews, setReviews] = useState<AsyncState<WorkflowTemplateReview[]>>(emptyState());
+  const [marketplace, setMarketplace] = useState<AsyncState<WorkflowTemplateMarketplaceItem[]>>(emptyState());
+  const [auditLogs, setAuditLogs] = useState<AsyncState<WorkflowTemplateAuditLog[]>>(emptyState());
+  const [matrix, setMatrix] = useState<AsyncState<WorkflowTemplateCompatibilityMatrixRow[]>>(emptyState());
+  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedVersionId, setSelectedVersionId] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null;
+
+  const load = useCallback(async () => {
+    setReviews((current) => ({ ...current, loading: true, error: null }));
+    setMarketplace((current) => ({ ...current, loading: true, error: null }));
+    setAuditLogs((current) => ({ ...current, loading: true, error: null }));
+    setMatrix((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [templateResponse, reviewResponse, marketplaceResponse, auditResponse, matrixResponse] = await Promise.all([
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listReviews(settings),
+        workflowTemplateClient.listMarketplace(settings),
+        workflowTemplateClient.listAuditLogs(settings),
+        workflowTemplateClient.listCompatibilityMatrix(settings),
+      ]);
+      setTemplates(templateResponse.items ?? []);
+      setSelectedTemplateId((current) => current || templateResponse.items?.[0]?.id || "");
+      setSelectedVersionId((current) => current || templateResponse.items?.[0]?.versions?.[0]?.id || "");
+      setReviews({ data: reviewResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setMarketplace({ data: marketplaceResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setAuditLogs({ data: auditResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setMatrix({ data: matrixResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Template Governance API unavailable";
+      setReviews({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setMarketplace({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setAuditLogs({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setMatrix({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+    }
+  }, [settings]);
+
+  const mutate = async (operation: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await operation();
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template governance action failed");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!selectedTemplate) {
+      return;
+    }
+    setSelectedVersionId(selectedTemplate.versions?.[0]?.id || "");
+  }, [selectedTemplateId, selectedTemplate]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Template Governance"
+        description="Internal Workflow Template Marketplace foundation with review queue, lifecycle controls, audit trail, compatibility matrix, governance badges, and rollback. This is not a public marketplace and not a drag/drop workflow editor."
+        action={<RefreshButton onClick={load} />}
+      >
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <LoadNotice state={reviews} />
+        <div className="actions-row">
+          <select
+            value={selectedTemplateId}
+            onChange={(event) => setSelectedTemplateId(event.target.value)}
+            aria-label="Template"
+          >
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.template_key} | {template.status} | {template.risk_level}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedVersionId}
+            onChange={(event) => setSelectedVersionId(event.target.value)}
+            aria-label="Template version"
+          >
+            {(selectedTemplate?.versions || []).map((version) => (
+              <option key={version.id} value={version.id}>
+                {version.version} | {version.validation_status}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="actions-row">
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId || !selectedVersionId}
+            onClick={() => void mutate(() => workflowTemplateClient.submitReview(selectedTemplateId, selectedVersionId, settings))}
+          >
+            Submit review
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId || !selectedVersionId}
+            onClick={() => void mutate(() => workflowTemplateClient.activateVersion(selectedTemplateId, selectedVersionId, settings))}
+          >
+            Activate approved
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId || !selectedVersionId}
+            onClick={() => void mutate(() => workflowTemplateClient.rollbackTemplate(selectedTemplateId, selectedVersionId, settings))}
+          >
+            Rollback
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId}
+            onClick={() => void mutate(() => workflowTemplateClient.deprecateTemplate(selectedTemplateId, settings))}
+          >
+            Deprecate
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId}
+            onClick={() => void mutate(() => workflowTemplateClient.archiveTemplate(selectedTemplateId, settings))}
+          >
+            Archive
+          </button>
+        </div>
+        <h3>Review Queue</h3>
+        <Table
+          rows={(reviews.data || []) as unknown as JsonRecord[]}
+          emptyLabel="No template reviews."
+          columns={[
+            { key: "review_status", label: "review_status" },
+            { key: "template_id", label: "template_id" },
+            { key: "template_version_id", label: "version_id" },
+            { key: "reviewer_id", label: "reviewer" },
+            { key: "created_at", label: "created_at" },
+          ]}
+        />
+        <div className="actions-row">
+          {(reviews.data || []).slice(0, 4).map((review) => (
+            <span key={review.id} className="inline-actions">
+              <button className="ghost-button" onClick={() => void mutate(() => workflowTemplateClient.approveReview(review.id, settings))}>Approve</button>
+              <button className="ghost-button" onClick={() => void mutate(() => workflowTemplateClient.rejectReview(review.id, settings))}>Reject</button>
+              <button className="ghost-button" onClick={() => void mutate(() => workflowTemplateClient.requestChanges(review.id, settings))}>Request changes</button>
+            </span>
+          ))}
+        </div>
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Marketplace View</h2>
+        <LoadNotice state={marketplace} />
+        <Timeline
+          rows={(marketplace.data || []).map((item) => ({
+            template_key: item.template.template_key,
+            governance_status: item.governance_status,
+            badges: item.badges.join(", "),
+            success_rate: item.metrics.success_rate,
+            total_runs: item.metrics.total_runs,
+          }))}
+          primary="template_key"
+          secondary="badges"
+        />
+        <h3>Compatibility Matrix</h3>
+        <LoadNotice state={matrix} />
+        <Table
+          rows={(matrix.data || []) as unknown as JsonRecord[]}
+          emptyLabel="No compatibility rows."
+          columns={[
+            { key: "runtime_capability", label: "runtime_capability" },
+            { key: "supported", label: "supported" },
+            { key: "notes", label: "notes" },
+            { key: "template_version_id", label: "version_id" },
+          ]}
+        />
+        <h3>Audit Log View</h3>
+        <LoadNotice state={auditLogs} />
+        <Timeline rows={(auditLogs.data || []) as unknown as JsonRecord[]} primary="action" secondary="actor_id" />
+        <h3>Lifecycle View</h3>
+        <JsonPreview
+          value={
+            selectedTemplate
+              ? {
+                  status: selectedTemplate.status,
+                  current_version: selectedTemplate.current_version,
+                  latest_version: selectedTemplate.latest_version,
+                  featured: selectedTemplate.featured,
+                  verified: selectedTemplate.verified,
+                  recommended: selectedTemplate.recommended,
+                  metrics: {
+                    usage_count: selectedTemplate.usage_count,
+                    success_rate: selectedTemplate.success_rate,
+                    average_runtime_ms: selectedTemplate.average_runtime_ms,
+                    average_step_count: selectedTemplate.average_step_count,
+                  },
+                }
+              : { status: "select a template" }
+          }
+        />
       </aside>
     </div>
   );
@@ -2214,6 +2450,7 @@ function App() {
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
           {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
           {activePage === "workflow-templates" ? <WorkflowTemplatesPage settings={settings} /> : null}
+          {activePage === "template-governance" ? <TemplateGovernancePage settings={settings} /> : null}
           {activePage === "openclaw" ? <OpenClawPage settings={settings} /> : null}
           {activePage === "audit-logs" ? <AuditLogsPage settings={settings} /> : null}
           {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} /> : null}

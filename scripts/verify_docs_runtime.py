@@ -480,6 +480,16 @@ class DocsRuntimeVerifier:
             "/api/v1/workflow-template-runs/{run_id}",
             "/api/v1/workflow-templates/import",
             "/api/v1/workflow-templates/{template_id}/export",
+            "/api/v1/workflow-template-reviews",
+            "/api/v1/workflow-template-reviews/{review_id}/approve",
+            "/api/v1/workflow-template-reviews/{review_id}/reject",
+            "/api/v1/workflow-template-reviews/{review_id}/request-changes",
+            "/api/v1/workflow-templates/{template_id}/rollback/{version_id}",
+            "/api/v1/workflow-templates/{template_id}/deprecate",
+            "/api/v1/workflow-templates/{template_id}/archive",
+            "/api/v1/workflow-template-audit-logs",
+            "/api/v1/workflow-template-marketplace",
+            "/api/v1/workflow-template-compatibility-matrix",
             "/api/v1/agent-memory-snapshots",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
@@ -1033,6 +1043,29 @@ class DocsRuntimeVerifier:
             "workflow_template_id",
             "workflow_template_version_id",
             "workflow_template_run_id",
+            "workflow_template_reviews",
+            "workflow_template_promotions",
+            "workflow_template_audit_logs",
+            "workflow_template_compatibility_matrix",
+            "WorkflowTemplateGovernanceService",
+            "review_status",
+            "risk_assessment",
+            "compatibility_report",
+            "promotion_type",
+            "featured",
+            "verified",
+            "recommended",
+            "success_rate",
+            "average_runtime_ms",
+            "average_step_count",
+            "Template Governance",
+            "Review Queue",
+            "Marketplace View",
+            "Compatibility Matrix",
+            "rollback",
+            "deprecated",
+            "public marketplace",
+            "not ComfyUI",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1495,6 +1528,19 @@ class DocsRuntimeVerifier:
             "workflow_template_id",
             "workflow_template_version_id",
             "workflow_template_run_id",
+            "Phase 48",
+            "Workflow Template Marketplace & Governance Foundation",
+            "workflow_template_reviews",
+            "workflow_template_promotions",
+            "workflow_template_audit_logs",
+            "workflow_template_compatibility_matrix",
+            "WorkflowTemplateGovernanceService",
+            "Template Governance",
+            "Review Queue",
+            "Compatibility Matrix",
+            "Marketplace View",
+            "not public marketplace",
+            "not ComfyUI",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1675,8 +1721,23 @@ class DocsRuntimeVerifier:
                 or "not ComfyUI" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 47 scope")
+            elif not re.search(r"Phase\s+48", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 48")
+            elif (
+                "Workflow Template Marketplace & Governance Foundation" not in text
+                or "workflow_template_reviews" not in text
+                or "workflow_template_audit_logs" not in text
+                or "workflow_template_compatibility_matrix" not in text
+                or "WorkflowTemplateGovernanceService" not in text
+                or "Review Queue" not in text
+                or "Marketplace View" not in text
+                or "Compatibility Matrix" not in text
+                or "not public marketplace" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 48 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, and Phase 47")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, and Phase 48")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

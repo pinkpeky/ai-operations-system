@@ -536,6 +536,8 @@ class WorkflowTemplateRegistryService:
             workflow_graph_id=graph.id,
             graph_execution=True,
             current_node_key=version.entry_node,
+            template_governance_state=template.status,
+            compatibility_snapshot=version.compatibility or {},
             status=WorkflowRunStatus.RUNNING.value,
             variables=input_payload or {},
             context={
@@ -590,6 +592,8 @@ class WorkflowTemplateRegistryService:
             run.completed_at = datetime.now(UTC)
             success = True
 
+        self._record_template_metrics(template=template, run=run)
+
         if commit:
             await self.session.commit()
             await self.session.refresh(run)
@@ -622,7 +626,7 @@ class WorkflowTemplateRegistryService:
             existing = await self.get_template_by_key(workspace_id=workspace_id, template_key=definition["template_key"])
             if existing is not None:
                 continue
-            await self.create_template(
+            template = await self.create_template(
                 workspace_id=workspace_id,
                 template_key=definition["template_key"],
                 name=definition["name"],
@@ -641,6 +645,9 @@ class WorkflowTemplateRegistryService:
                 created_by="system",
                 commit=False,
             )
+            template.verified = True
+            template.recommended = True
+            template.featured = definition["template_key"] in {"browser_screenshot_report_graph", "content_generation_graph", "rag_answer_graph"}
 
     async def _execute_metadata_graph(
         self,
@@ -683,6 +690,7 @@ class WorkflowTemplateRegistryService:
                     workflow_template_id=template.id,
                     workflow_template_version_id=version.id,
                     workflow_template_run_id=run.id,
+                    governance_state=template.status,
                     producing_node_key=node.node_key,
                     graph_lineage={"template_key": template.template_key, "node_key": node.node_key},
                     generated_by="WorkflowTemplateRegistryService",
@@ -781,3 +789,28 @@ class WorkflowTemplateRegistryService:
         if template.risk_level in {"medium", "high"}:
             return True
         return any(node.node_type == "approval_gate" for node in graph.nodes)
+
+    def _record_template_metrics(self, *, template: WorkflowTemplate, run: WorkflowTemplateRun) -> None:
+        previous_count = int(template.usage_count or 0)
+        next_count = previous_count + 1
+        success_count = float(template.success_rate or 0.0) * previous_count
+        if run.status == WorkflowTemplateRunStatus.COMPLETED.value:
+            success_count += 1
+        runtime_ms = 0.0
+        if run.started_at and run.completed_at:
+            runtime_ms = max(0.0, (run.completed_at - run.started_at).total_seconds() * 1000)
+        step_count = float(len((run.output_payload or {}).get("steps") or []))
+        approval_required = 1 if (run.output_payload or {}).get("approval_required") else 0
+        previous_approval_rate = float((template.template_metadata or {}).get("approval_required_rate") or 0)
+        previous_average_runtime = float(template.average_runtime_ms or 0.0)
+        previous_average_steps = float(template.average_step_count or 0.0)
+        template.usage_count = next_count
+        template.success_rate = success_count / next_count
+        template.average_runtime_ms = ((previous_average_runtime * previous_count) + runtime_ms) / next_count
+        template.average_step_count = ((previous_average_steps * previous_count) + step_count) / next_count
+        template.template_metadata = {
+            **(template.template_metadata or {}),
+            "approval_required_rate": ((previous_approval_rate * previous_count) + approval_required) / next_count,
+            "failure_rate": max(0.0, 1.0 - template.success_rate),
+        }
+        flag_modified(template, "template_metadata")

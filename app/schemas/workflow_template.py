@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.models.workflow import WorkflowTemplate, WorkflowTemplateRun, WorkflowTemplateVersion
 
 
-WorkflowTemplateStatusLiteral = Literal["draft", "active", "disabled", "archived"]
+WorkflowTemplateStatusLiteral = Literal["draft", "review", "approved", "active", "disabled", "deprecated", "archived"]
 WorkflowTemplateValidationStatusLiteral = Literal["pending", "valid", "invalid"]
 WorkflowTemplateRunStatusLiteral = Literal["pending", "running", "completed", "failed", "cancelled"]
 WorkflowTemplateRiskLiteral = Literal["low", "medium", "high"]
@@ -111,6 +111,13 @@ class WorkflowTemplateResponse(BaseModel):
     latest_version: str | None
     risk_level: str
     tags: list[str]
+    featured: bool = False
+    verified: bool = False
+    recommended: bool = False
+    usage_count: int = 0
+    success_rate: float = 0.0
+    average_runtime_ms: float = 0.0
+    average_step_count: float = 0.0
     metadata: dict[str, Any]
     versions: list[WorkflowTemplateVersionResponse] = Field(default_factory=list)
     created_at: datetime
@@ -131,6 +138,13 @@ class WorkflowTemplateResponse(BaseModel):
             latest_version=template.latest_version,
             risk_level=template.risk_level,
             tags=template.tags or [],
+            featured=template.featured,
+            verified=template.verified,
+            recommended=template.recommended,
+            usage_count=template.usage_count,
+            success_rate=template.success_rate,
+            average_runtime_ms=template.average_runtime_ms,
+            average_step_count=template.average_step_count,
             metadata=template.template_metadata or {},
             versions=[WorkflowTemplateVersionResponse.from_model(item) for item in versions],
             created_at=template.created_at,

@@ -77,6 +77,8 @@ class OutputArtifactService:
         workflow_template_id: UUID | None = None,
         workflow_template_version_id: UUID | None = None,
         workflow_template_run_id: UUID | None = None,
+        source_template_review_id: UUID | None = None,
+        governance_state: str | None = None,
         producing_node_key: str | None = None,
         replay_source: str | None = None,
         graph_lineage: dict[str, Any] | None = None,
@@ -118,6 +120,8 @@ class OutputArtifactService:
             workflow_template_id=workflow_template_id,
             workflow_template_version_id=workflow_template_version_id,
             workflow_template_run_id=workflow_template_run_id,
+            source_template_review_id=source_template_review_id,
+            governance_state=governance_state,
             producing_node_key=producing_node_key,
             replay_source=replay_source,
             graph_lineage=graph_lineage or {},
@@ -195,6 +199,8 @@ class OutputArtifactService:
         workflow_template_id: UUID | None = None,
         workflow_template_version_id: UUID | None = None,
         workflow_template_run_id: UUID | None = None,
+        source_template_review_id: UUID | None = None,
+        governance_state: str | None = None,
         producing_node_key: str | None = None,
         replay_source: str | None = None,
         exportable: bool | None = None,
@@ -246,6 +252,10 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.workflow_template_version_id == workflow_template_version_id)
         if workflow_template_run_id is not None:
             statement = statement.where(OutputArtifact.workflow_template_run_id == workflow_template_run_id)
+        if source_template_review_id is not None:
+            statement = statement.where(OutputArtifact.source_template_review_id == source_template_review_id)
+        if governance_state is not None:
+            statement = statement.where(OutputArtifact.governance_state == governance_state)
         if producing_node_key is not None:
             statement = statement.where(OutputArtifact.producing_node_key == producing_node_key)
         if replay_source is not None:

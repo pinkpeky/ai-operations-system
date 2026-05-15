@@ -11,6 +11,13 @@ export type WorkflowTemplate = {
   latest_version: string | null;
   risk_level: string;
   tags: string[];
+  featured: boolean;
+  verified: boolean;
+  recommended: boolean;
+  usage_count: number;
+  success_rate: number;
+  average_runtime_ms: number;
+  average_step_count: number;
   metadata: Record<string, unknown>;
   versions: Array<{ id: string; version: string; validation_status: string; compatibility: Record<string, unknown> }>;
 };
@@ -25,6 +32,14 @@ export type WorkflowTemplateRun = {
   output_payload: Record<string, unknown>;
   metadata: Record<string, unknown>;
   created_at: string;
+};
+
+export type WorkflowTemplateMarketplaceItem = {
+  template: WorkflowTemplate;
+  badges: string[];
+  metrics: Record<string, unknown>;
+  governance_status: string;
+  latest_review_status: string | null;
 };
 
 function normalizeApiBase(rawBase: string): string {
@@ -53,6 +68,8 @@ export const workflowTemplateClient = {
   listRuns: (settings?: ConversationSettings) => requestJson<{ items: WorkflowTemplateRun[] }>("/workflow-template-runs", {}, settings),
   validateTemplate: (templateId: string, settings?: ConversationSettings) =>
     requestJson<Record<string, unknown>>(`/workflow-templates/${templateId}/validate`, { method: "POST" }, settings),
+  listMarketplace: (settings?: ConversationSettings) =>
+    requestJson<{ items: WorkflowTemplateMarketplaceItem[] }>("/workflow-template-marketplace", {}, settings),
   runTemplate: (templateId: string, settings?: ConversationSettings, input: Record<string, unknown> = {}) =>
     requestJson<WorkflowTemplateRun>(
       `/workflow-templates/${templateId}/run`,
