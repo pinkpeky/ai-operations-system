@@ -74,6 +74,10 @@ class OutputArtifactCreateRequest(BaseModel):
     source_playbook_run_id: UUID | None = None
     source_conversation_id: UUID | None = None
     source_runtime_session_id: UUID | None = None
+    workflow_run_id: UUID | None = None
+    workflow_step_id: UUID | None = None
+    checkpoint_id: UUID | None = None
+    memory_snapshot_id: UUID | None = None
     artifact_role: ArtifactRoleLiteral | None = None
     artifact_stage: ArtifactStageLiteral = "processed"
     generated_by: str | None = None
@@ -113,6 +117,10 @@ class OutputArtifactResponse(BaseModel):
     source_playbook_run_id: UUID | None
     source_conversation_id: UUID | None
     source_runtime_session_id: UUID | None
+    workflow_run_id: UUID | None
+    workflow_step_id: UUID | None
+    checkpoint_id: UUID | None
+    memory_snapshot_id: UUID | None
     source_type: str
     artifact_type: str
     artifact_role: str | None
@@ -146,6 +154,10 @@ class OutputArtifactResponse(BaseModel):
             source_playbook_run_id=artifact.source_playbook_run_id,
             source_conversation_id=artifact.source_conversation_id,
             source_runtime_session_id=artifact.source_runtime_session_id,
+            workflow_run_id=artifact.workflow_run_id,
+            workflow_step_id=artifact.workflow_step_id,
+            checkpoint_id=artifact.checkpoint_id,
+            memory_snapshot_id=artifact.memory_snapshot_id,
             source_type=artifact.source_type,
             artifact_type=artifact.artifact_type,
             artifact_role=artifact.artifact_role,

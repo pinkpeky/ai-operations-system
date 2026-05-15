@@ -12,6 +12,10 @@ export interface OutputArtifact {
   source_playbook_run_id: string | null;
   source_conversation_id: string | null;
   source_runtime_session_id: string | null;
+  workflow_run_id: string | null;
+  workflow_step_id: string | null;
+  checkpoint_id: string | null;
+  memory_snapshot_id: string | null;
   source_type: string;
   artifact_type: string;
   artifact_role: string | null;
@@ -74,6 +78,8 @@ export const outputArtifactClient = {
       retentionPolicy?: string;
       archived?: boolean;
       exportable?: boolean;
+      workflowRunId?: string;
+      workflowStepId?: string;
     } = {},
   ) => {
     const params = new URLSearchParams();
@@ -87,6 +93,8 @@ export const outputArtifactClient = {
     if (filters.retentionPolicy) params.set("retention_policy", filters.retentionPolicy);
     if (filters.archived !== undefined) params.set("archived", String(filters.archived));
     if (filters.exportable !== undefined) params.set("exportable", String(filters.exportable));
+    if (filters.workflowRunId) params.set("workflow_run_id", filters.workflowRunId);
+    if (filters.workflowStepId) params.set("workflow_step_id", filters.workflowStepId);
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return requestJson<ApiList<OutputArtifact>>(`/output-artifacts${suffix}`, {}, settings);
   },

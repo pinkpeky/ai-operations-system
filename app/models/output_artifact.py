@@ -79,6 +79,30 @@ class OutputArtifact(IdTimestampMixin, Base):
         nullable=True,
         comment="Source browser runtime session ID for artifact lineage",
     )
+    workflow_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Workflow run that produced or owns this artifact",
+    )
+    workflow_step_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_steps.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Workflow step that produced this artifact",
+    )
+    checkpoint_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_checkpoints.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Checkpoint associated with this artifact",
+    )
+    memory_snapshot_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("agent_memory_snapshots.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Agent memory snapshot associated with this artifact",
+    )
     source_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Artifact source type")
     artifact_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Artifact type")
     artifact_role: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True, comment="Pipeline role")

@@ -12,6 +12,10 @@ export type OutputArtifact = {
   source_playbook_run_id: string | null;
   source_conversation_id: string | null;
   source_runtime_session_id: string | null;
+  workflow_run_id: string | null;
+  workflow_step_id: string | null;
+  checkpoint_id: string | null;
+  memory_snapshot_id: string | null;
   source_type: string;
   artifact_type: string;
   artifact_role: string | null;
@@ -72,13 +76,14 @@ async function requestJson<T>(path: string, init?: RequestInit, settings: Conver
 }
 
 export const outputArtifactClient = {
-  listArtifacts: (settings?: ConversationSettings, filters: { artifactType?: string; sourceType?: string; threadId?: string; playbookRunId?: string; taskRunId?: string; artifactRole?: string; artifactStage?: string; retentionPolicy?: string } = {}) => {
+  listArtifacts: (settings?: ConversationSettings, filters: { artifactType?: string; sourceType?: string; threadId?: string; playbookRunId?: string; taskRunId?: string; workflowRunId?: string; artifactRole?: string; artifactStage?: string; retentionPolicy?: string } = {}) => {
     const params = new URLSearchParams();
     if (filters.artifactType) params.set("artifact_type", filters.artifactType);
     if (filters.sourceType) params.set("source_type", filters.sourceType);
     if (filters.threadId) params.set("thread_id", filters.threadId);
     if (filters.playbookRunId) params.set("playbook_run_id", filters.playbookRunId);
     if (filters.taskRunId) params.set("task_run_id", filters.taskRunId);
+    if (filters.workflowRunId) params.set("workflow_run_id", filters.workflowRunId);
     if (filters.artifactRole) params.set("artifact_role", filters.artifactRole);
     if (filters.artifactStage) params.set("artifact_stage", filters.artifactStage);
     if (filters.retentionPolicy) params.set("retention_policy", filters.retentionPolicy);

@@ -1433,3 +1433,31 @@ New APIs:
 
 Current boundaries: not a full DAM, not a production object storage platform, no production S3 / MinIO / CDN, no real social platform publishing, no real OpenClaw, and no ComfyUI.
 <!-- PHASE44_RUNTIME:END -->
+
+<!-- PHASE45_RUNTIME:START -->
+## Phase 45 Runtime: Workflow State & Agent Memory Foundation
+
+Runtime database tables:
+
+- `workflow_runs`
+- `workflow_steps`
+- `workflow_checkpoints`
+- `agent_memory_snapshots`
+
+Runtime service: `WorkflowStateService` is used by Conversation, Playbook, Task Orchestration, and Output Artifact lineage integration. It records `workflow_run_created`, `workflow_step_started`, `workflow_step_completed`, `workflow_checkpoint_created`, `workflow_paused`, `workflow_resumed`, and `memory_snapshot_created` events when a workflow is linked to a conversation thread.
+
+Runtime API routes:
+
+- `GET /api/v1/workflow-runs`
+- `GET /api/v1/workflow-runs/{workflow_run_id}`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/steps`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/checkpoints`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/pause`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/resume`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/memory-snapshots`
+- `GET /api/v1/agent-memory-snapshots`
+
+Artifact lineage fields: `workflow_run_id`, `workflow_step_id`, `checkpoint_id`, and `memory_snapshot_id`.
+
+Boundaries: not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real platform automation.
+<!-- PHASE45_RUNTIME:END -->

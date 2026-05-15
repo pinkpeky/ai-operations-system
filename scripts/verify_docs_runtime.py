@@ -167,6 +167,10 @@ class DocsRuntimeVerifier:
             "app/task_orchestration/background_executor.py",
             "app/task_orchestration/retry_policy.py",
             "app/task_orchestration/recovery_service.py",
+            "app/models/workflow.py",
+            "app/workflow/services.py",
+            "app/schemas/workflow.py",
+            "app/api/routes/workflows.py",
             "app/api/routes/output_artifacts.py",
             "app/api/routes/task_runs.py",
             "app/api/routes/task_scheduler.py",
@@ -178,9 +182,11 @@ class DocsRuntimeVerifier:
             "worker_console/src/api/conversationClient.ts",
             "worker_console/src/api/outputArtifactClient.ts",
             "worker_console/src/api/taskRunClient.ts",
+            "worker_console/src/api/workflowClient.ts",
             "worker_console_desktop/src/api/conversationClient.ts",
             "worker_console_desktop/src/api/outputArtifactClient.ts",
             "worker_console_desktop/src/api/taskRunClient.ts",
+            "worker_console_desktop/src/api/workflowClient.ts",
             "admin_dashboard/package.json",
             "admin_dashboard/index.html",
             "admin_dashboard/vite.config.ts",
@@ -191,6 +197,7 @@ class DocsRuntimeVerifier:
             "admin_dashboard/src/api/conversationClient.ts",
             "admin_dashboard/src/api/outputArtifactClient.ts",
             "admin_dashboard/src/api/taskRunClient.ts",
+            "admin_dashboard/src/api/workflowClient.ts",
             "admin_dashboard/.env.example",
             "admin_dashboard/README.md",
             "docs/zh/ADMIN_DASHBOARD.md",
@@ -441,6 +448,14 @@ class DocsRuntimeVerifier:
             "/api/v1/task-runs/{task_run_id}/resume",
             "/api/v1/task-scheduler/health",
             "/api/v1/task-scheduler/scan",
+            "/api/v1/workflow-runs",
+            "/api/v1/workflow-runs/{workflow_run_id}",
+            "/api/v1/workflow-runs/{workflow_run_id}/steps",
+            "/api/v1/workflow-runs/{workflow_run_id}/checkpoints",
+            "/api/v1/workflow-runs/{workflow_run_id}/pause",
+            "/api/v1/workflow-runs/{workflow_run_id}/resume",
+            "/api/v1/workflow-runs/{workflow_run_id}/memory-snapshots",
+            "/api/v1/agent-memory-snapshots",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
             "/api/v1/rag/eval/runs",
@@ -930,6 +945,30 @@ class DocsRuntimeVerifier:
             "TASK_LEASE_SECONDS",
             "TASK_STUCK_TIMEOUT_SECONDS",
             "TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS",
+            "workflow_runs",
+            "workflow_steps",
+            "workflow_checkpoints",
+            "agent_memory_snapshots",
+            "WorkflowStateService",
+            "Workflow State",
+            "Workflow Steps",
+            "Checkpoints",
+            "Agent Memory Snapshots",
+            "workflow_run_id",
+            "workflow_step_id",
+            "checkpoint_id",
+            "memory_snapshot_id",
+            "workflow_run_created",
+            "workflow_step_started",
+            "workflow_step_completed",
+            "workflow_checkpoint_created",
+            "workflow_paused",
+            "workflow_resumed",
+            "memory_snapshot_created",
+            "Pause / Resume",
+            "Workflow lineage",
+            "not a full workflow builder",
+            "not ComfyUI",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1350,6 +1389,18 @@ class DocsRuntimeVerifier:
             "Artifact Explorer",
             "not a full DAM",
             "production object storage platform",
+            "Phase 45",
+            "Workflow State & Agent Memory Foundation",
+            "workflow_runs",
+            "workflow_steps",
+            "workflow_checkpoints",
+            "agent_memory_snapshots",
+            "WorkflowStateService",
+            "Agent Memory Snapshots",
+            "Pause / Resume",
+            "Workflow lineage",
+            "not a full workflow builder",
+            "not ComfyUI",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1481,8 +1532,24 @@ class DocsRuntimeVerifier:
                 or "production object storage platform" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 44 scope")
+            elif not re.search(r"Phase\s+45", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 45")
+            elif (
+                "Workflow State & Agent Memory Foundation" not in text
+                or "workflow_runs" not in text
+                or "workflow_steps" not in text
+                or "workflow_checkpoints" not in text
+                or "agent_memory_snapshots" not in text
+                or "WorkflowStateService" not in text
+                or "Agent Memory Snapshots" not in text
+                or "Pause / Resume" not in text
+                or "Workflow lineage" not in text
+                or "not a full workflow builder" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 45 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, and Phase 44")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, and Phase 45")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

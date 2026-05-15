@@ -56,6 +56,7 @@ from app.models.enums import (
     ConversationThreadStatus,
     DocumentIngestStatus,
     DocumentStatus,
+    AgentMemorySnapshotType,
     OutputArtifactSourceType,
     OutputArtifactRole,
     OutputArtifactStage,
@@ -70,6 +71,9 @@ from app.models.enums import (
     TaskRunStatus,
     TaskSchedulerStatus,
     UserStatus,
+    WorkflowCheckpointType,
+    WorkflowRunStatus,
+    WorkflowStepStatus,
     WorkspaceMemberRole,
     WorkspaceMemberStatus,
     WorkspaceStatus,
@@ -86,12 +90,15 @@ from app.models.task_observability import TaskEvent, TaskLog
 from app.models.task_run import TaskRun, TaskRunEvent, TaskSchedulerState
 from app.models.tool_call import ToolCallLog
 from app.models.user import User
+from app.models.workflow import AgentMemorySnapshot, WorkflowCheckpoint, WorkflowRun, WorkflowStep
 from app.models.workspace import Workspace, WorkspaceMember
 
 __all__ = [
     "Account",
     "AccountStatus",
     "AgentMemory",
+    "AgentMemorySnapshot",
+    "AgentMemorySnapshotType",
     "AgentMemoryType",
     "AgentHandoff",
     "AgentHandoffStatus",
@@ -181,6 +188,12 @@ __all__ = [
     "ToolCallLog",
     "User",
     "UserStatus",
+    "WorkflowCheckpoint",
+    "WorkflowCheckpointType",
+    "WorkflowRun",
+    "WorkflowRunStatus",
+    "WorkflowStep",
+    "WorkflowStepStatus",
     "Workspace",
     "WorkspaceMember",
     "WorkspaceMemberRole",

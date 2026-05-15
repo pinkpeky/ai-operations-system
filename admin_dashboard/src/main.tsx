@@ -9,6 +9,7 @@ import {
   Database,
   FileText,
   Gauge,
+  GitBranch,
   HardDrive,
   History,
   KeyRound,
@@ -51,6 +52,7 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunDiagnostics, TaskRunEvent, TaskSchedulerHealth } from "./api/taskRunClient";
+import { workflowClient, AgentMemorySnapshot, WorkflowCheckpoint, WorkflowRun, WorkflowStep } from "./api/workflowClient";
 import "./styles.css";
 
 type PageKey =
@@ -61,6 +63,7 @@ type PageKey =
   | "playbooks"
   | "output-library"
   | "tasks"
+  | "workflows"
   | "openclaw"
   | "audit-logs"
   | "rag-documents"
@@ -87,6 +90,7 @@ const pages: PageDefinition[] = [
   { key: "playbooks", label: "Playbooks", icon: <History size={18} /> },
   { key: "output-library", label: "Output Library", icon: <FileText size={18} /> },
   { key: "tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
+  { key: "workflows", label: "Workflows", icon: <GitBranch size={18} /> },
   { key: "openclaw", label: "OpenClaw", icon: <Bot size={18} /> },
   { key: "audit-logs", label: "Audit Logs", icon: <ShieldCheck size={18} /> },
   { key: "rag-documents", label: "RAG / Documents", icon: <Database size={18} /> },
@@ -1257,6 +1261,10 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <span>thread_id: {selectedArtifact.thread_id ?? "-"}</span>
               <span>playbook_run_id: {selectedArtifact.playbook_run_id ?? "-"}</span>
               <span>task_run_id: {selectedArtifact.task_run_id ?? "-"}</span>
+              <span>workflow_run_id: {selectedArtifact.workflow_run_id ?? "-"}</span>
+              <span>workflow_step_id: {selectedArtifact.workflow_step_id ?? "-"}</span>
+              <span>checkpoint_id: {selectedArtifact.checkpoint_id ?? "-"}</span>
+              <span>memory_snapshot_id: {selectedArtifact.memory_snapshot_id ?? "-"}</span>
             </div>
             <div className="approval-card">
               <div className="approval-card-header">
@@ -1422,6 +1430,7 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
             { key: "recoverable", label: "recoverable" },
             { key: "lease_expires_at", label: "lease_expires_at" },
             { key: "current_step", label: "step" },
+            { key: "workflow_run_id", label: "workflow_run_id" },
             { key: "scheduled_at", label: "scheduled_at" },
             { key: "created_at", label: "created_at" },
           ]}
@@ -1431,6 +1440,8 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         <h2>Task Run Detail</h2>
         {actionError ? <div className="notice notice-error">{actionError}</div> : null}
         <JsonPreview value={selectedTask || { status: "select a task run" }} />
+        <h3>Linked workflow</h3>
+        <div className="empty-chat">{selectedTask?.workflow_run_id ?? "No workflow linked yet."}</div>
         <div className="conversation-actions">
           <button className="ghost-button" onClick={() => void mutateTask("retry")} disabled={!selectedTask}>
             Retry
@@ -1462,6 +1473,160 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
           ))
         ) : (
           <div className="empty-chat">No artifacts linked to this task run yet.</div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function WorkflowsPage({ settings }: { settings: AdminSettings }) {
+  const [status, setStatus] = useState("running");
+  const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
+  const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
+  const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
+  const [memories, setMemories] = useState<AgentMemorySnapshot[]>([]);
+  const [linkedArtifacts, setLinkedArtifacts] = useState<OutputArtifact[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setRuns((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await workflowClient.listRuns(settings, { status: status === "all" ? undefined : status });
+      setRuns({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setRuns({
+        data: null,
+        error: error instanceof Error ? error.message : "Workflow Runs API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings, status]);
+
+  const loadWorkflow = async (row: WorkflowRun) => {
+    setSelectedRun(row);
+    setActionError(null);
+    try {
+      const [stepList, checkpointList, memoryList, artifactList] = await Promise.all([
+        workflowClient.listSteps(row.id, settings),
+        workflowClient.listCheckpoints(row.id, settings),
+        workflowClient.listMemorySnapshots(row.id, settings),
+        outputArtifactClient.listArtifacts(settings, { workflowRunId: row.id }),
+      ]);
+      setSteps(stepList.items ?? []);
+      setCheckpoints(checkpointList.items ?? []);
+      setMemories(memoryList.items ?? []);
+      setLinkedArtifacts(artifactList.items ?? []);
+    } catch (error) {
+      setSteps([]);
+      setCheckpoints([]);
+      setMemories([]);
+      setLinkedArtifacts([]);
+      setActionError(error instanceof Error ? error.message : "Workflow detail unavailable");
+    }
+  };
+
+  const mutateWorkflow = async (action: "pause" | "resume" | "checkpoint") => {
+    if (!selectedRun) {
+      return;
+    }
+    setActionError(null);
+    try {
+      if (action === "pause") {
+        const updated = await workflowClient.pause(selectedRun.id, settings);
+        setSelectedRun(updated);
+        await loadWorkflow(updated);
+      } else if (action === "resume") {
+        const updated = await workflowClient.resume(selectedRun.id, settings);
+        setSelectedRun(updated);
+        await loadWorkflow(updated);
+      } else {
+        await workflowClient.createCheckpoint(selectedRun.id, settings);
+        await loadWorkflow(selectedRun);
+      }
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : `Workflow ${action} failed`);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Workflow Runs"
+        description="Recoverable Workflow State for Conversation, Playbook, Task, and Artifact lineage. Foundation only; not a full workflow builder and not ComfyUI."
+        action={
+          <div className="inline-controls">
+            <select value={status} onChange={(event) => setStatus(event.target.value)}>
+              {["all", "pending", "running", "paused", "waiting_approval", "completed", "failed", "cancelled"].map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <RefreshButton onClick={load} />
+          </div>
+        }
+      >
+        <LoadNotice state={runs} />
+        <Table
+          rows={(runs.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedRun?.id ?? null}
+          onSelect={(row) => void loadWorkflow(row as unknown as WorkflowRun)}
+          emptyLabel="No workflow runs for selected status."
+          columns={[
+            { key: "id", label: "workflow_run_id" },
+            { key: "source_type", label: "source_type" },
+            { key: "status", label: "status" },
+            { key: "current_step", label: "current_step" },
+            { key: "conversation_thread_id", label: "thread" },
+            { key: "playbook_run_id", label: "playbook_run" },
+            { key: "task_run_id", label: "task_run" },
+            { key: "updated_at", label: "updated_at" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Workflow Detail</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <JsonPreview value={selectedRun || { status: "select a workflow run" }} />
+        <div className="conversation-actions">
+          <button className="ghost-button" onClick={() => void mutateWorkflow("pause")} disabled={!selectedRun}>
+            Pause
+          </button>
+          <button className="ghost-button" onClick={() => void mutateWorkflow("resume")} disabled={!selectedRun}>
+            Resume
+          </button>
+          <button className="ghost-button" onClick={() => void mutateWorkflow("checkpoint")} disabled={!selectedRun}>
+            Create checkpoint
+          </button>
+        </div>
+        <h3>Step timeline</h3>
+        <Timeline rows={steps as unknown as JsonRecord[]} primary="step_name" secondary="status" />
+        <h3>Variables / Context</h3>
+        <JsonPreview value={{ variables: selectedRun?.variables ?? {}, context: selectedRun?.context ?? {} }} />
+        <h3>Checkpoints</h3>
+        <Timeline rows={checkpoints as unknown as JsonRecord[]} primary="checkpoint_name" secondary="checkpoint_type" />
+        <h3>Agent Memory Snapshots</h3>
+        <Timeline rows={memories as unknown as JsonRecord[]} primary="memory_type" secondary="summary" />
+        <h3>Linked artifacts</h3>
+        {linkedArtifacts.length ? (
+          linkedArtifacts.map((artifact) => (
+            <div className="approval-card" key={artifact.id}>
+              <div className="approval-card-header">
+                <strong>{artifact.title}</strong>
+                <StatusPill value={artifact.artifact_type} />
+              </div>
+              <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
+            </div>
+          ))
+        ) : (
+          <div className="empty-chat">No artifacts linked to this workflow yet.</div>
         )}
       </aside>
     </div>
@@ -1777,6 +1942,7 @@ function App() {
           {activePage === "playbooks" ? <PlaybooksPage settings={settings} /> : null}
           {activePage === "output-library" ? <OutputLibraryPage settings={settings} /> : null}
           {activePage === "tasks" ? <TasksPage settings={settings} /> : null}
+          {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
           {activePage === "openclaw" ? <OpenClawPage settings={settings} /> : null}
           {activePage === "audit-logs" ? <AuditLogsPage settings={settings} /> : null}
           {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} /> : null}

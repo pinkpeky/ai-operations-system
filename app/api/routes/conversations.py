@@ -268,10 +268,22 @@ async def run_conversation(
                 events_created=1,
                 success=True,
                 summary="Background task queued",
-                result_metadata={"task_run_id": str(task.id), "task_status": task.status, "execution_mode": request.execution_mode},
-                output={"task_run_id": str(task.id), "task_status": task.status},
+                result_metadata={
+                    "task_run_id": str(task.id),
+                    "task_status": task.status,
+                    "execution_mode": request.execution_mode,
+                    "workflow_run_id": (task.task_metadata or {}).get("workflow_run_id"),
+                },
+                output={
+                    "task_run_id": str(task.id),
+                    "task_status": task.status,
+                    "workflow_run_id": (task.task_metadata or {}).get("workflow_run_id"),
+                },
                 task_run_id=task.id,
                 task_status=task.status,
+                workflow_run_id=UUID(str((task.task_metadata or {}).get("workflow_run_id")))
+                if (task.task_metadata or {}).get("workflow_run_id")
+                else None,
                 execution_mode=request.execution_mode,
             )
         result = await ConversationService(session).run_conversation_turn(
@@ -302,6 +314,10 @@ async def run_conversation(
             playbook_run_id=result.playbook_run_id,
             playbook_name=result.playbook_name,
             playbook_status=result.playbook_status,
+            workflow_run_id=result.workflow_run_id,
+            workflow_step_id=result.workflow_step_id,
+            checkpoint_id=result.checkpoint_id,
+            memory_snapshot_id=result.memory_snapshot_id,
             execution_mode=request.execution_mode,
         )
     except ValueError as exc:

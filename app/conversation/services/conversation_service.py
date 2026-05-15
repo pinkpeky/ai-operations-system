@@ -56,6 +56,10 @@ class ConversationRunResult:
     playbook_run_id: UUID | None = None
     playbook_name: str | None = None
     playbook_status: str | None = None
+    workflow_run_id: UUID | None = None
+    workflow_step_id: UUID | None = None
+    checkpoint_id: UUID | None = None
+    memory_snapshot_id: UUID | None = None
 
 
 class ConversationService:
@@ -273,6 +277,24 @@ class ConversationService:
                 started_at=started_at,
             )
 
+        from app.workflow.services import WorkflowStateService
+
+        workflow_service = WorkflowStateService(self.session)
+        workflow_run = await workflow_service.create_workflow_run(
+            workspace_id=workspace_id,
+            source_type="conversation",
+            source_id=str(user_message_id),
+            conversation_thread_id=thread.id,
+            status="running",
+            variables={"message": message},
+            context={"mode": mode, "thread_id": str(thread.id)},
+            metadata={"user_message_id": str(user_message_id)},
+            commit=False,
+        )
+        workflow_step_id: UUID | None = None
+        checkpoint_id: UUID | None = None
+        memory_snapshot_id: UUID | None = None
+
         approval: ConversationApproval | None = None
         if mode == ConversationRunMode.EXECUTE_AFTER_APPROVAL.value:
             approval = await self._approval_from_run_input(workspace_id=workspace_id, run_input=run_input)
@@ -296,6 +318,17 @@ class ConversationService:
             message=f"Route selected: {decision.route_name}",
             payload=decision.to_payload(),
         )
+        workflow_step = await workflow_service.start_step(
+            workspace_id=workspace_id,
+            workflow_run_id=workflow_run.id,
+            step_index=0,
+            step_name=f"Route: {decision.route_name}",
+            step_type=decision.route_type,
+            input_payload={"message": message, "decision": decision.to_payload()},
+            metadata={"selected_tool": decision.selected_tool},
+            commit=False,
+        )
+        workflow_step_id = workflow_step.id
         risk_level = approval.risk_level if approval is not None else self.risk_policy.assess(decision)
 
         success = False
@@ -331,6 +364,24 @@ class ConversationService:
                     message="Execution blocked pending approval",
                     payload=self._approval_payload(approval),
                 )
+                await workflow_service.pause_workflow(
+                    workspace_id=workspace_id,
+                    workflow_run_id=workflow_run.id,
+                    reason="Conversation execution blocked pending approval",
+                    waiting_approval=True,
+                    commit=False,
+                )
+                workflow_step.status = "waiting_approval"
+                checkpoint = await workflow_service.create_checkpoint(
+                    workspace_id=workspace_id,
+                    workflow_run_id=workflow_run.id,
+                    checkpoint_name="conversation-approval",
+                    checkpoint_type="approval",
+                    state_payload={"approval_id": str(approval.id), "route_name": decision.route_name},
+                    created_by=user_id or "ConversationService",
+                    commit=False,
+                )
+                checkpoint_id = checkpoint.id
                 success = True
                 summary = f"Approval required before executing `{decision.route_name}` ({risk_level} risk)."
                 result_metadata = {
@@ -350,6 +401,38 @@ class ConversationService:
                     output=output,
                 )
                 result_metadata = {**result_metadata, "risk_level": risk_level, "mode": mode}
+                await workflow_service.complete_step(
+                    workspace_id=workspace_id,
+                    workflow_step_id=workflow_step.id,
+                    output_payload={"success": success, "summary": summary, "result_metadata": result_metadata},
+                    commit=False,
+                )
+                checkpoint = await workflow_service.create_checkpoint(
+                    workspace_id=workspace_id,
+                    workflow_run_id=workflow_run.id,
+                    checkpoint_name="conversation-final",
+                    checkpoint_type="auto",
+                    state_payload={"route_name": decision.route_name, "success": success, "summary": summary},
+                    created_by=user_id or "ConversationService",
+                    commit=False,
+                )
+                checkpoint_id = checkpoint.id
+                memory_snapshot = await workflow_service.create_memory_snapshot(
+                    workspace_id=workspace_id,
+                    workflow_run_id=workflow_run.id,
+                    memory_type="conversation_summary",
+                    summary=summary,
+                    memory_payload={"message": message, "route": decision.to_payload(), "result_metadata": result_metadata},
+                    metadata={"checkpoint_id": str(checkpoint.id)},
+                    commit=False,
+                )
+                memory_snapshot_id = memory_snapshot.id
+                await workflow_service.complete_workflow(
+                    workspace_id=workspace_id,
+                    workflow_run_id=workflow_run.id,
+                    output={"summary": summary, "assistant_route": decision.route_name, "memory_snapshot_id": str(memory_snapshot.id)},
+                    commit=False,
+                )
                 if approval is not None:
                     await self.approvals.mark_executed(workspace_id=workspace_id, approval_id=approval.id, commit=False)
                     output["approval"] = self._approval_payload(approval)
@@ -366,6 +449,29 @@ class ConversationService:
             summary = self._readable_error("Conversation bridge failed", exc)
             result_metadata = {"error": str(exc), "route": decision.to_payload()}
             output["errors"].append(str(exc))
+            await workflow_service.fail_step(
+                workspace_id=workspace_id,
+                workflow_step_id=workflow_step.id,
+                error=str(exc),
+                output_payload={"summary": summary},
+                commit=False,
+            )
+            checkpoint = await workflow_service.create_checkpoint(
+                workspace_id=workspace_id,
+                workflow_run_id=workflow_run.id,
+                checkpoint_name="conversation-failure",
+                checkpoint_type="failure",
+                state_payload={"route_name": decision.route_name, "error": str(exc)},
+                created_by=user_id or "ConversationService",
+                commit=False,
+            )
+            checkpoint_id = checkpoint.id
+            await workflow_service.fail_workflow(
+                workspace_id=workspace_id,
+                workflow_run_id=workflow_run.id,
+                error=summary,
+                commit=False,
+            )
             if approval is not None and mode == ConversationRunMode.EXECUTE_AFTER_APPROVAL.value:
                 await self.repository.append_event(
                     workspace_id=workspace_id,
@@ -383,6 +489,13 @@ class ConversationService:
             )
 
         duration_ms = int((time.perf_counter() - started_at) * 1000)
+        result_metadata = {
+            **result_metadata,
+            "workflow_run_id": str(workflow_run.id),
+            "workflow_step_id": str(workflow_step_id) if workflow_step_id else None,
+            "checkpoint_id": str(checkpoint_id) if checkpoint_id else None,
+            "memory_snapshot_id": str(memory_snapshot_id) if memory_snapshot_id else None,
+        }
         assistant_content = self._build_assistant_response(summary=summary, success=success, route_name=decision.route_name)
         assistant_message = await self.repository.append_message(
             workspace_id=workspace_id,
@@ -402,6 +515,10 @@ class ConversationService:
                 "approval_id": str(approval.id) if approval is not None else None,
                 "approval_status": approval.approval_status if approval is not None else None,
                 "risk_level": risk_level,
+                "workflow_run_id": str(workflow_run.id),
+                "workflow_step_id": str(workflow_step_id) if workflow_step_id else None,
+                "checkpoint_id": str(checkpoint_id) if checkpoint_id else None,
+                "memory_snapshot_id": str(memory_snapshot_id) if memory_snapshot_id else None,
             },
         )
         await self.repository.append_event(
@@ -415,6 +532,7 @@ class ConversationService:
                 "selected_tool": decision.selected_tool,
                 "success": success,
                 "summary": summary,
+                "workflow_run_id": str(workflow_run.id),
             },
         )
         await self.session.commit()
@@ -451,6 +569,10 @@ class ConversationService:
             approval_status=approval.approval_status if approval is not None else None,
             risk_level=risk_level,
             proposed_action=approval.proposed_action if approval is not None else None,
+            workflow_run_id=workflow_run.id,
+            workflow_step_id=workflow_step_id,
+            checkpoint_id=checkpoint_id,
+            memory_snapshot_id=memory_snapshot_id,
         )
 
     def _playbook_name_from_run_input(self, run_input: dict[str, Any]) -> str | None:
@@ -547,6 +669,9 @@ class ConversationService:
             "approval": approval_payload,
             "output": playbook_result.output,
             "duration_ms": duration_ms,
+            "workflow_run_id": str(playbook_result.workflow_run_id) if playbook_result.workflow_run_id else None,
+            "checkpoint_id": str(playbook_result.checkpoint_id) if playbook_result.checkpoint_id else None,
+            "memory_snapshot_id": str(playbook_result.memory_snapshot_id) if playbook_result.memory_snapshot_id else None,
         }
         assistant_message = await self.repository.append_message(
             workspace_id=workspace_id,
@@ -572,6 +697,9 @@ class ConversationService:
                 "playbook_run_id": str(playbook_result.run.id),
                 "playbook_name": playbook_result.playbook.name,
                 "playbook_status": playbook_result.run.status,
+                "workflow_run_id": str(playbook_result.workflow_run_id) if playbook_result.workflow_run_id else None,
+                "checkpoint_id": str(playbook_result.checkpoint_id) if playbook_result.checkpoint_id else None,
+                "memory_snapshot_id": str(playbook_result.memory_snapshot_id) if playbook_result.memory_snapshot_id else None,
             },
         )
         await self.repository.append_event(
@@ -585,6 +713,7 @@ class ConversationService:
                 "playbook_name": playbook_result.playbook.name,
                 "success": playbook_result.success,
                 "summary": summary,
+                "workflow_run_id": str(playbook_result.workflow_run_id) if playbook_result.workflow_run_id else None,
             },
         )
         await self.session.commit()
@@ -612,6 +741,9 @@ class ConversationService:
             playbook_run_id=playbook_result.run.id,
             playbook_name=playbook_result.playbook.name,
             playbook_status=playbook_result.run.status,
+            workflow_run_id=playbook_result.workflow_run_id,
+            checkpoint_id=playbook_result.checkpoint_id,
+            memory_snapshot_id=playbook_result.memory_snapshot_id,
         )
 
     async def _approval_from_run_input(self, *, workspace_id: str, run_input: dict[str, Any]) -> ConversationApproval:

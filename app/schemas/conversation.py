@@ -172,6 +172,10 @@ class ConversationRunResponse(BaseModel):
     playbook_status: str | None = None
     task_run_id: UUID | None = None
     task_status: str | None = None
+    workflow_run_id: UUID | None = None
+    workflow_step_id: UUID | None = None
+    checkpoint_id: UUID | None = None
+    memory_snapshot_id: UUID | None = None
     execution_mode: str = "immediate"
     websocket_placeholder: bool = True
     sse_placeholder: bool = True

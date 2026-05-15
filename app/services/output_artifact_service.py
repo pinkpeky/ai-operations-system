@@ -70,6 +70,10 @@ class OutputArtifactService:
         source_playbook_run_id: UUID | None = None,
         source_conversation_id: UUID | None = None,
         source_runtime_session_id: UUID | None = None,
+        workflow_run_id: UUID | None = None,
+        workflow_step_id: UUID | None = None,
+        checkpoint_id: UUID | None = None,
+        memory_snapshot_id: UUID | None = None,
         artifact_role: str | None = None,
         artifact_stage: str = OutputArtifactStage.PROCESSED.value,
         generated_by: str | None = None,
@@ -101,6 +105,10 @@ class OutputArtifactService:
             source_playbook_run_id=source_playbook_run_id or playbook_run_id,
             source_conversation_id=source_conversation_id or thread_id,
             source_runtime_session_id=source_runtime_session_id,
+            workflow_run_id=workflow_run_id,
+            workflow_step_id=workflow_step_id,
+            checkpoint_id=checkpoint_id,
+            memory_snapshot_id=memory_snapshot_id,
             source_type=source_type,
             artifact_type=artifact_type,
             artifact_role=artifact_role or self._role_from_artifact_type(artifact_type),
@@ -168,6 +176,10 @@ class OutputArtifactService:
         source_playbook_run_id: UUID | None = None,
         source_conversation_id: UUID | None = None,
         source_runtime_session_id: UUID | None = None,
+        workflow_run_id: UUID | None = None,
+        workflow_step_id: UUID | None = None,
+        checkpoint_id: UUID | None = None,
+        memory_snapshot_id: UUID | None = None,
         exportable: bool | None = None,
         archived: bool | None = None,
         retention_policy: str | None = None,
@@ -203,6 +215,14 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.source_conversation_id == source_conversation_id)
         if source_runtime_session_id is not None:
             statement = statement.where(OutputArtifact.source_runtime_session_id == source_runtime_session_id)
+        if workflow_run_id is not None:
+            statement = statement.where(OutputArtifact.workflow_run_id == workflow_run_id)
+        if workflow_step_id is not None:
+            statement = statement.where(OutputArtifact.workflow_step_id == workflow_step_id)
+        if checkpoint_id is not None:
+            statement = statement.where(OutputArtifact.checkpoint_id == checkpoint_id)
+        if memory_snapshot_id is not None:
+            statement = statement.where(OutputArtifact.memory_snapshot_id == memory_snapshot_id)
         if exportable is not None:
             statement = statement.where(OutputArtifact.exportable.is_(exportable))
         if retention_policy is not None:
@@ -278,6 +298,7 @@ class OutputArtifactService:
         task_run_id: UUID,
         playbook_run_id: UUID | None = None,
         thread_id: UUID | None = None,
+        workflow_run_id: UUID | None = None,
         commit: bool = True,
     ) -> list[OutputArtifact]:
         """Link existing artifacts to a task run for timeline/library queries."""
@@ -292,10 +313,12 @@ class OutputArtifactService:
         linked: list[OutputArtifact] = []
         for artifact in artifacts:
             if artifact.task_run_id == task_run_id:
+                artifact.workflow_run_id = artifact.workflow_run_id or workflow_run_id
                 linked.append(artifact)
                 continue
             artifact.task_run_id = task_run_id
             artifact.source_task_run_id = artifact.source_task_run_id or task_run_id
+            artifact.workflow_run_id = artifact.workflow_run_id or workflow_run_id
             linked.append(artifact)
         if commit:
             await self.session.commit()
@@ -365,6 +388,7 @@ class OutputArtifactService:
             return existing
         playbook = await self._get_playbook(workspace_id=workspace_id, playbook_id=run.playbook_id)
         playbook_name = (run.output_payload or {}).get("playbook_name") or (playbook.name if playbook else "playbook")
+        workflow_run_id = self._uuid_or_none((run.output_payload or {}).get("workflow_run_id"))
         artifact_specs = self._artifact_specs_from_playbook_run(run=run, playbook_name=str(playbook_name))
         artifacts: list[OutputArtifact] = []
         for spec in artifact_specs:
@@ -375,6 +399,7 @@ class OutputArtifactService:
                     playbook_run_id=run.id,
                     source_playbook_run_id=run.id,
                     source_conversation_id=run.thread_id,
+                    workflow_run_id=workflow_run_id,
                     generated_by="ConversationPlaybookService",
                     created_by=created_by,
                     commit=False,
@@ -404,8 +429,14 @@ class OutputArtifactService:
             workspace_id=workspace_id,
             thread_id=message.thread_id,
             playbook_run_id=self._uuid_or_none(metadata.get("playbook_run_id")),
+            task_run_id=self._uuid_or_none(metadata.get("task_run_id")),
             source_conversation_id=message.thread_id,
             source_playbook_run_id=self._uuid_or_none(metadata.get("playbook_run_id")),
+            source_task_run_id=self._uuid_or_none(metadata.get("task_run_id")),
+            workflow_run_id=self._uuid_or_none(metadata.get("workflow_run_id")),
+            workflow_step_id=self._uuid_or_none(metadata.get("workflow_step_id")),
+            checkpoint_id=self._uuid_or_none(metadata.get("checkpoint_id")),
+            memory_snapshot_id=self._uuid_or_none(metadata.get("memory_snapshot_id")),
             generated_by="ConversationService",
             source_type=OutputArtifactSourceType.CONVERSATION.value,
             artifact_type=artifact_type,

@@ -53,6 +53,10 @@ export type ConversationRunResponse = {
   playbook_status: string | null;
   task_run_id: string | null;
   task_status: string | null;
+  workflow_run_id: string | null;
+  workflow_step_id: string | null;
+  checkpoint_id: string | null;
+  memory_snapshot_id: string | null;
   execution_mode: string;
   websocket_placeholder: boolean;
   sse_placeholder: boolean;

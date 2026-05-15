@@ -21,6 +21,7 @@ export type TaskRun = {
   input_payload: Record<string, unknown>;
   output_payload: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  workflow_run_id: string | null;
   created_at: string;
   updated_at: string;
 };

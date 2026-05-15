@@ -35,6 +35,7 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
+import { workflowClient, AgentMemorySnapshot, WorkflowRun, WorkflowStep } from "./api/workflowClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
 import "./styles.css";
 
@@ -121,6 +122,10 @@ function ChatPanel() {
   const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
   const [schedulerHealth, setSchedulerHealth] = useState<Record<string, unknown> | null>(null);
   const [selectedTaskRunId, setSelectedTaskRunId] = useState<string | null>(null);
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  const [memorySnapshots, setMemorySnapshots] = useState<AgentMemorySnapshot[]>([]);
+  const [selectedWorkflowRunId, setSelectedWorkflowRunId] = useState<string | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -166,10 +171,35 @@ function ChatPanel() {
     }
   }, [selectedTaskRunId, settings]);
 
+  const refreshWorkflows = useCallback(async () => {
+    try {
+      const response = await workflowClient.listRuns(settings);
+      setWorkflowRuns(response.items);
+      const workflowId =
+        selectedWorkflowRunId ||
+        response.items.find((item) => item.status === "running" || item.status === "waiting_approval")?.id ||
+        response.items[0]?.id;
+      if (workflowId) {
+        setSelectedWorkflowRunId(workflowId);
+        const [steps, memories] = await Promise.all([
+          workflowClient.listSteps(workflowId, settings),
+          workflowClient.listMemorySnapshots(workflowId, settings),
+        ]);
+        setWorkflowSteps(steps.items);
+        setMemorySnapshots(memories.items);
+      }
+    } catch {
+      setWorkflowRuns([]);
+      setWorkflowSteps([]);
+      setMemorySnapshots([]);
+    }
+  }, [selectedWorkflowRunId, settings]);
+
   useEffect(() => {
     void refreshPlaybooks();
     void refreshTaskRuns();
-  }, [refreshPlaybooks, refreshTaskRuns]);
+    void refreshWorkflows();
+  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows]);
 
   const refreshConversation = useCallback(async () => {
     if (!threadId) {
@@ -188,12 +218,13 @@ function ChatPanel() {
       setArtifacts((await outputArtifactClient.listArtifacts(settings, { threadId })).items);
       await refreshPlaybooks();
       await refreshTaskRuns();
+      await refreshWorkflows();
       setConnectionState("connected");
     } catch (nextError) {
       setConnectionState("disconnected");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
     }
-  }, [refreshPlaybooks, refreshTaskRuns, settings, threadId]);
+  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
 
   useEffect(() => {
     if (!pollEvents || !threadId) {
@@ -254,10 +285,14 @@ function ChatPanel() {
       setLastRoute(run.route_name);
       setLastSelectedTool(run.selected_tool);
       setLastRunMetadata(run.result_metadata);
+      if (run.workflow_run_id) {
+        setSelectedWorkflowRunId(run.workflow_run_id);
+      }
       if (run.task_run_id) {
         setSelectedTaskRunId(run.task_run_id);
         await refreshTaskRuns();
       }
+      await refreshWorkflows();
       setConnectionState("connected");
       setRunStatus(`route: ${run.route_name} | tool: ${run.selected_tool ?? "none"} | risk: ${run.risk_level ?? "-"} | approval: ${run.approval_status ?? "-"} | success: ${run.success}`);
       setInput("");
@@ -289,8 +324,12 @@ function ChatPanel() {
       if (run.task_run_id) {
         setSelectedTaskRunId(run.task_run_id);
       }
+      if (run.workflow_run_id) {
+        setSelectedWorkflowRunId(run.workflow_run_id);
+      }
       await refreshConversation();
       await refreshTaskRuns();
+      await refreshWorkflows();
       setLastRunMetadata(run.result_metadata);
       setRunStatus(`background task queued: ${run.task_run_id ?? "-"} | status: ${run.task_status ?? "-"}`);
     } catch (nextError) {
@@ -625,7 +664,7 @@ function ChatPanel() {
               <span>{artifact.source_type}</span>
             </div>
             <div className="chat-meta">
-              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"}
+              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"} | workflow_run_id: {artifact.workflow_run_id ?? "-"}
             </div>
             <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
             <div className="chat-actions">
@@ -642,6 +681,56 @@ function ChatPanel() {
           </div>
         )) : (
           <div className="empty-chat">No generated artifacts yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
+        <h3>Workflow State</h3>
+        <div className="chat-note">
+          Workflow State tracks current step, checkpoints, and Agent Memory Snapshots for Conversation / Playbook / Task execution. Foundation only; not a full workflow editor and not ComfyUI.
+        </div>
+        <div className="chat-actions">
+          <button className="refresh-button" onClick={() => void refreshWorkflows()}>
+            <RefreshCcw size={15} />
+            Refresh workflows
+          </button>
+        </div>
+        {workflowRuns.length > 0 ? workflowRuns.slice(0, 5).map((workflow) => (
+          <div key={workflow.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{workflow.source_type}</strong>
+              <span>{workflow.status}</span>
+              <span>step {workflow.current_step}</span>
+            </div>
+            <div className="chat-meta">
+              workflow_run_id: {workflow.id} | task_run_id: {workflow.task_run_id ?? "-"} | playbook_run_id: {workflow.playbook_run_id ?? "-"} | checkpoints: {workflow.checkpoints.length}
+            </div>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => { setSelectedWorkflowRunId(workflow.id); void refreshWorkflows(); }}>Inspect</button>
+              <button className="refresh-button" onClick={() => void workflowClient.pause(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Pause</button>
+              <button className="refresh-button" onClick={() => void workflowClient.resume(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Resume</button>
+            </div>
+          </div>
+        )) : (
+          <div className="empty-chat">No workflow runs yet.</div>
+        )}
+        <h4>Workflow timeline {selectedWorkflowRunId ? `for ${selectedWorkflowRunId}` : ""}</h4>
+        {workflowSteps.length > 0 ? workflowSteps.map((step) => (
+          <div key={step.id} className="event-item">
+            <strong>{step.step_name}</strong>
+            <span>{step.status} | {step.step_type} | duration: {step.duration_ms ?? "-"}ms</span>
+            {step.error ? <code>{step.error}</code> : null}
+          </div>
+        )) : (
+          <div className="empty-chat">Select a workflow run to inspect steps.</div>
+        )}
+        <h4>Agent Memory Snapshots</h4>
+        {memorySnapshots.length > 0 ? memorySnapshots.map((snapshot) => (
+          <div key={snapshot.id} className="event-item">
+            <strong>{snapshot.memory_type}</strong>
+            <span>{snapshot.summary ?? "-"}</span>
+          </div>
+        )) : (
+          <div className="empty-chat">No memory snapshots yet.</div>
         )}
       </div>
       <div className="approval-list">
@@ -665,7 +754,7 @@ function ChatPanel() {
               <span>{task.status}</span>
             </div>
             <div className="chat-meta">
-              task_run_id: {task.id} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries} | recoverable: {String(task.recoverable)} | lease: {task.lease_expires_at ?? "-"}
+              task_run_id: {task.id} | workflow_run_id: {task.workflow_run_id ?? "-"} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries} | recoverable: {String(task.recoverable)} | lease: {task.lease_expires_at ?? "-"}
             </div>
             <p>{String(task.error ?? task.suggested_action ?? task.output_payload.summary ?? "No error")}</p>
             <div className="chat-actions">

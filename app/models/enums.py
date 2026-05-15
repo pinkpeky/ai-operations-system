@@ -239,6 +239,50 @@ class OutputArtifactRetentionPolicy(StrEnum):
     COMPLIANCE_HOLD = "compliance_hold"
 
 
+class WorkflowRunStatus(StrEnum):
+    """Workflow run lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    PAUSED = "paused"
+    WAITING_APPROVAL = "waiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class WorkflowStepStatus(StrEnum):
+    """Workflow step lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    WAITING_APPROVAL = "waiting_approval"
+
+
+class WorkflowCheckpointType(StrEnum):
+    """Workflow checkpoint type."""
+
+    AUTO = "auto"
+    MANUAL = "manual"
+    APPROVAL = "approval"
+    FAILURE = "failure"
+    RESUME = "resume"
+
+
+class AgentMemorySnapshotType(StrEnum):
+    """Agent memory snapshot type."""
+
+    CONVERSATION_SUMMARY = "conversation_summary"
+    TASK_CONTEXT = "task_context"
+    TOOL_RESULT = "tool_result"
+    DECISION = "decision"
+    APPROVAL_CONTEXT = "approval_context"
+    ARTIFACT_SUMMARY = "artifact_summary"
+
+
 class TaskRunStatus(StrEnum):
     """Task orchestration run lifecycle status."""
 

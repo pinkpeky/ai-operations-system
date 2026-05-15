@@ -78,6 +78,7 @@ class TaskRunResponse(BaseModel):
     input_payload: dict[str, Any]
     output_payload: dict[str, Any]
     metadata: dict[str, Any]
+    workflow_run_id: UUID | None = None
     created_by: str | None
     created_at: datetime
     updated_at: datetime
@@ -116,6 +117,9 @@ class TaskRunResponse(BaseModel):
             input_payload=task.input_payload or {},
             output_payload=task.output_payload or {},
             metadata=task.task_metadata or {},
+            workflow_run_id=UUID(str((task.task_metadata or {}).get("workflow_run_id")))
+            if (task.task_metadata or {}).get("workflow_run_id")
+            else None,
             created_by=task.created_by,
             created_at=task.created_at,
             updated_at=task.updated_at,
