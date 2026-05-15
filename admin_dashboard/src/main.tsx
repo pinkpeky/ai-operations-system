@@ -1125,7 +1125,11 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
   const [selectedArtifact, setSelectedArtifact] = useState<OutputArtifact | null>(null);
   const [artifactType, setArtifactType] = useState("");
   const [sourceType, setSourceType] = useState("");
+  const [artifactRole, setArtifactRole] = useState("");
+  const [artifactStage, setArtifactStage] = useState("");
+  const [retentionPolicy, setRetentionPolicy] = useState("");
   const [exportPreview, setExportPreview] = useState<JsonRecord | null>(null);
+  const [lineagePreview, setLineagePreview] = useState<JsonRecord | null>(null);
 
   const load = useCallback(async () => {
     setArtifacts((current) => ({ ...current, loading: true, error: null }));
@@ -1133,6 +1137,9 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
       const response = await outputArtifactClient.listArtifacts(settings, {
         artifactType: artifactType || undefined,
         sourceType: sourceType || undefined,
+        artifactRole: artifactRole || undefined,
+        artifactStage: artifactStage || undefined,
+        retentionPolicy: retentionPolicy || undefined,
       });
       setArtifacts({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
@@ -1143,7 +1150,7 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
         updatedAt: nowLabel(),
       });
     }
-  }, [artifactType, settings, sourceType]);
+  }, [artifactRole, artifactStage, artifactType, retentionPolicy, settings, sourceType]);
 
   useEffect(() => {
     void load();
@@ -1156,6 +1163,32 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
     const exported = await outputArtifactClient.exportArtifact(selectedArtifact.id, format, settings);
     setExportPreview(exported as unknown as JsonRecord);
     await load();
+  };
+
+  const exportPipelineSelected = async (format: "markdown" | "html" | "json" | "txt" | "bundle_zip") => {
+    if (!selectedArtifact) {
+      return;
+    }
+    const exported = await outputArtifactClient.exportArtifactPipeline(selectedArtifact.id, format, settings);
+    setExportPreview(exported as unknown as JsonRecord);
+    await load();
+  };
+
+  const packageSelected = async () => {
+    if (!selectedArtifact) {
+      return;
+    }
+    const packaged = await outputArtifactClient.packageArtifact(selectedArtifact.id, settings);
+    setExportPreview(packaged as unknown as JsonRecord);
+    await load();
+  };
+
+  const loadLineage = async () => {
+    if (!selectedArtifact) {
+      return;
+    }
+    const lineage = await outputArtifactClient.getLineage(selectedArtifact.id, settings);
+    setLineagePreview(lineage as unknown as JsonRecord);
   };
 
   return (
@@ -1178,6 +1211,24 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <option key={value} value={value}>{value}</option>
             ))}
           </select>
+          <select value={artifactRole} onChange={(event) => setArtifactRole(event.target.value)} aria-label="artifact_role filter">
+            <option value="">All artifact_role</option>
+            {["screenshot", "report", "transcript", "markdown", "html", "json", "bundle", "debug", "replay", "dataset"].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+          <select value={artifactStage} onChange={(event) => setArtifactStage(event.target.value)} aria-label="artifact_stage filter">
+            <option value="">All artifact_stage</option>
+            {["raw", "processed", "packaged", "exported", "archived"].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+          <select value={retentionPolicy} onChange={(event) => setRetentionPolicy(event.target.value)} aria-label="retention_policy filter">
+            <option value="">All retention_policy</option>
+            {["temporary", "standard", "persistent", "compliance_hold"].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
         </div>
         <LoadNotice state={artifacts} />
         <Table
@@ -1188,6 +1239,9 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
           columns={[
             { key: "title", label: "title" },
             { key: "artifact_type", label: "artifact_type" },
+            { key: "artifact_role", label: "role" },
+            { key: "artifact_stage", label: "stage" },
+            { key: "retention_policy", label: "retention" },
             { key: "source_type", label: "source_type" },
             { key: "status", label: "status" },
             { key: "created_at", label: "created_at" },
@@ -1208,7 +1262,15 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <div className="approval-card-header">
                 <strong>{selectedArtifact.title}</strong>
                 <StatusPill value={selectedArtifact.artifact_type} />
+                <StatusPill value={selectedArtifact.artifact_role ?? "no_role"} />
+                <StatusPill value={selectedArtifact.artifact_stage} />
+                <StatusPill value={selectedArtifact.retention_policy} />
                 <StatusPill value={selectedArtifact.source_type} />
+              </div>
+              <div className="chat-status-row">
+                <span>root_artifact_id: {selectedArtifact.root_artifact_id ?? "-"}</span>
+                <span>parent_artifact_id: {selectedArtifact.parent_artifact_id ?? "-"}</span>
+                <span>exportable: {String(selectedArtifact.exportable)}</span>
               </div>
               <p>{selectedArtifact.summary ?? selectedArtifact.file_path ?? "No summary"}</p>
               <JsonPreview value={selectedArtifact.metadata} />
@@ -1219,9 +1281,15 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <button className="ghost-button" onClick={() => void exportSelected("markdown")}>Export markdown</button>
               <button className="ghost-button" onClick={() => void exportSelected("json")}>Export json</button>
               <button className="ghost-button" onClick={() => void exportSelected("txt")}>Export txt</button>
+              <button className="ghost-button" onClick={() => void exportPipelineSelected("html")}>Export HTML</button>
+              <button className="ghost-button" onClick={() => void exportPipelineSelected("bundle_zip")}>Export bundle</button>
+              <button className="ghost-button" onClick={() => void packageSelected()}>Package lineage</button>
+              <button className="ghost-button" onClick={() => void loadLineage()}>Load lineage</button>
             </div>
             <h3>Export result</h3>
             <JsonPreview value={exportPreview ?? { status: "export an artifact to see output path" }} />
+            <h3>Lineage graph</h3>
+            <JsonPreview value={lineagePreview ?? { status: "load lineage to see relationship graph" }} />
           </>
         ) : (
           <div className="empty-chat">Select an artifact to preview content and export markdown/json/txt.</div>

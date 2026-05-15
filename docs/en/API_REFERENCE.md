@@ -3400,3 +3400,50 @@ Admin Dashboard shows scheduler health, lease status, recoverable badge, diagnos
 Phase 43 verifier markers: `TaskRecoveryService`, `task_scheduler_state`, `Task Lease`, `Scheduler Health`, `Failed Diagnostics`, `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `failure_category`, `recoverable`, stuck task recovery, expired lease, not Celery, not Kubernetes, not production HA.
 
 Phase 43 runtime config markers: `TASK_SCHEDULER_NAME`, `TASK_LEASE_SECONDS`, `TASK_STUCK_TIMEOUT_SECONDS`, `TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS`.
+
+<!-- PHASE44_API:START -->
+## Phase 44 Output Artifact Pipeline APIs
+
+### `GET /api/v1/output-artifacts/{artifact_id}/lineage`
+Returns Artifact lineage for one artifact, including root artifact, ancestors, descendants, and relationship graph edges.
+
+### `GET /api/v1/output-artifacts/{artifact_id}/relationships`
+Returns `artifact_relationships` edges for one artifact. Supported `relationship_type` values include `derived_from`, `packaged_into`, `summarized_from`, `exported_from`, and `replay_of`.
+
+### `POST /api/v1/output-artifacts/{artifact_id}/export`
+Runs `ArtifactExportService` over an existing artifact. Supported formats include markdown, html, json, txt, bundle_zip, and report_package. This creates exported child artifacts and does not re-run runtime execution.
+
+### `POST /api/v1/output-artifacts/{artifact_id}/package`
+Runs `ArtifactPackagingService` to create a bundle artifact and `bundle.zip` package metadata from the selected artifact and optional lineage.
+
+### `POST /api/v1/output-artifacts/cleanup/preview`
+Runs `ArtifactRetentionService` cleanup preview. It returns retention preview candidates and does not delete files.
+
+Phase 44 fields: `parent_artifact_id`, `root_artifact_id`, `source_task_run_id`, `source_playbook_run_id`, `source_conversation_id`, `source_runtime_session_id`, `artifact_role`, `artifact_stage`, `generated_by`, `exportable`, `retention_policy`, `expires_at`, `artifact_relationships`, `relationship_type`, `derived_from`, `packaged_into`, `exported_from`, `ArtifactExportService`, `ArtifactPackagingService`, `ArtifactRetentionService`, `Artifact Explorer`, `lineage graph`, `relationship graph`, `bundle.zip`, `storage/output_packages`, `storage/output_exports`, `retention preview`, `not a full DAM`, `S3`, `MinIO`, and not a production object storage platform.
+<!-- PHASE44_API:END -->
+
+<!-- PHASE44_SYNC:START -->
+## Phase 44: Output Artifact Pipeline & Export System
+
+Phase 44 adds the Output Artifact Pipeline & Export System on top of the Phase 41 Output Library and Phase 42/43 task runtime. It adds Artifact lineage, relationship graph tracking with `artifact_relationships`, export/package services, retention policy preview, and frontend Artifact Explorer controls.
+
+Completed in this phase:
+
+- `output_artifacts` now records `parent_artifact_id`, `root_artifact_id`, `source_task_run_id`, `source_playbook_run_id`, `source_conversation_id`, `source_runtime_session_id`, `artifact_role`, `artifact_stage`, `generated_by`, `exportable`, `retention_policy`, and `expires_at`.
+- `artifact_relationships` records relationship graph edges such as `derived_from`, `packaged_into`, `summarized_from`, `exported_from`, and `replay_of`.
+- `ArtifactExportService` supports `export_markdown`, `export_html`, `export_json`, `export_bundle_zip`, and `export_report_package` without re-running browser runtime or playbook execution.
+- `ArtifactPackagingService` supports `package_playbook_run`, `package_task_run`, `package_browser_runtime_session`, and `package_conversation` to create package artifacts and `bundle.zip` metadata.
+- `ArtifactRetentionService` supports retention policy, expiration scan, cleanup preview, and soft archive foundations. Current cleanup preview does not delete physical files.
+- API additions include `GET /api/v1/output-artifacts/{artifact_id}/lineage`, `GET /api/v1/output-artifacts/{artifact_id}/relationships`, `POST /api/v1/output-artifacts/{artifact_id}/export`, `POST /api/v1/output-artifacts/{artifact_id}/package`, and `POST /api/v1/output-artifacts/cleanup/preview`.
+- Storage roots now include `storage/output_artifacts`, `storage/output_packages`, and `storage/output_exports`.
+- Admin Dashboard adds Artifact Explorer, lineage graph panel, export actions, package actions, retention badge, archived indicator, and bundle metadata preview.
+- Worker Console and Worker Console Desktop expose simplified export, package, lineage summary, and retention status controls.
+
+Boundaries:
+
+- This is not a full DAM system.
+- This is not a production object storage platform.
+- There is no production S3 / MinIO / CDN integration.
+- Export never re-executes Browser Runtime, Playbook, Conversation, OpenClaw, or Task actions.
+- There is still no TikTok / YouTube / X automation, no automatic login, no captcha automation, no proxy pool, no fingerprint bypass, no real OpenClaw, and no ComfyUI.
+<!-- PHASE44_SYNC:END -->

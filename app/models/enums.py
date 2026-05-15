@@ -169,6 +169,7 @@ class OutputArtifactStatus(StrEnum):
     """Output artifact lifecycle status."""
 
     ACTIVE = "active"
+    ARCHIVED = "archived"
     DELETED = "deleted"
 
 
@@ -190,6 +191,7 @@ class OutputArtifactType(StrEnum):
 
     TEXT = "text"
     MARKDOWN = "markdown"
+    HTML = "html"
     JSON = "json"
     SCREENSHOT = "screenshot"
     HTML_SNAPSHOT = "html_snapshot"
@@ -197,6 +199,44 @@ class OutputArtifactType(StrEnum):
     PLAN = "plan"
     RAG_ANSWER = "rag_answer"
     CONTENT_DRAFT = "content_draft"
+    BUNDLE = "bundle"
+    DEBUG = "debug"
+    REPLAY = "replay"
+    DATASET = "dataset"
+
+
+class OutputArtifactRole(StrEnum):
+    """Role an artifact plays in an output pipeline."""
+
+    SCREENSHOT = "screenshot"
+    REPORT = "report"
+    TRANSCRIPT = "transcript"
+    MARKDOWN = "markdown"
+    HTML = "html"
+    JSON = "json"
+    BUNDLE = "bundle"
+    DEBUG = "debug"
+    REPLAY = "replay"
+    DATASET = "dataset"
+
+
+class OutputArtifactStage(StrEnum):
+    """Output artifact pipeline stage."""
+
+    RAW = "raw"
+    PROCESSED = "processed"
+    PACKAGED = "packaged"
+    EXPORTED = "exported"
+    ARCHIVED = "archived"
+
+
+class OutputArtifactRetentionPolicy(StrEnum):
+    """Output artifact retention policy."""
+
+    TEMPORARY = "temporary"
+    STANDARD = "standard"
+    PERSISTENT = "persistent"
+    COMPLIANCE_HOLD = "compliance_hold"
 
 
 class TaskRunStatus(StrEnum):

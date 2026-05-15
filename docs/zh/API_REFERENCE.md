@@ -2832,3 +2832,50 @@ Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics p
 Phase 43 verifier markers: `TaskRecoveryService`, `task_scheduler_state`, `Task Lease`, `Scheduler Health`, `Failed Diagnostics`, `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `failure_category`, `recoverable`, stuck task recovery, expired lease, not Celery, not Kubernetes, not production HA.
 
 Phase 43 runtime config markers: `TASK_SCHEDULER_NAME`, `TASK_LEASE_SECONDS`, `TASK_STUCK_TIMEOUT_SECONDS`, `TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS`.
+
+<!-- PHASE44_API:START -->
+## Phase 44 Output Artifact Pipeline APIs
+
+### `GET /api/v1/output-artifacts/{artifact_id}/lineage`
+???? artifact ? Artifact lineage??? root artifact?ancestors?descendants ? relationship graph ??
+
+### `GET /api/v1/output-artifacts/{artifact_id}/relationships`
+???? artifact ? `artifact_relationships` ??`relationship_type` ?? `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
+
+### `POST /api/v1/output-artifacts/{artifact_id}/export`
+?? `ArtifactExportService` ???? artifact ????? markdown?html?json?txt?bundle_zip?report_package?????? exported child artifacts?????? runtime?
+
+### `POST /api/v1/output-artifacts/{artifact_id}/package`
+?? `ArtifactPackagingService` ??? artifact ??? lineage ?? bundle artifact ? `bundle.zip` package metadata?
+
+### `POST /api/v1/output-artifacts/cleanup/preview`
+?? `ArtifactRetentionService` ?? cleanup preview??? retention preview ??????????
+
+Phase 44 ??????`parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?`artifact_relationships`?`relationship_type`?`derived_from`?`packaged_into`?`exported_from`?`ArtifactExportService`?`ArtifactPackagingService`?`ArtifactRetentionService`?`Artifact Explorer`?`lineage graph`?`relationship graph`?`bundle.zip`?`storage/output_packages`?`storage/output_exports`?`retention preview`?`not a full DAM`?`S3`?`MinIO`??????? production object storage platform?
+<!-- PHASE44_API:END -->
+
+<!-- PHASE44_SYNC:START -->
+## Phase 44?Output Artifact Pipeline & Export System
+
+Phase 44 ? Phase 41 Output Library ? Phase 42/43 task runtime ?????? Output Artifact Pipeline????? Artifact lineage?relationship graph???????retention policy preview????? Artifact Explorer ?????
+
+???????
+
+- `output_artifacts` ?? `parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?
+- `artifact_relationships` ?? relationship graph ???? `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
+- `ArtifactExportService` ?? `export_markdown`?`export_html`?`export_json`?`export_bundle_zip`?`export_report_package`??????? browser runtime ? playbook?
+- `ArtifactPackagingService` ?? `package_playbook_run`?`package_task_run`?`package_browser_runtime_session`?`package_conversation`??? package artifact ? `bundle.zip` metadata?
+- `ArtifactRetentionService` ?? retention policy?expiration scan?cleanup preview?soft archive ????? preview ????????
+- API ?? `GET /api/v1/output-artifacts/{artifact_id}/lineage`?`GET /api/v1/output-artifacts/{artifact_id}/relationships`?`POST /api/v1/output-artifacts/{artifact_id}/export`?`POST /api/v1/output-artifacts/{artifact_id}/package`?`POST /api/v1/output-artifacts/cleanup/preview`?
+- Storage roots ?? `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
+- Admin Dashboard ?? Artifact Explorer?lineage graph panel?export actions?package actions?retention badge?archived indicator?bundle metadata preview?
+- Worker Console / Desktop ???? export?package?lineage summary?retention status ???
+
+???
+
+- ?????? DAM ???
+- ???? production object storage platform?
+- ??????? S3 / MinIO / CDN?
+- Export ?????? Browser Runtime?Playbook?Conversation?OpenClaw ? Task action?
+- ????? TikTok / YouTube / X automation???????????????????????? OpenClaw ? ComfyUI?
+<!-- PHASE44_SYNC:END -->

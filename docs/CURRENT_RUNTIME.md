@@ -1411,3 +1411,25 @@ Recovery rules:
 Admin Dashboard now shows Scheduler Health, lease status, recoverable badge, diagnostics panel, and manual recover control. Worker Console Web/Desktop show simplified scheduler and task recovery status.
 
 Runtime verifier marker: TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS=10.0
+
+<!-- PHASE44_RUNTIME:START -->
+## Phase 44 Output Artifact Pipeline Runtime
+
+| Key | Current default | Meaning |
+| --- | --- | --- |
+| `OUTPUT_ARTIFACT_DIR` | `storage/output_artifacts` | Output Artifact text/export metadata root. |
+| `OUTPUT_PACKAGE_DIR` | `storage/output_packages` | Package artifact and bundle metadata root. |
+| `OUTPUT_EXPORT_DIR` | `storage/output_exports` | Exported markdown/html/json/txt/bundle output root. |
+
+Phase 44 adds Artifact lineage, relationship graph, `artifact_relationships`, `ArtifactExportService`, `ArtifactPackagingService`, and `ArtifactRetentionService`. Exports are based only on existing artifacts; they do not re-run Browser Runtime, Playbook, Conversation, Task, or OpenClaw mock actions.
+
+New APIs:
+
+- `GET /api/v1/output-artifacts/{artifact_id}/lineage`
+- `GET /api/v1/output-artifacts/{artifact_id}/relationships`
+- `POST /api/v1/output-artifacts/{artifact_id}/export`
+- `POST /api/v1/output-artifacts/{artifact_id}/package`
+- `POST /api/v1/output-artifacts/cleanup/preview`
+
+Current boundaries: not a full DAM, not a production object storage platform, no production S3 / MinIO / CDN, no real social platform publishing, no real OpenClaw, and no ComfyUI.
+<!-- PHASE44_RUNTIME:END -->

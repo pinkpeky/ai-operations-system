@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -23,9 +23,16 @@ from app.conversation.repositories import ConversationRuntimeRepository
 from app.core.config import Settings, get_settings
 from app.models.browser_runtime import BrowserRuntimeSnapshot
 from app.models.conversation import ConversationPlaybook, ConversationPlaybookRun
-from app.models.enums import OutputArtifactSourceType, OutputArtifactStatus, OutputArtifactType
+from app.models.enums import (
+    OutputArtifactRetentionPolicy,
+    OutputArtifactRole,
+    OutputArtifactSourceType,
+    OutputArtifactStage,
+    OutputArtifactStatus,
+    OutputArtifactType,
+)
 from app.models.memory import ConversationMessage
-from app.models.output_artifact import OutputArtifact
+from app.models.output_artifact import ArtifactRelationship, OutputArtifact
 
 logger = logging.getLogger(__name__)
 
@@ -57,30 +64,64 @@ class OutputArtifactService:
         thread_id: UUID | None = None,
         playbook_run_id: UUID | None = None,
         task_run_id: UUID | None = None,
+        parent_artifact_id: UUID | None = None,
+        root_artifact_id: UUID | None = None,
+        source_task_run_id: UUID | None = None,
+        source_playbook_run_id: UUID | None = None,
+        source_conversation_id: UUID | None = None,
+        source_runtime_session_id: UUID | None = None,
+        artifact_role: str | None = None,
+        artifact_stage: str = OutputArtifactStage.PROCESSED.value,
+        generated_by: str | None = None,
+        exportable: bool = True,
+        retention_policy: str = OutputArtifactRetentionPolicy.STANDARD.value,
+        expires_at: datetime | None = None,
         created_by: str | None = None,
         commit: bool = True,
     ) -> OutputArtifact:
         """Create one artifact while keeping payloads bounded."""
 
         self._validate_source_and_type(source_type=source_type, artifact_type=artifact_type)
+        self._validate_pipeline_fields(
+            artifact_role=artifact_role,
+            artifact_stage=artifact_stage,
+            retention_policy=retention_policy,
+        )
+        if parent_artifact_id is not None:
+            parent = await self.require_artifact(workspace_id=workspace_id, artifact_id=parent_artifact_id)
+            root_artifact_id = root_artifact_id or parent.root_artifact_id or parent.id
         artifact = OutputArtifact(
             workspace_id=workspace_id,
             thread_id=thread_id,
             playbook_run_id=playbook_run_id,
             task_run_id=task_run_id,
+            parent_artifact_id=parent_artifact_id,
+            root_artifact_id=root_artifact_id,
+            source_task_run_id=source_task_run_id or task_run_id,
+            source_playbook_run_id=source_playbook_run_id or playbook_run_id,
+            source_conversation_id=source_conversation_id or thread_id,
+            source_runtime_session_id=source_runtime_session_id,
             source_type=source_type,
             artifact_type=artifact_type,
+            artifact_role=artifact_role or self._role_from_artifact_type(artifact_type),
+            artifact_stage=artifact_stage,
             title=title[:255],
             summary=self._trim_text(summary),
             content=self._trim_text(content),
             file_path=file_path,
             mime_type=mime_type,
             artifact_metadata=self._trim_metadata(metadata or {}),
+            generated_by=generated_by,
+            exportable=exportable,
+            retention_policy=retention_policy,
+            expires_at=expires_at,
             created_by=created_by,
             status=OutputArtifactStatus.ACTIVE.value,
         )
         self.session.add(artifact)
         await self.session.flush()
+        if artifact.root_artifact_id is None:
+            artifact.root_artifact_id = artifact.id
         if thread_id is not None:
             await self.repository.append_event(
                 workspace_id=workspace_id,
@@ -121,6 +162,15 @@ class OutputArtifactService:
         thread_id: UUID | None = None,
         playbook_run_id: UUID | None = None,
         task_run_id: UUID | None = None,
+        artifact_role: str | None = None,
+        artifact_stage: str | None = None,
+        source_task_run_id: UUID | None = None,
+        source_playbook_run_id: UUID | None = None,
+        source_conversation_id: UUID | None = None,
+        source_runtime_session_id: UUID | None = None,
+        exportable: bool | None = None,
+        archived: bool | None = None,
+        retention_policy: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
         include_deleted: bool = False,
@@ -141,6 +191,34 @@ class OutputArtifactService:
             statement = statement.where(OutputArtifact.playbook_run_id == playbook_run_id)
         if task_run_id is not None:
             statement = statement.where(OutputArtifact.task_run_id == task_run_id)
+        if artifact_role is not None:
+            statement = statement.where(OutputArtifact.artifact_role == artifact_role)
+        if artifact_stage is not None:
+            statement = statement.where(OutputArtifact.artifact_stage == artifact_stage)
+        if source_task_run_id is not None:
+            statement = statement.where(OutputArtifact.source_task_run_id == source_task_run_id)
+        if source_playbook_run_id is not None:
+            statement = statement.where(OutputArtifact.source_playbook_run_id == source_playbook_run_id)
+        if source_conversation_id is not None:
+            statement = statement.where(OutputArtifact.source_conversation_id == source_conversation_id)
+        if source_runtime_session_id is not None:
+            statement = statement.where(OutputArtifact.source_runtime_session_id == source_runtime_session_id)
+        if exportable is not None:
+            statement = statement.where(OutputArtifact.exportable.is_(exportable))
+        if retention_policy is not None:
+            statement = statement.where(OutputArtifact.retention_policy == retention_policy)
+        if archived is True:
+            statement = statement.where(
+                or_(
+                    OutputArtifact.status == OutputArtifactStatus.ARCHIVED.value,
+                    OutputArtifact.artifact_stage == OutputArtifactStage.ARCHIVED.value,
+                )
+            )
+        elif archived is False:
+            statement = statement.where(
+                OutputArtifact.status != OutputArtifactStatus.ARCHIVED.value,
+                OutputArtifact.artifact_stage != OutputArtifactStage.ARCHIVED.value,
+            )
         if created_from is not None:
             statement = statement.where(OutputArtifact.created_at >= created_from)
         if created_to is not None:
@@ -179,6 +257,16 @@ class OutputArtifactService:
         if "metadata" in patch and patch["metadata"] is not None:
             artifact.artifact_metadata = self._trim_metadata(patch["metadata"])
             flag_modified(artifact, "artifact_metadata")
+        for field in ("artifact_role", "artifact_stage", "generated_by", "exportable", "retention_policy", "expires_at"):
+            if field not in patch or patch[field] is None:
+                continue
+            if field == "artifact_role" and patch[field] not in {item.value for item in OutputArtifactRole}:
+                raise ValueError("Invalid output artifact artifact_role")
+            if field == "artifact_stage" and patch[field] not in {item.value for item in OutputArtifactStage}:
+                raise ValueError("Invalid output artifact artifact_stage")
+            if field == "retention_policy" and patch[field] not in {item.value for item in OutputArtifactRetentionPolicy}:
+                raise ValueError("Invalid output artifact retention_policy")
+            setattr(artifact, field, patch[field])
         await self.session.commit()
         await self.session.refresh(artifact)
         return artifact
@@ -207,6 +295,7 @@ class OutputArtifactService:
                 linked.append(artifact)
                 continue
             artifact.task_run_id = task_run_id
+            artifact.source_task_run_id = artifact.source_task_run_id or task_run_id
             linked.append(artifact)
         if commit:
             await self.session.commit()
@@ -235,6 +324,8 @@ class OutputArtifactService:
         """Export text/metadata artifacts as markdown/json/txt files."""
 
         artifact = await self.require_artifact(workspace_id=workspace_id, artifact_id=artifact_id)
+        if not artifact.exportable:
+            raise ValueError("Output artifact is not exportable")
         normalized_format = export_format.lower().strip()
         if normalized_format not in {"markdown", "json", "txt"}:
             raise ValueError("export format must be markdown, json, or txt")
@@ -282,6 +373,9 @@ class OutputArtifactService:
                     workspace_id=workspace_id,
                     thread_id=run.thread_id,
                     playbook_run_id=run.id,
+                    source_playbook_run_id=run.id,
+                    source_conversation_id=run.thread_id,
+                    generated_by="ConversationPlaybookService",
                     created_by=created_by,
                     commit=False,
                     **spec,
@@ -310,6 +404,9 @@ class OutputArtifactService:
             workspace_id=workspace_id,
             thread_id=message.thread_id,
             playbook_run_id=self._uuid_or_none(metadata.get("playbook_run_id")),
+            source_conversation_id=message.thread_id,
+            source_playbook_run_id=self._uuid_or_none(metadata.get("playbook_run_id")),
+            generated_by="ConversationService",
             source_type=OutputArtifactSourceType.CONVERSATION.value,
             artifact_type=artifact_type,
             title=self._title_from_text(message.content, fallback=f"Conversation message {message.id}"),
@@ -352,6 +449,9 @@ class OutputArtifactService:
             workspace_id=workspace_id,
             source_type=OutputArtifactSourceType.BROWSER_RUNTIME.value,
             artifact_type=artifact_type,
+            source_runtime_session_id=snapshot.runtime_session_id,
+            artifact_stage=OutputArtifactStage.RAW.value if artifact_type in {OutputArtifactType.SCREENSHOT.value, OutputArtifactType.HTML_SNAPSHOT.value} else OutputArtifactStage.PROCESSED.value,
+            generated_by="BrowserRuntimeObservabilityService",
             title=f"Browser snapshot: {snapshot.page_title or snapshot.snapshot_type}",
             summary=snapshot.url,
             content=content,
@@ -368,6 +468,114 @@ class OutputArtifactService:
             created_by=created_by,
             commit=commit,
         )
+
+    async def create_relationship(
+        self,
+        *,
+        workspace_id: str,
+        parent_artifact_id: UUID,
+        child_artifact_id: UUID,
+        relationship_type: str,
+        metadata: dict[str, Any] | None = None,
+        commit: bool = True,
+    ) -> ArtifactRelationship:
+        """Create a lineage edge after verifying both artifacts are workspace scoped."""
+
+        if relationship_type not in {"derived_from", "packaged_into", "summarized_from", "exported_from", "replay_of"}:
+            raise ValueError("Invalid output artifact relationship_type")
+        parent = await self.require_artifact(workspace_id=workspace_id, artifact_id=parent_artifact_id)
+        child = await self.require_artifact(workspace_id=workspace_id, artifact_id=child_artifact_id)
+        child.parent_artifact_id = child.parent_artifact_id or parent.id
+        child.root_artifact_id = child.root_artifact_id or parent.root_artifact_id or parent.id
+        relationship = ArtifactRelationship(
+            parent_artifact_id=parent.id,
+            child_artifact_id=child.id,
+            relationship_type=relationship_type,
+            relationship_metadata=self._trim_metadata(metadata or {}),
+        )
+        self.session.add(relationship)
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
+            await self.session.refresh(relationship)
+            await self.session.refresh(child)
+        return relationship
+
+    async def list_relationships(
+        self,
+        *,
+        workspace_id: str,
+        artifact_id: UUID,
+        direction: str = "both",
+    ) -> list[ArtifactRelationship]:
+        """List relationship edges attached to one artifact."""
+
+        await self.require_artifact(workspace_id=workspace_id, artifact_id=artifact_id)
+        statement = select(ArtifactRelationship)
+        if direction == "parents":
+            statement = statement.where(ArtifactRelationship.child_artifact_id == artifact_id)
+        elif direction == "children":
+            statement = statement.where(ArtifactRelationship.parent_artifact_id == artifact_id)
+        else:
+            statement = statement.where(
+                or_(
+                    ArtifactRelationship.parent_artifact_id == artifact_id,
+                    ArtifactRelationship.child_artifact_id == artifact_id,
+                )
+            )
+        statement = statement.order_by(ArtifactRelationship.created_at.asc())
+        result = await self.session.execute(statement)
+        relationships = list(result.scalars().all())
+        if not relationships:
+            return []
+        related_ids = {item.parent_artifact_id for item in relationships} | {item.child_artifact_id for item in relationships}
+        artifacts = await self.session.execute(
+            select(OutputArtifact.id).where(OutputArtifact.workspace_id == workspace_id, OutputArtifact.id.in_(related_ids))
+        )
+        workspace_ids = set(artifacts.scalars().all())
+        return [
+            item
+            for item in relationships
+            if item.parent_artifact_id in workspace_ids and item.child_artifact_id in workspace_ids
+        ]
+
+    async def lineage_for_artifact(self, *, workspace_id: str, artifact_id: UUID) -> dict[str, Any]:
+        """Return a small lineage graph centered on one artifact."""
+
+        artifact = await self.require_artifact(workspace_id=workspace_id, artifact_id=artifact_id)
+        relationships = await self.list_relationships(workspace_id=workspace_id, artifact_id=artifact_id)
+        ancestor_ids = {item.parent_artifact_id for item in relationships if item.child_artifact_id == artifact.id}
+        descendant_ids = {item.child_artifact_id for item in relationships if item.parent_artifact_id == artifact.id}
+        if artifact.parent_artifact_id:
+            ancestor_ids.add(artifact.parent_artifact_id)
+        result = await self.session.execute(
+            select(OutputArtifact).where(
+                OutputArtifact.workspace_id == workspace_id,
+                OutputArtifact.id.in_(ancestor_ids | descendant_ids) if ancestor_ids or descendant_ids else OutputArtifact.id == artifact.id,
+            )
+        )
+        related = {item.id: item for item in result.scalars().all()}
+        return {
+            "artifact": artifact,
+            "root_artifact_id": artifact.root_artifact_id,
+            "ancestors": [related[item] for item in ancestor_ids if item in related],
+            "descendants": [related[item] for item in descendant_ids if item in related],
+            "relationships": relationships,
+        }
+
+    async def archive_artifact(self, *, workspace_id: str, artifact_id: UUID, reason: str, commit: bool = True) -> OutputArtifact:
+        """Soft archive an artifact without deleting physical files."""
+
+        artifact = await self.require_artifact(workspace_id=workspace_id, artifact_id=artifact_id)
+        artifact.status = OutputArtifactStatus.ARCHIVED.value
+        artifact.artifact_stage = OutputArtifactStage.ARCHIVED.value
+        metadata = {**(artifact.artifact_metadata or {}), "archived_reason": reason, "archived_at": datetime.utcnow().isoformat()}
+        artifact.artifact_metadata = self._trim_metadata(metadata)
+        flag_modified(artifact, "artifact_metadata")
+        if commit:
+            await self.session.commit()
+            await self.session.refresh(artifact)
+        return artifact
 
     async def require_artifact(self, *, workspace_id: str, artifact_id: UUID) -> OutputArtifact:
         artifact = await self.get_artifact(workspace_id=workspace_id, artifact_id=artifact_id)
@@ -525,6 +733,38 @@ class OutputArtifactService:
         if artifact_type not in {item.value for item in OutputArtifactType}:
             raise ValueError("Invalid output artifact artifact_type")
 
+    def _validate_pipeline_fields(
+        self,
+        *,
+        artifact_role: str | None,
+        artifact_stage: str,
+        retention_policy: str,
+    ) -> None:
+        if artifact_role is not None and artifact_role not in {item.value for item in OutputArtifactRole}:
+            raise ValueError("Invalid output artifact artifact_role")
+        if artifact_stage not in {item.value for item in OutputArtifactStage}:
+            raise ValueError("Invalid output artifact artifact_stage")
+        if retention_policy not in {item.value for item in OutputArtifactRetentionPolicy}:
+            raise ValueError("Invalid output artifact retention_policy")
+
+    def _role_from_artifact_type(self, artifact_type: str) -> str | None:
+        mapping = {
+            OutputArtifactType.SCREENSHOT.value: OutputArtifactRole.SCREENSHOT.value,
+            OutputArtifactType.REPORT.value: OutputArtifactRole.REPORT.value,
+            OutputArtifactType.MARKDOWN.value: OutputArtifactRole.MARKDOWN.value,
+            OutputArtifactType.HTML.value: OutputArtifactRole.HTML.value,
+            OutputArtifactType.HTML_SNAPSHOT.value: OutputArtifactRole.HTML.value,
+            OutputArtifactType.JSON.value: OutputArtifactRole.JSON.value,
+            OutputArtifactType.BUNDLE.value: OutputArtifactRole.BUNDLE.value,
+            OutputArtifactType.DEBUG.value: OutputArtifactRole.DEBUG.value,
+            OutputArtifactType.REPLAY.value: OutputArtifactRole.REPLAY.value,
+            OutputArtifactType.DATASET.value: OutputArtifactRole.DATASET.value,
+            OutputArtifactType.PLAN.value: OutputArtifactRole.REPORT.value,
+            OutputArtifactType.RAG_ANSWER.value: OutputArtifactRole.REPORT.value,
+            OutputArtifactType.CONTENT_DRAFT.value: OutputArtifactRole.MARKDOWN.value,
+        }
+        return mapping.get(artifact_type)
+
     def _artifact_type_from_message(self, *, metadata: dict[str, Any], content: str) -> str:
         route = str(metadata.get("route") or metadata.get("route_name") or "")
         if "content" in route:
@@ -589,11 +829,24 @@ class OutputArtifactService:
             "workspace_id": artifact.workspace_id,
             "source_type": artifact.source_type,
             "artifact_type": artifact.artifact_type,
+            "artifact_role": artifact.artifact_role,
+            "artifact_stage": artifact.artifact_stage,
             "title": artifact.title,
             "summary": artifact.summary,
             "content": artifact.content,
             "file_path": artifact.file_path,
             "mime_type": artifact.mime_type,
+            "status": artifact.status,
+            "parent_artifact_id": str(artifact.parent_artifact_id) if artifact.parent_artifact_id else None,
+            "root_artifact_id": str(artifact.root_artifact_id) if artifact.root_artifact_id else None,
+            "source_task_run_id": str(artifact.source_task_run_id) if artifact.source_task_run_id else None,
+            "source_playbook_run_id": str(artifact.source_playbook_run_id) if artifact.source_playbook_run_id else None,
+            "source_conversation_id": str(artifact.source_conversation_id) if artifact.source_conversation_id else None,
+            "source_runtime_session_id": str(artifact.source_runtime_session_id) if artifact.source_runtime_session_id else None,
+            "generated_by": artifact.generated_by,
+            "exportable": artifact.exportable,
+            "retention_policy": artifact.retention_policy,
+            "expires_at": artifact.expires_at.isoformat() if artifact.expires_at else None,
             "metadata": artifact.artifact_metadata,
             "created_at": artifact.created_at.isoformat(),
         }

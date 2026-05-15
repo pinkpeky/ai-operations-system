@@ -2,17 +2,17 @@
 
 Last updated: 2026-05-15
 
-This is the entry point for `E:\ai-operations-system`. After Phase 10.5, `docs/` is the project Single Source of Truth. After Phase 27, this source of truth is also verified by runtime checks through `scripts/verify_docs_runtime.py`.
+This is the entry point for `E:\ai-operations-system`. After Phase 10.5, `docs/` is the project Single Source of Truth. After Phase 44, this source of truth is also verified by runtime checks through `scripts/verify_docs_runtime.py`.
 
 ## Project Summary
 
-AI Operations System is a backend-first AI automation platform. It combines task orchestration, Agentic RAG, workspace isolation, knowledge lifecycle management, hybrid retrieval, reranking, evaluation trace storage, content generation, file-based knowledge ingestion, task reliability observability, foundational internal Tool Calling, Agent Memory foundation, fixed-chain Multi-Agent foundation, Agent Planning Foundation, Browser Adapter Foundation, Playwright Local Provider Integration, Remote Browser Worker Foundation, Real Browser Worker Service, Browser Worker Reliability, Persistent Browser Profile Foundation, Browser Profile Health & Recovery, Human-in-the-loop Browser Control, Browser Worker UI Access Placeholder, Browser Worker Security & Access Control, Customer Machine Worker Bootstrap, OpenClaw Worker Adapter Foundation, Remote Browser Runtime Foundation, Real Client Worker E2E Validation Plan, and Browser Runtime Observability & Replay.
+AI Operations System is a backend-first AI automation platform. It combines task orchestration, Agentic RAG, workspace isolation, knowledge lifecycle management, hybrid retrieval, reranking, evaluation trace storage, content generation, file-based knowledge ingestion, task reliability observability, foundational internal Tool Calling, Agent Memory foundation, fixed-chain Multi-Agent foundation, Agent Planning Foundation, Browser Adapter Foundation, Playwright Local Provider Integration, Remote Browser Worker Foundation, Real Browser Worker Service, Browser Worker Reliability, Persistent Browser Profile Foundation, Browser Profile Health & Recovery, Human-in-the-loop Browser Control, Browser Worker UI Access Placeholder, Browser Worker Security & Access Control, Customer Machine Worker Bootstrap, OpenClaw Worker Adapter Foundation, Remote Browser Runtime Foundation, Real Client Worker E2E Validation Plan, Browser Runtime Observability & Replay, Task Scheduler Persistence & Worker Recovery, and Output Artifact Pipeline & Export System.
 
 The project is not a frontend dashboard. It is a backend foundation for future content agents, support agents, data analysis agents, tool-calling agents, browser automation, monitoring, and more advanced multi-agent workflows.
 
 ## Current Status
 
-Phase 1 through Phase 43 are completed. Phase 35B remains a validation-plan phase; Phase 43 hardens task scheduler persistence and recovery on top of Phase 42 background execution.
+Phase 1 through Phase 44 are completed. Phase 35B remains a validation-plan phase; Phase 43 hardens task scheduler persistence and recovery on top of Phase 42 background execution, and Phase 44 adds Output Artifact Pipeline lineage, export, package, and retention foundations.
 
 Completed capabilities:
 
@@ -1099,3 +1099,9 @@ Completed capabilities:
 Recovery rules: running + expired lease or stale heartbeat -> retrying if retry budget remains, otherwise failed; pending scheduled due -> queued; retrying delay elapsed -> queued; waiting_approval is not auto-executed; completed/cancelled/expired are not recovered.
 
 Boundary: this remains an in-process scheduler foundation. It is not Celery, not RabbitMQ, not Kubernetes scheduler, and not production HA distributed queue. It does not implement TikTok / YouTube / X automation, real publishing, login, CAPTCHA, proxy/fingerprint bypass, real OpenClaw, or ComfyUI.
+
+<!-- PHASE44:START -->
+## Phase 44 Output Artifact Pipeline & Export System
+
+Phase 44 extends the Output Library into an Output Artifact Pipeline & Export System. It adds Artifact lineage, `artifact_relationships`, `ArtifactExportService`, `ArtifactPackagingService`, `ArtifactRetentionService`, package/export APIs, relationship graph lookup, `bundle.zip` generation, retention preview, and the Admin Dashboard Artifact Explorer. This phase preserves the boundary that the project is not a full DAM and not a production object storage platform.
+<!-- PHASE44:END -->

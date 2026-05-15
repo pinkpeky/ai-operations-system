@@ -457,6 +457,38 @@ function ChatPanel() {
     }
   };
 
+  const packageArtifact = async (artifactId: string) => {
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("packaging artifact");
+    try {
+      const packaged = await outputArtifactClient.packageArtifact(artifactId, settings);
+      setLastRunMetadata({ artifact_package: packaged });
+      setRunStatus(`artifact packaged: ${packaged.output_path ?? packaged.export_path ?? "bundle created"}`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Artifact package failed");
+      setRunStatus("artifact package error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const showArtifactLineage = async (artifactId: string) => {
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("loading artifact lineage");
+    try {
+      const lineage = await outputArtifactClient.getLineage(artifactId, settings);
+      setLastRunMetadata({ artifact_lineage: lineage });
+      setRunStatus(`lineage loaded: ${lineage.relationships.length} relationships`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Artifact lineage failed");
+      setRunStatus("artifact lineage error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const assistantMessages = messages.filter((message) => message.role === "assistant");
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
 
@@ -627,15 +659,26 @@ function ChatPanel() {
             <div className="approval-card-header">
               <strong>{artifact.title}</strong>
               <span>{artifact.artifact_type}</span>
+              <span>{artifact.artifact_role ?? "no_role"}</span>
+              <span>{artifact.artifact_stage}</span>
+              <span>{artifact.retention_policy}</span>
               <span>{artifact.source_type}</span>
             </div>
             <div className="chat-meta">
-              artifact_id: {artifact.id} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"}
+              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"}
             </div>
             <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
-            <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
-              Export markdown
-            </button>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
+                Export markdown
+              </button>
+              <button className="refresh-button" onClick={() => void packageArtifact(artifact.id)} disabled={chatLoading}>
+                Package
+              </button>
+              <button className="refresh-button" onClick={() => void showArtifactLineage(artifact.id)} disabled={chatLoading}>
+                Lineage
+              </button>
+            </div>
           </div>
         )) : (
           <div className="empty-chat">No generated artifacts yet.</div>

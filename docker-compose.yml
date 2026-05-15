@@ -101,6 +101,9 @@ services:
       OPENCLAW_PROVIDER: ${OPENCLAW_PROVIDER:-mock}
       OPENCLAW_ENABLED: ${OPENCLAW_ENABLED:-true}
       OPENCLAW_ACTION_TIMEOUT_SECONDS: ${OPENCLAW_ACTION_TIMEOUT_SECONDS:-60}
+      OUTPUT_ARTIFACT_DIR: ${OUTPUT_ARTIFACT_DIR:-storage/output_artifacts}
+      OUTPUT_PACKAGE_DIR: ${OUTPUT_PACKAGE_DIR:-storage/output_packages}
+      OUTPUT_EXPORT_DIR: ${OUTPUT_EXPORT_DIR:-storage/output_exports}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

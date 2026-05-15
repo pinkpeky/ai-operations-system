@@ -611,3 +611,39 @@ Admin Dashboard ?? Scheduler Health?lease status?recoverable badge?diagnostics p
 ??????? in-process scheduler foundation??? Celery??? Kubernetes???? production HA distributed queue?
 
 Phase 43 boundary marker: not Celery, not Kubernetes, not production HA.
+
+<!-- PHASE44_STATUS:START -->
+## Phase 44 - Output Artifact Pipeline & Export System
+
+???????
+
+??? Artifact lineage?`artifact_relationships`?`ArtifactExportService`?`ArtifactPackagingService`?`ArtifactRetentionService`?export/package APIs?Artifact Explorer UI?lineage graph ???relationship graph ???retention preview?bundle metadata????????? `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
+
+????????? DAM??? production object storage platform??????? S3 / MinIO / CDN ???
+<!-- PHASE44_STATUS:END -->
+
+<!-- PHASE44_SYNC:START -->
+## Phase 44?Output Artifact Pipeline & Export System
+
+Phase 44 ? Phase 41 Output Library ? Phase 42/43 task runtime ?????? Output Artifact Pipeline????? Artifact lineage?relationship graph???????retention policy preview????? Artifact Explorer ?????
+
+???????
+
+- `output_artifacts` ?? `parent_artifact_id`?`root_artifact_id`?`source_task_run_id`?`source_playbook_run_id`?`source_conversation_id`?`source_runtime_session_id`?`artifact_role`?`artifact_stage`?`generated_by`?`exportable`?`retention_policy`?`expires_at`?
+- `artifact_relationships` ?? relationship graph ???? `derived_from`?`packaged_into`?`summarized_from`?`exported_from`?`replay_of`?
+- `ArtifactExportService` ?? `export_markdown`?`export_html`?`export_json`?`export_bundle_zip`?`export_report_package`??????? browser runtime ? playbook?
+- `ArtifactPackagingService` ?? `package_playbook_run`?`package_task_run`?`package_browser_runtime_session`?`package_conversation`??? package artifact ? `bundle.zip` metadata?
+- `ArtifactRetentionService` ?? retention policy?expiration scan?cleanup preview?soft archive ????? preview ????????
+- API ?? `GET /api/v1/output-artifacts/{artifact_id}/lineage`?`GET /api/v1/output-artifacts/{artifact_id}/relationships`?`POST /api/v1/output-artifacts/{artifact_id}/export`?`POST /api/v1/output-artifacts/{artifact_id}/package`?`POST /api/v1/output-artifacts/cleanup/preview`?
+- Storage roots ?? `storage/output_artifacts`?`storage/output_packages`?`storage/output_exports`?
+- Admin Dashboard ?? Artifact Explorer?lineage graph panel?export actions?package actions?retention badge?archived indicator?bundle metadata preview?
+- Worker Console / Desktop ???? export?package?lineage summary?retention status ???
+
+???
+
+- ?????? DAM ???
+- ???? production object storage platform?
+- ??????? S3 / MinIO / CDN?
+- Export ?????? Browser Runtime?Playbook?Conversation?OpenClaw ? Task action?
+- ????? TikTok / YouTube / X automation???????????????????????? OpenClaw ? ComfyUI?
+<!-- PHASE44_SYNC:END -->

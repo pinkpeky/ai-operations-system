@@ -57,7 +57,10 @@ from app.models.enums import (
     DocumentIngestStatus,
     DocumentStatus,
     OutputArtifactSourceType,
+    OutputArtifactRole,
+    OutputArtifactStage,
     OutputArtifactStatus,
+    OutputArtifactRetentionPolicy,
     OutputArtifactType,
     PublishLogStatus,
     PlanStatus,
@@ -74,7 +77,7 @@ from app.models.enums import (
 from app.models.memory import AgentMemory, ConversationMessage, ConversationSession, MemoryOperationLog
 from app.models.multi_agent import AgentHandoff, AgentMessage, AgentRun
 from app.models.openclaw import OpenClawActionLog
-from app.models.output_artifact import OutputArtifact
+from app.models.output_artifact import ArtifactRelationship, OutputArtifact
 from app.models.planning import Plan, PlanReview, PlanStep
 from app.models.publish_log import PublishLog
 from app.models.rag_eval import RAGEvalItem, RAGEvalRun
@@ -149,8 +152,12 @@ __all__ = [
     "MemoryOperationLog",
     "OpenClawActionLog",
     "OutputArtifact",
+    "ArtifactRelationship",
     "OutputArtifactSourceType",
+    "OutputArtifactRole",
+    "OutputArtifactStage",
     "OutputArtifactStatus",
+    "OutputArtifactRetentionPolicy",
     "OutputArtifactType",
     "Plan",
     "PlanReview",

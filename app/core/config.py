@@ -127,6 +127,8 @@ class Settings(BaseSettings):
         alias="BROWSER_RUNTIME_SNAPSHOT_DIR",
     )
     output_artifact_dir: str = Field(default="storage/output_artifacts", alias="OUTPUT_ARTIFACT_DIR")
+    output_package_dir: str = Field(default="storage/output_packages", alias="OUTPUT_PACKAGE_DIR")
+    output_export_dir: str = Field(default="storage/output_exports", alias="OUTPUT_EXPORT_DIR")
     browser_profile_root: str = Field(default="worker/profiles", alias="BROWSER_PROFILE_ROOT")
     browser_profile_lock_timeout_seconds: int = Field(
         default=1800,

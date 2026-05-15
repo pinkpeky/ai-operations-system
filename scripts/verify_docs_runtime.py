@@ -160,6 +160,9 @@ class DocsRuntimeVerifier:
             "app/schemas/output_artifact.py",
             "app/schemas/task_run.py",
             "app/services/output_artifact_service.py",
+            "app/services/artifact_export_service.py",
+            "app/services/artifact_packaging_service.py",
+            "app/services/artifact_retention_service.py",
             "app/task_orchestration/service.py",
             "app/task_orchestration/background_executor.py",
             "app/task_orchestration/retry_policy.py",
@@ -266,6 +269,9 @@ class DocsRuntimeVerifier:
             "TASK_LEASE_SECONDS": str(settings.task_lease_seconds),
             "TASK_STUCK_TIMEOUT_SECONDS": str(settings.task_stuck_timeout_seconds),
             "TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS": str(settings.task_scheduler_recovery_interval_seconds),
+            "OUTPUT_ARTIFACT_DIR": settings.output_artifact_dir,
+            "OUTPUT_PACKAGE_DIR": settings.output_package_dir,
+            "OUTPUT_EXPORT_DIR": settings.output_export_dir,
         }
         for key, value in expected_values.items():
             if key not in current_runtime or str(value) not in current_runtime:
@@ -421,6 +427,10 @@ class DocsRuntimeVerifier:
             "/api/v1/output-artifacts/from-message/{message_id}",
             "/api/v1/output-artifacts/from-playbook-run/{run_id}",
             "/api/v1/output-artifacts/{artifact_id}/export",
+            "/api/v1/output-artifacts/{artifact_id}/lineage",
+            "/api/v1/output-artifacts/{artifact_id}/relationships",
+            "/api/v1/output-artifacts/{artifact_id}/package",
+            "/api/v1/output-artifacts/cleanup/preview",
             "/api/v1/task-runs",
             "/api/v1/task-runs/{task_run_id}",
             "/api/v1/task-runs/{task_run_id}/events",
@@ -848,6 +858,34 @@ class DocsRuntimeVerifier:
             "Output Library",
             "artifact_type",
             "source_type",
+            "parent_artifact_id",
+            "root_artifact_id",
+            "source_task_run_id",
+            "source_playbook_run_id",
+            "source_conversation_id",
+            "source_runtime_session_id",
+            "artifact_role",
+            "artifact_stage",
+            "generated_by",
+            "exportable",
+            "retention_policy",
+            "expires_at",
+            "artifact_relationships",
+            "relationship_type",
+            "derived_from",
+            "packaged_into",
+            "exported_from",
+            "ArtifactExportService",
+            "ArtifactPackagingService",
+            "ArtifactRetentionService",
+            "Artifact Explorer",
+            "lineage graph",
+            "relationship graph",
+            "bundle.zip",
+            "storage/output_packages",
+            "storage/output_exports",
+            "retention preview",
+            "production object storage platform",
             "content_draft",
             "rag_answer",
             "html_snapshot",
@@ -1302,6 +1340,16 @@ class DocsRuntimeVerifier:
             "Failed Diagnostics",
             "stuck task recovery",
             "expired lease",
+            "Phase 44",
+            "Output Artifact Pipeline & Export System",
+            "Artifact lineage",
+            "artifact_relationships",
+            "ArtifactExportService",
+            "ArtifactPackagingService",
+            "ArtifactRetentionService",
+            "Artifact Explorer",
+            "not a full DAM",
+            "production object storage platform",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1419,8 +1467,22 @@ class DocsRuntimeVerifier:
                 or "not production HA" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 43 scope")
+            elif not re.search(r"Phase\s+44", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 44")
+            elif (
+                "Output Artifact Pipeline & Export System" not in text
+                or "Artifact lineage" not in text
+                or "artifact_relationships" not in text
+                or "ArtifactExportService" not in text
+                or "ArtifactPackagingService" not in text
+                or "ArtifactRetentionService" not in text
+                or "Artifact Explorer" not in text
+                or "not a full DAM" not in text
+                or "production object storage platform" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 44 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, and Phase 43")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, and Phase 44")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""
