@@ -2,15 +2,15 @@
 
 ## Current Stable Baseline
 
-`main` remains the Phase 42 stable baseline. It includes the runtime, browser worker, worker console, admin dashboard, conversation runtime, approval flow, playbooks, output artifacts, and task orchestration foundation that were squash-merged through PR #2.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. It includes the Phase 42 runtime foundation plus the accepted Phase 43-55 scheduler, artifact, workflow, template, observability, packaging, deployment, smoke, integration, and readiness layers.
 
-`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint, PR #14 is Phase 53, and PR #15 is Phase 54. This documentation branch records the complete Phase 1-55 development state, but that does not mean all phases are merged into `main`.
+PR #3-#12 remain open for cleanup or superseded disposition. PR #13 is the Docs Stabilization Sprint, PR #14 is Phase 53, and PR #15 is Phase 54; they remain reviewable until the follow-up PR cleanup phase. PR #16 was accepted into the Phase 54 branch, and PR #17 merged the combined Phase 43-55 RC into `main`.
 
 ## Current Active Development Branch
 
-`codex/phase-55-mainline-integration-release-candidate` is the active mainline integration preparation branch. It is based on `codex/phase-54-integration-branch-pr-chain-reconciliation`, not on `main`.
+`main` is the active accepted baseline branch for Phase 55 post-merge verification.
 
-Current effective phase: Phase 55. Phase 56 was reverted and is not active, not part of the Release Candidate stack, and should not be used as the base for stabilization.
+Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not part of the accepted baseline, and should not be used as the base for stabilization.
 
 ## Open PR List
 
@@ -30,7 +30,8 @@ Current effective phase: Phase 55. Phase 56 was reverted and is not active, not 
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
 | #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
-| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Open; active RC readiness PR |
+| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Merged into PR #15 branch |
+| #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
 
 ## Phase Timeline Table
 

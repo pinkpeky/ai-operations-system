@@ -1,55 +1,52 @@
 # Mainline Integration Plan
 
-Phase 55 prepares a controlled mainline Release Candidate merge window. It does not merge into `main`, does not add runtime features, and does not declare the system production-ready.
+Phase 55 prepared and completed a controlled mainline Release Candidate merge window. PR #17 merged the Phase 43-55 Combined Release Candidate into `main`. This did not add runtime features beyond the accepted stack and does not declare the system production-ready.
 
-PR #16 is the active Phase 55 RC readiness PR. Phase 56 was reverted and is not active, not part of this plan, and not a valid base for the RC decision.
+PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active, not part of this plan, and not a valid base for post-merge stabilization.
 
 ## Current Baseline
 
-`main` remains the Phase 42 stable baseline.
+`main` is the Phase 55 stable baseline after PR #17.
 
 ## Integration Candidate Stack
 
-The Phase 43-54 stack is represented by open PRs and integration branches:
+The Phase 43-55 stack is accepted on `main` through PR #17. The earlier PRs remain open only for cleanup, archival, or superseded disposition:
 
 - PR #13: Docs Stabilization Sprint.
 - PR #3-#12: Phase 43-52 functional, release, deployment, and packaging stack.
 - PR #14: Phase 53 Release Smoke Test Matrix and Preflight Automation.
 - PR #15: Phase 54 Integration Branch and PR Chain Reconciliation.
-- PR #16: Phase 55 Mainline Integration Release Candidate Readiness.
+- PR #16: Phase 55 Mainline Integration Release Candidate Readiness; merged into the Phase 54 branch.
+- PR #17: Phase 43-55 Combined Release Candidate; merged to `main`.
 
-Phase 55 builds the mainline readiness layer on top of PR #15.
+Phase 55 built the mainline readiness layer on top of PR #15, then PR #17 accepted the combined stack into `main`.
 
 ## Recommended Merge Window
 
-Open a short, explicit mainline merge window only after:
+Post-merge verification should remain explicit and short. It should confirm:
 
-- `scripts/mainline_readiness.py --profile server-docker` passes.
-- `scripts/simulate_mainline_merge.py --base main --head current --json` has been reviewed.
-- `release/reports/superseded_prs.md` has been reviewed.
+- `scripts/mainline_readiness.py --profile server-docker` passes or expected post-merge warnings are documented.
+- `scripts/release_preflight.py --profile server-docker` passes.
+- `scripts/release_smoke_matrix.py` passes.
+- Docs/render QA, migration continuity, runtime hygiene, frontend builds, pytest, and Docker verification pass.
 - All generated readiness reports remain local QA artifacts unless explicitly requested.
 
 ## Recommended Release Candidate Branch
 
-Use:
+Accepted RC source:
 
-`codex/phase-43-55-release-candidate`
+`codex/phase-54-integration-branch-pr-chain-reconciliation`
 
-The RC source should be:
-
-`codex/phase-55-mainline-integration-release-candidate`
-
-The target should remain:
+Accepted target:
 
 `main`
 
 ## Recommended Merge Path
 
-1. Keep PR #15 as the Phase 54 base for Phase 55.
-2. Land Phase 55 as a preparation PR against PR #15.
-3. After manual review, create a dedicated RC branch from the approved Phase 55 branch.
-4. Open a separate RC PR toward `main`.
-5. Do not merge the RC PR until all blocking gates pass.
+1. Keep PR #3-#15 and PR #1 open during post-merge verification.
+2. Confirm `main` contains the accepted Phase 43-55 RC.
+3. Do not begin PR cleanup until post-merge verification passes.
+4. Do not begin Phase 56 until cleanup and rollback posture are explicitly accepted.
 
 ## Review Order
 
@@ -62,11 +59,11 @@ The target should remain:
 
 ## PR Disposition
 
-- PR #13 should remain reviewable as the docs stabilization source.
-- PR #3-#12 may be superseded by a final RC PR if the RC is reviewed as a combined integration merge.
-- PR #14 remains the release preflight source and may be superseded by the RC after acceptance.
-- PR #15 remains the integration reconciliation source and is the correct base for Phase 55.
-- No PR should be deleted. Superseded PRs should be closed only after the RC is accepted or the manual review owner decides to keep phase-by-phase merges.
+- PR #13 should remain reviewable as the docs stabilization source until cleanup.
+- PR #3-#12 may be marked superseded only after post-merge verification passes.
+- PR #14 remains the release preflight source until cleanup.
+- PR #15 remains the integration reconciliation source until cleanup.
+- No PR should be deleted. Superseded PRs should be closed only in the dedicated cleanup phase.
 
 ## Manual Confirmation Risks
 
@@ -78,8 +75,8 @@ The target should remain:
 
 ## Rollback Strategy
 
-If the final RC lands as one merge, revert the RC merge commit. If phases are merged separately, revert in reverse dependency order: Phase 55 back to Phase 43, then docs stabilization if needed. Do not force push `main`.
+If the accepted RC must be rolled back, revert PR #17's merge commit from `main`. If phases are later disentangled separately, revert in reverse dependency order: Phase 55 back to Phase 43, then docs stabilization if needed. Do not force push `main`.
 
 ## Boundary
 
-Phase 55 is Mainline Release Candidate preparation only. It is not a production release, not a formal installer, not code signed, not an auto updater, not Kubernetes/Helm/Terraform, not production HA orchestration, not real OpenClaw, and not real social automation.
+Phase 55 is accepted as the mainline Release Candidate baseline only. It is not a production release, not a formal installer, not code signed, not an auto updater, not Kubernetes/Helm/Terraform, not production HA orchestration, not real OpenClaw, and not real social automation.

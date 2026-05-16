@@ -1,13 +1,13 @@
 # Release Candidate Process
 
-The Release Candidate process defines how the Phase 43-55 integration stack can be prepared for `main` without directly changing `main` during preparation.
+The Release Candidate process defines how the Phase 43-55 integration stack was prepared for `main` and accepted through PR #17.
 
-Current effective phase: Phase 55. PR #16 is the active RC readiness PR, with `main` still serving as the Phase 42 stable baseline. Phase 56 was reverted and is not active, not included in this process, and not part of the rollback path.
+Current effective phase: Phase 55 Mainline Acceptance. PR #16 was accepted into the Phase 54 branch, and PR #17 merged the Phase 43-55 Combined Release Candidate into `main`. `main` is the Phase 55 stable baseline. Phase 56 was reverted and is not active, not included in this process, and not part of the rollback path.
 
 ## Branch Model
 
-- Candidate branch: `codex/phase-43-55-release-candidate`
-- Source branch: `codex/phase-55-mainline-integration-release-candidate`
+- Candidate branch: `codex/phase-54-integration-branch-pr-chain-reconciliation`
+- Source branch: `codex/phase-54-integration-branch-pr-chain-reconciliation`
 - Target branch: `main`
 
 The model is recorded in `release/integration/release_candidate_model.json`.
@@ -71,7 +71,7 @@ Preferred rollback is a single revert of the RC merge commit. If phases are merg
 
 Never force push `main`, delete phase branches, or remove migration files without an explicit migration rollback review.
 
-If the Phase 55 RC merge fails before acceptance, return to `main` as the Phase 42 stable baseline, keep PR #3-#15 open, and re-review PR #3 through PR #16 in dependency order. Do not include reverted Phase 56 work in the rollback or hotfix path.
+If the accepted Phase 55 RC fails after merge, revert PR #17's merge commit from `main`, keep PR #3-#15 open, and re-review PR #3 through PR #16 in dependency order. Do not include reverted Phase 56 work in the rollback or hotfix path.
 
 ## Non-Goals
 

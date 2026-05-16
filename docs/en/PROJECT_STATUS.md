@@ -2,7 +2,7 @@
 
 ## Branch Status
 
-`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint. This documentation branch records the complete Phase 1-52 development state, but that does not mean all phases are merged into `main`.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. PR #3-#12 remain open for cleanup or superseded disposition. PR #13 is the Docs Stabilization Sprint. PR #14 is Phase 53 Release Smoke Test Matrix & Preflight Automation. PR #15 is Phase 54 Integration Branch & PR Chain Reconciliation. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
 
 ## Phase 36: Server Admin Dashboard Foundation
@@ -914,4 +914,4 @@ Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; serv
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
 
-The canonical project recovery state is: `main` remains the Phase 42 stable baseline, the active docs branch is `codex/docs-stabilization-sprint`, and Phase 43-52 remain open PRs layered on top of the Phase 42 baseline. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.
+The canonical project recovery state is: `main` is the Phase 55 stable baseline after PR #17, PR #3-#15 remain open until the cleanup / superseded phase, and Phase 56 remains reverted and inactive. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.

@@ -1,19 +1,21 @@
 # Release Readiness
 
-Phase 53 introduces Release Smoke Test Matrix & Preflight Automation for the current integration candidate branch.
+Phase 53 introduced Release Smoke Test Matrix & Preflight Automation for the integration candidate branch. After PR #17, those gates are part of the accepted Phase 55 baseline on `main`.
 
 ## Status
 
-- Current stable `main`: Phase 42.
-- Current effective phase: Phase 55 Mainline Integration & Release Candidate readiness.
-- Phase 43-52: open PR chain.
+- Current stable `main`: Phase 55.
+- Current effective phase: Phase 55 Mainline Acceptance / post-merge verification.
+- Phase 43-55: accepted into `main` through PR #17.
+- Phase 43-52: PRs remain open for cleanup or superseded disposition.
 - PR #13: Docs Stabilization Sprint.
 - PR #14: Phase 53 Release Smoke Test Matrix & Preflight Automation.
 - PR #15: Phase 54 Integration Branch & PR Chain Reconciliation.
-- PR #16: active Phase 55 RC readiness PR.
+- PR #16: merged into the Phase 54 branch.
+- PR #17: merged Phase 43-55 Combined Release Candidate into `main`.
 - Phase 56: reverted/not active; excluded from the RC decision.
 
-This branch records the Phase 1-55 development state, but it does not mean all phases are merged into `main`.
+This branch records the accepted Phase 1-55 development state. It is still not a production release.
 
 ## Readiness Categories
 
@@ -40,7 +42,7 @@ The generated `release/reports/release_readiness_report.json` is a local QA arti
 
 ## Current Boundaries
 
-This is an Integration Candidate and Release Candidate readiness branch, not a production release. It is smoke verified, deployment verified, and docs/render QA verified when the above checks pass.
+This is a Phase 55 stable baseline on `main`, not a production release. It is smoke verified, deployment verified, and docs/render QA verified when the above checks pass.
 
 It is not:
 

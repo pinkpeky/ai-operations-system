@@ -2,15 +2,15 @@
 
 ## Current Active Branch
 
-`codex/phase-55-mainline-integration-release-candidate`
+`main`
 
-`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint, PR #14 is Phase 53, and PR #15 is Phase 54. This branch records the complete Phase 1-55 development state, but that does not mean all phases are merged into `main`.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. PR #3-#12 remain open for cleanup or superseded disposition. PR #13 is the Docs Stabilization Sprint, and PR #14/#15 remain reviewable until the follow-up PR cleanup phase. PR #1 remains open.
 
-Current effective phase: Phase 55 Mainline Integration & Release Candidate readiness. Phase 56 was reverted and is not active, not included in the RC, and not a valid continuation point for this merge decision.
+Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not included in the accepted baseline, and not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Phase 55 is the current mainline integration preparation step: Mainline Integration & Release Candidate Merge Window. It does not add runtime features; it prepares release candidate branch strategy, merge simulation, superseded PR decisions, readiness gates, and the final RC merge decision.
+Post-merge stabilization is the current step. It does not add runtime features; it verifies the accepted Phase 55 baseline on `main`, preserves the rollback path, and prepares a separate PR cleanup / superseded marking phase.
 
 ## Open PRs
 
@@ -30,7 +30,8 @@ Phase 55 is the current mainline integration preparation step: Mainline Integrat
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
 | #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
-| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Open; active RC readiness PR |
+| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Merged into PR #15 branch |
+| #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
 
 ## Current Architecture State
 
@@ -46,12 +47,13 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Current Deployment State
 
-- `main` is Phase 42 stable.
-- Phase 43-52 are open PRs layered on top of each other.
+- `main` is Phase 55 stable after PR #17.
+- Phase 43-55 are present on `main` through the combined RC merge.
+- Phase 43-52 remain open as reviewable historical PRs until the cleanup / superseded phase.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
 - Phase 54 adds integration strategy, PR chain inventory, conflict surface detection, API/frontend drift checks, and integration report generation.
 - Phase 55 adds mainline readiness, merge simulation, superseded PR decision reporting, and Release Candidate process documentation.
-- Phase 56 is reverted/not active and must not enter the Phase 55 RC.
+- Phase 56 is reverted/not active and must not enter post-merge stabilization.
 
 ## Current Packaging State
 
@@ -87,8 +89,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Keep feature work paused until docs verifier, render QA, and phase indexes are stable.
-2. Review PR #3 through PR #12 in dependency order before merging any later branch.
-3. Decide whether PR #1 should be closed as superseded or merged independently after comparing with the later runtime branches.
-4. Add CI checks for docs encoding, DOCX render readiness, and release/deployment validation.
-5. Run `scripts/mainline_readiness.py --profile server-docker`, review merge simulation and superseded PR decisions, then decide manually whether to create the final Release Candidate PR toward `main`.
+1. Keep feature work paused until post-merge verification on `main` is complete.
+2. Keep PR #3-#15 and PR #1 open until the separate cleanup / superseded marking phase.
+3. Decide whether PR #1 should be closed as superseded or merged independently after comparing it with the accepted mainline runtime.
+4. Add CI checks for docs encoding, DOCX render readiness, and release/deployment validation in a later maintenance phase.
+5. Do not start Phase 56 until PR cleanup, rollback posture, and deferred-feature boundaries are explicitly accepted.

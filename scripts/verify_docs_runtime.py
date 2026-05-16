@@ -362,13 +362,13 @@ class DocsRuntimeVerifier:
             self.pass_("DOC_RENDER_QA.md render paths are intact")
 
     def check_project_status_consistency(self) -> None:
-        """Ensure docs do not imply that Phase 43-52 are merged into main."""
+        """Ensure status docs describe the accepted Phase 55 mainline baseline."""
 
         required_terms = [
-            "`main` remains the Phase 42 stable baseline",
-            "PR #3-#12 cover Phase 43-52 and remain open",
+            "`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate",
+            "PR #3-#12 remain open for cleanup or superseded disposition",
             "PR #13 is the Docs Stabilization Sprint",
-            "does not mean all phases are merged into `main`",
+            "Phase 56 was reverted and is not active",
         ]
         status_files = [
             "docs/PROJECT_OVERVIEW.md",

@@ -23,8 +23,8 @@ def test_release_candidate_docs_include_required_boundaries() -> None:
         ]
     )
     for term in [
-        "main` remains the Phase 42 stable baseline",
-        "Phase 55 is Mainline Release Candidate preparation only",
+        "`main` is the Phase 55 stable baseline",
+        "Phase 55 is accepted as the mainline Release Candidate baseline only",
         "Rollback",
         "not code signing",
         "not Kubernetes",

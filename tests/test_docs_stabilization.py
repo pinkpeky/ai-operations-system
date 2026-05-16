@@ -64,12 +64,12 @@ def test_docs_have_no_question_mark_separator_pollution() -> None:
             assert not phase_separator.search(protected), f"{path}:{line_number}"
 
 
-def test_project_status_wording_matches_open_pr_chain() -> None:
+def test_project_status_wording_matches_accepted_mainline_baseline() -> None:
     required_terms = [
-        "`main` remains the Phase 42 stable baseline",
-        "PR #3-#12 cover Phase 43-52 and remain open",
+        "`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate",
+        "PR #3-#12 remain open for cleanup or superseded disposition",
         "PR #13 is the Docs Stabilization Sprint",
-        "does not mean all phases are merged into `main`",
+        "Phase 56 was reverted and is not active",
     ]
     status_files = [
         "docs/PROJECT_OVERVIEW.md",
