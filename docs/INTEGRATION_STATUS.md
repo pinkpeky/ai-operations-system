@@ -12,6 +12,7 @@ Phase 43-53 are represented by open PRs and should be reconciled before merging 
 - PR #3-#12: Phase 43-52 open PR chain.
 - PR #14: Phase 53 Release Smoke Test Matrix and Preflight Automation.
 - Phase 54: Integration Branch and PR Chain Reconciliation.
+- Phase 55: Mainline Integration and Release Candidate preparation.
 
 ## Phase 54 Scope
 
@@ -46,3 +47,7 @@ The current system is smoke verified and deployment verified as an Integration C
 ## Merge Readiness
 
 Use `scripts/integration_preflight.py --profile server-docker` after refreshing the open PR chain. Generated reports under `release/reports/` are QA artifacts and should stay ignored unless explicitly requested.
+
+## Phase 55 Readiness Position
+
+Use `scripts/mainline_readiness.py --profile server-docker` for the RC readiness gate. Use `scripts/simulate_mainline_merge.py --base main --head current --json` before creating any final RC PR toward `main`. Phase 55 keeps generated mainline integration reports ignored by default.

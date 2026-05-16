@@ -5,11 +5,15 @@ Phase 53 introduces Release Smoke Test Matrix & Preflight Automation for the cur
 ## Status
 
 - Current stable `main`: Phase 42.
+- Current effective phase: Phase 55 Mainline Integration & Release Candidate readiness.
 - Phase 43-52: open PR chain.
 - PR #13: Docs Stabilization Sprint.
-- Phase 53: Release smoke matrix and preflight automation on top of the docs stabilization branch.
+- PR #14: Phase 53 Release Smoke Test Matrix & Preflight Automation.
+- PR #15: Phase 54 Integration Branch & PR Chain Reconciliation.
+- PR #16: active Phase 55 RC readiness PR.
+- Phase 56: reverted/not active; excluded from the RC decision.
 
-This branch records the Phase 1-53 development state, but it does not mean all phases are merged into `main`.
+This branch records the Phase 1-55 development state, but it does not mean all phases are merged into `main`.
 
 ## Readiness Categories
 
@@ -36,7 +40,7 @@ The generated `release/reports/release_readiness_report.json` is a local QA arti
 
 ## Current Boundaries
 
-This is an Integration Candidate, not a production release. It is smoke verified, deployment verified, and docs/render QA verified when the above checks pass.
+This is an Integration Candidate and Release Candidate readiness branch, not a production release. It is smoke verified, deployment verified, and docs/render QA verified when the above checks pass.
 
 It is not:
 
@@ -62,3 +66,7 @@ python scripts/generate_integration_report.py
 ```
 
 Generated integration reports under `release/reports/` are ignored QA artifacts unless explicitly requested for archival.
+
+## Phase 55 Mainline Readiness
+
+Phase 55 adds mainline readiness tooling: `mainline_readiness.py`, `simulate_mainline_merge.py`, `generate_superseded_pr_report.py`, `generate_mainline_integration_report.py`, and `release_candidate_model.json`. These gates prepare a Release Candidate merge window and do not create a production release.

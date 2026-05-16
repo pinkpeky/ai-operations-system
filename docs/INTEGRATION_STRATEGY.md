@@ -63,3 +63,7 @@ Rollback the integration candidate merge commit if the full stack lands as one r
 ## Boundary
 
 This stack is an Integration Candidate. It is not Production Ready, not a production installer, not code signed, not Kubernetes/Helm/Terraform, and not production HA orchestration.
+
+## Phase 55 Extension
+
+Phase 55 builds on this strategy with `docs/MAINLINE_INTEGRATION_PLAN.md`, `docs/RELEASE_CANDIDATE_PROCESS.md`, `release/integration/release_candidate_model.json`, `scripts/mainline_readiness.py`, `scripts/simulate_mainline_merge.py`, `scripts/generate_superseded_pr_report.py`, and `scripts/generate_mainline_integration_report.py`. Phase 55 still does not modify `main`; it only prepares the Release Candidate decision package.

@@ -1708,6 +1708,14 @@ The integration preflight coordinates release preflight, smoke matrix, docs veri
 Boundaries: Phase 54 does not add runtime features, does not merge PRs automatically, does not resolve conflicts automatically, and is not Kubernetes, Helm, Terraform, CI/CD SaaS, production HA orchestration, a real installer, code signing, or auto update.
 <!-- PHASE54_SYNC:END -->
 
+<!-- PHASE55_SYNC:BEGIN -->
+## Phase 55: Mainline Integration & Release Candidate Merge Window
+
+Phase 55 does not add runtime features. It adds Mainline Release Candidate preparation: `docs/MAINLINE_INTEGRATION_PLAN.md`, `docs/RELEASE_CANDIDATE_PROCESS.md`, `release/integration/release_candidate_model.json`, `scripts/mainline_readiness.py`, `scripts/simulate_mainline_merge.py`, `scripts/generate_superseded_pr_report.py`, and `scripts/generate_mainline_integration_report.py`.
+
+The runtime remains smoke verified and integration preflight verified, but not production-ready. Phase 55 keeps `main` unchanged and prepares the manual RC decision package.
+<!-- PHASE55_SYNC:END -->
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

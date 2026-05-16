@@ -56,6 +56,15 @@
       "conflict_detection": "scripts/detect_integration_conflicts.py",
       "drift_check": "scripts/check_api_frontend_drift.py",
       "report_generator": "scripts/generate_integration_report.py"
+    },
+    "mainline_release_candidate_readiness": {
+      "phase": "55",
+      "status": "mainline_release_candidate_preparation",
+      "candidate_model": "release/integration/release_candidate_model.json",
+      "readiness_runner": "scripts/mainline_readiness.py",
+      "merge_simulation": "scripts/simulate_mainline_merge.py",
+      "superseded_pr_report": "release/reports/superseded_prs.md",
+      "mainline_report_generator": "scripts/generate_mainline_integration_report.py"
     }
   },
   "boundaries": [

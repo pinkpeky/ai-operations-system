@@ -55,3 +55,7 @@ The smoke matrix is not a GitHub Actions pipeline, Kubernetes scheduler, Helm ch
 ## Phase 54 Integration Use
 
 Phase 54 integration preflight calls this matrix as one verification group. The matrix remains read-only smoke orchestration: it does not merge PRs, rebase branches, or resolve conflicts.
+
+## Phase 55 Mainline Use
+
+Phase 55 mainline readiness calls this matrix as one Release Candidate gate. `scripts/mainline_readiness.py --profile server-docker` wraps integration preflight, release preflight, release smoke matrix, docs verifier, migration continuity, runtime hygiene, release packaging validator, deployment verification, API/frontend drift, PR chain inventory, conflict surface detection, git cleanliness, ignored artifact checks, and branch lineage checks.

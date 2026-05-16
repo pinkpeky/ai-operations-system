@@ -34,6 +34,9 @@ FORBIDDEN_EXACT = {
     "release/reports/integration_readiness_report.md",
     "release/reports/conflict_surface_report.json",
     "release/reports/conflict_surface_report.md",
+    "release/reports/mainline_integration_report.json",
+    "release/reports/mainline_integration_report.md",
+    "release/reports/superseded_prs.json",
 }
 
 FORBIDDEN_SEGMENTS = {

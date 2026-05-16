@@ -1348,6 +1348,18 @@ Boundaries: Phase 54 does not add runtime features, does not automatically merge
 Keywords: Phase 54; Integration Branch & PR Chain Reconciliation; INTEGRATION_STRATEGY.md; INTEGRATION_STATUS.md; integration_preflight.py; detect_integration_conflicts.py; check_api_frontend_drift.py; PR chain; conflict surface; integration readiness report.
 <!-- PHASE54_SYNC:END -->
 
+<!-- PHASE55_SYNC:BEGIN -->
+## Phase 55: Mainline Integration & Release Candidate Merge Window
+
+Phase 55 adds Mainline Integration and Release Candidate preparation. It introduces `docs/MAINLINE_INTEGRATION_PLAN.md`, `docs/RELEASE_CANDIDATE_PROCESS.md`, `release/integration/release_candidate_model.json`, `scripts/mainline_readiness.py`, `scripts/simulate_mainline_merge.py`, `scripts/generate_superseded_pr_report.py`, and `scripts/generate_mainline_integration_report.py`.
+
+The phase prepares a controlled Release Candidate merge window for the Phase 43-54 integration candidate stack. It does not merge into `main`, does not add runtime features, and does not declare the system production-ready.
+
+Boundaries: Phase 55 is not a production release, not a production installer, not code signing, not an auto updater, not Kubernetes, not HA orchestration, not real OpenClaw, and not real social automation.
+
+Keywords: Phase 55; Mainline Integration; Release Candidate; MAINLINE_INTEGRATION_PLAN.md; RELEASE_CANDIDATE_PROCESS.md; mainline_readiness.py; simulate_mainline_merge.py; superseded PR; mainline integration report.
+<!-- PHASE55_SYNC:END -->
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

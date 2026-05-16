@@ -4,11 +4,13 @@
 
 `main` remains the Phase 42 stable baseline. It includes the runtime, browser worker, worker console, admin dashboard, conversation runtime, approval flow, playbooks, output artifacts, and task orchestration foundation that were squash-merged through PR #2.
 
-`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint. This documentation branch records the complete Phase 1-52 development state, but that does not mean all phases are merged into `main`.
+`main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint, PR #14 is Phase 53, and PR #15 is Phase 54. This documentation branch records the complete Phase 1-55 development state, but that does not mean all phases are merged into `main`.
 
 ## Current Active Development Branch
 
-`codex/phase-54-integration-branch-pr-chain-reconciliation` is the active integration stabilization branch. It is based on `codex/phase-53-release-smoke-test-matrix-preflight`, not on `main`.
+`codex/phase-55-mainline-integration-release-candidate` is the active mainline integration preparation branch. It is based on `codex/phase-54-integration-branch-pr-chain-reconciliation`, not on `main`.
+
+Current effective phase: Phase 55. Phase 56 was reverted and is not active, not part of the Release Candidate stack, and should not be used as the base for stabilization.
 
 ## Open PR List
 
@@ -27,7 +29,8 @@
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Open |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
-| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Planned/Open after push |
+| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
+| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Open; active RC readiness PR |
 
 ## Phase Timeline Table
 
@@ -87,7 +90,8 @@
 | 51 | Release Packaging & Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | #11 | Open PR | Release manifest, version metadata, bundle scripts, startup scripts. |
 | 52 | Deployment Profiles & Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | #12 | Open PR | Deployment profiles, env generator, dependency/port/env verification. |
 | 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Open PR | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
-| 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Planned/Open after push | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
+| 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Open PR | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
+| 55 | Mainline Integration & Release Candidate Merge Window | `codex/phase-55-mainline-integration-release-candidate` | #16 | In progress | Mainline readiness, merge simulation, release candidate model, superseded PR report. |
 
 ## Runtime Evolution
 
@@ -112,3 +116,7 @@ Governance starts with conversation approval gates and risk policy in Phase 39, 
 ## Desktop Runtime Evolution
 
 The desktop track moves from Web GUI to Tauri shell, tray controls, runtime UX diagnostics, icon resource readiness, and packaging readiness. It is still not a signed installer, not an auto-updater, and not a production desktop distribution.
+
+## Mainline Integration Evolution
+
+Phase 54 adds the integration reconciliation layer. Phase 55 adds the mainline Release Candidate preparation layer, including the RC branch model, mainline readiness runner, merge simulation, superseded PR decision report, and rollback plan.

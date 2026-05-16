@@ -9,5 +9,6 @@ Files:
 - `integration_matrix.json`: per-phase impact and smoke requirements.
 - `phase_dependency_matrix.json`: dependency order and merge strategy.
 - `conflict_surface_matrix.json`: high-risk integration surfaces.
+- `release_candidate_model.json`: Phase 55 Release Candidate branch model, required gates, warning gates, manual review gates, and rollback model.
 
-This is not a production CI/CD system, Kubernetes deployment model, or release installer. It is a reconciliation layer for the current integration candidate stack.
+This is not a production CI/CD system, Kubernetes deployment model, release installer, code signing flow, or auto updater. It is a reconciliation and Release Candidate preparation layer for the current integration candidate stack.
