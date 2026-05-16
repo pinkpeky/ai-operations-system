@@ -2,6 +2,8 @@
 
 Phase 55 prepares a controlled mainline Release Candidate merge window. It does not merge into `main`, does not add runtime features, and does not declare the system production-ready.
 
+PR #16 is the active Phase 55 RC readiness PR. Phase 56 was reverted and is not active, not part of this plan, and not a valid base for the RC decision.
+
 ## Current Baseline
 
 `main` remains the Phase 42 stable baseline.
@@ -14,6 +16,7 @@ The Phase 43-54 stack is represented by open PRs and integration branches:
 - PR #3-#12: Phase 43-52 functional, release, deployment, and packaging stack.
 - PR #14: Phase 53 Release Smoke Test Matrix and Preflight Automation.
 - PR #15: Phase 54 Integration Branch and PR Chain Reconciliation.
+- PR #16: Phase 55 Mainline Integration Release Candidate Readiness.
 
 Phase 55 builds the mainline readiness layer on top of PR #15.
 

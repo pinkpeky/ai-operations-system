@@ -6,9 +6,11 @@
 
 `main` remains the Phase 42 stable baseline. PR #3-#12 cover Phase 43-52 and remain open. PR #13 is the Docs Stabilization Sprint, PR #14 is Phase 53, and PR #15 is Phase 54. This branch records the complete Phase 1-55 development state, but that does not mean all phases are merged into `main`.
 
+Current effective phase: Phase 55 Mainline Integration & Release Candidate readiness. Phase 56 was reverted and is not active, not included in the RC, and not a valid continuation point for this merge decision.
+
 ## Current Recommended Next Phase
 
-Phase 55 is the current mainline integration preparation step: Mainline Integration & Release Candidate Merge Window. It does not add runtime features; it prepares release candidate branch strategy, merge simulation, superseded PR decisions, and readiness gates.
+Phase 55 is the current mainline integration preparation step: Mainline Integration & Release Candidate Merge Window. It does not add runtime features; it prepares release candidate branch strategy, merge simulation, superseded PR decisions, readiness gates, and the final RC merge decision.
 
 ## Open PRs
 
@@ -28,7 +30,7 @@ Phase 55 is the current mainline integration preparation step: Mainline Integrat
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
 | #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
-| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Planned/Open after push |
+| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Open; active RC readiness PR |
 
 ## Current Architecture State
 
@@ -49,6 +51,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
 - Phase 54 adds integration strategy, PR chain inventory, conflict surface detection, API/frontend drift checks, and integration report generation.
 - Phase 55 adds mainline readiness, merge simulation, superseded PR decision reporting, and Release Candidate process documentation.
+- Phase 56 is reverted/not active and must not enter the Phase 55 RC.
 
 ## Current Packaging State
 

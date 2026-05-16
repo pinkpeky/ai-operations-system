@@ -10,6 +10,8 @@
 
 `codex/phase-55-mainline-integration-release-candidate` is the active mainline integration preparation branch. It is based on `codex/phase-54-integration-branch-pr-chain-reconciliation`, not on `main`.
 
+Current effective phase: Phase 55. Phase 56 was reverted and is not active, not part of the Release Candidate stack, and should not be used as the base for stabilization.
+
 ## Open PR List
 
 | PR | Title | Branch | Status / Note |
@@ -28,7 +30,7 @@
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Open |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Open |
 | #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
-| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Planned/Open after push |
+| #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Open; active RC readiness PR |
 
 ## Phase Timeline Table
 
