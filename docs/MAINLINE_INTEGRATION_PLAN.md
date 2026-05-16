@@ -10,7 +10,7 @@ PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Pha
 
 ## Integration Candidate Stack
 
-The Phase 43-55 stack is accepted on `main` through PR #17. The earlier PRs remain open only for cleanup, archival, or superseded disposition:
+The Phase 43-55 stack is accepted on `main` through PR #17. GitHub marked PR #3-#14 as merged after PR #17 because their changes are contained in `main`; this was not a manual cleanup pass. PR #15 and PR #1 remain open.
 
 - PR #13: Docs Stabilization Sprint.
 - PR #3-#12: Phase 43-52 functional, release, deployment, and packaging stack.
@@ -43,7 +43,7 @@ Accepted target:
 
 ## Recommended Merge Path
 
-1. Keep PR #3-#15 and PR #1 open during post-merge verification.
+1. Keep PR #15 and PR #1 open during post-merge verification.
 2. Confirm `main` contains the accepted Phase 43-55 RC.
 3. Do not begin PR cleanup until post-merge verification passes.
 4. Do not begin Phase 56 until cleanup and rollback posture are explicitly accepted.
@@ -59,10 +59,9 @@ Accepted target:
 
 ## PR Disposition
 
-- PR #13 should remain reviewable as the docs stabilization source until cleanup.
-- PR #3-#12 may be marked superseded only after post-merge verification passes.
-- PR #14 remains the release preflight source until cleanup.
+- PR #3-#14 are already marked merged by GitHub after PR #17 because their changes are contained in `main`.
 - PR #15 remains the integration reconciliation source until cleanup.
+- PR #1 remains open until runtime-fix disposition is reviewed.
 - No PR should be deleted. Superseded PRs should be closed only in the dedicated cleanup phase.
 
 ## Manual Confirmation Risks

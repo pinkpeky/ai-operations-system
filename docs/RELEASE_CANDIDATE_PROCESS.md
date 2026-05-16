@@ -71,7 +71,7 @@ Preferred rollback is a single revert of the RC merge commit. If phases are merg
 
 Never force push `main`, delete phase branches, or remove migration files without an explicit migration rollback review.
 
-If the accepted Phase 55 RC fails after merge, revert PR #17's merge commit from `main`, keep PR #3-#15 open, and re-review PR #3 through PR #16 in dependency order. Do not include reverted Phase 56 work in the rollback or hotfix path.
+If the accepted Phase 55 RC fails after merge, revert PR #17's merge commit from `main`, keep PR #15 and PR #1 open, and re-review PR #3 through PR #16 in dependency order using their branch history. Do not include reverted Phase 56 work in the rollback or hotfix path.
 
 ## Non-Goals
 

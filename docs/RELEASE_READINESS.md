@@ -7,10 +7,9 @@ Phase 53 introduced Release Smoke Test Matrix & Preflight Automation for the int
 - Current stable `main`: Phase 55.
 - Current effective phase: Phase 55 Mainline Acceptance / post-merge verification.
 - Phase 43-55: accepted into `main` through PR #17.
-- Phase 43-52: PRs remain open for cleanup or superseded disposition.
-- PR #13: Docs Stabilization Sprint.
-- PR #14: Phase 53 Release Smoke Test Matrix & Preflight Automation.
-- PR #15: Phase 54 Integration Branch & PR Chain Reconciliation.
+- PR #3-#14: marked merged after PR #17 because their changes are contained in `main`.
+- PR #15: Phase 54 Integration Branch & PR Chain Reconciliation; remains open.
+- PR #1: remains open.
 - PR #16: merged into the Phase 54 branch.
 - PR #17: merged Phase 43-55 Combined Release Candidate into `main`.
 - Phase 56: reverted/not active; excluded from the RC decision.

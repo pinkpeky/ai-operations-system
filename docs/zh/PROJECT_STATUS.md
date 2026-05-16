@@ -2,7 +2,7 @@
 
 ## Branch Status
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. PR #3-#12 remain open for cleanup or superseded disposition. PR #13 is the Docs Stabilization Sprint. PR #14 is Phase 53 Release Smoke Test Matrix & Preflight Automation. PR #15 is Phase 54 Integration Branch & PR Chain Reconciliation. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; this was a GitHub containment result, not a manual cleanup pass. PR #15 and PR #1 remain open. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
@@ -834,4 +834,4 @@ Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; serv
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
 
-The canonical project recovery state is: `main` is the Phase 55 stable baseline after PR #17, PR #3-#15 remain open until the cleanup / superseded phase, and Phase 56 remains reverted and inactive. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.
+The canonical project recovery state is: `main` is the Phase 55 stable baseline after PR #17, PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`, PR #15 and PR #1 remain open, and Phase 56 remains reverted and inactive. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.

@@ -366,8 +366,8 @@ class DocsRuntimeVerifier:
 
         required_terms = [
             "`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate",
-            "PR #3-#12 remain open for cleanup or superseded disposition",
-            "PR #13 is the Docs Stabilization Sprint",
+            "PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`",
+            "PR #15 and PR #1 remain open",
             "Phase 56 was reverted and is not active",
         ]
         status_files = [
