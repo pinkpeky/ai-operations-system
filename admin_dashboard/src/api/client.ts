@@ -198,6 +198,12 @@ export const taskRunsApi = {
     requestJson<JsonRecord>(`/task-runs/${taskRunId}/cancel`, { method: "POST", body: JSON.stringify({ reason: "cancel from dashboard" }) }, settings),
   resume: (taskRunId: string, settings?: AdminSettings) =>
     requestJson<JsonRecord>(`/task-runs/${taskRunId}/resume`, { method: "POST" }, settings),
+  diagnostics: (taskRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/task-runs/${taskRunId}/diagnostics`, {}, settings),
+  recover: (taskRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/task-runs/${taskRunId}/recover`, { method: "POST", body: JSON.stringify({ reason: "recover from dashboard" }) }, settings),
+  schedulerHealth: (settings?: AdminSettings) => requestJson<JsonRecord>("/task-scheduler/health", {}, settings),
+  schedulerScan: (settings?: AdminSettings) => requestJson<JsonRecord>("/task-scheduler/scan", { method: "POST" }, settings),
 };
 
 export const openclawApi = {

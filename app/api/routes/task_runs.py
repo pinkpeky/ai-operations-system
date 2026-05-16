@@ -15,11 +15,14 @@ from app.db.postgres import get_session
 from app.schemas.task_run import (
     TaskRunControlRequest,
     TaskRunCreateRequest,
+    TaskRecoverRequest,
+    TaskRunDiagnosticsResponse,
     TaskRunEventListResponse,
     TaskRunEventResponse,
     TaskRunListResponse,
     TaskRunResponse,
 )
+from app.task_orchestration.recovery_service import TaskRecoveryService
 from app.task_orchestration.service import TaskOrchestratorService
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,9 @@ async def list_task_runs(
     source_type: str | None = Query(default=None),
     created_from: datetime | None = Query(default=None),
     created_to: datetime | None = Query(default=None),
+    recoverable: bool | None = Query(default=None),
+    lease_expired: bool | None = Query(default=None),
+    scheduled_due: bool | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
     context: WorkspaceContext = Depends(get_workspace_context),
@@ -73,6 +79,9 @@ async def list_task_runs(
         source_type=source_type,
         created_from=created_from,
         created_to=created_to,
+        recoverable=recoverable,
+        lease_expired=lease_expired,
+        scheduled_due=scheduled_due,
         limit=limit,
     )
     return TaskRunListResponse(items=[TaskRunResponse.from_model(item) for item in tasks])
@@ -110,6 +119,45 @@ async def list_task_run_events(
         return TaskRunEventListResponse(task_run_id=task_run_id, items=[TaskRunEventResponse.from_model(item) for item in events])
     except ValueError as exc:
         raise AppError(str(exc), status_code=404) from exc
+
+
+@router.get("/{task_run_id}/diagnostics", response_model=TaskRunDiagnosticsResponse)
+async def get_task_run_diagnostics(
+    task_run_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> TaskRunDiagnosticsResponse:
+    """Return failed/recovery diagnostics for a task run."""
+
+    try:
+        task = await TaskOrchestratorService(session).require_task(
+            workspace_id=context.workspace_id,
+            task_run_id=task_run_id,
+        )
+        diagnostics = await TaskRecoveryService(session).diagnostics_for_task(task=task)
+        return TaskRunDiagnosticsResponse(**diagnostics)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+
+
+@router.post("/{task_run_id}/recover", response_model=TaskRunResponse)
+async def recover_task_run(
+    task_run_id: UUID,
+    request: TaskRecoverRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> TaskRunResponse:
+    """Manually recover a recoverable task run."""
+
+    try:
+        task = await TaskRecoveryService(session).recover_task_by_id(
+            workspace_id=context.workspace_id,
+            task_run_id=task_run_id,
+            reason=(request.reason if request else None) or "manual recovery",
+        )
+        return TaskRunResponse.from_model(task)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
 
 
 @router.post("/{task_run_id}/retry", response_model=TaskRunResponse)

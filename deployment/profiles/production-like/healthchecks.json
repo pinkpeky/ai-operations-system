@@ -1,0 +1,9 @@
+{
+  "profile_key": "production-like",
+  "healthchecks": [
+    { "name": "api-health", "url": "http://localhost:8000/api/v1/health", "required": true },
+    { "name": "browser-worker-health", "url": "http://localhost:9100/health", "required": true },
+    { "name": "task-runs", "url": "http://localhost:8000/api/v1/task-runs", "required": true, "headers": { "X-Workspace-Id": "demo-workspace", "X-User-Id": "demo-user" } }
+  ]
+}
+

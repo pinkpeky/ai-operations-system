@@ -19,7 +19,7 @@ import {
   WifiOff,
   XCircle,
 } from "lucide-react";
-import { listenForTrayControls, TrayControlAction, updateTrayTooltip } from "./desktopBridge";
+import { listenForTrayControls, startWorkerClientRuntime, TrayControlAction, updateTrayTooltip } from "./desktopBridge";
 import {
   browserRuntimeClient,
   BrowserRuntimeEvent,
@@ -38,6 +38,17 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
+import {
+  workflowClient,
+  AgentMemorySnapshot,
+  WorkflowExecutionTrace,
+  WorkflowPlannerResult,
+  WorkflowReplaySession,
+  WorkflowRuntimeDiagnostic,
+  WorkflowRun,
+  WorkflowStep,
+} from "./api/workflowClient";
+import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
 import {
   createLocalWorkerClient,
   LocalWorkerClient,
@@ -73,6 +84,22 @@ type ControlAction =
   | "stopHeartbeat";
 
 type ConnectionState = "connected" | "reconnecting" | "disconnected" | "online" | "offline" | "error";
+type RuntimeActionStatus =
+  | "idle"
+  | "starting"
+  | "started"
+  | "failed"
+  | "unavailable"
+  | "port_conflict"
+  | "missing_config"
+  | "server_environment_warning";
+
+type RuntimeActionState = {
+  status: RuntimeActionStatus;
+  lastAttemptedAction: ControlAction | null;
+  lastErrorDetail: string | null;
+  lastCommand: string | null;
+};
 
 function StatusBadge({ label, active }: { label: string; active: boolean }) {
   return (
@@ -124,6 +151,70 @@ function buildTrayTooltip(status: WorkerStatus, connectionState: ConnectionState
   ].join("\n");
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForWorkerRuntime(client: LocalWorkerClient, timeoutMs = 30000): Promise<WorkerStatus> {
+  const startedAt = Date.now();
+  let lastError = "Worker Runtime did not become reachable before timeout.";
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const nextStatus = await client.getStatus();
+      if (nextStatus.runtime_running) {
+        return nextStatus;
+      }
+      lastError = `Worker API responded but runtime_running=${String(nextStatus.runtime_running)}.`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await sleep(1000);
+  }
+
+  throw new Error(lastError);
+}
+
+function classifyRuntimeStartError(message: string): RuntimeActionStatus {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("missing_config") || normalized.includes("worker config not found") || normalized.includes("missing worker config")) {
+    return "missing_config";
+  }
+  if (normalized.includes("port_conflict") || normalized.includes("already in use")) {
+    return "port_conflict";
+  }
+  if (normalized.includes("server_environment_warning")) {
+    return "server_environment_warning";
+  }
+  if (normalized.includes("unreachable")) {
+    return "unavailable";
+  }
+  return "failed";
+}
+
+function runtimeStatusLabel(status: RuntimeActionStatus): string {
+  const labels: Record<RuntimeActionStatus, string> = {
+    idle: "idle",
+    starting: "starting",
+    started: "started",
+    failed: "failed",
+    unavailable: "unavailable",
+    port_conflict: "port_conflict",
+    missing_config: "missing_config",
+    server_environment_warning: "server_environment_warning",
+  };
+  return labels[status];
+}
+
+const WORKER_UNREACHABLE_HINT =
+  "Worker Runtime 未启动. 请先启动 worker_client，或使用本地 Start Runtime 按钮，也可以使用 packaging 脚本启动. Tauri Desktop 内的 Start Runtime 会尝试启动本仓库的 worker_client；如果失败，请检查 worker_config.yaml、Python 环境，或使用 packaging 脚本启动.";
+
+const DESKTOP_BOUNDARY_EN =
+  "This desktop console controls the worker runtime on this local machine. If running on the server host, Start Runtime starts a server-local worker, not a remote customer machine. For real client E2E, run this app on the customer machine.";
+
+const DESKTOP_BOUNDARY_ZH =
+  "桌面控制台控制的是当前本机 Worker Runtime。如果在服务器上运行，它启动的是服务器本机 worker，不是远程客户机 worker。真实客户机 E2E 请在客户机上运行 Desktop Console。";
+
 function resolveConnectionState(health: WorkerHealth | null, error: string | null, hasSuccessfulSync: boolean): ConnectionState {
   if (health?.success && health.runtime_running) {
     return "online";
@@ -159,7 +250,20 @@ function ChatPanel() {
   const [artifacts, setArtifacts] = useState<OutputArtifact[]>([]);
   const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
   const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
+  const [schedulerHealth, setSchedulerHealth] = useState<Record<string, unknown> | null>(null);
   const [selectedTaskRunId, setSelectedTaskRunId] = useState<string | null>(null);
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  const [memorySnapshots, setMemorySnapshots] = useState<AgentMemorySnapshot[]>([]);
+  const [workflowTraces, setWorkflowTraces] = useState<WorkflowExecutionTrace[]>([]);
+  const [workflowDiagnostics, setWorkflowDiagnostics] = useState<WorkflowRuntimeDiagnostic[]>([]);
+  const [workflowReplaySessions, setWorkflowReplaySessions] = useState<WorkflowReplaySession[]>([]);
+  const [workflowAnalytics, setWorkflowAnalytics] = useState<Record<string, unknown> | null>(null);
+  const [selectedWorkflowRunId, setSelectedWorkflowRunId] = useState<string | null>(null);
+  const [workflowPlanner, setWorkflowPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplate[]>([]);
+  const [workflowTemplateRuns, setWorkflowTemplateRuns] = useState<WorkflowTemplateRun[]>([]);
+  const [selectedWorkflowTemplateId, setSelectedWorkflowTemplateId] = useState<string | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -191,7 +295,9 @@ function ChatPanel() {
   const refreshTaskRuns = useCallback(async () => {
     try {
       const response = await taskRunClient.listTaskRuns(settings);
+      const health = await taskRunClient.schedulerHealth(settings);
       setTaskRuns(response.items);
+      setSchedulerHealth(health as unknown as Record<string, unknown>);
       const taskId = selectedTaskRunId || response.items[0]?.id;
       if (taskId) {
         setSelectedTaskRunId(taskId);
@@ -203,10 +309,59 @@ function ChatPanel() {
     }
   }, [selectedTaskRunId, settings]);
 
+  const refreshWorkflows = useCallback(async () => {
+    try {
+      const [response, templateResponse, templateRunResponse] = await Promise.all([
+        workflowClient.listRuns(settings),
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listRuns(settings),
+      ]);
+      setWorkflowRuns(response.items);
+      setWorkflowTemplates(templateResponse.items);
+      setWorkflowTemplateRuns(templateRunResponse.items);
+      setSelectedWorkflowTemplateId((current) => current || templateResponse.items[0]?.id || null);
+      const workflowId =
+        selectedWorkflowRunId ||
+        response.items.find((item) => item.status === "running" || item.status === "waiting_approval")?.id ||
+        response.items[0]?.id;
+      if (workflowId) {
+        setSelectedWorkflowRunId(workflowId);
+        const [steps, memories, planner] = await Promise.all([
+          workflowClient.listSteps(workflowId, settings),
+          workflowClient.listMemorySnapshots(workflowId, settings),
+          workflowClient.getPlanner(workflowId, settings).catch(() => null),
+        ]);
+        const [traces, diagnostics, analytics] = await Promise.all([
+          workflowClient.listTraces(workflowId, settings).catch(() => ({ items: [] })),
+          workflowClient.listDiagnostics(workflowId, settings).catch(() => ({ items: [] })),
+          workflowClient.getAnalytics(workflowId, settings).catch(() => ({ analytics: {} })),
+        ]);
+        setWorkflowSteps(steps.items);
+        setMemorySnapshots(memories.items);
+        setWorkflowPlanner(planner);
+        setWorkflowTraces(traces.items);
+        setWorkflowDiagnostics(diagnostics.items);
+        setWorkflowAnalytics(analytics.analytics);
+      }
+    } catch {
+      setWorkflowRuns([]);
+      setWorkflowSteps([]);
+      setMemorySnapshots([]);
+      setWorkflowTraces([]);
+      setWorkflowDiagnostics([]);
+      setWorkflowReplaySessions([]);
+      setWorkflowAnalytics(null);
+      setWorkflowPlanner(null);
+      setWorkflowTemplates([]);
+      setWorkflowTemplateRuns([]);
+    }
+  }, [selectedWorkflowRunId, settings]);
+
   useEffect(() => {
     void refreshPlaybooks();
     void refreshTaskRuns();
-  }, [refreshPlaybooks, refreshTaskRuns]);
+    void refreshWorkflows();
+  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows]);
 
   const refreshConversation = useCallback(async () => {
     if (!threadId) {
@@ -225,12 +380,13 @@ function ChatPanel() {
       setArtifacts((await outputArtifactClient.listArtifacts(settings, { threadId })).items);
       await refreshPlaybooks();
       await refreshTaskRuns();
+      await refreshWorkflows();
       setConnectionState("connected");
     } catch (nextError) {
       setConnectionState("disconnected");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
     }
-  }, [refreshPlaybooks, refreshTaskRuns, settings, threadId]);
+  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
 
   useEffect(() => {
     if (!pollEvents || !threadId) {
@@ -291,10 +447,14 @@ function ChatPanel() {
       setLastRoute(run.route_name);
       setLastSelectedTool(run.selected_tool);
       setLastRunMetadata(run.result_metadata);
+      if (run.workflow_run_id) {
+        setSelectedWorkflowRunId(run.workflow_run_id);
+      }
       if (run.task_run_id) {
         setSelectedTaskRunId(run.task_run_id);
         await refreshTaskRuns();
       }
+      await refreshWorkflows();
       setConnectionState("connected");
       setRunStatus(`route: ${run.route_name} | tool: ${run.selected_tool ?? "none"} | risk: ${run.risk_level ?? "-"} | approval: ${run.approval_status ?? "-"} | success: ${run.success}`);
       setInput("");
@@ -326,8 +486,12 @@ function ChatPanel() {
       if (run.task_run_id) {
         setSelectedTaskRunId(run.task_run_id);
       }
+      if (run.workflow_run_id) {
+        setSelectedWorkflowRunId(run.workflow_run_id);
+      }
       await refreshConversation();
       await refreshTaskRuns();
+      await refreshWorkflows();
       setLastRunMetadata(run.result_metadata);
       setRunStatus(`background task queued: ${run.task_run_id ?? "-"} | status: ${run.task_status ?? "-"}`);
     } catch (nextError) {
@@ -339,7 +503,7 @@ function ChatPanel() {
     }
   };
 
-  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume") => {
+  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume" | "recover") => {
     setChatLoading(true);
     setChatError(null);
     try {
@@ -347,6 +511,8 @@ function ChatPanel() {
         await taskRunClient.retry(taskRunId, settings);
       } else if (action === "cancel") {
         await taskRunClient.cancel(taskRunId, settings);
+      } else if (action === "recover") {
+        await taskRunClient.recover(taskRunId, settings);
       } else {
         await taskRunClient.resume(taskRunId, settings);
       }
@@ -418,6 +584,32 @@ function ChatPanel() {
     }
   };
 
+  const runSelectedWorkflowTemplate = async () => {
+    if (!selectedWorkflowTemplateId) {
+      setChatError("Select a workflow template first");
+      return;
+    }
+    setChatLoading(true);
+    setChatError(null);
+    try {
+      const run = await workflowTemplateClient.runTemplate(selectedWorkflowTemplateId, settings, {
+        message: input,
+        url: "https://example.com",
+        topic: "AI automation operations",
+      });
+      setLastRoute("workflow_template");
+      setLastSelectedTool(null);
+      setLastRunMetadata(run as unknown as Record<string, unknown>);
+      await refreshWorkflows();
+      setRunStatus(`template run ${run.status}`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Workflow template run failed");
+      setRunStatus("error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const saveMessageAsArtifact = async (messageId: string) => {
     setChatLoading(true);
     setChatError(null);
@@ -447,6 +639,38 @@ function ChatPanel() {
     } catch (nextError) {
       setChatError(nextError instanceof Error ? nextError.message : "Artifact export failed");
       setRunStatus("artifact export error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const packageArtifact = async (artifactId: string) => {
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("packaging artifact");
+    try {
+      const packaged = await outputArtifactClient.packageArtifact(artifactId, settings);
+      setLastRunMetadata({ artifact_package: packaged });
+      setRunStatus(`artifact packaged: ${packaged.output_path ?? packaged.export_path ?? "bundle created"}`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Artifact package failed");
+      setRunStatus("artifact package error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const showArtifactLineage = async (artifactId: string) => {
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("loading artifact lineage");
+    try {
+      const lineage = await outputArtifactClient.getLineage(artifactId, settings);
+      setLastRunMetadata({ artifact_lineage: lineage });
+      setRunStatus(`lineage loaded: ${lineage.relationships.length} relationships`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Artifact lineage failed");
+      setRunStatus("artifact lineage error");
     } finally {
       setChatLoading(false);
     }
@@ -561,6 +785,57 @@ function ChatPanel() {
         )}
       </div>
       <div className="approval-list">
+        <h3>Template Library</h3>
+        <div className="chat-note">
+          Workflow Template Registry foundation with governance status, verification badges, and compatibility summary. This is not a public marketplace, not a visual DAG builder, and not a ComfyUI integration.
+        </div>
+        <select value={selectedWorkflowTemplateId ?? ""} onChange={(event) => setSelectedWorkflowTemplateId(event.target.value || null)}>
+          {workflowTemplates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.template_key} | v{template.current_version ?? template.latest_version ?? "-"} | {template.risk_level}
+            </option>
+          ))}
+        </select>
+        <div className="chat-actions">
+          <button className="action-button" onClick={() => void runSelectedWorkflowTemplate()} disabled={chatLoading || !selectedWorkflowTemplateId}>
+            Run template
+          </button>
+          <button className="refresh-button" onClick={() => void refreshWorkflows()}>
+            Refresh templates
+          </button>
+        </div>
+        {workflowTemplates.slice(0, 4).map((template) => (
+          <div key={template.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{template.template_key}</strong>
+              <span>{template.status}</span>
+              <span>{template.category ?? "uncategorized"}</span>
+              <span>{template.risk_level}</span>
+              <span>{template.verified ? "verified" : "unverified"}</span>
+              <span>{template.featured ? "featured" : "standard"}</span>
+              <span>{template.recommended ? "recommended" : "manual-review"}</span>
+            </div>
+            <p>{template.description ?? "No description"}</p>
+            <div className="chat-meta">
+              Governance status: {template.status} | success_rate: {Math.round((template.success_rate ?? 0) * 100)}% | runs: {template.usage_count ?? 0} | compatibility: {(template.versions?.[0]?.validation_status ?? "pending")}
+            </div>
+          </div>
+        ))}
+        <h4>Template runs</h4>
+        {workflowTemplateRuns.length > 0 ? workflowTemplateRuns.slice(0, 4).map((run) => (
+          <div key={run.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{run.id}</strong>
+              <span>{run.status}</span>
+              <span>workflow {run.workflow_run_id ?? "-"}</span>
+            </div>
+            <pre className="event-payload">{JSON.stringify(run.output_payload, null, 2)}</pre>
+          </div>
+        )) : (
+          <div className="empty-chat">No workflow template runs yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
         <h3>Pending approvals panel</h3>
         {approvals.length > 0 ? approvals.map((approval) => (
           <div key={approval.id} className={`approval-card approval-risk-${approval.risk_level}`}>
@@ -622,24 +897,121 @@ function ChatPanel() {
             <div className="approval-card-header">
               <strong>{artifact.title}</strong>
               <span>{artifact.artifact_type}</span>
+              <span>{artifact.artifact_role ?? "no_role"}</span>
+              <span>{artifact.artifact_stage}</span>
+              <span>{artifact.retention_policy}</span>
               <span>{artifact.source_type}</span>
             </div>
             <div className="chat-meta">
-              artifact_id: {artifact.id} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"}
+              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"} | workflow_run_id: {artifact.workflow_run_id ?? "-"} | producing_node_key: {artifact.producing_node_key ?? "-"} | replay_source: {artifact.replay_source ?? "-"}
             </div>
             <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
-            <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
-              Export markdown
-            </button>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
+                Export markdown
+              </button>
+              <button className="refresh-button" onClick={() => void packageArtifact(artifact.id)} disabled={chatLoading}>
+                Package
+              </button>
+              <button className="refresh-button" onClick={() => void showArtifactLineage(artifact.id)} disabled={chatLoading}>
+                Lineage
+              </button>
+            </div>
           </div>
         )) : (
           <div className="empty-chat">No generated artifacts yet.</div>
         )}
       </div>
       <div className="approval-list">
+        <h3>Workflow State</h3>
+        <div className="chat-note">
+          Workflow State tracks current step, checkpoints, and Agent Memory Snapshots for Conversation / Playbook / Task execution. Foundation only; not a full workflow editor and not ComfyUI.
+        </div>
+        <div className="chat-actions">
+          <button className="refresh-button" onClick={() => void refreshWorkflows()}>
+            <RefreshCcw size={15} />
+            Refresh workflows
+          </button>
+        </div>
+        {workflowRuns.length > 0 ? workflowRuns.slice(0, 5).map((workflow) => (
+          <div key={workflow.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{workflow.source_type}</strong>
+              <span>{workflow.status}</span>
+              <span>step {workflow.current_step}</span>
+              <span>node {workflow.current_node_key ?? "-"}</span>
+            </div>
+            <div className="chat-meta">
+              workflow_run_id: {workflow.id} | graph_execution: {String(workflow.graph_execution)} | workflow_graph_id: {workflow.workflow_graph_id ?? "-"} | next: {(workflow.planned_next_nodes ?? []).join(",") || "-"} | checkpoints: {workflow.checkpoints.length}
+            </div>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => { setSelectedWorkflowRunId(workflow.id); void refreshWorkflows(); }}>Inspect</button>
+              <button className="refresh-button" onClick={() => void workflowClient.pause(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Pause</button>
+              <button className="refresh-button" onClick={() => void workflowClient.resume(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Resume</button>
+              <button className="refresh-button" onClick={() => void workflowClient.createReplay(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Replay metadata</button>
+              <button className="refresh-button" onClick={() => void workflowClient.createReplaySession(workflow.id, settings).then((replay) => { setWorkflowReplaySessions((current) => [replay, ...current]); return refreshWorkflows(); })} disabled={chatLoading}>Replay Center</button>
+            </div>
+          </div>
+        )) : (
+          <div className="empty-chat">No workflow runs yet.</div>
+        )}
+        <h4>Workflow timeline {selectedWorkflowRunId ? `for ${selectedWorkflowRunId}` : ""}</h4>
+        <div className="chat-note">
+          Graph execution panel: current node, planned next nodes, skipped nodes, retry/fallback state. This is not a visual DAG editor.
+        </div>
+        <pre className="metadata-preview">{JSON.stringify({
+          current_node: workflowPlanner?.current_node ?? null,
+          next_nodes: workflowPlanner?.next_nodes ?? [],
+          skipped_nodes: workflowPlanner?.skipped_nodes ?? [],
+          retry_paths: workflowPlanner?.retry_paths ?? [],
+          fallback_paths: workflowPlanner?.fallback_paths ?? [],
+          condition_results: workflowPlanner?.condition_results ?? [],
+          analytics: workflowAnalytics ?? {},
+          trace_count: workflowTraces.length,
+          diagnostics: workflowDiagnostics.map((item) => ({ type: item.diagnostic_type, severity: item.severity, summary: item.summary })),
+          replay_sessions: workflowReplaySessions.map((item) => ({ id: item.id, mode: item.replay_mode, status: item.replay_status })),
+        }, null, 2)}</pre>
+        <h4>Execution Traces / Diagnostics</h4>
+        {workflowTraces.length > 0 ? workflowTraces.slice(0, 8).map((trace) => (
+          <div key={trace.id} className="event-item">
+            <strong>{trace.event_type}</strong>
+            <span>{trace.node_key ?? "-"} | retry: {trace.retry_count} | fallback: {String(trace.fallback_triggered)}</span>
+          </div>
+        )) : (
+          <div className="empty-chat">No execution traces yet.</div>
+        )}
+        {workflowDiagnostics.length > 0 ? workflowDiagnostics.slice(0, 4).map((diagnostic) => (
+          <div key={diagnostic.id} className="event-item">
+            <strong>{diagnostic.severity}: {diagnostic.diagnostic_type}</strong>
+            <span>{diagnostic.summary}</span>
+          </div>
+        )) : null}
+        {workflowSteps.length > 0 ? workflowSteps.map((step) => (
+          <div key={step.id} className="event-item">
+            <strong>{step.step_name}</strong>
+            <span>{step.status} | {step.step_type} | node: {step.node_key ?? "-"} | duration: {step.duration_ms ?? "-"}ms</span>
+            {step.error ? <code>{step.error}</code> : null}
+          </div>
+        )) : (
+          <div className="empty-chat">Select a workflow run to inspect steps.</div>
+        )}
+        <h4>Agent Memory Snapshots</h4>
+        {memorySnapshots.length > 0 ? memorySnapshots.map((snapshot) => (
+          <div key={snapshot.id} className="event-item">
+            <strong>{snapshot.memory_type}</strong>
+            <span>{snapshot.summary ?? "-"}</span>
+          </div>
+        )) : (
+          <div className="empty-chat">No memory snapshots yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
         <h3>Task Runs</h3>
         <div className="chat-note">
-          Background execution uses the Phase 42 in-process queue with retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+          Background execution uses the in-process queue with lease, recovery, retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+        </div>
+        <div className="chat-note">
+          Scheduler: {String(schedulerHealth?.status ?? "unavailable")} | heartbeat: {String(schedulerHealth?.heartbeat_at ?? "-")} | recovered: {String(schedulerHealth?.recovered_task_count ?? 0)}
         </div>
         <div className="chat-actions">
           <button className="refresh-button" onClick={() => void refreshTaskRuns()}>
@@ -654,14 +1026,15 @@ function ChatPanel() {
               <span>{task.status}</span>
             </div>
             <div className="chat-meta">
-              task_run_id: {task.id} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries}
+              task_run_id: {task.id} | workflow_run_id: {task.workflow_run_id ?? "-"} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries} | recoverable: {String(task.recoverable)} | lease: {task.lease_expires_at ?? "-"}
             </div>
-            <p>{String(task.error ?? task.output_payload.summary ?? "No error")}</p>
+            <p>{String(task.error ?? task.suggested_action ?? task.output_payload.summary ?? "No error")}</p>
             <div className="chat-actions">
               <button className="refresh-button" onClick={() => { setSelectedTaskRunId(task.id); void refreshTaskRuns(); }}>Events</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "retry")} disabled={chatLoading}>Retry</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "cancel")} disabled={chatLoading}>Cancel</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "resume")} disabled={chatLoading}>Resume</button>
+              <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "recover")} disabled={chatLoading}>Recover</button>
             </div>
           </div>
         )) : (
@@ -911,6 +1284,13 @@ function App() {
   const [logs, setLogs] = useState<WorkerLogs>({ lines: [] });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<ControlAction | null>(null);
+  const [controlMessage, setControlMessage] = useState<string | null>(null);
+  const [runtimeActionState, setRuntimeActionState] = useState<RuntimeActionState>({
+    status: "idle",
+    lastAttemptedAction: null,
+    lastErrorDetail: null,
+    lastCommand: null,
+  });
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
@@ -952,12 +1332,76 @@ function App() {
     async (action: ControlAction) => {
       setActionLoading(action);
       setError(null);
+      setControlMessage(null);
+      setRuntimeActionState({
+        status: action === "startRuntime" || action === "restartRuntime" ? "starting" : "idle",
+        lastAttemptedAction: action,
+        lastErrorDetail: null,
+        lastCommand: action,
+      });
       try {
         const nextStatus = await client[action]();
         setStatus({ ...fallbackStatus, ...nextStatus });
+        setControlMessage(`${action} completed through ${client.baseUrl}.`);
+        setRuntimeActionState({
+          status: action === "startRuntime" || action === "restartRuntime" ? "started" : "idle",
+          lastAttemptedAction: action,
+          lastErrorDetail: null,
+          lastCommand: `${client.baseUrl}/local/${action.includes("Heartbeat") ? "heartbeat" : "runtime"}`,
+        });
         await refresh();
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : "Worker API unreachable");
+        const originalMessage = nextError instanceof Error ? nextError.message : "Worker API unreachable";
+        if (action === "startRuntime" || action === "restartRuntime") {
+          try {
+            setRuntimeActionState({
+              status: "unavailable",
+              lastAttemptedAction: action,
+              lastErrorDetail: originalMessage,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage("Worker API is unreachable. Launching local worker_client from the Tauri desktop shell...");
+            const launchMessage = await startWorkerClientRuntime();
+            setRuntimeActionState({
+              status: "starting",
+              lastAttemptedAction: action,
+              lastErrorDetail: null,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage(launchMessage);
+            const nextStatus = await waitForWorkerRuntime(client);
+            setStatus({ ...fallbackStatus, ...nextStatus });
+            setRuntimeActionState({
+              status: "started",
+              lastAttemptedAction: action,
+              lastErrorDetail: null,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage("Worker Runtime started and local API is reachable.");
+            setError(null);
+            await refresh();
+            return;
+          } catch (launchError) {
+            const launchMessage = launchError instanceof Error ? launchError.message : String(launchError);
+            const classifiedStatus = classifyRuntimeStartError(launchMessage);
+            setError(`Start Runtime failed. ${launchMessage} Original local API error: ${originalMessage}`);
+            setRuntimeActionState({
+              status: classifiedStatus,
+              lastAttemptedAction: action,
+              lastErrorDetail: launchMessage,
+              lastCommand: "python -m worker_client.cli --config worker_client/worker_config.yaml start",
+            });
+            setControlMessage("Start Runtime failed. See the error banner for details.");
+            return;
+          }
+        }
+        setRuntimeActionState({
+          status: "unavailable",
+          lastAttemptedAction: action,
+          lastErrorDetail: originalMessage,
+          lastCommand: `${client.baseUrl}/local/${action.includes("Heartbeat") ? "heartbeat" : "runtime"}`,
+        });
+        setError(originalMessage);
       } finally {
         setActionLoading(null);
       }
@@ -1035,13 +1479,20 @@ function App() {
           <WifiOff size={22} />
           <div>
             <strong>Worker API unreachable</strong>
-            <p>
-              Worker Runtime 未启动. 请先启动 worker_client，或使用本地 Start Runtime 按钮，也可以使用 packaging 脚本启动.
-            </p>
+            <p>{WORKER_UNREACHABLE_HINT}</p>
             <code>{client.baseUrl}/local/status</code>
           </div>
         </section>
       ) : null}
+
+      <section className="alert-panel boundary-panel">
+        <AlertTriangle size={22} />
+        <div>
+          <strong>Server / Client environment boundary</strong>
+          <p>{DESKTOP_BOUNDARY_EN}</p>
+          <p>{DESKTOP_BOUNDARY_ZH}</p>
+        </div>
+      </section>
 
       <section className="layout-grid">
         <section className="panel dashboard-panel">
@@ -1103,9 +1554,11 @@ function App() {
           <div className="control-note">
             {actionLoading
               ? `Running ${actionLoading}...`
-              : loading
-                ? "Loading local worker state..."
-                : `Last refresh: ${lastRefresh ?? "-"}`}
+              : controlMessage
+                ? controlMessage
+                : loading
+                  ? "Loading local worker state..."
+                  : `Last refresh: ${lastRefresh ?? "-"}`}
           </div>
         </section>
 
@@ -1124,6 +1577,68 @@ function App() {
             <Field label="minimize_to_tray" value={String(settings.minimizeToTray)} />
             <Field label="refresh_interval_ms" value={settings.refreshIntervalMs} />
           </div>
+        </section>
+
+        <section className="panel diagnostics-panel">
+          <div className="panel-title">
+            <AlertTriangle size={18} />
+            <h2>Local Worker Diagnostics</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="runtime_action_status" value={runtimeStatusLabel(runtimeActionState.status)} />
+            <Field label="last_attempted_action" value={runtimeActionState.lastAttemptedAction ?? "-"} />
+            <Field label="last_attempted_command" value={runtimeActionState.lastCommand ?? "-"} />
+            <Field label="last_error_detail" value={runtimeActionState.lastErrorDetail ?? error ?? "-"} />
+            <Field label="status_endpoint" value={`${client.baseUrl}/local/status`} />
+            <Field label="health_endpoint" value={`${client.baseUrl}/local/health`} />
+            <Field label="runtime_reachable" value={String(Boolean(health))} />
+            <Field label="runtime_port" value={status.runtime_port ?? "9100"} />
+            <Field label="server_url" value={status.server_url ?? "unavailable until local status is reachable"} />
+            <Field label="worker_base_url" value={status.worker_base_url ?? "unavailable until local status is reachable"} />
+            <Field label="last_successful_sync" value={lastSuccessfulSync ?? "-"} />
+          </div>
+          <p className="chat-note">
+            Missing config: copy worker_config.example.yaml first. Port conflict: port 9100 already in use; change
+            runtime_port or stop the conflicting service.
+          </p>
+        </section>
+
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Server size={18} />
+            <h2>Deployment Profile Help</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="recommended_profile" value="desktop-client for this Tauri app; client-worker for worker_client" />
+            <Field label="ai_server_url" value={status.server_url ?? "set VITE_AI_SERVER_API / chat settings"} />
+            <Field label="workspace_id" value={status.workspace_id ?? "set VITE_WORKSPACE_ID"} />
+            <Field label="user_id" value="set VITE_USER_ID for conversation features" />
+            <Field label="local_worker_api" value={client.baseUrl} />
+            <Field label="profile_bootstrap_docs" value="docs/en/DEPLOYMENT_PROFILES.md" />
+          </div>
+          <p className="chat-note">
+            Desktop Client controls the worker runtime on this local machine. Server Docker runs the API/backing services. Client Worker runs worker_client on the customer machine. Deployment bootstrap scripts generate env files, check dependencies, check ports, and verify health without writing system environment variables.
+          </p>
+        </section>
+
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Activity size={18} />
+            <h2>Release Readiness / Diagnostics</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="current_profile" value="desktop-client" />
+            <Field label="preflight_result" value="python scripts/release_preflight.py --profile server-docker" />
+            <Field label="docs_verifier_status" value="python scripts/verify_docs_runtime.py" />
+            <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
+            <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile desktop-client" />
+            <Field label="release_readiness_summary" value="docs/SMOKE_TEST_MATRIX.md" />
+            <Field label="integration_preflight" value="python scripts/integration_preflight.py --profile server-docker" />
+            <Field label="integration_status" value="docs/INTEGRATION_STATUS.md" />
+          </div>
+          <p className="chat-note">
+            Phase 53 preflight is release readiness automation. Phase 54 adds integration reconciliation for the open PR stack. It does not perform code signing, auto update, MSI/EXE packaging, DMG notarization, Kubernetes, or production HA deployment.
+          </p>
         </section>
 
         <ChatPanel />

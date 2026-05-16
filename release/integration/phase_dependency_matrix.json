@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "phase": "54",
+  "recommended_merge_order": [
+    "PR #13 docs stabilization",
+    "PR #3 Phase 43",
+    "PR #4 Phase 44",
+    "PR #5 Phase 45",
+    "PR #6 Phase 46",
+    "PR #7 Phase 47",
+    "PR #8 Phase 48",
+    "PR #9 Phase 49",
+    "PR #10 Phase 50",
+    "PR #11 Phase 51",
+    "PR #12 Phase 52",
+    "PR #14 Phase 53",
+    "Phase 54 integration reconciliation"
+  ],
+  "dependencies": [
+    {"phase": "43", "depends_on": ["42"], "reason": "extends Phase 42 task orchestration"},
+    {"phase": "44", "depends_on": ["41", "42", "43"], "reason": "links artifacts to task runs and recovery state"},
+    {"phase": "45", "depends_on": ["40", "42", "44"], "reason": "links workflows to playbooks, tasks, and artifacts"},
+    {"phase": "46", "depends_on": ["45"], "reason": "adds graph runtime on workflow state"},
+    {"phase": "47", "depends_on": ["46"], "reason": "templates wrap graph definitions"},
+    {"phase": "48", "depends_on": ["47"], "reason": "governance wraps template registry"},
+    {"phase": "49", "depends_on": ["45", "46", "48"], "reason": "observability joins workflows, graph planner, and governance metadata"},
+    {"phase": "50", "depends_on": ["31", "32", "53"], "reason": "desktop UX relies on console diagnostics and release readiness messaging"},
+    {"phase": "51", "depends_on": ["50"], "reason": "release readiness references desktop packaging state"},
+    {"phase": "52", "depends_on": ["51"], "reason": "deployment profiles extend release packaging"},
+    {"phase": "53", "depends_on": ["51", "52", "docs-stabilization"], "reason": "preflight orchestrates release, deployment, and docs checks"}
+  ],
+  "strategy": {
+    "avoid_big_bang_review": "Use stacked PRs or an integration candidate branch based on the latest stack head, then merge deliberately after smoke validation.",
+    "integration_branch": "codex/integration-phase-43-53-candidate",
+    "rollback": "Revert the integration branch merge commit or revert individual phase PRs in reverse dependency order."
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "release_version": "0.51.0-foundation",
+  "phase": "51",
+  "status": "packaging_foundation",
+  "created_at": "2026-05-16",
+  "baseline_branch": "codex/phase-50-desktop-runtime-ux-packaging-readiness",
+  "components": {
+    "api_server": {
+      "bundle": "server deployment bundle",
+      "production_ready": false
+    },
+    "admin_dashboard": {
+      "package": "admin_dashboard/package.json",
+      "production_build": "npm run build"
+    },
+    "worker_console": {
+      "package": "worker_console/package.json",
+      "production_build": "npm run build"
+    },
+    "worker_console_desktop": {
+      "package": "worker_console_desktop/package.json",
+      "frontend_build": "npm run build",
+      "native_release_readiness": "tauri config/icon/dependency checks",
+      "signed_installer": false
+    },
+    "deployment_profiles": {
+      "root": "deployment/profiles",
+      "profiles": [
+        "local-dev",
+        "server-docker",
+        "client-worker",
+        "desktop-client",
+        "staging",
+        "production-like"
+      ],
+      "bootstrap": "deployment/scripts/generate_env.py",
+      "dependency_check": "deployment/scripts/check_dependencies.py",
+      "port_check": "deployment/scripts/check_ports.py",
+      "health_verification": "deployment/scripts/verify_environment.py"
+    },
+    "release_smoke_matrix": {
+      "phase": "53",
+      "status": "preflight_foundation",
+      "matrix": "release/smoke/smoke_matrix.json",
+      "preflight": "scripts/release_preflight.py",
+      "smoke_orchestrator": "scripts/release_smoke_matrix.py",
+      "report_generator": "scripts/generate_release_report.py"
+    },
+    "integration_reconciliation": {
+      "phase": "54",
+      "status": "integration_candidate_reconciliation",
+      "matrix": "release/integration/integration_matrix.json",
+      "preflight": "scripts/integration_preflight.py",
+      "inventory": "release/reports/pr_chain_inventory.json",
+      "conflict_detection": "scripts/detect_integration_conflicts.py",
+      "drift_check": "scripts/check_api_frontend_drift.py",
+      "report_generator": "scripts/generate_integration_report.py"
+    },
+    "mainline_release_candidate_readiness": {
+      "phase": "55",
+      "status": "mainline_release_candidate_preparation",
+      "candidate_model": "release/integration/release_candidate_model.json",
+      "readiness_runner": "scripts/mainline_readiness.py",
+      "merge_simulation": "scripts/simulate_mainline_merge.py",
+      "superseded_pr_report": "release/reports/superseded_prs.md",
+      "mainline_report_generator": "scripts/generate_mainline_integration_report.py"
+    }
+  },
+  "boundaries": [
+    "not a formal production release",
+    "no code signing",
+    "no auto updater",
+    "no MSI or EXE installer",
+    "no macOS DMG or notarization",
+    "no Kubernetes or Helm bundle",
+    "no Terraform or Ansible automation",
+    "no ComfyUI integration",
+    "no real social platform publishing"
+  ]
+}

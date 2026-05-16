@@ -1,6 +1,6 @@
 # Current Runtime
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 This document records the current real runtime defaults for `E:\ai-operations-system`. Values are based on `app/core/config.py`, `.env.example`, and `docker-compose.yml`.
 
@@ -1377,3 +1377,347 @@ Task Orchestration defaults are now part of runtime config and docker-compose:
 - `TASK_RUN_DEFAULT_MAX_RETRIES=3`
 
 The background executor is `BackgroundTaskExecutor`, started from FastAPI lifespan when enabled. It polls `task_runs` in-process and executes Conversation / Playbook work through `TaskOrchestratorService`. This is not Celery, not RabbitMQ, not Kubernetes, and not production HA.
+## Phase 43 Runtime Configuration: Task Scheduler Persistence & Worker Recovery
+
+Task Scheduler Persistence is enabled through the existing in-process `BackgroundTaskExecutor`; it remains a foundation, not Celery, not Kubernetes, and not production HA distributed queue.
+
+| Key | Current default | Meaning |
+| --- | --- | --- |
+| `TASK_SCHEDULER_NAME` | `api-in-process-task-scheduler` | Stable scheduler identity used for `task_scheduler_state` and task lease ownership. |
+| `TASK_LEASE_SECONDS` | `120` | Lease duration assigned to running `task_runs`. Expired lease is eligible for recovery. |
+| `TASK_STUCK_TIMEOUT_SECONDS` | `300` | Heartbeat staleness threshold for stuck running task recovery. |
+| `TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS` | `10.0` | Background recovery scan interval for scheduled, retrying, and stuck tasks. |
+
+Runtime tables and fields:
+
+- `task_scheduler_state` stores scheduler status, heartbeat, last scan, active task count, recovered task count, and metadata.
+- `task_runs` now includes `lease_owner`, `lease_token`, `lease_expires_at`, `heartbeat_at`, `recovery_count`, `last_recovered_at`, `recovery_reason`, `failure_category`, `failure_reason`, `recoverable`, `suggested_action`, and `last_event_summary`.
+
+Core APIs:
+
+- `GET /api/v1/task-scheduler/health`
+- `POST /api/v1/task-scheduler/scan`
+- `GET /api/v1/task-runs/{task_run_id}/diagnostics`
+- `POST /api/v1/task-runs/{task_run_id}/recover`
+
+Recovery rules:
+
+- `running` task with expired lease or stale heartbeat becomes `retrying` when retry budget remains, otherwise `failed`.
+- `pending` task with `scheduled_at <= now` becomes `queued`.
+- `retrying` task with retry delay elapsed becomes `queued`.
+- `waiting_approval` is not auto-executed and must resume through approval flow.
+- `completed`, `cancelled`, and `expired` tasks are not recovered.
+
+Admin Dashboard now shows Scheduler Health, lease status, recoverable badge, diagnostics panel, and manual recover control. Worker Console Web/Desktop show simplified scheduler and task recovery status.
+
+Runtime verifier marker: TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS=10.0
+
+<!-- PHASE44_RUNTIME:START -->
+## Phase 44 Output Artifact Pipeline Runtime
+
+| Key | Current default | Meaning |
+| --- | --- | --- |
+| `OUTPUT_ARTIFACT_DIR` | `storage/output_artifacts` | Output Artifact text/export metadata root. |
+| `OUTPUT_PACKAGE_DIR` | `storage/output_packages` | Package artifact and bundle metadata root. |
+| `OUTPUT_EXPORT_DIR` | `storage/output_exports` | Exported markdown/html/json/txt/bundle output root. |
+
+Phase 44 adds Artifact lineage, relationship graph, `artifact_relationships`, `ArtifactExportService`, `ArtifactPackagingService`, and `ArtifactRetentionService`. Exports are based only on existing artifacts; they do not re-run Browser Runtime, Playbook, Conversation, Task, or OpenClaw mock actions.
+
+New APIs:
+
+- `GET /api/v1/output-artifacts/{artifact_id}/lineage`
+- `GET /api/v1/output-artifacts/{artifact_id}/relationships`
+- `POST /api/v1/output-artifacts/{artifact_id}/export`
+- `POST /api/v1/output-artifacts/{artifact_id}/package`
+- `POST /api/v1/output-artifacts/cleanup/preview`
+
+Current boundaries: not a full DAM, not a production object storage platform, no production S3 / MinIO / CDN, no real social platform publishing, no real OpenClaw, and no ComfyUI.
+<!-- PHASE44_RUNTIME:END -->
+
+<!-- PHASE45_RUNTIME:START -->
+## Phase 45 Runtime: Workflow State & Agent Memory Foundation
+
+Runtime database tables:
+
+- `workflow_runs`
+- `workflow_steps`
+- `workflow_checkpoints`
+- `agent_memory_snapshots`
+
+Runtime service: `WorkflowStateService` is used by Conversation, Playbook, Task Orchestration, and Output Artifact lineage integration. It records `workflow_run_created`, `workflow_step_started`, `workflow_step_completed`, `workflow_checkpoint_created`, `workflow_paused`, `workflow_resumed`, and `memory_snapshot_created` events when a workflow is linked to a conversation thread.
+
+Runtime API routes:
+
+- `GET /api/v1/workflow-runs`
+- `GET /api/v1/workflow-runs/{workflow_run_id}`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/steps`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/checkpoints`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/pause`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/resume`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/memory-snapshots`
+- `GET /api/v1/agent-memory-snapshots`
+
+Artifact lineage fields: `workflow_run_id`, `workflow_step_id`, `checkpoint_id`, and `memory_snapshot_id`.
+
+Boundaries: not a full workflow builder, not ComfyUI, not WebSocket/SSE streaming, not real platform automation.
+<!-- PHASE45_RUNTIME:END -->
+
+<!-- PHASE46_RUNTIME:START -->
+## Phase 46 Runtime: Workflow Graph Runtime & Conditional Execution
+
+Runtime database tables:
+
+- `workflow_graphs`
+- `workflow_graph_nodes`
+- `workflow_graph_edges`
+- `workflow_replays`
+
+Runtime services:
+
+- `WorkflowExecutionPlanner` validates graphs, resolves entry nodes, performs topological traversal, detects cycles, plans next nodes, tracks dependency state, and exposes retry/fallback paths.
+- `SafeConditionEvaluator` evaluates only safe condition expressions over `workflow.variables`, `workflow.status`, `step.output`, `artifact.metadata`, and `approval.status`. It supports `==`, `!=`, `and`, `or`, `in`, and `exists`, and does not use Python `eval`.
+- `WorkflowGraphService` creates, lists, gets, and validates workflow graph definitions.
+- `WorkflowStateService` records graph execution metadata on workflow runs and steps.
+
+Runtime API routes:
+
+- `GET /api/v1/workflow-graphs`
+- `POST /api/v1/workflow-graphs`
+- `GET /api/v1/workflow-graphs/{graph_id}`
+- `POST /api/v1/workflow-graphs/{graph_id}/validate`
+- `POST /api/v1/workflow-runs/{workflow_run_id}/replay`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/graph`
+- `GET /api/v1/workflow-runs/{workflow_run_id}/planner`
+
+Runtime fields:
+
+- `workflow_runs.workflow_graph_id`
+- `workflow_runs.graph_execution`
+- `workflow_runs.current_node_key`
+- `workflow_runs.planned_next_nodes`
+- `workflow_runs.skipped_nodes`
+- `workflow_runs.retry_state`
+- `workflow_runs.fallback_state`
+- `workflow_steps.node_key`
+- `workflow_steps.parent_node_key`
+- `workflow_steps.dependency_state`
+- `output_artifacts.producing_node_key`
+- `output_artifacts.replay_source`
+- `output_artifacts.graph_lineage`
+- `agent_memory_snapshots.node_key`
+
+Boundaries: current replay is metadata-only and does not re-run actions. The runtime is not a visual DAG builder, not a distributed orchestration engine, not ComfyUI, not WebSocket/SSE streaming, and not real platform automation.
+<!-- PHASE46_RUNTIME:END -->
+
+<!-- PHASE47_RUNTIME:START -->
+## Phase 47 Runtime: Workflow Template Registry & Versioning
+
+Runtime database tables:
+
+- `workflow_templates`
+- `workflow_template_versions`
+- `workflow_template_runs`
+
+Runtime services:
+
+- `WorkflowTemplateRegistryService` manages template listing, creation, immutable version creation, active version activation, validation, import/export, template runs, and built-in template seeding.
+- `WorkflowTemplateCompatibilityService` checks required node types, input_schema, output_schema, graph definition validation, risk_level, runtime capabilities, warnings, errors, and missing capabilities.
+
+Built-in template keys:
+
+- `browser_screenshot_report_graph`
+- `content_generation_graph`
+- `rag_answer_graph`
+- `approval_then_browser_graph`
+- `openclaw_mock_inspect_graph`
+- `task_retry_demo_graph`
+
+Runtime API routes:
+
+- `GET /api/v1/workflow-templates`
+- `POST /api/v1/workflow-templates`
+- `GET /api/v1/workflow-templates/{template_id}`
+- `POST /api/v1/workflow-templates/{template_id}/versions`
+- `GET /api/v1/workflow-templates/{template_id}/versions/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/activate-version/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/validate`
+- `POST /api/v1/workflow-templates/{template_id}/run`
+- `GET /api/v1/workflow-template-runs`
+- `GET /api/v1/workflow-template-runs/{run_id}`
+- `POST /api/v1/workflow-templates/import`
+- `GET /api/v1/workflow-templates/{template_id}/export`
+
+Runtime fields:
+
+- `workflow_templates.template_key`
+- `workflow_templates.current_version`
+- `workflow_templates.latest_version`
+- `workflow_template_versions.validation_status`
+- `workflow_template_versions.compatibility`
+- `task_runs.workflow_template_id`
+- `task_runs.workflow_template_version_id`
+- `task_runs.workflow_template_run_id`
+- `output_artifacts.workflow_template_id`
+- `output_artifacts.workflow_template_version_id`
+- `output_artifacts.workflow_template_run_id`
+- `agent_memory_snapshots.workflow_template_id`
+- `agent_memory_snapshots.workflow_template_version_id`
+- `agent_memory_snapshots.workflow_template_run_id`
+
+Frontend clients:
+
+- `admin_dashboard/src/api/workflowTemplateClient.ts`
+- `worker_console/src/api/workflowTemplateClient.ts`
+- `worker_console_desktop/src/api/workflowTemplateClient.ts`
+
+Boundaries: Template Library is a registry and run foundation only. It is not a visual DAG builder, not a drag/drop graph editor, not ComfyUI, not WebSocket/SSE streaming, and not real platform automation.
+<!-- PHASE47_RUNTIME:END -->
+
+<!-- PHASE48_SYNC:START -->
+## Phase 48: Workflow Template Marketplace & Governance Foundation
+
+Status: completed.
+
+Phase 48 adds an internal Workflow Template Marketplace & Governance foundation on top of Phase 47 Workflow Template Registry & Versioning. It is an internal template library and governance layer, not public marketplace, not a paid marketplace, not multi-tenant SaaS marketplace, not a visual DAG editor, and not ComfyUI.
+
+Completed scope:
+
+- Added `workflow_template_reviews` for review queue, `review_status`, `risk_assessment`, `compatibility_report`, approve / reject / request changes.
+- Added `workflow_template_promotions` to record activate, rollback, deprecate, and archive lifecycle events with `promotion_type`, source version, target version, and reason.
+- Added `workflow_template_audit_logs` for governance audit trail, actor, previous_state, new_state, and metadata.
+- Added `workflow_template_compatibility_matrix` for runtime capabilities: `browser_runtime`, `approval_gate`, `task_scheduler`, `artifact_pipeline`, `workflow_graph_runtime`, `openclaw_mock`, and `rag_pipeline`.
+- Added `WorkflowTemplateGovernanceService` with `submit_for_review`, `approve_review`, `reject_review`, `request_changes`, `activate_template_version`, `rollback_template_version`, `deprecate_template`, `archive_template`, `list_review_queue`, and `list_governance_events`.
+- Template lifecycle is draft -> review -> approved -> active -> deprecated -> archived. Activation requires approved review; only one active version is default; deprecated templates are not default-runnable; archived templates cannot run; rollback does not delete old versions.
+- Marketplace foundation records `featured`, `verified`, `recommended`, `usage_count`, `success_rate`, `average_runtime_ms`, and `average_step_count` on `workflow_templates`, then exposes governance badges, risk badge, verified badge, featured templates, and recommended templates.
+- Output Artifact lineage adds `source_template_review_id` and `governance_state`; Workflow Runs can record template governance state and compatibility snapshot.
+- Admin Dashboard adds Template Governance with Review Queue, Approval / Reject / Request Changes, Template Lifecycle View, Audit Log View, Marketplace View, Compatibility Matrix View, and Rollback UI.
+- Worker Console and Worker Console Desktop show governance status, template verification status, and compatibility summary in Template Library.
+
+API coverage:
+
+- `GET /api/v1/workflow-template-reviews`
+- `POST /api/v1/workflow-template-reviews`
+- `POST /api/v1/workflow-template-reviews/{review_id}/approve`
+- `POST /api/v1/workflow-template-reviews/{review_id}/reject`
+- `POST /api/v1/workflow-template-reviews/{review_id}/request-changes`
+- `POST /api/v1/workflow-templates/{template_id}/rollback/{version_id}`
+- `POST /api/v1/workflow-templates/{template_id}/deprecate`
+- `POST /api/v1/workflow-templates/{template_id}/archive`
+- `GET /api/v1/workflow-template-audit-logs`
+- `GET /api/v1/workflow-template-marketplace`
+- `GET /api/v1/workflow-template-compatibility-matrix`
+
+Boundaries: Phase 48 is not public marketplace, not a visual DAG builder, not a distributed orchestration platform, not ComfyUI, not TikTok / YouTube / X automation, not real platform publishing, not automatic login, not CAPTCHA automation, not proxy pool, and not fingerprint bypass.
+<!-- PHASE48_SYNC:END -->
+
+## Phase 49: Workflow Run Observability & Replay Center
+
+Completed the Workflow Run Observability & Replay Center foundation: added `workflow_execution_traces`, `workflow_runtime_diagnostics`, `workflow_replay_sessions`, and integrated `WorkflowExecutionTraceService` plus `WorkflowDiagnosticsService`. The runtime now records node_started / node_completed / node_failed / planner_decision / retry_triggered / fallback_triggered / approval_wait / approval_resume / replay_started / replay_completed for Execution Trace, Runtime Summary, Failure Hotspots, Replay Center, and metadata_only / dry_run replay sessions.
+
+New APIs: `GET /api/v1/workflow-runs/{workflow_run_id}/traces`, `GET /api/v1/workflow-runs/{workflow_run_id}/diagnostics`, `GET /api/v1/workflow-runs/{workflow_run_id}/analytics`, `POST /api/v1/workflow-runs/{workflow_run_id}/replay-sessions`, `GET /api/v1/workflow-runs/{workflow_run_id}/runtime-summary`, `GET /api/v1/workflow-replay-sessions`, and `GET /api/v1/workflow-replay-sessions/{replay_session_id}`.
+
+Admin Dashboard now includes Replay Center / Workflow Observability views for Execution Trace Timeline, Node Inspection Panel, Retry/Fallback Visualization, Diagnostics Panel, Runtime Summary, Replay Session View, Failure Hotspots, and Approval Wait Visualization. Worker Console / Desktop show a simplified trace timeline, replay session status, diagnostics summary, and retry/fallback counters.
+
+Boundaries: this is not a distributed tracing platform, not an OpenTelemetry stack, not WebSocket/SSE realtime, not a deterministic replay engine, not a visual DAG editor, does not connect ComfyUI, does not perform real social publishing, and does not implement Kubernetes orchestration.
+
+Keywords: not distributed tracing platform; not deterministic replay engine; not ComfyUI.
+
+## Phase 50: Desktop Console Runtime UX & Client Packaging Readiness
+
+Phase 50 adds Desktop Console Runtime UX & Client Packaging Readiness. The Tauri icon resource is now explicit: `worker_console_desktop/src-tauri/icons/icon.ico` is a valid local placeholder icon and `bundle.icon` points to `["icons/icon.ico"]`.
+
+Start Runtime diagnostics now surface clear states: `starting`, `started`, `failed`, `unavailable`, `port_conflict`, `missing_config`, and `server_environment_warning`. The Desktop Console shows local worker diagnostics for `/local/status`, `/local/health`, runtime port, `server_url`, `worker_base_url`, last attempted action, last error detail, and last successful sync.
+
+Server/client boundary: Desktop Console controls the worker runtime on this local machine. If running on the server host, Start Runtime starts a server-local worker, not a remote customer machine. For real client E2E, run this app on the customer machine.
+
+This phase is packaging readiness only: not final installer, no code signing, no auto updater, no MSI/EXE release packaging, and not ComfyUI.
+
+Keywords: Desktop Console Runtime UX & Client Packaging Readiness; Tauri icon resource; icons/icon.ico; bundle.icon; Start Runtime diagnostics; missing_config; port_conflict; server_environment_warning; local worker diagnostics; customer machine; not final installer; no code signing; no auto updater.
+<!-- PHASE51_SYNC:START -->
+## Phase 51: Release Packaging & Deployment Bundle Foundation
+
+Status: completed.
+
+Phase 51 adds the Release Packaging & Deployment Bundle Foundation. It introduces a `release/` directory with `release/manifest.json`, `release/version.json`, `release/env/aiops.release.env.template`, server deployment bundle scripts, frontend production build bundle scripts, desktop release readiness scripts, Windows / Mac startup scripts, and `release/scripts/validate_release_packaging.py`.
+
+Packaging architecture:
+
+- Server deployment bundle: `release/scripts/build_server_bundle.ps1` and `release/scripts/build_server_bundle.sh` collect API server, worker, worker_client, Alembic, Docker, docs runtime metadata, and env template sources under ignored `release/build/server`.
+- Frontend production build bundle: `release/scripts/build_frontend_bundles.ps1` and `release/scripts/build_frontend_bundles.sh` run production builds for Admin Dashboard, Worker Console, and Worker Console Desktop frontend assets, then copy `dist` output under ignored `release/build/frontends`.
+- Desktop release readiness: `release/scripts/check_desktop_release_readiness.ps1` and `.sh` verify Tauri config, `icons/icon.ico`, package metadata, and Cargo/toolchain presence without producing a signed installer.
+- Version metadata: `release/version.json` records Phase 51 package metadata and component readiness.
+- Release manifest: `release/manifest.json` is the packaging SSOT for components, outputs, startup scripts, validation script, and forbidden runtime artifacts.
+- Validation: `release/scripts/validate_release_packaging.py` checks required files, manifest JSON, version JSON, desktop icon config, boundaries, and forbidden artifact declarations.
+
+Boundaries: Phase 51 is not a formal production release, no code signing, no auto updater, no MSI/EXE formal installer, no DMG/notarization, no Kubernetes/Helm packaging, no ComfyUI, and no real social platform publishing.
+
+ Phase 51  release readiness  code signing, auto updater, MSI/EXE, DMG/notarization, Kubernetes/Helm.
+
+Keywords: Phase 51; Release Packaging & Deployment Bundle Foundation; release/manifest.json; release/version.json; server deployment bundle; frontend production build bundle; desktop release readiness; aiops.release.env.template; validate_release_packaging.py; Windows / Mac startup scripts; not a formal production release; no code signing; no auto updater; no MSI/EXE; no DMG/notarization; no Kubernetes/Helm.
+<!-- PHASE51_SYNC:END -->
+<!-- PHASE52_SYNC:START -->
+## Phase 52: Deployment Profiles & Environment Bootstrap
+
+Status: completed.
+
+Phase 52 adds Deployment Profiles & Environment Bootstrap on top of Phase 51 release packaging. It introduces `deployment/` with profile-based configuration for `local-dev`, `server-docker`, `client-worker`, `desktop-client`, `staging`, and `production-like`. Each profile contains `profile.json`, `env.template`, `ports.json`, `services.json`, `healthchecks.json`, and `README.md`.
+
+Completed scope:
+
+- `deployment/scripts/generate_env.py` generates `.env.generated` or a specified output from a profile `env.template`, supports override JSON, validates required keys, and refuses to overwrite existing env files without `--force`.
+- `deployment/scripts/check_dependencies.py` checks Python, Docker, Docker Compose, Node/npm, Git, Playwright/client worker advisories, Rust/cargo, MSVC/link.exe on Windows, Tauri icon readiness, and WebView2 advisory by profile.
+- `deployment/scripts/check_ports.py` checks API 8000, Admin Dashboard 5180, Worker Console 5173, Desktop Console 5174, Worker Runtime 9100, PostgreSQL 5432, Redis 6379, and Qdrant 6333 from each profile `ports.json`; it reports process hints and never kills processes.
+- `deployment/scripts/verify_environment.py` verifies `server-docker`, `client-worker`, and `desktop-client` health: docker compose ps, API health, browser-worker health, workflow routes smoke, task-runs smoke, output-artifacts smoke, local worker status/health, Tauri config/icon, and frontend build presence where applicable.
+- Added Windows / Mac startup scripts under `deployment/windows/` and `deployment/mac/` for server Docker, Admin Dashboard, Worker Console, Desktop Console, client worker, and profile verification.
+- Release integration updates `release/manifest.json`, `release/version.json`, `release/README.md`, and `release/scripts/validate_release_packaging.py` to include deployment profiles, bootstrap scripts, dependency checks, port checks, and profile verification.
+- Admin Dashboard, Worker Console, and Worker Console Desktop Settings / Help now show recommended profile, AI Server URL, Workspace ID, User ID, Local Worker API, server/client/desktop role differences, and profile bootstrap docs link.
+
+Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not production HA, not code signing, not an auto updater, not a formal installer, not ComfyUI, and not real social platform publishing.
+
+Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
+<!-- PHASE52_SYNC:END -->
+
+<!-- PHASE53_SYNC:BEGIN -->
+## Phase 53: Release Smoke Test Matrix & Preflight Automation
+
+Phase 53 adds release readiness orchestration on top of Phase 51 packaging and Phase 52 deployment profiles.
+
+Runtime-facing additions:
+
+- `release/smoke/smoke_matrix.json`
+- `release/smoke/profile_matrix.json`
+- `release/smoke/runtime_matrix.json`
+- `scripts/release_preflight.py`
+- `scripts/release_smoke_matrix.py`
+- `scripts/generate_release_report.py`
+- `scripts/check_migration_continuity.py`
+- `scripts/check_runtime_hygiene.py`
+
+The preflight runner coordinates pytest, docs verifier, release validator, frontend builds, Docker health, deployment verification, runtime hygiene, migration continuity, and smoke routes. The smoke matrix checks health, browser-worker summary, conversation playbooks, task runs, output artifacts, workflow templates, and workflow replay sessions.
+
+Boundaries: this is not Kubernetes, Helm, Terraform, CI/CD SaaS, a real installer, code signing, an auto updater, production HA orchestration, ComfyUI, real OpenClaw, or real social media automation.
+<!-- PHASE53_SYNC:END -->
+
+<!-- PHASE54_SYNC:BEGIN -->
+## Phase 54: Integration Branch & PR Chain Reconciliation
+
+Phase 54 adds integration reconciliation on top of the Phase 43-53 stack. It introduces `docs/INTEGRATION_STRATEGY.md`, `docs/INTEGRATION_STATUS.md`, `release/integration/*`, `release/reports/pr_chain_inventory.json`, `scripts/analyze_pr_chain.py`, `scripts/integration_preflight.py`, `scripts/detect_integration_conflicts.py`, `scripts/check_api_frontend_drift.py`, and `scripts/generate_integration_report.py`.
+
+The integration preflight coordinates release preflight, smoke matrix, docs verifier, migration continuity, runtime hygiene, release packaging validation, deployment verification, OpenAPI/frontend client drift checks, phase index consistency, PR chain inventory validation, and conflict surface detection.
+
+Boundaries: Phase 54 does not add runtime features, does not merge PRs automatically, does not resolve conflicts automatically, and is not Kubernetes, Helm, Terraform, CI/CD SaaS, production HA orchestration, a real installer, code signing, or auto update.
+<!-- PHASE54_SYNC:END -->
+
+<!-- PHASE55_SYNC:BEGIN -->
+## Phase 55: Mainline Integration & Release Candidate Merge Window
+
+Phase 55 does not add runtime features. It adds Mainline Release Candidate preparation: `docs/MAINLINE_INTEGRATION_PLAN.md`, `docs/RELEASE_CANDIDATE_PROCESS.md`, `release/integration/release_candidate_model.json`, `scripts/mainline_readiness.py`, `scripts/simulate_mainline_merge.py`, `scripts/generate_superseded_pr_report.py`, and `scripts/generate_mainline_integration_report.py`.
+
+The runtime remains smoke verified and integration preflight verified, but not production-ready. Phase 55 keeps `main` unchanged and prepares the manual RC decision package.
+<!-- PHASE55_SYNC:END -->
+
+## Docs Stabilization Sprint
+
+This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
+
+The canonical project recovery state is: `main` remains the Phase 42 stable baseline, the active docs branch is `codex/docs-stabilization-sprint`, and Phase 43-52 remain open PRs layered on top of the Phase 42 baseline. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.

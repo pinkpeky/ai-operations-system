@@ -11,11 +11,11 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, IdTimestampMixin
-from app.models.enums import TaskRunPriority, TaskRunStatus
+from app.models.enums import TaskRunPriority, TaskRunStatus, TaskSchedulerStatus
 
 
 class TaskRun(IdTimestampMixin, Base):
@@ -50,6 +50,33 @@ class TaskRun(IdTimestampMixin, Base):
     failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     current_step: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    lease_token: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    recovery_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_recovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    recovery_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_category: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recoverable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    suggested_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_event_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    workflow_template_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_templates.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_template_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_template_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("workflow_template_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     input_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     output_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     task_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
@@ -82,3 +109,23 @@ class TaskRunEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     task_run: Mapped[TaskRun] = relationship(back_populates="events")
+
+
+class TaskSchedulerState(IdTimestampMixin, Base):
+    """Workspace-scoped health state for the in-process task scheduler."""
+
+    __tablename__ = "task_scheduler_state"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    scheduler_name: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32),
+        default=TaskSchedulerStatus.ACTIVE.value,
+        index=True,
+        nullable=False,
+    )
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    active_task_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    recovered_task_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    scheduler_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)

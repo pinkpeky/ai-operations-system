@@ -9,10 +9,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 import logging
+import os
+import socket
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -21,6 +24,7 @@ from app.models.enums import ConversationApprovalStatus, TaskRunPriority, TaskRu
 from app.models.task_run import TaskRun, TaskRunEvent
 from app.services.output_artifact_service import OutputArtifactService
 from app.task_orchestration.retry_policy import TaskRetryPolicy
+from app.workflow.services import WorkflowStateService
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +39,18 @@ class TaskOrchestratorService:
         TaskRunStatus.EXPIRED.value,
     }
 
-    def __init__(self, session: AsyncSession, *, retry_policy: TaskRetryPolicy | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        retry_policy: TaskRetryPolicy | None = None,
+        lease_owner: str | None = None,
+        lease_seconds: int = 120,
+    ) -> None:
         self.session = session
         self.retry_policy = retry_policy or TaskRetryPolicy()
+        self.lease_owner = lease_owner or f"{socket.gethostname()}:{os.getpid()}"
+        self.lease_seconds = lease_seconds
 
     async def enqueue_task(
         self,
@@ -76,6 +89,20 @@ class TaskOrchestratorService:
         )
         self.session.add(task)
         await self.session.flush()
+        workflow = await WorkflowStateService(self.session).create_workflow_run(
+            workspace_id=workspace_id,
+            source_type="task",
+            source_id=str(task.id),
+            conversation_thread_id=self._thread_id_from_payload(input_payload=input_payload, source_id=source_id),
+            task_run_id=task.id,
+            status="pending",
+            variables={},
+            context={"task_type": task_type, "source_type": source_type, "priority": priority},
+            metadata={"task_run_id": str(task.id), "execution_mode": (metadata or {}).get("execution_mode")},
+            commit=False,
+        )
+        task.task_metadata = {**(task.task_metadata or {}), "workflow_run_id": str(workflow.id)}
+        flag_modified(task, "task_metadata")
         await self.append_event(
             workspace_id=workspace_id,
             task_run_id=task.id,
@@ -125,8 +152,12 @@ class TaskOrchestratorService:
         source_type: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
+        recoverable: bool | None = None,
+        lease_expired: bool | None = None,
+        scheduled_due: bool | None = None,
         limit: int = 100,
     ) -> list[TaskRun]:
+        now = datetime.now(UTC)
         statement = select(TaskRun).where(TaskRun.workspace_id == workspace_id)
         if status is not None:
             statement = statement.where(TaskRun.status == status)
@@ -138,6 +169,18 @@ class TaskOrchestratorService:
             statement = statement.where(TaskRun.created_at >= created_from)
         if created_to is not None:
             statement = statement.where(TaskRun.created_at <= created_to)
+        if recoverable is not None:
+            statement = statement.where(TaskRun.recoverable.is_(recoverable))
+        if lease_expired:
+            statement = statement.where(
+                TaskRun.status == TaskRunStatus.RUNNING.value,
+                or_(TaskRun.lease_expires_at.is_(None), TaskRun.lease_expires_at <= now),
+            )
+        if scheduled_due:
+            statement = statement.where(
+                TaskRun.status.in_([TaskRunStatus.PENDING.value, TaskRunStatus.RETRYING.value]),
+                TaskRun.scheduled_at <= now,
+            )
         statement = statement.order_by(TaskRun.created_at.desc()).limit(limit)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
@@ -186,6 +229,8 @@ class TaskOrchestratorService:
             raise ValueError("Cancelled task runs cannot be started")
         task.status = TaskRunStatus.RUNNING.value
         task.started_at = datetime.now(UTC)
+        self._assign_lease(task)
+        await self._resume_task_workflow(task=task, reason="Task run started", commit=False)
         await self.append_event(
             workspace_id=task.workspace_id,
             task_run_id=task.id,
@@ -204,6 +249,7 @@ class TaskOrchestratorService:
         now = datetime.now(UTC)
         task.status = TaskRunStatus.COMPLETED.value
         task.completed_at = now
+        self._clear_lease(task)
         if output_payload is not None:
             task.output_payload = output_payload
             flag_modified(task, "output_payload")
@@ -217,6 +263,7 @@ class TaskOrchestratorService:
             commit=False,
         )
         await self._link_artifacts(task=task)
+        await self._complete_task_workflow(task=task, output_payload=task.output_payload, commit=False)
         if commit:
             await self.session.commit()
             await self.session.refresh(task)
@@ -228,6 +275,9 @@ class TaskOrchestratorService:
         task.status = TaskRunStatus.FAILED.value
         task.failed_at = datetime.now(UTC)
         task.error = error
+        self._clear_lease(task)
+        self._apply_diagnostics(task, error=error)
+        await self._fail_task_workflow(task=task, error=error, commit=False)
         if output_payload is not None:
             task.output_payload = output_payload
             flag_modified(task, "output_payload")
@@ -256,6 +306,8 @@ class TaskOrchestratorService:
         task.status = TaskRunStatus.RETRYING.value
         task.scheduled_at = datetime.now(UTC) + timedelta(seconds=delay)
         task.error = reason
+        self._clear_lease(task)
+        self._apply_diagnostics(task, error=reason)
         await self.append_event(
             workspace_id=task.workspace_id,
             task_run_id=task.id,
@@ -278,6 +330,7 @@ class TaskOrchestratorService:
         task.status = TaskRunStatus.CANCELLED.value
         task.cancelled_at = datetime.now(UTC)
         task.error = reason
+        self._clear_lease(task)
         await self.append_event(
             workspace_id=workspace_id,
             task_run_id=task.id,
@@ -305,6 +358,17 @@ class TaskOrchestratorService:
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 
+    async def heartbeat_task(self, *, task: TaskRun, commit: bool = True) -> TaskRun:
+        """Refresh the lease heartbeat for a running task."""
+
+        if task.status == TaskRunStatus.RUNNING.value:
+            task.heartbeat_at = datetime.now(UTC)
+            task.lease_expires_at = task.heartbeat_at + timedelta(seconds=self.lease_seconds)
+            if commit:
+                await self.session.commit()
+                await self.session.refresh(task)
+        return task
+
     async def execute_task(self, *, task: TaskRun) -> TaskRun:
         """Run a task once. The caller owns the AsyncSession lifecycle."""
 
@@ -325,6 +389,7 @@ class TaskOrchestratorService:
             task.current_step = int(result_payload.get("current_step") or task.current_step)
             if result_payload.get("approval_required"):
                 task.status = TaskRunStatus.WAITING_APPROVAL.value
+                await self._pause_task_workflow(task=task, reason="Task run is waiting for approval", commit=False)
                 task.output_payload = result_payload
                 flag_modified(task, "output_payload")
                 await self.append_event(
@@ -380,6 +445,7 @@ class TaskOrchestratorService:
         task.input_payload = payload
         task.status = TaskRunStatus.QUEUED.value
         flag_modified(task, "input_payload")
+        await self._resume_task_workflow(task=task, reason="Task run resumed after approval", commit=False)
         await self.append_event(
             workspace_id=workspace_id,
             task_run_id=task.id,
@@ -430,6 +496,9 @@ class TaskOrchestratorService:
             "playbook_run_id": str(result.playbook_run_id) if result.playbook_run_id else None,
             "playbook_name": result.playbook_name,
             "playbook_status": result.playbook_status,
+            "workflow_run_id": str(result.workflow_run_id) if result.workflow_run_id else None,
+            "checkpoint_id": str(result.checkpoint_id) if result.checkpoint_id else None,
+            "memory_snapshot_id": str(result.memory_snapshot_id) if result.memory_snapshot_id else None,
             "events_created": result.events_created,
             "current_step": self._current_step_from_result(result.output),
         }
@@ -444,6 +513,7 @@ class TaskOrchestratorService:
             task_run_id=task.id,
             playbook_run_id=playbook_run_id,
             thread_id=thread_id,
+            workflow_run_id=self._workflow_run_id_from_task(task),
             commit=False,
         )
         for artifact in artifacts:
@@ -469,3 +539,173 @@ class TaskOrchestratorService:
         if isinstance(steps, list):
             return len([step for step in steps if step.get("status") in {"completed", "failed", "waiting_approval"}])
         return 0
+
+    def _assign_lease(self, task: TaskRun) -> None:
+        now = datetime.now(UTC)
+        task.lease_owner = self.lease_owner
+        task.lease_token = f"lease-{uuid4()}"
+        task.heartbeat_at = now
+        task.lease_expires_at = now + timedelta(seconds=self.lease_seconds)
+
+    def _clear_lease(self, task: TaskRun) -> None:
+        task.lease_owner = None
+        task.lease_token = None
+        task.lease_expires_at = None
+        task.heartbeat_at = None
+
+    def _apply_diagnostics(self, task: TaskRun, *, error: str | None) -> None:
+        recoverable = self.retry_policy.should_retry(error=error, retry_count=task.retry_count, max_retries=task.max_retries)
+        task.failure_category = self.retry_policy.category_for_error(error)
+        task.failure_reason = error
+        task.recoverable = recoverable
+        task.suggested_action = self.retry_policy.suggested_action_for_error(error=error, recoverable=recoverable)
+        task.last_event_summary = self._summary_from_output(task.output_payload) or error
+
+    def _workflow_run_id_from_task(self, task: TaskRun) -> UUID | None:
+        value = (task.task_metadata or {}).get("workflow_run_id")
+        return UUID(str(value)) if value else None
+
+    def _thread_id_from_payload(self, *, input_payload: dict[str, Any], source_id: str | None) -> UUID | None:
+        value = input_payload.get("thread_id") or source_id
+        try:
+            return UUID(str(value)) if value else None
+        except (TypeError, ValueError):
+            return None
+
+    async def _resume_task_workflow(self, *, task: TaskRun, reason: str, commit: bool) -> None:
+        workflow_run_id = self._workflow_run_id_from_task(task)
+        if workflow_run_id is None:
+            return
+        workflow_service = WorkflowStateService(self.session)
+        workflow = await workflow_service.get_workflow_run(workspace_id=task.workspace_id, workflow_run_id=workflow_run_id)
+        if workflow is None:
+            return
+        if workflow.status in {"paused", "waiting_approval"}:
+            await workflow_service.resume_workflow(
+                workspace_id=task.workspace_id,
+                workflow_run_id=workflow_run_id,
+                reason=reason,
+                commit=False,
+            )
+        if not (task.task_metadata or {}).get("workflow_step_id"):
+            step = await workflow_service.start_step(
+                workspace_id=task.workspace_id,
+                workflow_run_id=workflow_run_id,
+                step_index=int(task.current_step or 0),
+                step_name="Task execution",
+                step_type=task.task_type,
+                node_key="task-execution",
+                dependency_state={"task_run_id": str(task.id), "source_type": task.source_type},
+                input_payload=task.input_payload,
+                metadata={"task_run_id": str(task.id)},
+                commit=False,
+            )
+            task.task_metadata = {**(task.task_metadata or {}), "workflow_step_id": str(step.id)}
+            flag_modified(task, "task_metadata")
+        if commit:
+            await self.session.commit()
+
+    async def _pause_task_workflow(self, *, task: TaskRun, reason: str, commit: bool) -> None:
+        workflow_run_id = self._workflow_run_id_from_task(task)
+        if workflow_run_id is None:
+            return
+        workflow_service = WorkflowStateService(self.session)
+        await workflow_service.pause_workflow(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            reason=reason,
+            waiting_approval=True,
+            commit=False,
+        )
+        await workflow_service.create_checkpoint(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            checkpoint_name="approval-wait",
+            checkpoint_type="approval",
+            state_payload={"task_run_id": str(task.id), "status": task.status, "approval_id": (task.output_payload or {}).get("approval_id")},
+            created_by="TaskOrchestratorService",
+            commit=False,
+        )
+        if commit:
+            await self.session.commit()
+
+    async def _complete_task_workflow(self, *, task: TaskRun, output_payload: dict[str, Any] | None, commit: bool) -> None:
+        workflow_run_id = self._workflow_run_id_from_task(task)
+        if workflow_run_id is None:
+            return
+        workflow_service = WorkflowStateService(self.session)
+        step_id = (task.task_metadata or {}).get("workflow_step_id")
+        if step_id:
+            await workflow_service.complete_step(
+                workspace_id=task.workspace_id,
+                workflow_step_id=UUID(str(step_id)),
+                output_payload=output_payload or {},
+                commit=False,
+            )
+        checkpoint = await workflow_service.create_checkpoint(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            checkpoint_name="task-final",
+            checkpoint_type="auto",
+            state_payload={"task_run_id": str(task.id), "status": task.status},
+            created_by="TaskOrchestratorService",
+            commit=False,
+        )
+        snapshot = await workflow_service.create_memory_snapshot(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            memory_type="task_context",
+            summary=self._summary_from_output(output_payload) or "Task workflow completed",
+            node_key="task-execution",
+            memory_payload={"task_run_id": str(task.id), "output": output_payload or {}},
+            metadata={"checkpoint_id": str(checkpoint.id)},
+            commit=False,
+        )
+        await workflow_service.complete_workflow(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            output={"task_run_id": str(task.id), "memory_snapshot_id": str(snapshot.id)},
+            commit=False,
+        )
+        task.task_metadata = {
+            **(task.task_metadata or {}),
+            "checkpoint_id": str(checkpoint.id),
+            "memory_snapshot_id": str(snapshot.id),
+        }
+        flag_modified(task, "task_metadata")
+        if commit:
+            await self.session.commit()
+
+    async def _fail_task_workflow(self, *, task: TaskRun, error: str, commit: bool) -> None:
+        workflow_run_id = self._workflow_run_id_from_task(task)
+        if workflow_run_id is None:
+            return
+        workflow_service = WorkflowStateService(self.session)
+        step_id = (task.task_metadata or {}).get("workflow_step_id")
+        if step_id:
+            await workflow_service.fail_step(
+                workspace_id=task.workspace_id,
+                workflow_step_id=UUID(str(step_id)),
+                error=error,
+                output_payload=task.output_payload,
+                commit=False,
+            )
+        checkpoint = await workflow_service.create_checkpoint(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            checkpoint_name="task-failure",
+            checkpoint_type="failure",
+            state_payload={"task_run_id": str(task.id), "status": task.status, "error": error},
+            created_by="TaskOrchestratorService",
+            commit=False,
+        )
+        await workflow_service.fail_workflow(
+            workspace_id=task.workspace_id,
+            workflow_run_id=workflow_run_id,
+            error=error,
+            commit=False,
+        )
+        task.task_metadata = {**(task.task_metadata or {}), "checkpoint_id": str(checkpoint.id)}
+        flag_modified(task, "task_metadata")
+        if commit:
+            await self.session.commit()

@@ -1,0 +1,11 @@
+{
+  "profile_key": "client-worker",
+  "startup_order": ["worker-config", "worker-register", "worker-runtime", "worker-heartbeat"],
+  "services": [
+    { "name": "worker-register", "command": "python -m worker_client.cli register", "required": true },
+    { "name": "worker-runtime", "command": "python -m worker_client.cli serve", "required": true },
+    { "name": "worker-heartbeat", "command": "python -m worker_client.cli heartbeat", "required": true },
+    { "name": "worker-start", "command": "python -m worker_client.cli start", "required": false }
+  ]
+}
+

@@ -1,0 +1,9 @@
+{
+  "profile_key": "desktop-client",
+  "startup_order": ["worker-client", "desktop-console"],
+  "services": [
+    { "name": "worker-client", "command": "python -m worker_client.cli start", "required": false },
+    { "name": "desktop-console", "command": "cd worker_console_desktop && npm run tauri dev", "required": true }
+  ]
+}
+

@@ -9,6 +9,7 @@ import {
   Database,
   FileText,
   Gauge,
+  GitBranch,
   HardDrive,
   History,
   KeyRound,
@@ -50,7 +51,30 @@ import {
   ConversationThread,
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
-import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
+import { taskRunClient, TaskRun, TaskRunDiagnostics, TaskRunEvent, TaskSchedulerHealth } from "./api/taskRunClient";
+import {
+  workflowClient,
+  AgentMemorySnapshot,
+  WorkflowCheckpoint,
+  WorkflowExecutionTrace,
+  WorkflowGraph,
+  WorkflowPlannerResult,
+  WorkflowReplay,
+  WorkflowReplaySession,
+  WorkflowRuntimeDiagnostic,
+  WorkflowRun,
+  WorkflowStep,
+} from "./api/workflowClient";
+import {
+  workflowTemplateClient,
+  WorkflowTemplateAuditLog,
+  WorkflowTemplateCompatibilityMatrixRow,
+  WorkflowTemplate,
+  WorkflowTemplateCompatibility,
+  WorkflowTemplateMarketplaceItem,
+  WorkflowTemplateReview,
+  WorkflowTemplateRun,
+} from "./api/workflowTemplateClient";
 import "./styles.css";
 
 type PageKey =
@@ -61,6 +85,11 @@ type PageKey =
   | "playbooks"
   | "output-library"
   | "tasks"
+  | "workflows"
+  | "workflow-observability"
+  | "workflow-graphs"
+  | "workflow-templates"
+  | "template-governance"
   | "openclaw"
   | "audit-logs"
   | "rag-documents"
@@ -87,6 +116,11 @@ const pages: PageDefinition[] = [
   { key: "playbooks", label: "Playbooks", icon: <History size={18} /> },
   { key: "output-library", label: "Output Library", icon: <FileText size={18} /> },
   { key: "tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
+  { key: "workflows", label: "Workflows", icon: <GitBranch size={18} /> },
+  { key: "workflow-observability", label: "Replay Center", icon: <Activity size={18} /> },
+  { key: "workflow-graphs", label: "Workflow Graphs", icon: <GitBranch size={18} /> },
+  { key: "workflow-templates", label: "Workflow Templates", icon: <GitBranch size={18} /> },
+  { key: "template-governance", label: "Template Governance", icon: <ShieldCheck size={18} /> },
   { key: "openclaw", label: "OpenClaw", icon: <Bot size={18} /> },
   { key: "audit-logs", label: "Audit Logs", icon: <ShieldCheck size={18} /> },
   { key: "rag-documents", label: "RAG / Documents", icon: <Database size={18} /> },
@@ -150,6 +184,15 @@ function StatusPill({ value }: { value: React.ReactNode }) {
       ? "bad"
       : "muted";
   return <span className={`status-pill status-pill-${variant}`}>{label}</span>;
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      <span className="field-value">{value ?? "-"}</span>
+    </div>
+  );
 }
 
 function DataCard({
@@ -288,11 +331,12 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
-    const [health, workerSummary, taskSummary, taskRuns, openclawHealth, sessions, conversations] = await Promise.all([
+    const [health, workerSummary, taskSummary, taskRuns, schedulerHealth, openclawHealth, sessions, conversations] = await Promise.all([
       safeRequest<JsonRecord>("/health", {}, settings),
       safeRequest<JsonRecord>("/browser-workers/health/summary", {}, settings),
       safeRequest<JsonRecord>("/observability/summary", {}, settings),
       safeRequest<JsonRecord>("/task-runs", {}, settings),
+      safeRequest<JsonRecord>("/task-scheduler/health", {}, settings),
       safeRequest<JsonRecord>("/openclaw/health", {}, settings),
       safeRequest<JsonRecord>("/browser-runtime/sessions", {}, settings),
       safeRequest<JsonRecord>("/conversations", {}, settings),
@@ -302,6 +346,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
       workerSummary: workerSummary.ok ? workerSummary.data : { unavailable: workerSummary.error },
       taskSummary: taskSummary.ok ? taskSummary.data : { unavailable: taskSummary.error },
       taskRuns: taskRuns.ok ? taskRuns.data : { unavailable: taskRuns.error },
+      schedulerHealth: schedulerHealth.ok ? schedulerHealth.data : { unavailable: schedulerHealth.error },
       openclawHealth: openclawHealth.ok ? openclawHealth.data : { unavailable: openclawHealth.error },
       browserRuntimeSessions: sessions.ok ? sessions.data : { unavailable: sessions.error },
       conversations: conversations.ok ? conversations.data : { unavailable: conversations.error },
@@ -320,6 +365,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
     return counts;
   }, {});
   const workerSummary = (state.data?.workerSummary as JsonRecord | undefined) || null;
+  const schedulerHealth = (state.data?.schedulerHealth as JsonRecord | undefined) || null;
   const health = (state.data?.health as JsonRecord | undefined) || null;
   const openclaw = (state.data?.openclawHealth as JsonRecord | undefined) || null;
 
@@ -342,6 +388,12 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
           icon={<ClipboardList size={20} />}
         />
         <DataCard
+          title="Scheduler"
+          value={valueAt(schedulerHealth, ["status"], "unavailable")}
+          detail={`${valueAt(schedulerHealth, ["active_task_count"], "0")} active / ${valueAt(schedulerHealth, ["recovered_task_count"], "0")} recovered`}
+          icon={<Gauge size={20} />}
+        />
+        <DataCard
           title="OpenClaw"
           value={valueAt(openclaw, ["provider"], "unavailable")}
           detail="mock adapter only"
@@ -354,6 +406,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
           <JsonPreview value={state.data?.health} />
           <JsonPreview value={state.data?.taskSummary} />
           <JsonPreview value={state.data?.taskRuns} />
+          <JsonPreview value={state.data?.schedulerHealth} />
           <JsonPreview value={state.data?.workerSummary} />
           <JsonPreview value={state.data?.openclawHealth} />
         </div>
@@ -1115,7 +1168,11 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
   const [selectedArtifact, setSelectedArtifact] = useState<OutputArtifact | null>(null);
   const [artifactType, setArtifactType] = useState("");
   const [sourceType, setSourceType] = useState("");
+  const [artifactRole, setArtifactRole] = useState("");
+  const [artifactStage, setArtifactStage] = useState("");
+  const [retentionPolicy, setRetentionPolicy] = useState("");
   const [exportPreview, setExportPreview] = useState<JsonRecord | null>(null);
+  const [lineagePreview, setLineagePreview] = useState<JsonRecord | null>(null);
 
   const load = useCallback(async () => {
     setArtifacts((current) => ({ ...current, loading: true, error: null }));
@@ -1123,6 +1180,9 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
       const response = await outputArtifactClient.listArtifacts(settings, {
         artifactType: artifactType || undefined,
         sourceType: sourceType || undefined,
+        artifactRole: artifactRole || undefined,
+        artifactStage: artifactStage || undefined,
+        retentionPolicy: retentionPolicy || undefined,
       });
       setArtifacts({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
@@ -1133,7 +1193,7 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
         updatedAt: nowLabel(),
       });
     }
-  }, [artifactType, settings, sourceType]);
+  }, [artifactRole, artifactStage, artifactType, retentionPolicy, settings, sourceType]);
 
   useEffect(() => {
     void load();
@@ -1146,6 +1206,32 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
     const exported = await outputArtifactClient.exportArtifact(selectedArtifact.id, format, settings);
     setExportPreview(exported as unknown as JsonRecord);
     await load();
+  };
+
+  const exportPipelineSelected = async (format: "markdown" | "html" | "json" | "txt" | "bundle_zip") => {
+    if (!selectedArtifact) {
+      return;
+    }
+    const exported = await outputArtifactClient.exportArtifactPipeline(selectedArtifact.id, format, settings);
+    setExportPreview(exported as unknown as JsonRecord);
+    await load();
+  };
+
+  const packageSelected = async () => {
+    if (!selectedArtifact) {
+      return;
+    }
+    const packaged = await outputArtifactClient.packageArtifact(selectedArtifact.id, settings);
+    setExportPreview(packaged as unknown as JsonRecord);
+    await load();
+  };
+
+  const loadLineage = async () => {
+    if (!selectedArtifact) {
+      return;
+    }
+    const lineage = await outputArtifactClient.getLineage(selectedArtifact.id, settings);
+    setLineagePreview(lineage as unknown as JsonRecord);
   };
 
   return (
@@ -1168,6 +1254,24 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <option key={value} value={value}>{value}</option>
             ))}
           </select>
+          <select value={artifactRole} onChange={(event) => setArtifactRole(event.target.value)} aria-label="artifact_role filter">
+            <option value="">All artifact_role</option>
+            {["screenshot", "report", "transcript", "markdown", "html", "json", "bundle", "debug", "replay", "dataset"].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+          <select value={artifactStage} onChange={(event) => setArtifactStage(event.target.value)} aria-label="artifact_stage filter">
+            <option value="">All artifact_stage</option>
+            {["raw", "processed", "packaged", "exported", "archived"].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
+          <select value={retentionPolicy} onChange={(event) => setRetentionPolicy(event.target.value)} aria-label="retention_policy filter">
+            <option value="">All retention_policy</option>
+            {["temporary", "standard", "persistent", "compliance_hold"].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
         </div>
         <LoadNotice state={artifacts} />
         <Table
@@ -1178,6 +1282,9 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
           columns={[
             { key: "title", label: "title" },
             { key: "artifact_type", label: "artifact_type" },
+            { key: "artifact_role", label: "role" },
+            { key: "artifact_stage", label: "stage" },
+            { key: "retention_policy", label: "retention" },
             { key: "source_type", label: "source_type" },
             { key: "status", label: "status" },
             { key: "created_at", label: "created_at" },
@@ -1193,15 +1300,34 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <span>thread_id: {selectedArtifact.thread_id ?? "-"}</span>
               <span>playbook_run_id: {selectedArtifact.playbook_run_id ?? "-"}</span>
               <span>task_run_id: {selectedArtifact.task_run_id ?? "-"}</span>
+              <span>workflow_run_id: {selectedArtifact.workflow_run_id ?? "-"}</span>
+              <span>workflow_step_id: {selectedArtifact.workflow_step_id ?? "-"}</span>
+              <span>checkpoint_id: {selectedArtifact.checkpoint_id ?? "-"}</span>
+              <span>memory_snapshot_id: {selectedArtifact.memory_snapshot_id ?? "-"}</span>
+              <span>workflow_template_id: {selectedArtifact.workflow_template_id ?? "-"}</span>
+              <span>workflow_template_version_id: {selectedArtifact.workflow_template_version_id ?? "-"}</span>
+              <span>workflow_template_run_id: {selectedArtifact.workflow_template_run_id ?? "-"}</span>
+              <span>producing_node_key: {selectedArtifact.producing_node_key ?? "-"}</span>
+              <span>replay_source: {selectedArtifact.replay_source ?? "-"}</span>
             </div>
             <div className="approval-card">
               <div className="approval-card-header">
                 <strong>{selectedArtifact.title}</strong>
                 <StatusPill value={selectedArtifact.artifact_type} />
+                <StatusPill value={selectedArtifact.artifact_role ?? "no_role"} />
+                <StatusPill value={selectedArtifact.artifact_stage} />
+                <StatusPill value={selectedArtifact.retention_policy} />
                 <StatusPill value={selectedArtifact.source_type} />
               </div>
+              <div className="chat-status-row">
+                <span>root_artifact_id: {selectedArtifact.root_artifact_id ?? "-"}</span>
+                <span>parent_artifact_id: {selectedArtifact.parent_artifact_id ?? "-"}</span>
+                <span>exportable: {String(selectedArtifact.exportable)}</span>
+              </div>
               <p>{selectedArtifact.summary ?? selectedArtifact.file_path ?? "No summary"}</p>
-              <JsonPreview value={selectedArtifact.metadata} />
+            <JsonPreview value={selectedArtifact.metadata} />
+            <h4>Graph lineage</h4>
+            <JsonPreview value={selectedArtifact.graph_lineage || {}} />
             </div>
             <h3>Preview content</h3>
             <pre className="json-preview">{selectedArtifact.content || selectedArtifact.file_path || "File-only artifact; see metadata/path."}</pre>
@@ -1209,9 +1335,15 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
               <button className="ghost-button" onClick={() => void exportSelected("markdown")}>Export markdown</button>
               <button className="ghost-button" onClick={() => void exportSelected("json")}>Export json</button>
               <button className="ghost-button" onClick={() => void exportSelected("txt")}>Export txt</button>
+              <button className="ghost-button" onClick={() => void exportPipelineSelected("html")}>Export HTML</button>
+              <button className="ghost-button" onClick={() => void exportPipelineSelected("bundle_zip")}>Export bundle</button>
+              <button className="ghost-button" onClick={() => void packageSelected()}>Package lineage</button>
+              <button className="ghost-button" onClick={() => void loadLineage()}>Load lineage</button>
             </div>
             <h3>Export result</h3>
             <JsonPreview value={exportPreview ?? { status: "export an artifact to see output path" }} />
+            <h3>Lineage graph</h3>
+            <JsonPreview value={lineagePreview ?? { status: "load lineage to see relationship graph" }} />
           </>
         ) : (
           <div className="empty-chat">Select an artifact to preview content and export markdown/json/txt.</div>
@@ -1223,8 +1355,11 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
 
 function TasksPage({ settings }: { settings: AdminSettings }) {
   const [status, setStatus] = useState("queued");
+  const [recoveryFilter, setRecoveryFilter] = useState("all");
   const [tasks, setTasks] = useState<AsyncState<TaskRun[]>>(emptyState());
+  const [schedulerHealth, setSchedulerHealth] = useState<TaskSchedulerHealth | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskRun | null>(null);
+  const [diagnostics, setDiagnostics] = useState<TaskRunDiagnostics | null>(null);
   const [events, setEvents] = useState<TaskRunEvent[]>([]);
   const [linkedArtifacts, setLinkedArtifacts] = useState<OutputArtifact[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -1233,7 +1368,14 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
   const load = useCallback(async () => {
     setTasks((current) => ({ ...current, loading: true, error: null }));
     try {
-      const response = await taskRunClient.listTaskRuns(settings, { status });
+      const response = await taskRunClient.listTaskRuns(settings, {
+        status,
+        recoverable: recoveryFilter === "recoverable" ? true : undefined,
+        leaseExpired: recoveryFilter === "lease_expired" ? true : undefined,
+        scheduledDue: recoveryFilter === "scheduled_due" ? true : undefined,
+      });
+      const health = await taskRunClient.schedulerHealth(settings);
+      setSchedulerHealth(health);
       setTasks({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
       setTasks({
@@ -1243,7 +1385,7 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         updatedAt: nowLabel(),
       });
     }
-  }, [settings, status]);
+  }, [settings, status, recoveryFilter]);
 
   const loadTask = async (row: TaskRun) => {
     setSelectedTask(row);
@@ -1252,16 +1394,19 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         taskRunClient.listEvents(row.id, settings),
         outputArtifactClient.listArtifacts(settings, { taskRunId: row.id }),
       ]);
+      const taskDiagnostics = await taskRunClient.diagnostics(row.id, settings);
       setEvents(eventList.items ?? []);
       setLinkedArtifacts(artifactList.items ?? []);
+      setDiagnostics(taskDiagnostics);
     } catch (error) {
       setEvents([]);
       setLinkedArtifacts([]);
+      setDiagnostics(null);
       setActionError(error instanceof Error ? error.message : "Task Run detail unavailable");
     }
   };
 
-  const mutateTask = async (action: "retry" | "cancel" | "resume") => {
+  const mutateTask = async (action: "retry" | "cancel" | "resume" | "recover") => {
     if (!selectedTask) {
       return;
     }
@@ -1272,7 +1417,9 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
           ? await taskRunClient.retry(selectedTask.id, "Manual retry from Admin Dashboard", settings)
           : action === "cancel"
             ? await taskRunClient.cancel(selectedTask.id, "Manual cancel from Admin Dashboard", settings)
-            : await taskRunClient.resume(selectedTask.id, settings);
+            : action === "recover"
+              ? await taskRunClient.recover(selectedTask.id, "Manual recovery from Admin Dashboard", settings)
+              : await taskRunClient.resume(selectedTask.id, settings);
       setSelectedTask(updated);
       await loadTask(updated);
       await load();
@@ -1299,10 +1446,21 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
                 </option>
               ))}
             </select>
+            <select value={recoveryFilter} onChange={(event) => setRecoveryFilter(event.target.value)}>
+              <option value="all">all</option>
+              <option value="recoverable">recoverable</option>
+              <option value="lease_expired">lease expired</option>
+              <option value="scheduled_due">scheduled due</option>
+            </select>
             <RefreshButton onClick={load} />
           </div>
         }
       >
+        <section className="metrics-grid compact">
+          <DataCard title="Scheduler status" value={schedulerHealth?.status ?? "unavailable"} detail={schedulerHealth?.scheduler_name ?? "in-process"} icon={<Gauge size={18} />} />
+          <DataCard title="Heartbeat" value={schedulerHealth?.heartbeat_at ?? "-"} detail={`last scan: ${schedulerHealth?.last_scan_at ?? "-"}`} icon={<Activity size={18} />} />
+          <DataCard title="Recovery" value={`${schedulerHealth?.recovered_task_count ?? 0} recovered`} detail={`${schedulerHealth?.active_task_count ?? 0} active`} icon={<RefreshCcw size={18} />} />
+        </section>
         <LoadNotice state={tasks} />
         <Table
           rows={(tasks.data || []) as unknown as JsonRecord[]}
@@ -1315,7 +1473,10 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
             { key: "source_type", label: "source_type" },
             { key: "status", label: "status" },
             { key: "retry_count", label: "retry" },
+            { key: "recoverable", label: "recoverable" },
+            { key: "lease_expires_at", label: "lease_expires_at" },
             { key: "current_step", label: "step" },
+            { key: "workflow_run_id", label: "workflow_run_id" },
             { key: "scheduled_at", label: "scheduled_at" },
             { key: "created_at", label: "created_at" },
           ]}
@@ -1325,6 +1486,8 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         <h2>Task Run Detail</h2>
         {actionError ? <div className="notice notice-error">{actionError}</div> : null}
         <JsonPreview value={selectedTask || { status: "select a task run" }} />
+        <h3>Linked workflow</h3>
+        <div className="empty-chat">{selectedTask?.workflow_run_id ?? "No workflow linked yet."}</div>
         <div className="conversation-actions">
           <button className="ghost-button" onClick={() => void mutateTask("retry")} disabled={!selectedTask}>
             Retry
@@ -1335,7 +1498,12 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
           <button className="ghost-button" onClick={() => void mutateTask("resume")} disabled={!selectedTask}>
             Resume after approval
           </button>
+          <button className="ghost-button" onClick={() => void mutateTask("recover")} disabled={!selectedTask}>
+            Recover
+          </button>
         </div>
+        <h3>Diagnostics</h3>
+        <JsonPreview value={diagnostics || { status: "select a task run" }} />
         <h3>Progress timeline</h3>
         <Timeline rows={events as unknown as JsonRecord[]} primary="event_type" secondary="message" />
         <h3>Linked artifacts</h3>
@@ -1352,6 +1520,769 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
         ) : (
           <div className="empty-chat">No artifacts linked to this task run yet.</div>
         )}
+      </aside>
+    </div>
+  );
+}
+
+function WorkflowsPage({ settings }: { settings: AdminSettings }) {
+  const [status, setStatus] = useState("running");
+  const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
+  const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
+  const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
+  const [memories, setMemories] = useState<AgentMemorySnapshot[]>([]);
+  const [linkedArtifacts, setLinkedArtifacts] = useState<OutputArtifact[]>([]);
+  const [planner, setPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [runGraph, setRunGraph] = useState<WorkflowGraph | null>(null);
+  const [replay, setReplay] = useState<WorkflowReplay | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setRuns((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await workflowClient.listRuns(settings, { status: status === "all" ? undefined : status });
+      setRuns({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setRuns({
+        data: null,
+        error: error instanceof Error ? error.message : "Workflow Runs API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings, status]);
+
+  const loadWorkflow = async (row: WorkflowRun) => {
+    setSelectedRun(row);
+    setActionError(null);
+    try {
+      const [stepList, checkpointList, memoryList, artifactList] = await Promise.all([
+        workflowClient.listSteps(row.id, settings),
+        workflowClient.listCheckpoints(row.id, settings),
+        workflowClient.listMemorySnapshots(row.id, settings),
+        outputArtifactClient.listArtifacts(settings, { workflowRunId: row.id }),
+      ]);
+      const [plannerResult, graphResult] = await Promise.all([
+        workflowClient.getPlanner(row.id, settings).catch(() => null),
+        workflowClient.getRunGraph(row.id, settings).catch(() => null),
+      ]);
+      setSteps(stepList.items ?? []);
+      setCheckpoints(checkpointList.items ?? []);
+      setMemories(memoryList.items ?? []);
+      setLinkedArtifacts(artifactList.items ?? []);
+      setPlanner(plannerResult);
+      setRunGraph(graphResult);
+      setReplay(null);
+    } catch (error) {
+      setSteps([]);
+      setCheckpoints([]);
+      setMemories([]);
+      setLinkedArtifacts([]);
+      setPlanner(null);
+      setRunGraph(null);
+      setReplay(null);
+      setActionError(error instanceof Error ? error.message : "Workflow detail unavailable");
+    }
+  };
+
+  const mutateWorkflow = async (action: "pause" | "resume" | "checkpoint" | "replay") => {
+    if (!selectedRun) {
+      return;
+    }
+    setActionError(null);
+    try {
+      if (action === "pause") {
+        const updated = await workflowClient.pause(selectedRun.id, settings);
+        setSelectedRun(updated);
+        await loadWorkflow(updated);
+      } else if (action === "resume") {
+        const updated = await workflowClient.resume(selectedRun.id, settings);
+        setSelectedRun(updated);
+        await loadWorkflow(updated);
+      } else if (action === "replay") {
+        const replayResult = await workflowClient.createReplay(selectedRun.id, settings);
+        await loadWorkflow(selectedRun);
+        setReplay(replayResult);
+      } else {
+        await workflowClient.createCheckpoint(selectedRun.id, settings);
+        await loadWorkflow(selectedRun);
+      }
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : `Workflow ${action} failed`);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Workflow Runs"
+        description="Recoverable Workflow State for Conversation, Playbook, Task, and Artifact lineage. Foundation only; not a full workflow builder and not ComfyUI."
+        action={
+          <div className="inline-controls">
+            <select value={status} onChange={(event) => setStatus(event.target.value)}>
+              {["all", "pending", "running", "paused", "waiting_approval", "completed", "failed", "cancelled"].map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <RefreshButton onClick={load} />
+          </div>
+        }
+      >
+        <LoadNotice state={runs} />
+        <Table
+          rows={(runs.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedRun?.id ?? null}
+          onSelect={(row) => void loadWorkflow(row as unknown as WorkflowRun)}
+          emptyLabel="No workflow runs for selected status."
+          columns={[
+            { key: "id", label: "workflow_run_id" },
+            { key: "source_type", label: "source_type" },
+            { key: "status", label: "status" },
+            { key: "workflow_graph_id", label: "graph_id" },
+            { key: "current_node_key", label: "current_node" },
+            { key: "current_step", label: "current_step" },
+            { key: "conversation_thread_id", label: "thread" },
+            { key: "playbook_run_id", label: "playbook_run" },
+            { key: "task_run_id", label: "task_run" },
+            { key: "updated_at", label: "updated_at" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Workflow Detail</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <JsonPreview value={selectedRun || { status: "select a workflow run" }} />
+        <div className="conversation-actions">
+          <button className="ghost-button" onClick={() => void mutateWorkflow("pause")} disabled={!selectedRun}>
+            Pause
+          </button>
+          <button className="ghost-button" onClick={() => void mutateWorkflow("resume")} disabled={!selectedRun}>
+            Resume
+          </button>
+          <button className="ghost-button" onClick={() => void mutateWorkflow("checkpoint")} disabled={!selectedRun}>
+            Create checkpoint
+          </button>
+          <button className="ghost-button" onClick={() => void mutateWorkflow("replay")} disabled={!selectedRun}>
+            Create replay metadata
+          </button>
+        </div>
+        <h3>Graph execution</h3>
+        <JsonPreview
+          value={{
+            workflow_graph_id: selectedRun?.workflow_graph_id ?? null,
+            graph_execution: selectedRun?.graph_execution ?? false,
+            current_node_key: selectedRun?.current_node_key ?? null,
+            planned_next_nodes: selectedRun?.planned_next_nodes ?? [],
+            skipped_nodes: selectedRun?.skipped_nodes ?? [],
+            retry_state: selectedRun?.retry_state ?? {},
+            fallback_state: selectedRun?.fallback_state ?? {},
+            planner,
+            replay,
+            linked_graph: runGraph ? { id: runGraph.id, name: runGraph.name, entry_node: runGraph.entry_node } : null,
+          }}
+        />
+        <h3>Step timeline</h3>
+        <Timeline rows={steps as unknown as JsonRecord[]} primary="step_name" secondary="status" />
+        <h3>Variables / Context</h3>
+        <JsonPreview value={{ variables: selectedRun?.variables ?? {}, context: selectedRun?.context ?? {} }} />
+        <h3>Checkpoints</h3>
+        <Timeline rows={checkpoints as unknown as JsonRecord[]} primary="checkpoint_name" secondary="checkpoint_type" />
+        <h3>Agent Memory Snapshots</h3>
+        <Timeline rows={memories as unknown as JsonRecord[]} primary="memory_type" secondary="summary" />
+        <h3>Linked artifacts</h3>
+        {linkedArtifacts.length ? (
+          linkedArtifacts.map((artifact) => (
+            <div className="approval-card" key={artifact.id}>
+              <div className="approval-card-header">
+                <strong>{artifact.title}</strong>
+                <StatusPill value={artifact.artifact_type} />
+              </div>
+              <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
+            </div>
+          ))
+        ) : (
+          <div className="empty-chat">No artifacts linked to this workflow yet.</div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function WorkflowObservabilityPage({ settings }: { settings: AdminSettings }) {
+  const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
+  const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
+  const [traces, setTraces] = useState<WorkflowExecutionTrace[]>([]);
+  const [diagnostics, setDiagnostics] = useState<WorkflowRuntimeDiagnostic[]>([]);
+  const [analytics, setAnalytics] = useState<JsonRecord | null>(null);
+  const [summary, setSummary] = useState<JsonRecord | null>(null);
+  const [replaySessions, setReplaySessions] = useState<WorkflowReplaySession[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setRuns((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await workflowClient.listRuns(settings, { status: undefined });
+      const rows = response.items ?? [];
+      setRuns({ data: rows, error: null, loading: false, updatedAt: nowLabel() });
+      if (!selectedRun && rows.length > 0) {
+        setSelectedRun(rows[0]);
+      }
+    } catch (error) {
+      setRuns({
+        data: null,
+        error: error instanceof Error ? error.message : "Workflow observability API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [selectedRun, settings]);
+
+  const loadObservability = useCallback(
+    async (workflow: WorkflowRun | null) => {
+      if (!workflow) {
+        return;
+      }
+      setActionError(null);
+      try {
+        const [traceList, diagnosticList, analyticsResult, runtimeSummary, replayList] = await Promise.all([
+          workflowClient.listTraces(workflow.id, settings),
+          workflowClient.listDiagnostics(workflow.id, settings),
+          workflowClient.getAnalytics(workflow.id, settings),
+          workflowClient.getRuntimeSummary(workflow.id, settings),
+          workflowClient.listReplaySessions(settings, workflow.id),
+        ]);
+        setTraces(traceList.items ?? []);
+        setDiagnostics(diagnosticList.items ?? []);
+        setAnalytics(analyticsResult.analytics ?? {});
+        setSummary(runtimeSummary.summary ?? {});
+        setReplaySessions(replayList.items ?? []);
+      } catch (error) {
+        setTraces([]);
+        setDiagnostics([]);
+        setAnalytics(null);
+        setSummary(null);
+        setReplaySessions([]);
+        setActionError(error instanceof Error ? error.message : "Replay Center detail unavailable");
+      }
+    },
+    [settings],
+  );
+
+  const createReplaySession = async () => {
+    if (!selectedRun) {
+      return;
+    }
+    setActionError(null);
+    try {
+      await workflowClient.createReplaySession(selectedRun.id, settings, "metadata_only");
+      await loadObservability(selectedRun);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Replay session creation failed");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    void loadObservability(selectedRun);
+  }, [loadObservability, selectedRun]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Workflow Observability"
+        description="Execution trace timeline, node inspection, retry/fallback visualization, diagnostics, runtime summary, and Replay Center. This is not OpenTelemetry and not deterministic replay."
+        action={<RefreshButton onClick={load} />}
+      >
+        <LoadNotice state={runs} />
+        <Table
+          rows={(runs.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedRun?.id ?? null}
+          onSelect={(row) => setSelectedRun(row as unknown as WorkflowRun)}
+          emptyLabel="No workflow runs available for Replay Center."
+          columns={[
+            { key: "id", label: "workflow_run_id" },
+            { key: "source_type", label: "source" },
+            { key: "status", label: "status" },
+            { key: "current_node_key", label: "current_node" },
+            { key: "planned_next_nodes", label: "next" },
+            { key: "updated_at", label: "updated_at" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <div className="detail-title">
+          <h2>Replay Center</h2>
+          <button className="primary-button" onClick={() => void createReplaySession()} disabled={!selectedRun}>
+            <History size={15} />
+            Create replay session
+          </button>
+        </div>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <p className="foundation-note">Replay sessions are metadata_only or dry_run. They do not re-execute browser/OpenClaw actions or bypass approvals.</p>
+        <h3>Runtime Summary</h3>
+        <JsonPreview value={summary || { status: "select a workflow run" }} />
+        <h3>Analytics</h3>
+        <div className="metrics-grid compact">
+          <DataCard title="Fallbacks" value={String(analytics?.fallback_frequency ?? 0)} icon={<GitBranch size={20} />} />
+          <DataCard title="Approvals" value={String(analytics?.approval_wait_frequency ?? 0)} icon={<ShieldCheck size={20} />} />
+          <DataCard title="Replays" value={String(analytics?.replay_frequency ?? 0)} icon={<History size={20} />} />
+        </div>
+        <JsonPreview value={analytics || { status: "unavailable" }} />
+        <h3>Execution Trace Timeline</h3>
+        <Timeline rows={traces as unknown as JsonRecord[]} primary="event_type" secondary="node_key" />
+        <h3>Node Inspection</h3>
+        <JsonPreview value={(traces[0] as unknown as JsonRecord) || { status: "no traces" }} />
+        <h3>Diagnostics</h3>
+        <Timeline rows={diagnostics as unknown as JsonRecord[]} primary="diagnostic_type" secondary="summary" />
+        <h3>Replay Sessions</h3>
+        <Timeline rows={replaySessions as unknown as JsonRecord[]} primary="replay_mode" secondary="replay_status" />
+      </aside>
+    </div>
+  );
+}
+
+function WorkflowGraphsPage({ settings }: { settings: AdminSettings }) {
+  const [graphs, setGraphs] = useState<AsyncState<WorkflowGraph[]>>(emptyState());
+  const [selectedGraph, setSelectedGraph] = useState<WorkflowGraph | null>(null);
+  const [planner, setPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setGraphs((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await workflowClient.listGraphs(settings);
+      setGraphs({ data: response.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setGraphs({
+        data: null,
+        error: error instanceof Error ? error.message : "Workflow Graphs API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadGraph = async (graph: WorkflowGraph) => {
+    setSelectedGraph(graph);
+    setActionError(null);
+    try {
+      const result = await workflowClient.validateGraph(graph.id, settings);
+      setPlanner(result);
+    } catch (error) {
+      setPlanner(null);
+      setActionError(error instanceof Error ? error.message : "Graph validation unavailable");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Workflow Graphs"
+        description="Workflow Graph Runtime with conditional routing, retry/fallback paths, and replay foundation. This is not a visual DAG builder or distributed orchestration engine."
+        action={<RefreshButton onClick={load} />}
+      >
+        <LoadNotice state={graphs} />
+        <Table
+          rows={(graphs.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedGraph?.id ?? null}
+          onSelect={(row) => void loadGraph(row as unknown as WorkflowGraph)}
+          emptyLabel="No workflow graphs."
+          columns={[
+            { key: "id", label: "workflow_graph_id" },
+            { key: "name", label: "name" },
+            { key: "version", label: "version" },
+            { key: "entry_node", label: "entry_node" },
+            { key: "updated_at", label: "updated_at" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Graph Planner</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <JsonPreview value={planner || { status: "select a workflow graph" }} />
+        <h3>Node list</h3>
+        <Timeline rows={(selectedGraph?.nodes || []) as unknown as JsonRecord[]} primary="node_key" secondary="node_type" />
+        <h3>Edge list</h3>
+        <Timeline rows={(selectedGraph?.edges || []) as unknown as JsonRecord[]} primary="source_node_key" secondary="edge_type" />
+        <h3>Dependency visualization</h3>
+        <JsonPreview
+          value={{
+            dependency_state: planner?.dependency_state ?? {},
+            conditional_routing_result: planner?.condition_results ?? [],
+            retry_path: planner?.retry_paths ?? [],
+            fallback_path: planner?.fallback_paths ?? [],
+          }}
+        />
+      </aside>
+    </div>
+  );
+}
+
+function WorkflowTemplatesPage({ settings }: { settings: AdminSettings }) {
+  const [templates, setTemplates] = useState<AsyncState<WorkflowTemplate[]>>(emptyState());
+  const [runs, setRuns] = useState<AsyncState<WorkflowTemplateRun[]>>(emptyState());
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+  const [compatibility, setCompatibility] = useState<WorkflowTemplateCompatibility | null>(null);
+  const [exportPayload, setExportPayload] = useState<JsonRecord | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setTemplates((current) => ({ ...current, loading: true, error: null }));
+    setRuns((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [templateResponse, runResponse] = await Promise.all([
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listRuns(settings),
+      ]);
+      setTemplates({ data: templateResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setRuns({ data: runResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Workflow Template Registry API unavailable";
+      setTemplates({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setRuns({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+    }
+  }, [settings]);
+
+  const inspectTemplate = async (template: WorkflowTemplate) => {
+    setSelectedTemplate(template);
+    setActionError(null);
+    try {
+      const result = await workflowTemplateClient.validateTemplate(template.id, settings);
+      setCompatibility(result);
+    } catch (error) {
+      setCompatibility(null);
+      setActionError(error instanceof Error ? error.message : "Compatibility check unavailable");
+    }
+  };
+
+  const exportTemplate = async () => {
+    if (!selectedTemplate) return;
+    setActionError(null);
+    try {
+      setExportPayload(await workflowTemplateClient.exportTemplate(selectedTemplate.id, settings));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template export failed");
+    }
+  };
+
+  const importDryRun = async () => {
+    if (!exportPayload) return;
+    setActionError(null);
+    try {
+      const imported = await workflowTemplateClient.importTemplateDryRun(
+        { ...exportPayload, template_key: `${exportPayload.template_key ?? "template"}_dry_run` },
+        settings,
+      );
+      setExportPayload({ ...exportPayload, import_dry_run_result: imported });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template import dry-run failed");
+    }
+  };
+
+  const runTemplate = async () => {
+    if (!selectedTemplate) return;
+    setActionError(null);
+    try {
+      await workflowTemplateClient.runTemplate(selectedTemplate.id, settings, {
+        url: "https://example.com",
+        topic: "AI automation operations",
+      });
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template run failed");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Template Library"
+        description="Workflow Template Registry with versioning, built-in templates, import/export JSON, compatibility checks, and template runs. This is not a visual DAG builder and does not connect ComfyUI."
+        action={<RefreshButton onClick={load} />}
+      >
+        <LoadNotice state={templates} />
+        <Table
+          rows={(templates.data || []) as unknown as JsonRecord[]}
+          selectedId={selectedTemplate?.id ?? null}
+          onSelect={(row) => void inspectTemplate(row as unknown as WorkflowTemplate)}
+          emptyLabel="No workflow templates."
+          columns={[
+            { key: "template_key", label: "template_key" },
+            { key: "name", label: "name" },
+            { key: "category", label: "category" },
+            { key: "status", label: "status" },
+            { key: "current_version", label: "current_version" },
+            { key: "risk_level", label: "risk_level" },
+            { key: "verified", label: "verified" },
+            { key: "featured", label: "featured" },
+            { key: "recommended", label: "recommended" },
+          ]}
+        />
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Template Detail</h2>
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <div className="actions-row">
+          <button className="ghost-button" disabled={!selectedTemplate} onClick={() => void exportTemplate()}>Export JSON</button>
+          <button className="ghost-button" disabled={!exportPayload} onClick={() => void importDryRun()}>Import dry-run</button>
+          <button className="primary-button" disabled={!selectedTemplate} onClick={() => void runTemplate()}>Run template</button>
+        </div>
+        <JsonPreview value={selectedTemplate || { status: "select a workflow template" }} />
+        <h3>Governance badges</h3>
+        <JsonPreview
+          value={
+            selectedTemplate
+              ? {
+                  status: selectedTemplate.status,
+                  risk_level: selectedTemplate.risk_level,
+                  verified: selectedTemplate.verified,
+                  featured: selectedTemplate.featured,
+                  recommended: selectedTemplate.recommended,
+                  usage_count: selectedTemplate.usage_count,
+                  success_rate: selectedTemplate.success_rate,
+                  average_runtime_ms: selectedTemplate.average_runtime_ms,
+                  average_step_count: selectedTemplate.average_step_count,
+                }
+              : { status: "select a workflow template" }
+          }
+        />
+        <h3>Validation result</h3>
+        <JsonPreview value={compatibility || { compatible: null, warnings: [], errors: [] }} />
+        <h3>Version list</h3>
+        <Timeline rows={(selectedTemplate?.versions || []) as unknown as JsonRecord[]} primary="version" secondary="validation_status" />
+        <h3>Export / import JSON</h3>
+        <JsonPreview value={exportPayload || { status: "export a template to inspect JSON" }} />
+        <h3>Template runs</h3>
+        <LoadNotice state={runs} />
+        <Timeline rows={(runs.data || []) as unknown as JsonRecord[]} primary="id" secondary="status" />
+      </aside>
+    </div>
+  );
+}
+
+function TemplateGovernancePage({ settings }: { settings: AdminSettings }) {
+  const [reviews, setReviews] = useState<AsyncState<WorkflowTemplateReview[]>>(emptyState());
+  const [marketplace, setMarketplace] = useState<AsyncState<WorkflowTemplateMarketplaceItem[]>>(emptyState());
+  const [auditLogs, setAuditLogs] = useState<AsyncState<WorkflowTemplateAuditLog[]>>(emptyState());
+  const [matrix, setMatrix] = useState<AsyncState<WorkflowTemplateCompatibilityMatrixRow[]>>(emptyState());
+  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedVersionId, setSelectedVersionId] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? null;
+
+  const load = useCallback(async () => {
+    setReviews((current) => ({ ...current, loading: true, error: null }));
+    setMarketplace((current) => ({ ...current, loading: true, error: null }));
+    setAuditLogs((current) => ({ ...current, loading: true, error: null }));
+    setMatrix((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [templateResponse, reviewResponse, marketplaceResponse, auditResponse, matrixResponse] = await Promise.all([
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listReviews(settings),
+        workflowTemplateClient.listMarketplace(settings),
+        workflowTemplateClient.listAuditLogs(settings),
+        workflowTemplateClient.listCompatibilityMatrix(settings),
+      ]);
+      setTemplates(templateResponse.items ?? []);
+      setSelectedTemplateId((current) => current || templateResponse.items?.[0]?.id || "");
+      setSelectedVersionId((current) => current || templateResponse.items?.[0]?.versions?.[0]?.id || "");
+      setReviews({ data: reviewResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setMarketplace({ data: marketplaceResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setAuditLogs({ data: auditResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+      setMatrix({ data: matrixResponse.items ?? [], error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Template Governance API unavailable";
+      setReviews({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setMarketplace({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setAuditLogs({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setMatrix({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+    }
+  }, [settings]);
+
+  const mutate = async (operation: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await operation();
+      await load();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Template governance action failed");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!selectedTemplate) {
+      return;
+    }
+    setSelectedVersionId(selectedTemplate.versions?.[0]?.id || "");
+  }, [selectedTemplateId, selectedTemplate]);
+
+  return (
+    <div className="split-page">
+      <Panel
+        title="Template Governance"
+        description="Internal Workflow Template Marketplace foundation with review queue, lifecycle controls, audit trail, compatibility matrix, governance badges, and rollback. This is not a public marketplace and not a drag/drop workflow editor."
+        action={<RefreshButton onClick={load} />}
+      >
+        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+        <LoadNotice state={reviews} />
+        <div className="actions-row">
+          <select
+            value={selectedTemplateId}
+            onChange={(event) => setSelectedTemplateId(event.target.value)}
+            aria-label="Template"
+          >
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.template_key} | {template.status} | {template.risk_level}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedVersionId}
+            onChange={(event) => setSelectedVersionId(event.target.value)}
+            aria-label="Template version"
+          >
+            {(selectedTemplate?.versions || []).map((version) => (
+              <option key={version.id} value={version.id}>
+                {version.version} | {version.validation_status}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="actions-row">
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId || !selectedVersionId}
+            onClick={() => void mutate(() => workflowTemplateClient.submitReview(selectedTemplateId, selectedVersionId, settings))}
+          >
+            Submit review
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId || !selectedVersionId}
+            onClick={() => void mutate(() => workflowTemplateClient.activateVersion(selectedTemplateId, selectedVersionId, settings))}
+          >
+            Activate approved
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId || !selectedVersionId}
+            onClick={() => void mutate(() => workflowTemplateClient.rollbackTemplate(selectedTemplateId, selectedVersionId, settings))}
+          >
+            Rollback
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId}
+            onClick={() => void mutate(() => workflowTemplateClient.deprecateTemplate(selectedTemplateId, settings))}
+          >
+            Deprecate
+          </button>
+          <button
+            className="ghost-button"
+            disabled={!selectedTemplateId}
+            onClick={() => void mutate(() => workflowTemplateClient.archiveTemplate(selectedTemplateId, settings))}
+          >
+            Archive
+          </button>
+        </div>
+        <h3>Review Queue</h3>
+        <Table
+          rows={(reviews.data || []) as unknown as JsonRecord[]}
+          emptyLabel="No template reviews."
+          columns={[
+            { key: "review_status", label: "review_status" },
+            { key: "template_id", label: "template_id" },
+            { key: "template_version_id", label: "version_id" },
+            { key: "reviewer_id", label: "reviewer" },
+            { key: "created_at", label: "created_at" },
+          ]}
+        />
+        <div className="actions-row">
+          {(reviews.data || []).slice(0, 4).map((review) => (
+            <span key={review.id} className="inline-actions">
+              <button className="ghost-button" onClick={() => void mutate(() => workflowTemplateClient.approveReview(review.id, settings))}>Approve</button>
+              <button className="ghost-button" onClick={() => void mutate(() => workflowTemplateClient.rejectReview(review.id, settings))}>Reject</button>
+              <button className="ghost-button" onClick={() => void mutate(() => workflowTemplateClient.requestChanges(review.id, settings))}>Request changes</button>
+            </span>
+          ))}
+        </div>
+      </Panel>
+      <aside className="detail-panel">
+        <h2>Marketplace View</h2>
+        <LoadNotice state={marketplace} />
+        <Timeline
+          rows={(marketplace.data || []).map((item) => ({
+            template_key: item.template.template_key,
+            governance_status: item.governance_status,
+            badges: item.badges.join(", "),
+            success_rate: item.metrics.success_rate,
+            total_runs: item.metrics.total_runs,
+          }))}
+          primary="template_key"
+          secondary="badges"
+        />
+        <h3>Compatibility Matrix</h3>
+        <LoadNotice state={matrix} />
+        <Table
+          rows={(matrix.data || []) as unknown as JsonRecord[]}
+          emptyLabel="No compatibility rows."
+          columns={[
+            { key: "runtime_capability", label: "runtime_capability" },
+            { key: "supported", label: "supported" },
+            { key: "notes", label: "notes" },
+            { key: "template_version_id", label: "version_id" },
+          ]}
+        />
+        <h3>Audit Log View</h3>
+        <LoadNotice state={auditLogs} />
+        <Timeline rows={(auditLogs.data || []) as unknown as JsonRecord[]} primary="action" secondary="actor_id" />
+        <h3>Lifecycle View</h3>
+        <JsonPreview
+          value={
+            selectedTemplate
+              ? {
+                  status: selectedTemplate.status,
+                  current_version: selectedTemplate.current_version,
+                  latest_version: selectedTemplate.latest_version,
+                  featured: selectedTemplate.featured,
+                  verified: selectedTemplate.verified,
+                  recommended: selectedTemplate.recommended,
+                  metrics: {
+                    usage_count: selectedTemplate.usage_count,
+                    success_rate: selectedTemplate.success_rate,
+                    average_runtime_ms: selectedTemplate.average_runtime_ms,
+                    average_step_count: selectedTemplate.average_step_count,
+                  },
+                }
+              : { status: "select a template" }
+          }
+        />
       </aside>
     </div>
   );
@@ -1553,6 +2484,7 @@ function SettingsPage({
   onSave: (settings: AdminSettings) => void;
 }) {
   const [draft, setDraft] = useState(settings);
+  const profileDocsPath = "docs/en/DEPLOYMENT_PROFILES.md";
 
   return (
     <Panel title="Settings" description="Local browser settings only. No authentication or permissions UI is implemented.">
@@ -1584,6 +2516,36 @@ function SettingsPage({
         <KeyRound size={15} />
         Save local settings
       </button>
+      <section className="detail-panel">
+        <h3>Deployment Profile Help</h3>
+        <div className="field-grid compact">
+          <Field label="recommended_profile" value="server-docker for API host; local-dev for development" />
+          <Field label="ai_server_url" value={draft.aiServerUrl} />
+          <Field label="workspace_id" value={draft.workspaceId} />
+          <Field label="user_id" value={draft.userId} />
+          <Field label="local_worker_api" value="Only required by Worker Console / Desktop Console" />
+          <Field label="profile_bootstrap_docs" value={profileDocsPath} />
+        </div>
+        <p className="muted-copy">
+          Server Docker runs API, browser-worker, PostgreSQL, Redis, and Qdrant. Client Worker runs worker_client on a customer machine. Desktop Client controls only that local machine worker runtime. Bootstrap scripts generate env files and verify dependencies, ports, and health without writing system environment variables.
+        </p>
+      </section>
+      <section className="detail-panel">
+        <h3>Release Readiness / Diagnostics</h3>
+        <div className="field-grid compact">
+          <Field label="current_profile" value="server-docker or local-dev" />
+          <Field label="preflight_result" value="Run python scripts/release_preflight.py --profile server-docker" />
+          <Field label="docs_verifier_status" value="python scripts/verify_docs_runtime.py" />
+          <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
+          <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile server-docker" />
+          <Field label="release_readiness_summary" value="docs/RELEASE_READINESS.md and docs/SMOKE_TEST_MATRIX.md" />
+          <Field label="integration_preflight" value="python scripts/integration_preflight.py --profile server-docker" />
+          <Field label="integration_strategy" value="docs/INTEGRATION_STRATEGY.md and docs/INTEGRATION_STATUS.md" />
+        </div>
+        <p className="muted-copy">
+          Phase 53 provides a local Release Smoke Matrix and Preflight System. Phase 54 adds PR chain reconciliation, conflict surface detection, and API/frontend drift checks. This remains integration readiness, not CI/CD SaaS, Kubernetes, code signing, an auto updater, or a production installer.
+        </p>
+      </section>
     </Panel>
   );
 }
@@ -1666,6 +2628,11 @@ function App() {
           {activePage === "playbooks" ? <PlaybooksPage settings={settings} /> : null}
           {activePage === "output-library" ? <OutputLibraryPage settings={settings} /> : null}
           {activePage === "tasks" ? <TasksPage settings={settings} /> : null}
+          {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
+          {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} /> : null}
+          {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
+          {activePage === "workflow-templates" ? <WorkflowTemplatesPage settings={settings} /> : null}
+          {activePage === "template-governance" ? <TemplateGovernancePage settings={settings} /> : null}
           {activePage === "openclaw" ? <OpenClawPage settings={settings} /> : null}
           {activePage === "audit-logs" ? <AuditLogsPage settings={settings} /> : null}
           {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} /> : null}

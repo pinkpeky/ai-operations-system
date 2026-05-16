@@ -35,6 +35,17 @@ import {
 } from "./api/conversationClient";
 import { outputArtifactClient, OutputArtifact } from "./api/outputArtifactClient";
 import { taskRunClient, TaskRun, TaskRunEvent } from "./api/taskRunClient";
+import {
+  workflowClient,
+  AgentMemorySnapshot,
+  WorkflowExecutionTrace,
+  WorkflowPlannerResult,
+  WorkflowReplaySession,
+  WorkflowRuntimeDiagnostic,
+  WorkflowRun,
+  WorkflowStep,
+} from "./api/workflowClient";
+import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
 import "./styles.css";
 
@@ -119,7 +130,20 @@ function ChatPanel() {
   const [artifacts, setArtifacts] = useState<OutputArtifact[]>([]);
   const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
   const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
+  const [schedulerHealth, setSchedulerHealth] = useState<Record<string, unknown> | null>(null);
   const [selectedTaskRunId, setSelectedTaskRunId] = useState<string | null>(null);
+  const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  const [memorySnapshots, setMemorySnapshots] = useState<AgentMemorySnapshot[]>([]);
+  const [workflowTraces, setWorkflowTraces] = useState<WorkflowExecutionTrace[]>([]);
+  const [workflowDiagnostics, setWorkflowDiagnostics] = useState<WorkflowRuntimeDiagnostic[]>([]);
+  const [workflowReplaySessions, setWorkflowReplaySessions] = useState<WorkflowReplaySession[]>([]);
+  const [workflowAnalytics, setWorkflowAnalytics] = useState<Record<string, unknown> | null>(null);
+  const [selectedWorkflowRunId, setSelectedWorkflowRunId] = useState<string | null>(null);
+  const [workflowPlanner, setWorkflowPlanner] = useState<WorkflowPlannerResult | null>(null);
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplate[]>([]);
+  const [workflowTemplateRuns, setWorkflowTemplateRuns] = useState<WorkflowTemplateRun[]>([]);
+  const [selectedWorkflowTemplateId, setSelectedWorkflowTemplateId] = useState<string | null>(null);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -151,7 +175,9 @@ function ChatPanel() {
   const refreshTaskRuns = useCallback(async () => {
     try {
       const response = await taskRunClient.listTaskRuns(settings);
+      const health = await taskRunClient.schedulerHealth(settings);
       setTaskRuns(response.items);
+      setSchedulerHealth(health as unknown as Record<string, unknown>);
       const taskId = selectedTaskRunId || response.items[0]?.id;
       if (taskId) {
         setSelectedTaskRunId(taskId);
@@ -163,10 +189,59 @@ function ChatPanel() {
     }
   }, [selectedTaskRunId, settings]);
 
+  const refreshWorkflows = useCallback(async () => {
+    try {
+      const [response, templateResponse, templateRunResponse] = await Promise.all([
+        workflowClient.listRuns(settings),
+        workflowTemplateClient.listTemplates(settings),
+        workflowTemplateClient.listRuns(settings),
+      ]);
+      setWorkflowRuns(response.items);
+      setWorkflowTemplates(templateResponse.items);
+      setWorkflowTemplateRuns(templateRunResponse.items);
+      setSelectedWorkflowTemplateId((current) => current || templateResponse.items[0]?.id || null);
+      const workflowId =
+        selectedWorkflowRunId ||
+        response.items.find((item) => item.status === "running" || item.status === "waiting_approval")?.id ||
+        response.items[0]?.id;
+      if (workflowId) {
+        setSelectedWorkflowRunId(workflowId);
+        const [steps, memories, planner] = await Promise.all([
+          workflowClient.listSteps(workflowId, settings),
+          workflowClient.listMemorySnapshots(workflowId, settings),
+          workflowClient.getPlanner(workflowId, settings).catch(() => null),
+        ]);
+        const [traces, diagnostics, analytics] = await Promise.all([
+          workflowClient.listTraces(workflowId, settings).catch(() => ({ items: [] })),
+          workflowClient.listDiagnostics(workflowId, settings).catch(() => ({ items: [] })),
+          workflowClient.getAnalytics(workflowId, settings).catch(() => ({ analytics: {} })),
+        ]);
+        setWorkflowSteps(steps.items);
+        setMemorySnapshots(memories.items);
+        setWorkflowPlanner(planner);
+        setWorkflowTraces(traces.items);
+        setWorkflowDiagnostics(diagnostics.items);
+        setWorkflowAnalytics(analytics.analytics);
+      }
+    } catch {
+      setWorkflowRuns([]);
+      setWorkflowSteps([]);
+      setMemorySnapshots([]);
+      setWorkflowTraces([]);
+      setWorkflowDiagnostics([]);
+      setWorkflowReplaySessions([]);
+      setWorkflowAnalytics(null);
+      setWorkflowPlanner(null);
+      setWorkflowTemplates([]);
+      setWorkflowTemplateRuns([]);
+    }
+  }, [selectedWorkflowRunId, settings]);
+
   useEffect(() => {
     void refreshPlaybooks();
     void refreshTaskRuns();
-  }, [refreshPlaybooks, refreshTaskRuns]);
+    void refreshWorkflows();
+  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows]);
 
   const refreshConversation = useCallback(async () => {
     if (!threadId) {
@@ -185,12 +260,13 @@ function ChatPanel() {
       setArtifacts((await outputArtifactClient.listArtifacts(settings, { threadId })).items);
       await refreshPlaybooks();
       await refreshTaskRuns();
+      await refreshWorkflows();
       setConnectionState("connected");
     } catch (nextError) {
       setConnectionState("disconnected");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
     }
-  }, [refreshPlaybooks, refreshTaskRuns, settings, threadId]);
+  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
 
   useEffect(() => {
     if (!pollEvents || !threadId) {
@@ -251,10 +327,14 @@ function ChatPanel() {
       setLastRoute(run.route_name);
       setLastSelectedTool(run.selected_tool);
       setLastRunMetadata(run.result_metadata);
+      if (run.workflow_run_id) {
+        setSelectedWorkflowRunId(run.workflow_run_id);
+      }
       if (run.task_run_id) {
         setSelectedTaskRunId(run.task_run_id);
         await refreshTaskRuns();
       }
+      await refreshWorkflows();
       setConnectionState("connected");
       setRunStatus(`route: ${run.route_name} | tool: ${run.selected_tool ?? "none"} | risk: ${run.risk_level ?? "-"} | approval: ${run.approval_status ?? "-"} | success: ${run.success}`);
       setInput("");
@@ -286,8 +366,12 @@ function ChatPanel() {
       if (run.task_run_id) {
         setSelectedTaskRunId(run.task_run_id);
       }
+      if (run.workflow_run_id) {
+        setSelectedWorkflowRunId(run.workflow_run_id);
+      }
       await refreshConversation();
       await refreshTaskRuns();
+      await refreshWorkflows();
       setLastRunMetadata(run.result_metadata);
       setRunStatus(`background task queued: ${run.task_run_id ?? "-"} | status: ${run.task_status ?? "-"}`);
     } catch (nextError) {
@@ -299,7 +383,7 @@ function ChatPanel() {
     }
   };
 
-  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume") => {
+  const mutateTaskRun = async (taskRunId: string, action: "retry" | "cancel" | "resume" | "recover") => {
     setChatLoading(true);
     setChatError(null);
     try {
@@ -307,6 +391,8 @@ function ChatPanel() {
         await taskRunClient.retry(taskRunId, settings);
       } else if (action === "cancel") {
         await taskRunClient.cancel(taskRunId, settings);
+      } else if (action === "recover") {
+        await taskRunClient.recover(taskRunId, settings);
       } else {
         await taskRunClient.resume(taskRunId, settings);
       }
@@ -382,6 +468,38 @@ function ChatPanel() {
     }
   };
 
+  const packageArtifact = async (artifactId: string) => {
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("packaging artifact");
+    try {
+      const packaged = await outputArtifactClient.packageArtifact(artifactId, settings);
+      setLastRunMetadata({ artifact_package: packaged });
+      setRunStatus(`artifact packaged: ${packaged.output_path ?? packaged.export_path ?? "bundle created"}`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Artifact package failed");
+      setRunStatus("artifact package error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const showArtifactLineage = async (artifactId: string) => {
+    setChatLoading(true);
+    setChatError(null);
+    setRunStatus("loading artifact lineage");
+    try {
+      const lineage = await outputArtifactClient.getLineage(artifactId, settings);
+      setLastRunMetadata({ artifact_lineage: lineage });
+      setRunStatus(`lineage loaded: ${lineage.relationships.length} relationships`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Artifact lineage failed");
+      setRunStatus("artifact lineage error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const runSelectedPlaybook = async () => {
     const playbook = playbooks.find((item) => item.name === selectedPlaybookName);
     if (!playbook) {
@@ -406,6 +524,32 @@ function ChatPanel() {
       setRunStatus("Playbook run submitted");
     } catch (nextError) {
       setChatError(nextError instanceof Error ? nextError.message : "Playbook API unreachable");
+      setRunStatus("error");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const runSelectedWorkflowTemplate = async () => {
+    if (!selectedWorkflowTemplateId) {
+      setChatError("Select a workflow template first");
+      return;
+    }
+    setChatLoading(true);
+    setChatError(null);
+    try {
+      const run = await workflowTemplateClient.runTemplate(selectedWorkflowTemplateId, settings, {
+        message: input,
+        url: "https://example.com",
+        topic: "AI automation operations",
+      });
+      setLastRoute("workflow_template");
+      setLastSelectedTool(null);
+      setLastRunMetadata(run as unknown as Record<string, unknown>);
+      await refreshWorkflows();
+      setRunStatus(`template run ${run.status}`);
+    } catch (nextError) {
+      setChatError(nextError instanceof Error ? nextError.message : "Workflow template run failed");
       setRunStatus("error");
     } finally {
       setChatLoading(false);
@@ -521,6 +665,57 @@ function ChatPanel() {
         )}
       </div>
       <div className="approval-list">
+        <h3>Template Library</h3>
+        <div className="chat-note">
+          Workflow Template Registry foundation with governance status, verification badges, and compatibility summary. This is not a public marketplace, not a visual DAG builder, and not a ComfyUI integration.
+        </div>
+        <select value={selectedWorkflowTemplateId ?? ""} onChange={(event) => setSelectedWorkflowTemplateId(event.target.value || null)}>
+          {workflowTemplates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.template_key} | v{template.current_version ?? template.latest_version ?? "-"} | {template.risk_level}
+            </option>
+          ))}
+        </select>
+        <div className="chat-actions">
+          <button className="action-button" onClick={() => void runSelectedWorkflowTemplate()} disabled={chatLoading || !selectedWorkflowTemplateId}>
+            Run template
+          </button>
+          <button className="refresh-button" onClick={() => void refreshWorkflows()}>
+            Refresh templates
+          </button>
+        </div>
+        {workflowTemplates.slice(0, 4).map((template) => (
+          <div key={template.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{template.template_key}</strong>
+              <span>{template.status}</span>
+              <span>{template.category ?? "uncategorized"}</span>
+              <span>{template.risk_level}</span>
+              <span>{template.verified ? "verified" : "unverified"}</span>
+              <span>{template.featured ? "featured" : "standard"}</span>
+              <span>{template.recommended ? "recommended" : "manual-review"}</span>
+            </div>
+            <p>{template.description ?? "No description"}</p>
+            <div className="chat-meta">
+              Governance status: {template.status} | success_rate: {Math.round((template.success_rate ?? 0) * 100)}% | runs: {template.usage_count ?? 0} | compatibility: {(template.versions?.[0]?.validation_status ?? "pending")}
+            </div>
+          </div>
+        ))}
+        <h4>Template runs</h4>
+        {workflowTemplateRuns.length > 0 ? workflowTemplateRuns.slice(0, 4).map((run) => (
+          <div key={run.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{run.id}</strong>
+              <span>{run.status}</span>
+              <span>workflow {run.workflow_run_id ?? "-"}</span>
+            </div>
+            <pre className="event-payload">{JSON.stringify(run.output_payload, null, 2)}</pre>
+          </div>
+        )) : (
+          <div className="empty-chat">No workflow template runs yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
         <h3>Pending approvals panel</h3>
         {approvals.length > 0 ? approvals.map((approval) => (
           <div key={approval.id} className={`approval-card approval-risk-${approval.risk_level}`}>
@@ -582,24 +777,121 @@ function ChatPanel() {
             <div className="approval-card-header">
               <strong>{artifact.title}</strong>
               <span>{artifact.artifact_type}</span>
+              <span>{artifact.artifact_role ?? "no_role"}</span>
+              <span>{artifact.artifact_stage}</span>
+              <span>{artifact.retention_policy}</span>
               <span>{artifact.source_type}</span>
             </div>
             <div className="chat-meta">
-              artifact_id: {artifact.id} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"}
+              artifact_id: {artifact.id} | root: {artifact.root_artifact_id ?? "-"} | playbook_run_id: {artifact.playbook_run_id ?? "-"} | task_run_id: {artifact.task_run_id ?? "-"} | workflow_run_id: {artifact.workflow_run_id ?? "-"} | producing_node_key: {artifact.producing_node_key ?? "-"} | replay_source: {artifact.replay_source ?? "-"}
             </div>
             <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
-            <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
-              Export markdown
-            </button>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => void exportArtifact(artifact.id)} disabled={chatLoading}>
+                Export markdown
+              </button>
+              <button className="refresh-button" onClick={() => void packageArtifact(artifact.id)} disabled={chatLoading}>
+                Package
+              </button>
+              <button className="refresh-button" onClick={() => void showArtifactLineage(artifact.id)} disabled={chatLoading}>
+                Lineage
+              </button>
+            </div>
           </div>
         )) : (
           <div className="empty-chat">No generated artifacts yet.</div>
         )}
       </div>
       <div className="approval-list">
+        <h3>Workflow State</h3>
+        <div className="chat-note">
+          Workflow State tracks current step, checkpoints, and Agent Memory Snapshots for Conversation / Playbook / Task execution. Foundation only; not a full workflow editor and not ComfyUI.
+        </div>
+        <div className="chat-actions">
+          <button className="refresh-button" onClick={() => void refreshWorkflows()}>
+            <RefreshCcw size={15} />
+            Refresh workflows
+          </button>
+        </div>
+        {workflowRuns.length > 0 ? workflowRuns.slice(0, 5).map((workflow) => (
+          <div key={workflow.id} className="approval-card">
+            <div className="approval-card-header">
+              <strong>{workflow.source_type}</strong>
+              <span>{workflow.status}</span>
+              <span>step {workflow.current_step}</span>
+              <span>node {workflow.current_node_key ?? "-"}</span>
+            </div>
+            <div className="chat-meta">
+              workflow_run_id: {workflow.id} | graph_execution: {String(workflow.graph_execution)} | workflow_graph_id: {workflow.workflow_graph_id ?? "-"} | next: {(workflow.planned_next_nodes ?? []).join(",") || "-"} | checkpoints: {workflow.checkpoints.length}
+            </div>
+            <div className="chat-actions">
+              <button className="refresh-button" onClick={() => { setSelectedWorkflowRunId(workflow.id); void refreshWorkflows(); }}>Inspect</button>
+              <button className="refresh-button" onClick={() => void workflowClient.pause(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Pause</button>
+              <button className="refresh-button" onClick={() => void workflowClient.resume(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Resume</button>
+              <button className="refresh-button" onClick={() => void workflowClient.createReplay(workflow.id, settings).then(() => refreshWorkflows())} disabled={chatLoading}>Replay metadata</button>
+              <button className="refresh-button" onClick={() => void workflowClient.createReplaySession(workflow.id, settings).then((replay) => { setWorkflowReplaySessions((current) => [replay, ...current]); return refreshWorkflows(); })} disabled={chatLoading}>Replay Center</button>
+            </div>
+          </div>
+        )) : (
+          <div className="empty-chat">No workflow runs yet.</div>
+        )}
+        <h4>Workflow timeline {selectedWorkflowRunId ? `for ${selectedWorkflowRunId}` : ""}</h4>
+        <div className="chat-note">
+          Graph execution panel: current node, planned next nodes, skipped nodes, retry/fallback state. This is not a visual DAG editor.
+        </div>
+        <pre className="metadata-preview">{JSON.stringify({
+          current_node: workflowPlanner?.current_node ?? null,
+          next_nodes: workflowPlanner?.next_nodes ?? [],
+          skipped_nodes: workflowPlanner?.skipped_nodes ?? [],
+          retry_paths: workflowPlanner?.retry_paths ?? [],
+          fallback_paths: workflowPlanner?.fallback_paths ?? [],
+          condition_results: workflowPlanner?.condition_results ?? [],
+          analytics: workflowAnalytics ?? {},
+          trace_count: workflowTraces.length,
+          diagnostics: workflowDiagnostics.map((item) => ({ type: item.diagnostic_type, severity: item.severity, summary: item.summary })),
+          replay_sessions: workflowReplaySessions.map((item) => ({ id: item.id, mode: item.replay_mode, status: item.replay_status })),
+        }, null, 2)}</pre>
+        <h4>Execution Traces / Diagnostics</h4>
+        {workflowTraces.length > 0 ? workflowTraces.slice(0, 8).map((trace) => (
+          <div key={trace.id} className="event-item">
+            <strong>{trace.event_type}</strong>
+            <span>{trace.node_key ?? "-"} | retry: {trace.retry_count} | fallback: {String(trace.fallback_triggered)}</span>
+          </div>
+        )) : (
+          <div className="empty-chat">No execution traces yet.</div>
+        )}
+        {workflowDiagnostics.length > 0 ? workflowDiagnostics.slice(0, 4).map((diagnostic) => (
+          <div key={diagnostic.id} className="event-item">
+            <strong>{diagnostic.severity}: {diagnostic.diagnostic_type}</strong>
+            <span>{diagnostic.summary}</span>
+          </div>
+        )) : null}
+        {workflowSteps.length > 0 ? workflowSteps.map((step) => (
+          <div key={step.id} className="event-item">
+            <strong>{step.step_name}</strong>
+            <span>{step.status} | {step.step_type} | node: {step.node_key ?? "-"} | duration: {step.duration_ms ?? "-"}ms</span>
+            {step.error ? <code>{step.error}</code> : null}
+          </div>
+        )) : (
+          <div className="empty-chat">Select a workflow run to inspect steps.</div>
+        )}
+        <h4>Agent Memory Snapshots</h4>
+        {memorySnapshots.length > 0 ? memorySnapshots.map((snapshot) => (
+          <div key={snapshot.id} className="event-item">
+            <strong>{snapshot.memory_type}</strong>
+            <span>{snapshot.summary ?? "-"}</span>
+          </div>
+        )) : (
+          <div className="empty-chat">No memory snapshots yet.</div>
+        )}
+      </div>
+      <div className="approval-list">
         <h3>Task Runs</h3>
         <div className="chat-note">
-          Background execution uses the Phase 42 in-process queue with retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+          Background execution uses the in-process queue with lease, recovery, retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
+        </div>
+        <div className="chat-note">
+          Scheduler: {String(schedulerHealth?.status ?? "unavailable")} | heartbeat: {String(schedulerHealth?.heartbeat_at ?? "-")} | recovered: {String(schedulerHealth?.recovered_task_count ?? 0)}
         </div>
         <div className="chat-actions">
           <button className="refresh-button" onClick={() => void refreshTaskRuns()}>
@@ -614,14 +906,15 @@ function ChatPanel() {
               <span>{task.status}</span>
             </div>
             <div className="chat-meta">
-              task_run_id: {task.id} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries}
+              task_run_id: {task.id} | workflow_run_id: {task.workflow_run_id ?? "-"} | step: {task.current_step} | retry: {task.retry_count}/{task.max_retries} | recoverable: {String(task.recoverable)} | lease: {task.lease_expires_at ?? "-"}
             </div>
-            <p>{String(task.error ?? task.output_payload.summary ?? "No error")}</p>
+            <p>{String(task.error ?? task.suggested_action ?? task.output_payload.summary ?? "No error")}</p>
             <div className="chat-actions">
               <button className="refresh-button" onClick={() => { setSelectedTaskRunId(task.id); void refreshTaskRuns(); }}>Events</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "retry")} disabled={chatLoading}>Retry</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "cancel")} disabled={chatLoading}>Cancel</button>
               <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "resume")} disabled={chatLoading}>Resume</button>
+              <button className="refresh-button" onClick={() => void mutateTaskRun(task.id, "recover")} disabled={chatLoading}>Recover</button>
             </div>
           </div>
         )) : (
@@ -1017,6 +1310,44 @@ function App() {
             <Field label="openclaw_enabled" value={String(status.openclaw_enabled)} />
             <Field label="browser_enabled" value={String(status.browser_enabled)} />
           </div>
+        </section>
+
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Server size={18} />
+            <h2>Deployment Profile Help</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="recommended_profile" value="client-worker for worker_client; desktop-client for Tauri Desktop" />
+            <Field label="ai_server_url" value={status.server_url ?? "set VITE_AI_SERVER_API / chat settings"} />
+            <Field label="workspace_id" value={status.workspace_id ?? "set VITE_WORKSPACE_ID"} />
+            <Field label="user_id" value="set VITE_USER_ID for conversation features" />
+            <Field label="local_worker_api" value={localWorkerClient.baseUrl} />
+            <Field label="profile_bootstrap_docs" value="docs/en/DEPLOYMENT_PROFILES.md" />
+          </div>
+          <p className="chat-note">
+            Server Docker is the API/backing-services host. Client Worker is the machine running worker_client. Desktop Client controls only the local machine runtime. The deployment bootstrap scripts can generate env files, check dependencies, check ports, and verify health without writing system environment variables.
+          </p>
+        </section>
+
+        <section className="panel connection-panel">
+          <div className="panel-title">
+            <Activity size={18} />
+            <h2>Release Readiness / Diagnostics</h2>
+          </div>
+          <div className="field-grid compact">
+            <Field label="current_profile" value="client-worker or desktop-client" />
+            <Field label="preflight_result" value="python scripts/release_preflight.py --profile server-docker" />
+            <Field label="docs_verifier_status" value="python scripts/verify_docs_runtime.py" />
+            <Field label="runtime_hygiene_status" value="python scripts/check_runtime_hygiene.py" />
+            <Field label="deployment_verification_status" value="python deployment/scripts/verify_environment.py --profile client-worker" />
+            <Field label="release_readiness_summary" value="docs/RELEASE_READINESS.md" />
+            <Field label="integration_preflight" value="python scripts/integration_preflight.py --profile server-docker" />
+            <Field label="integration_strategy" value="docs/INTEGRATION_STATUS.md" />
+          </div>
+          <p className="chat-note">
+            Phase 53 smoke checks are local preflight automation. Phase 54 adds PR chain reconciliation and drift checks. They do not create installers, code signing, auto updater, Kubernetes, or production HA orchestration.
+          </p>
         </section>
 
         <ChatPanel />

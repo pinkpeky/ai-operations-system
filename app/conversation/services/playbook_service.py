@@ -21,6 +21,7 @@ from app.conversation.tool_router import ConversationRouteDecision
 from app.models.conversation import ConversationApproval, ConversationPlaybook, ConversationPlaybookRun, ConversationThread
 from app.models.enums import ConversationPlaybookRunStatus, ConversationPlaybookStatus, ConversationRunMode
 from app.services.output_artifact_service import OutputArtifactService
+from app.workflow.services import WorkflowStateService
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,9 @@ class PlaybookExecutionResult:
     summary: str
     output: dict[str, Any]
     approval: ConversationApproval | None = None
+    workflow_run_id: UUID | None = None
+    checkpoint_id: UUID | None = None
+    memory_snapshot_id: UUID | None = None
 
 
 class ConversationPlaybookService:
@@ -199,6 +203,20 @@ class ConversationPlaybookService:
         )
         run.started_at = datetime.now(UTC)
         run.status = ConversationPlaybookRunStatus.RUNNING.value
+        workflow = await WorkflowStateService(self.session).create_workflow_run(
+            workspace_id=workspace_id,
+            source_type="playbook",
+            source_id=str(run.id),
+            conversation_thread_id=thread.id,
+            playbook_run_id=run.id,
+            status="running",
+            variables={"playbook_name": playbook.name},
+            context={"input": merged_input, "mode": mode},
+            metadata={"playbook_id": str(playbook.id), "playbook_run_id": str(run.id)},
+            commit=False,
+        )
+        run.output_payload = {**(run.output_payload or {}), "workflow_run_id": str(workflow.id)}
+        flag_modified(run, "output_payload")
         await self.repository.append_event(
             workspace_id=workspace_id,
             thread_id=thread.id,
@@ -222,6 +240,7 @@ class ConversationPlaybookService:
             mode=mode,
             message_id=message_id,
             source_message=source_message,
+            workflow_run_id=workflow.id,
         )
         await self.session.commit()
         await self.session.refresh(run)
@@ -248,6 +267,14 @@ class ConversationPlaybookService:
         if thread is None:
             raise ValueError("Conversation thread not found for playbook run")
         run.status = ConversationPlaybookRunStatus.RUNNING.value
+        workflow_run_id = self._uuid_or_none((run.output_payload or {}).get("workflow_run_id"))
+        if workflow_run_id is not None:
+            await WorkflowStateService(self.session).resume_workflow(
+                workspace_id=workspace_id,
+                workflow_run_id=workflow_run_id,
+                reason="Playbook resumed after approval",
+                commit=False,
+            )
         await self.repository.append_event(
             workspace_id=workspace_id,
             thread_id=thread.id,
@@ -265,6 +292,7 @@ class ConversationPlaybookService:
             message_id=approval.message_id,
             source_message=source_message,
             approved_step_index=int(metadata.get("playbook_step_index", run.current_step)),
+            workflow_run_id=workflow_run_id,
         )
         await self.approvals.mark_executed(workspace_id=workspace_id, approval_id=approval.id, commit=False)
         result.approval = approval
@@ -368,6 +396,13 @@ class ConversationPlaybookService:
         return match.group(0).rstrip("。,.，") if match else None
 
 
+    def _uuid_or_none(self, value: Any) -> UUID | None:
+        try:
+            return UUID(str(value)) if value else None
+        except (TypeError, ValueError):
+            return None
+
+
 class ConversationPlaybookExecutor:
     """Execute playbook steps and stop at approval gates."""
 
@@ -389,17 +424,42 @@ class ConversationPlaybookExecutor:
         message_id: UUID | None,
         source_message: str,
         approved_step_index: int | None = None,
+        workflow_run_id: UUID | None = None,
     ) -> PlaybookExecutionResult:
         """Execute steps until completion, failure, or approval is required."""
 
         output = dict(run.output_payload or {"steps": []})
         output.setdefault("steps", [])
+        workflow_run_id = workflow_run_id or self._uuid_or_none(output.get("workflow_run_id"))
+        workflow_service = WorkflowStateService(self.session)
+        last_checkpoint_id: UUID | None = None
+        last_memory_snapshot_id: UUID | None = None
         start_index = max(0, int(run.current_step or 0))
         for index in range(start_index, len(playbook.steps or [])):
             run.current_step = index
             step = playbook.steps[index]
             started_at = time.perf_counter()
             step_record = self._existing_or_new_step_record(output=output, index=index, step=step)
+            node_key = str(step.get("node_key") or step.get("id") or f"step-{index}") if isinstance(step, dict) else f"step-{index}"
+            parent_node_key = f"step-{index - 1}" if index > 0 else None
+            step_record["node_key"] = node_key
+            workflow_step_id: UUID | None = None
+            if workflow_run_id is not None:
+                workflow_step = await workflow_service.start_step(
+                    workspace_id=workspace_id,
+                    workflow_run_id=workflow_run_id,
+                    step_index=index,
+                    step_name=step_record["title"],
+                    step_type=step_record["step_type"],
+                    node_key=node_key,
+                    parent_node_key=parent_node_key,
+                    dependency_state={"parent_node_key": parent_node_key, "playbook_step_index": index},
+                    input_payload=step,
+                    metadata={"playbook_run_id": str(run.id), "playbook_name": playbook.name},
+                    commit=False,
+                )
+                workflow_step_id = workflow_step.id
+                step_record["workflow_step_id"] = str(workflow_step.id)
             run.output_payload = output
             flag_modified(run, "output_payload")
             await self.repository.append_event(
@@ -444,6 +504,29 @@ class ConversationPlaybookExecutor:
                     output["summary"] = f"Playbook `{playbook.name}` is waiting for approval at step {index}."
                     run.output_payload = output
                     flag_modified(run, "output_payload")
+                    if workflow_run_id is not None:
+                        await workflow_service.pause_workflow(
+                            workspace_id=workspace_id,
+                            workflow_run_id=workflow_run_id,
+                            reason="Playbook step requires approval",
+                            waiting_approval=True,
+                            commit=False,
+                        )
+                        if workflow_step_id is not None:
+                            workflow_step.status = "waiting_approval"
+                        last_checkpoint = await workflow_service.create_checkpoint(
+                            workspace_id=workspace_id,
+                            workflow_run_id=workflow_run_id,
+                            checkpoint_name=f"approval-step-{index}",
+                            checkpoint_type="approval",
+                            state_payload={"playbook_run_id": str(run.id), "approval_id": str(approval.id), "step_index": index},
+                            created_by=user_id or "ConversationPlaybookExecutor",
+                            commit=False,
+                        )
+                        last_checkpoint_id = last_checkpoint.id
+                        output["checkpoint_id"] = str(last_checkpoint.id)
+                        run.output_payload = output
+                        flag_modified(run, "output_payload")
                     await self.repository.append_event(
                         workspace_id=workspace_id,
                         thread_id=thread.id,
@@ -458,7 +541,7 @@ class ConversationPlaybookExecutor:
                         message="Playbook run is waiting for approval",
                         payload={"playbook_run_id": str(run.id), "approval_id": str(approval.id)},
                     )
-                    return PlaybookExecutionResult(playbook, run, True, output["summary"], output, approval)
+                    return PlaybookExecutionResult(playbook, run, True, output["summary"], output, approval, workflow_run_id, last_checkpoint_id, None)
 
                 success, summary, metadata = await self._execute_step_decision(
                     decision=decision,
@@ -475,6 +558,22 @@ class ConversationPlaybookExecutor:
                         "risk_level": risk_level,
                     }
                 )
+                if workflow_step_id is not None:
+                    if success:
+                        await workflow_service.complete_step(
+                            workspace_id=workspace_id,
+                            workflow_step_id=workflow_step_id,
+                            output_payload={"summary": summary, "metadata": metadata},
+                            commit=False,
+                        )
+                    else:
+                        await workflow_service.fail_step(
+                            workspace_id=workspace_id,
+                            workflow_step_id=workflow_step_id,
+                            error=summary,
+                            output_payload={"summary": summary, "metadata": metadata},
+                            commit=False,
+                        )
                 await self.repository.append_event(
                     workspace_id=workspace_id,
                     thread_id=thread.id,
@@ -496,7 +595,24 @@ class ConversationPlaybookExecutor:
                         message=summary,
                         payload={"playbook_run_id": str(run.id), "step_index": index},
                     )
-                    return PlaybookExecutionResult(playbook, run, False, summary, output)
+                    if workflow_run_id is not None:
+                        last_checkpoint = await workflow_service.create_checkpoint(
+                            workspace_id=workspace_id,
+                            workflow_run_id=workflow_run_id,
+                            checkpoint_name=f"failure-step-{index}",
+                            checkpoint_type="failure",
+                            state_payload={"playbook_run_id": str(run.id), "step_index": index, "error": summary},
+                            created_by=user_id or "ConversationPlaybookExecutor",
+                            commit=False,
+                        )
+                        last_checkpoint_id = last_checkpoint.id
+                        await workflow_service.fail_workflow(
+                            workspace_id=workspace_id,
+                            workflow_run_id=workflow_run_id,
+                            error=summary,
+                            commit=False,
+                        )
+                    return PlaybookExecutionResult(playbook, run, False, summary, output, None, workflow_run_id, last_checkpoint_id, None)
             except Exception as exc:
                 summary = f"Playbook step failed: {str(exc) or exc.__class__.__name__}"
                 step_record.update(
@@ -512,6 +628,31 @@ class ConversationPlaybookExecutor:
                 output["summary"] = summary
                 run.output_payload = output
                 flag_modified(run, "output_payload")
+                if workflow_step_id is not None:
+                    await workflow_service.fail_step(
+                        workspace_id=workspace_id,
+                        workflow_step_id=workflow_step_id,
+                        error=str(exc),
+                        output_payload={"summary": summary},
+                        commit=False,
+                    )
+                if workflow_run_id is not None:
+                    last_checkpoint = await workflow_service.create_checkpoint(
+                        workspace_id=workspace_id,
+                        workflow_run_id=workflow_run_id,
+                        checkpoint_name=f"failure-step-{index}",
+                        checkpoint_type="failure",
+                        state_payload={"playbook_run_id": str(run.id), "step_index": index, "error": str(exc)},
+                        created_by=user_id or "ConversationPlaybookExecutor",
+                        commit=False,
+                    )
+                    last_checkpoint_id = last_checkpoint.id
+                    await workflow_service.fail_workflow(
+                        workspace_id=workspace_id,
+                        workflow_run_id=workflow_run_id,
+                        error=summary,
+                        commit=False,
+                    )
                 await self.repository.append_event(
                     workspace_id=workspace_id,
                     thread_id=thread.id,
@@ -519,7 +660,7 @@ class ConversationPlaybookExecutor:
                     message=summary,
                     payload={"playbook_run_id": str(run.id), "step_index": index, "error": str(exc)},
                 )
-                return PlaybookExecutionResult(playbook, run, False, summary, output)
+                return PlaybookExecutionResult(playbook, run, False, summary, output, None, workflow_run_id, last_checkpoint_id, None)
 
         run.status = ConversationPlaybookRunStatus.COMPLETED.value
         run.current_step = len(playbook.steps or [])
@@ -527,6 +668,37 @@ class ConversationPlaybookExecutor:
         output["summary"] = self._summarize_run(playbook=playbook, output=output)
         run.output_payload = output
         flag_modified(run, "output_payload")
+        if workflow_run_id is not None:
+            last_checkpoint = await workflow_service.create_checkpoint(
+                workspace_id=workspace_id,
+                workflow_run_id=workflow_run_id,
+                checkpoint_name="playbook-final",
+                checkpoint_type="auto",
+                state_payload={"playbook_run_id": str(run.id), "status": run.status, "summary": output["summary"]},
+                created_by=user_id or "ConversationPlaybookExecutor",
+                commit=False,
+            )
+            last_checkpoint_id = last_checkpoint.id
+            memory_snapshot = await workflow_service.create_memory_snapshot(
+                workspace_id=workspace_id,
+                workflow_run_id=workflow_run_id,
+                memory_type="task_context",
+                summary=output["summary"],
+                memory_payload={"playbook_run_id": str(run.id), "steps": output.get("steps", [])},
+                metadata={"checkpoint_id": str(last_checkpoint.id), "playbook_name": playbook.name},
+                commit=False,
+            )
+            last_memory_snapshot_id = memory_snapshot.id
+            output["checkpoint_id"] = str(last_checkpoint.id)
+            output["memory_snapshot_id"] = str(memory_snapshot.id)
+            await workflow_service.complete_workflow(
+                workspace_id=workspace_id,
+                workflow_run_id=workflow_run_id,
+                output={"playbook_run_id": str(run.id), "summary": output["summary"]},
+                commit=False,
+            )
+            run.output_payload = output
+            flag_modified(run, "output_payload")
         try:
             artifacts = await OutputArtifactService(self.session).create_from_playbook_run(
                 workspace_id=workspace_id,
@@ -559,7 +731,7 @@ class ConversationPlaybookExecutor:
             message=f"Playbook completed: {playbook.name}",
             payload={"playbook_run_id": str(run.id), "playbook_name": playbook.name, "summary": output["summary"]},
         )
-        return PlaybookExecutionResult(playbook, run, True, output["summary"], output)
+        return PlaybookExecutionResult(playbook, run, True, output["summary"], output, None, workflow_run_id, last_checkpoint_id, last_memory_snapshot_id)
 
     async def _execute_step_decision(
         self,
@@ -636,6 +808,12 @@ class ConversationPlaybookExecutor:
         step_record = self._new_step_record(index=index, step=step)
         steps.append(step_record)
         return step_record
+
+    def _uuid_or_none(self, value: Any) -> UUID | None:
+        try:
+            return UUID(str(value)) if value else None
+        except (TypeError, ValueError):
+            return None
 
     def _render_value(self, value: Any, inputs: dict[str, Any]) -> Any:
         if isinstance(value, str):

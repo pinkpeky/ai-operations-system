@@ -169,6 +169,7 @@ class OutputArtifactStatus(StrEnum):
     """Output artifact lifecycle status."""
 
     ACTIVE = "active"
+    ARCHIVED = "archived"
     DELETED = "deleted"
 
 
@@ -190,6 +191,7 @@ class OutputArtifactType(StrEnum):
 
     TEXT = "text"
     MARKDOWN = "markdown"
+    HTML = "html"
     JSON = "json"
     SCREENSHOT = "screenshot"
     HTML_SNAPSHOT = "html_snapshot"
@@ -197,6 +199,219 @@ class OutputArtifactType(StrEnum):
     PLAN = "plan"
     RAG_ANSWER = "rag_answer"
     CONTENT_DRAFT = "content_draft"
+    BUNDLE = "bundle"
+    DEBUG = "debug"
+    REPLAY = "replay"
+    DATASET = "dataset"
+
+
+class OutputArtifactRole(StrEnum):
+    """Role an artifact plays in an output pipeline."""
+
+    SCREENSHOT = "screenshot"
+    REPORT = "report"
+    TRANSCRIPT = "transcript"
+    MARKDOWN = "markdown"
+    HTML = "html"
+    JSON = "json"
+    BUNDLE = "bundle"
+    DEBUG = "debug"
+    REPLAY = "replay"
+    DATASET = "dataset"
+
+
+class OutputArtifactStage(StrEnum):
+    """Output artifact pipeline stage."""
+
+    RAW = "raw"
+    PROCESSED = "processed"
+    PACKAGED = "packaged"
+    EXPORTED = "exported"
+    ARCHIVED = "archived"
+
+
+class OutputArtifactRetentionPolicy(StrEnum):
+    """Output artifact retention policy."""
+
+    TEMPORARY = "temporary"
+    STANDARD = "standard"
+    PERSISTENT = "persistent"
+    COMPLIANCE_HOLD = "compliance_hold"
+
+
+class WorkflowRunStatus(StrEnum):
+    """Workflow run lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    PAUSED = "paused"
+    WAITING_APPROVAL = "waiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class WorkflowStepStatus(StrEnum):
+    """Workflow step lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    WAITING_APPROVAL = "waiting_approval"
+
+
+class WorkflowCheckpointType(StrEnum):
+    """Workflow checkpoint type."""
+
+    AUTO = "auto"
+    MANUAL = "manual"
+    APPROVAL = "approval"
+    FAILURE = "failure"
+    RESUME = "resume"
+
+
+class AgentMemorySnapshotType(StrEnum):
+    """Agent memory snapshot type."""
+
+    CONVERSATION_SUMMARY = "conversation_summary"
+    TASK_CONTEXT = "task_context"
+    TOOL_RESULT = "tool_result"
+    DECISION = "decision"
+    APPROVAL_CONTEXT = "approval_context"
+    ARTIFACT_SUMMARY = "artifact_summary"
+
+
+class WorkflowGraphEdgeType(StrEnum):
+    """Workflow graph edge routing type."""
+
+    SUCCESS = "success"
+    FAILURE = "failure"
+    CONDITIONAL = "conditional"
+    RETRY = "retry"
+    FALLBACK = "fallback"
+    ALWAYS = "always"
+
+
+class WorkflowNodeType(StrEnum):
+    """Supported workflow graph node type."""
+
+    PLAYBOOK_STEP = "playbook_step"
+    APPROVAL_GATE = "approval_gate"
+    TOOL_CALL = "tool_call"
+    ARTIFACT_TRANSFORM = "artifact_transform"
+    CONDITIONAL_ROUTER = "conditional_router"
+    DELAY = "delay"
+    RETRY = "retry"
+    WORKFLOW_CHECKPOINT = "workflow_checkpoint"
+    MEMORY_SNAPSHOT = "memory_snapshot"
+    NO_OP = "no_op"
+
+
+class WorkflowNodeExecutionMode(StrEnum):
+    """Workflow graph node execution mode."""
+
+    SYNC = "sync"
+    ASYNC = "async"
+    BACKGROUND = "background"
+
+
+class WorkflowReplayStatus(StrEnum):
+    """Workflow replay metadata lifecycle."""
+
+    CREATED = "created"
+    PLANNED = "planned"
+    FAILED = "failed"
+
+
+class WorkflowTraceEventType(StrEnum):
+    """Workflow execution trace event type."""
+
+    NODE_STARTED = "node_started"
+    NODE_COMPLETED = "node_completed"
+    NODE_FAILED = "node_failed"
+    RETRY_TRIGGERED = "retry_triggered"
+    FALLBACK_TRIGGERED = "fallback_triggered"
+    REPLAY_STARTED = "replay_started"
+    REPLAY_COMPLETED = "replay_completed"
+    PLANNER_DECISION = "planner_decision"
+    APPROVAL_WAIT = "approval_wait"
+    APPROVAL_RESUME = "approval_resume"
+
+
+class WorkflowDiagnosticSeverity(StrEnum):
+    """Workflow runtime diagnostic severity."""
+
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+class WorkflowReplaySessionStatus(StrEnum):
+    """Workflow replay center session status."""
+
+    CREATED = "created"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class WorkflowReplayMode(StrEnum):
+    """Workflow replay center mode."""
+
+    DRY_RUN = "dry_run"
+    METADATA_ONLY = "metadata_only"
+    REPLAY_EXECUTION = "replay_execution"
+
+
+class WorkflowTemplateStatus(StrEnum):
+    """Workflow template lifecycle status."""
+
+    DRAFT = "draft"
+    REVIEW = "review"
+    APPROVED = "approved"
+    ACTIVE = "active"
+    DISABLED = "disabled"
+    DEPRECATED = "deprecated"
+    ARCHIVED = "archived"
+
+
+class WorkflowTemplateVersionValidationStatus(StrEnum):
+    """Workflow template version validation status."""
+
+    PENDING = "pending"
+    VALID = "valid"
+    INVALID = "invalid"
+
+
+class WorkflowTemplateRunStatus(StrEnum):
+    """Workflow template run lifecycle status."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class WorkflowTemplateReviewStatus(StrEnum):
+    """Workflow template review queue status."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CHANGES_REQUESTED = "changes_requested"
+
+
+class WorkflowTemplatePromotionType(StrEnum):
+    """Workflow template lifecycle promotion action type."""
+
+    ACTIVATE = "activate"
+    ROLLBACK = "rollback"
+    DEPRECATE = "deprecate"
+    ARCHIVE = "archive"
 
 
 class TaskRunStatus(StrEnum):
@@ -219,6 +434,15 @@ class TaskRunPriority(StrEnum):
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
+
+
+class TaskSchedulerStatus(StrEnum):
+    """In-process task scheduler health status."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    DEGRADED = "degraded"
+    STOPPED = "stopped"
 
 
 class AgentMemoryType(StrEnum):

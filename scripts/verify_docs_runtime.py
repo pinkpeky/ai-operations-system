@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +34,9 @@ class DocsRuntimeVerifier:
     def run(self) -> int:
         """执行所有校验并输出结果。"""
 
+        self.check_markdown_encoding()
+        self.check_docs_stabilization_quality()
+        self.check_docx_render_qa()
         self.check_required_docs()
         self.check_runtime_config()
         self.check_openapi_and_api_docs()
@@ -62,7 +67,19 @@ class DocsRuntimeVerifier:
 
         required = [
             "docs/PROJECT_OVERVIEW.md",
+            "docs/PROJECT_STATUS.md",
             "docs/CURRENT_RUNTIME.md",
+            "docs/PHASE_INDEX.md",
+            "docs/CURRENT_NEXT_PHASE.md",
+            "docs/SYSTEM_BOUNDARIES.md",
+            "docs/DOC_RENDER_QA.md",
+            "docs/ARCHITECTURE_TIMELINE.md",
+            "docs/RELEASE_READINESS.md",
+            "docs/SMOKE_TEST_MATRIX.md",
+            "docs/INTEGRATION_STRATEGY.md",
+            "docs/INTEGRATION_STATUS.md",
+            "docs/MAINLINE_INTEGRATION_PLAN.md",
+            "docs/RELEASE_CANDIDATE_PROCESS.md",
             "docs/zh/PROJECT_STATUS.md",
             "docs/zh/ARCHITECTURE.md",
             "docs/zh/API_REFERENCE.md",
@@ -121,6 +138,60 @@ class DocsRuntimeVerifier:
             "worker_console_desktop/autostart/README.md",
             "worker_console_desktop/autostart/windows_registry_placeholder.md",
             "worker_console_desktop/autostart/mac_launch_agent_placeholder.md",
+            "release/README.md",
+            "release/manifest.json",
+            "release/version.json",
+            "release/env/aiops.release.env.template",
+            "release/scripts/build_server_bundle.ps1",
+            "release/scripts/build_server_bundle.sh",
+            "release/scripts/build_frontend_bundles.ps1",
+            "release/scripts/build_frontend_bundles.sh",
+            "release/scripts/check_desktop_release_readiness.ps1",
+            "release/scripts/check_desktop_release_readiness.sh",
+            "release/scripts/validate_release_packaging.py",
+            "release/smoke/smoke_matrix.json",
+            "release/smoke/profile_matrix.json",
+            "release/smoke/runtime_matrix.json",
+            "release/smoke/README.md",
+            "release/reports/README.md",
+            "scripts/release_preflight.py",
+            "scripts/release_smoke_matrix.py",
+            "scripts/generate_release_report.py",
+            "scripts/check_migration_continuity.py",
+            "scripts/check_runtime_hygiene.py",
+            "release/integration/integration_matrix.json",
+            "release/integration/phase_dependency_matrix.json",
+            "release/integration/conflict_surface_matrix.json",
+            "release/integration/release_candidate_model.json",
+            "release/integration/README.md",
+            "release/reports/pr_chain_inventory.json",
+            "release/reports/superseded_prs.md",
+            "scripts/analyze_pr_chain.py",
+            "scripts/integration_preflight.py",
+            "scripts/detect_integration_conflicts.py",
+            "scripts/check_api_frontend_drift.py",
+            "scripts/generate_integration_report.py",
+            "scripts/mainline_readiness.py",
+            "scripts/simulate_mainline_merge.py",
+            "scripts/generate_superseded_pr_report.py",
+            "scripts/generate_mainline_integration_report.py",
+            "release/windows/start_server.ps1",
+            "release/mac/start_server.sh",
+            "deployment/README.md",
+            "deployment/profiles/local-dev/profile.json",
+            "deployment/profiles/server-docker/profile.json",
+            "deployment/profiles/client-worker/profile.json",
+            "deployment/profiles/desktop-client/profile.json",
+            "deployment/profiles/staging/profile.json",
+            "deployment/profiles/production-like/profile.json",
+            "deployment/scripts/generate_env.py",
+            "deployment/scripts/check_dependencies.py",
+            "deployment/scripts/check_ports.py",
+            "deployment/scripts/verify_environment.py",
+            "deployment/windows/start_server_docker.ps1",
+            "deployment/mac/start_server_docker.sh",
+            "docs/zh/DEPLOYMENT_PROFILES.md",
+            "docs/en/DEPLOYMENT_PROFILES.md",
             "worker_console_desktop/.env.example",
             "worker_console_desktop/README.md",
             "docs/zh/WORKER_CLIENT_INSTALL.md",
@@ -160,11 +231,26 @@ class DocsRuntimeVerifier:
             "app/schemas/output_artifact.py",
             "app/schemas/task_run.py",
             "app/services/output_artifact_service.py",
+            "app/services/artifact_export_service.py",
+            "app/services/artifact_packaging_service.py",
+            "app/services/artifact_retention_service.py",
             "app/task_orchestration/service.py",
             "app/task_orchestration/background_executor.py",
             "app/task_orchestration/retry_policy.py",
+            "app/task_orchestration/recovery_service.py",
+            "app/models/workflow.py",
+            "app/workflow/services.py",
+            "app/workflow/planner.py",
+            "app/workflow/observability.py",
+            "app/workflow/template_definitions.py",
+            "app/workflow/template_registry.py",
+            "app/schemas/workflow.py",
+            "app/schemas/workflow_template.py",
+            "app/api/routes/workflows.py",
+            "app/api/routes/workflow_templates.py",
             "app/api/routes/output_artifacts.py",
             "app/api/routes/task_runs.py",
+            "app/api/routes/task_scheduler.py",
             "app/schemas/conversation.py",
             "app/schemas/conversation_playbook.py",
             "app/api/routes/conversations.py",
@@ -173,9 +259,13 @@ class DocsRuntimeVerifier:
             "worker_console/src/api/conversationClient.ts",
             "worker_console/src/api/outputArtifactClient.ts",
             "worker_console/src/api/taskRunClient.ts",
+            "worker_console/src/api/workflowClient.ts",
+            "worker_console/src/api/workflowTemplateClient.ts",
             "worker_console_desktop/src/api/conversationClient.ts",
             "worker_console_desktop/src/api/outputArtifactClient.ts",
             "worker_console_desktop/src/api/taskRunClient.ts",
+            "worker_console_desktop/src/api/workflowClient.ts",
+            "worker_console_desktop/src/api/workflowTemplateClient.ts",
             "admin_dashboard/package.json",
             "admin_dashboard/index.html",
             "admin_dashboard/vite.config.ts",
@@ -186,6 +276,8 @@ class DocsRuntimeVerifier:
             "admin_dashboard/src/api/conversationClient.ts",
             "admin_dashboard/src/api/outputArtifactClient.ts",
             "admin_dashboard/src/api/taskRunClient.ts",
+            "admin_dashboard/src/api/workflowClient.ts",
+            "admin_dashboard/src/api/workflowTemplateClient.ts",
             "admin_dashboard/.env.example",
             "admin_dashboard/README.md",
             "docs/zh/ADMIN_DASHBOARD.md",
@@ -197,6 +289,213 @@ class DocsRuntimeVerifier:
                 self.error(f"Missing required docs file: {path}")
         else:
             self.pass_("Required zh/en docs structure exists")
+
+    def check_markdown_encoding(self) -> None:
+        """Validate Markdown files as UTF-8 without BOM or obvious mojibake."""
+
+        markdown_files = sorted(self.docs.rglob("*.md"))
+        if not markdown_files:
+            self.error("No Markdown docs found")
+            return
+
+        suspicious_patterns = [
+            (re.compile(r"\ufeff"), "UTF-8 BOM"),
+            (re.compile(r"\ufffd"), "Unicode replacement character"),
+            (re.compile(r"\?{3,}"), "repeated question-mark encoding corruption"),
+            (re.compile(r"\u00c3|\u00c2|\u00e2\u20ac|\u9225|\u951b|\u9428"), "common mojibake marker"),
+        ]
+        failed = False
+        for path in markdown_files:
+            relative = path.relative_to(self.root).as_posix()
+            data = path.read_bytes()
+            if data.startswith(b"\xef\xbb\xbf"):
+                self.error(f"Markdown encoding validation failed for {relative}: UTF-8 BOM")
+                failed = True
+                continue
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                self.error(f"Markdown encoding validation failed for {relative}: {exc}")
+                failed = True
+                continue
+            for pattern, label in suspicious_patterns:
+                if pattern.search(text):
+                    self.error(f"Markdown encoding validation failed for {relative}: {label}")
+                    failed = True
+                    break
+        if not failed:
+            self.pass_(f"Markdown encoding validation passed for {len(markdown_files)} files")
+
+    def check_docs_stabilization_quality(self) -> None:
+        """Validate docs stabilization guardrails for titles, status, and render examples."""
+
+        self.check_phase_index_title()
+        self.check_doc_render_qa_examples()
+        self.check_project_status_consistency()
+        self.check_question_mark_pollution()
+
+    def check_phase_index_title(self) -> None:
+        """Ensure the Phase Index title has no replacement marker."""
+
+        text = self.read_text("docs/PHASE_INDEX.md")
+        first_line = text.splitlines()[0] if text.splitlines() else ""
+        allowed_titles = {
+            "# AI Operations System - Phase Index",
+            "# AI Operations System — Phase Index",
+        }
+        if first_line not in allowed_titles:
+            self.error("PHASE_INDEX.md title is not clean")
+        else:
+            self.pass_("PHASE_INDEX.md title is clean")
+
+    def check_doc_render_qa_examples(self) -> None:
+        """Ensure DOC_RENDER_QA keeps intact docs/rendered paths."""
+
+        text = self.read_text("docs/DOC_RENDER_QA.md")
+        if "docs\\rendered" not in text:
+            self.error("DOC_RENDER_QA.md missing intact Windows docs\\rendered path")
+        elif "docs\nendered" in text or "docs\r\nendered" in text:
+            self.error("DOC_RENDER_QA.md contains broken docs\\rendered path split")
+        elif "ignored QA output directory" not in text:
+            self.error("DOC_RENDER_QA.md does not explain docs\\rendered is ignored QA output")
+        else:
+            self.pass_("DOC_RENDER_QA.md render paths are intact")
+
+    def check_project_status_consistency(self) -> None:
+        """Ensure docs do not imply that Phase 43-52 are merged into main."""
+
+        required_terms = [
+            "`main` remains the Phase 42 stable baseline",
+            "PR #3-#12 cover Phase 43-52 and remain open",
+            "PR #13 is the Docs Stabilization Sprint",
+            "does not mean all phases are merged into `main`",
+        ]
+        status_files = [
+            "docs/PROJECT_OVERVIEW.md",
+            "docs/PHASE_INDEX.md",
+            "docs/CURRENT_NEXT_PHASE.md",
+            "docs/PROJECT_STATUS.md",
+            "docs/en/PROJECT_STATUS.md",
+            "docs/zh/PROJECT_STATUS.md",
+        ]
+        failed = False
+        for relative_path in status_files:
+            text = self.read_text(relative_path)
+            for term in required_terms:
+                if term not in text:
+                    self.error(f"{relative_path} missing status consistency term: {term}")
+                    failed = True
+        if not failed:
+            self.pass_("Project status wording is consistent across overview, phase index, and status docs")
+
+    def check_question_mark_pollution(self) -> None:
+        """Detect suspicious question-mark separators without flagging URL query strings."""
+
+        query_marker = re.compile(r"\?[A-Za-z_][A-Za-z0-9_-]*=")
+        suspicious_backtick_separator = re.compile(r"`[^`\n]+`\?`[^`\n]+`")
+        suspicious_phase_separator = re.compile(r"Phase\s+\d+[A-Z]?\s*\?")
+        failed = False
+        for path in sorted(self.docs.rglob("*.md")):
+            relative = path.relative_to(self.root).as_posix()
+            text = path.read_text(encoding="utf-8")
+            for line_number, line in enumerate(text.splitlines(), start=1):
+                protected = query_marker.sub("__QUERY_MARK__=", line)
+                suspicious = False
+                reason = ""
+                if protected.lstrip().startswith("#") and "?" in protected:
+                    suspicious = True
+                    reason = "heading contains suspicious question-mark replacement"
+                elif protected.count("?") >= 2:
+                    suspicious = True
+                    reason = "line contains repeated question-mark separators"
+                elif suspicious_backtick_separator.search(protected):
+                    suspicious = True
+                    reason = "inline code terms separated by question-mark replacement"
+                elif suspicious_phase_separator.search(protected):
+                    suspicious = True
+                    reason = "Phase heading/title contains question-mark replacement"
+                if suspicious:
+                    self.error(f"Markdown question-mark pollution in {relative}:{line_number}: {reason}")
+                    failed = True
+                    break
+        if not failed:
+            self.pass_("Markdown question-mark pollution check passed")
+
+    def check_docx_render_qa(self) -> None:
+        """Render the canonical DOCX to PDF when LibreOffice is available."""
+
+        docx_path = self.docs / "Aiops Project Documentation Update Request For Codex.docx"
+        if not docx_path.exists():
+            self.error("DOCX render QA failed: DOCX file is missing")
+            return
+        self.pass_("DOCX render QA: DOCX exists")
+
+        soffice = self.find_soffice()
+        if not soffice:
+            self.warning("DOCX render QA: soffice not found; LibreOffice render check skipped")
+            return
+        self.pass_(f"DOCX render QA: soffice found at {soffice}")
+
+        render_dir = self.docs / "rendered"
+        render_dir.mkdir(parents=True, exist_ok=True)
+        pdf_path = render_dir / f"{docx_path.stem}.pdf"
+        if pdf_path.exists():
+            pdf_path.unlink()
+
+        command = [
+            soffice,
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(render_dir),
+            str(docx_path),
+        ]
+        try:
+            proc = subprocess.run(
+                command,
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=180,
+                check=False,
+            )
+        except Exception as exc:
+            self.error(f"DOCX render QA failed: {exc}")
+            return
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            self.error(f"DOCX render QA failed: soffice exit code {proc.returncode}: {detail}")
+            return
+        self.pass_("DOCX render QA: soffice conversion exit code == 0")
+
+        if not pdf_path.exists():
+            self.error(f"DOCX render QA failed: PDF output missing at {pdf_path}")
+            return
+        self.pass_("DOCX render QA: PDF output exists")
+
+        if pdf_path.stat().st_size <= 0:
+            self.error(f"DOCX render QA failed: PDF output is empty at {pdf_path}")
+            return
+        self.pass_(f"DOCX render QA: PDF output non-empty ({pdf_path.stat().st_size} bytes)")
+
+    def find_soffice(self) -> str | None:
+        """Find LibreOffice soffice on PATH or common Windows install paths."""
+
+        found = shutil.which("soffice")
+        if found:
+            return found
+        candidates = [
+            Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+            Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+        return None
 
     def check_runtime_config(self) -> None:
         """检查 CURRENT_RUNTIME 与 Settings / docker-compose 默认值是否一致。"""
@@ -260,6 +559,13 @@ class DocsRuntimeVerifier:
             "TASK_ORCHESTRATOR_POLL_INTERVAL_SECONDS": str(settings.task_orchestrator_poll_interval_seconds),
             "TASK_ORCHESTRATOR_BATCH_SIZE": str(settings.task_orchestrator_batch_size),
             "TASK_RUN_DEFAULT_MAX_RETRIES": str(settings.task_run_default_max_retries),
+            "TASK_SCHEDULER_NAME": settings.task_scheduler_name,
+            "TASK_LEASE_SECONDS": str(settings.task_lease_seconds),
+            "TASK_STUCK_TIMEOUT_SECONDS": str(settings.task_stuck_timeout_seconds),
+            "TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS": str(settings.task_scheduler_recovery_interval_seconds),
+            "OUTPUT_ARTIFACT_DIR": settings.output_artifact_dir,
+            "OUTPUT_PACKAGE_DIR": settings.output_package_dir,
+            "OUTPUT_EXPORT_DIR": settings.output_export_dir,
         }
         for key, value in expected_values.items():
             if key not in current_runtime or str(value) not in current_runtime:
@@ -415,12 +721,62 @@ class DocsRuntimeVerifier:
             "/api/v1/output-artifacts/from-message/{message_id}",
             "/api/v1/output-artifacts/from-playbook-run/{run_id}",
             "/api/v1/output-artifacts/{artifact_id}/export",
+            "/api/v1/output-artifacts/{artifact_id}/lineage",
+            "/api/v1/output-artifacts/{artifact_id}/relationships",
+            "/api/v1/output-artifacts/{artifact_id}/package",
+            "/api/v1/output-artifacts/cleanup/preview",
             "/api/v1/task-runs",
             "/api/v1/task-runs/{task_run_id}",
             "/api/v1/task-runs/{task_run_id}/events",
+            "/api/v1/task-runs/{task_run_id}/diagnostics",
+            "/api/v1/task-runs/{task_run_id}/recover",
             "/api/v1/task-runs/{task_run_id}/retry",
             "/api/v1/task-runs/{task_run_id}/cancel",
             "/api/v1/task-runs/{task_run_id}/resume",
+            "/api/v1/task-scheduler/health",
+            "/api/v1/task-scheduler/scan",
+            "/api/v1/workflow-runs",
+            "/api/v1/workflow-runs/{workflow_run_id}",
+            "/api/v1/workflow-runs/{workflow_run_id}/steps",
+            "/api/v1/workflow-runs/{workflow_run_id}/checkpoints",
+            "/api/v1/workflow-runs/{workflow_run_id}/pause",
+            "/api/v1/workflow-runs/{workflow_run_id}/resume",
+            "/api/v1/workflow-runs/{workflow_run_id}/memory-snapshots",
+            "/api/v1/workflow-runs/{workflow_run_id}/replay",
+            "/api/v1/workflow-runs/{workflow_run_id}/graph",
+            "/api/v1/workflow-runs/{workflow_run_id}/planner",
+            "/api/v1/workflow-runs/{workflow_run_id}/traces",
+            "/api/v1/workflow-runs/{workflow_run_id}/diagnostics",
+            "/api/v1/workflow-runs/{workflow_run_id}/analytics",
+            "/api/v1/workflow-runs/{workflow_run_id}/replay-sessions",
+            "/api/v1/workflow-runs/{workflow_run_id}/runtime-summary",
+            "/api/v1/workflow-replay-sessions",
+            "/api/v1/workflow-replay-sessions/{replay_session_id}",
+            "/api/v1/workflow-graphs",
+            "/api/v1/workflow-graphs/{graph_id}",
+            "/api/v1/workflow-graphs/{graph_id}/validate",
+            "/api/v1/workflow-templates",
+            "/api/v1/workflow-templates/{template_id}",
+            "/api/v1/workflow-templates/{template_id}/versions",
+            "/api/v1/workflow-templates/{template_id}/versions/{version_id}",
+            "/api/v1/workflow-templates/{template_id}/activate-version/{version_id}",
+            "/api/v1/workflow-templates/{template_id}/validate",
+            "/api/v1/workflow-templates/{template_id}/run",
+            "/api/v1/workflow-template-runs",
+            "/api/v1/workflow-template-runs/{run_id}",
+            "/api/v1/workflow-templates/import",
+            "/api/v1/workflow-templates/{template_id}/export",
+            "/api/v1/workflow-template-reviews",
+            "/api/v1/workflow-template-reviews/{review_id}/approve",
+            "/api/v1/workflow-template-reviews/{review_id}/reject",
+            "/api/v1/workflow-template-reviews/{review_id}/request-changes",
+            "/api/v1/workflow-templates/{template_id}/rollback/{version_id}",
+            "/api/v1/workflow-templates/{template_id}/deprecate",
+            "/api/v1/workflow-templates/{template_id}/archive",
+            "/api/v1/workflow-template-audit-logs",
+            "/api/v1/workflow-template-marketplace",
+            "/api/v1/workflow-template-compatibility-matrix",
+            "/api/v1/agent-memory-snapshots",
             "/api/v1/browser/screenshots/cleanup",
             "/api/v1/documents",
             "/api/v1/rag/eval/runs",
@@ -838,6 +1194,34 @@ class DocsRuntimeVerifier:
             "Output Library",
             "artifact_type",
             "source_type",
+            "parent_artifact_id",
+            "root_artifact_id",
+            "source_task_run_id",
+            "source_playbook_run_id",
+            "source_conversation_id",
+            "source_runtime_session_id",
+            "artifact_role",
+            "artifact_stage",
+            "generated_by",
+            "exportable",
+            "retention_policy",
+            "expires_at",
+            "artifact_relationships",
+            "relationship_type",
+            "derived_from",
+            "packaged_into",
+            "exported_from",
+            "ArtifactExportService",
+            "ArtifactPackagingService",
+            "ArtifactRetentionService",
+            "Artifact Explorer",
+            "lineage graph",
+            "relationship graph",
+            "bundle.zip",
+            "storage/output_packages",
+            "storage/output_exports",
+            "retention preview",
+            "production object storage platform",
             "content_draft",
             "rag_answer",
             "html_snapshot",
@@ -862,6 +1246,138 @@ class DocsRuntimeVerifier:
             "task_completed",
             "task_cancelled",
             "artifact linkage",
+            "task_scheduler_state",
+            "TaskRecoveryService",
+            "lease_owner",
+            "lease_token",
+            "lease_expires_at",
+            "heartbeat_at",
+            "recovery_count",
+            "last_recovered_at",
+            "recovery_reason",
+            "failure_category",
+            "failure_reason",
+            "recoverable",
+            "suggested_action",
+            "scheduler health",
+            "stuck task recovery",
+            "expired lease",
+            "TASK_SCHEDULER_NAME",
+            "TASK_LEASE_SECONDS",
+            "TASK_STUCK_TIMEOUT_SECONDS",
+            "TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS",
+            "workflow_runs",
+            "workflow_steps",
+            "workflow_checkpoints",
+            "agent_memory_snapshots",
+            "WorkflowStateService",
+            "Workflow State",
+            "Workflow Steps",
+            "Checkpoints",
+            "Agent Memory Snapshots",
+            "workflow_run_id",
+            "workflow_step_id",
+            "checkpoint_id",
+            "memory_snapshot_id",
+            "workflow_run_created",
+            "workflow_step_started",
+            "workflow_step_completed",
+            "workflow_checkpoint_created",
+            "workflow_paused",
+            "workflow_resumed",
+            "memory_snapshot_created",
+            "Pause / Resume",
+            "Workflow lineage",
+            "not a full workflow builder",
+            "not ComfyUI",
+            "workflow_graphs",
+            "workflow_graph_nodes",
+            "workflow_graph_edges",
+            "workflow_replays",
+            "WorkflowExecutionPlanner",
+            "SafeConditionEvaluator",
+            "Workflow Graph Runtime",
+            "Conditional Execution",
+            "Retry/Fallback Path",
+            "Replay Foundation",
+            "current_node_key",
+            "planned_next_nodes",
+            "skipped_nodes",
+            "producing_node_key",
+            "graph_lineage",
+            "not a visual DAG builder",
+            "not distributed orchestration engine",
+            "workflow_templates",
+            "workflow_template_versions",
+            "workflow_template_runs",
+            "Workflow Template Registry & Versioning",
+            "WorkflowTemplateRegistryService",
+            "WorkflowTemplateCompatibilityService",
+            "template_key",
+            "current_version",
+            "latest_version",
+            "validation_status",
+            "compatibility",
+            "Template Library",
+            "Import / Export",
+            "browser_screenshot_report_graph",
+            "content_generation_graph",
+            "rag_answer_graph",
+            "approval_then_browser_graph",
+            "openclaw_mock_inspect_graph",
+            "task_retry_demo_graph",
+            "workflow_template_id",
+            "workflow_template_version_id",
+            "workflow_template_run_id",
+            "workflow_template_reviews",
+            "workflow_template_promotions",
+            "workflow_template_audit_logs",
+            "workflow_template_compatibility_matrix",
+            "WorkflowTemplateGovernanceService",
+            "review_status",
+            "risk_assessment",
+            "compatibility_report",
+            "promotion_type",
+            "featured",
+            "verified",
+            "recommended",
+            "success_rate",
+            "average_runtime_ms",
+            "average_step_count",
+            "Template Governance",
+            "Review Queue",
+            "Marketplace View",
+            "Compatibility Matrix",
+            "rollback",
+            "deprecated",
+            "public marketplace",
+            "workflow_execution_traces",
+            "workflow_runtime_diagnostics",
+            "workflow_replay_sessions",
+            "WorkflowExecutionTraceService",
+            "WorkflowDiagnosticsService",
+            "Execution Trace",
+            "Replay Center",
+            "Runtime Summary",
+            "Failure Hotspots",
+            "metadata_only",
+            "dry_run",
+            "not distributed tracing platform",
+            "not deterministic replay engine",
+            "not ComfyUI",
+            "Desktop Console Runtime UX & Client Packaging Readiness",
+            "Tauri icon resource",
+            "icons/icon.ico",
+            "bundle.icon",
+            "Start Runtime diagnostics",
+            "missing_config",
+            "port_conflict",
+            "server_environment_warning",
+            "local worker diagnostics",
+            "customer machine",
+            "not final installer",
+            "no code signing",
+            "no auto updater",
             "not Celery",
             "not Kubernetes",
             "Save as Artifact",
@@ -1263,6 +1779,168 @@ class DocsRuntimeVerifier:
             "not Celery",
             "not Kubernetes",
             "not production HA",
+            "Phase 43",
+            "Task Scheduler Persistence & Worker Recovery",
+            "task_scheduler_state",
+            "TaskRecoveryService",
+            "Task Lease",
+            "Scheduler Health",
+            "Failed Diagnostics",
+            "stuck task recovery",
+            "expired lease",
+            "Phase 44",
+            "Output Artifact Pipeline & Export System",
+            "Artifact lineage",
+            "artifact_relationships",
+            "ArtifactExportService",
+            "ArtifactPackagingService",
+            "ArtifactRetentionService",
+            "Artifact Explorer",
+            "not a full DAM",
+            "production object storage platform",
+            "Phase 45",
+            "Workflow State & Agent Memory Foundation",
+            "workflow_runs",
+            "workflow_steps",
+            "workflow_checkpoints",
+            "agent_memory_snapshots",
+            "WorkflowStateService",
+            "Agent Memory Snapshots",
+            "Pause / Resume",
+            "Workflow lineage",
+            "not a full workflow builder",
+            "not ComfyUI",
+            "Phase 46",
+            "Workflow Graph Runtime & Conditional Execution",
+            "workflow_graphs",
+            "workflow_graph_nodes",
+            "workflow_graph_edges",
+            "workflow_replays",
+            "WorkflowExecutionPlanner",
+            "Conditional Execution",
+            "Retry/Fallback Path",
+            "Replay Foundation",
+            "not a visual DAG builder",
+            "not distributed orchestration engine",
+            "Phase 47",
+            "Workflow Template Registry & Versioning",
+            "workflow_templates",
+            "workflow_template_versions",
+            "workflow_template_runs",
+            "WorkflowTemplateRegistryService",
+            "WorkflowTemplateCompatibilityService",
+            "browser_screenshot_report_graph",
+            "content_generation_graph",
+            "rag_answer_graph",
+            "approval_then_browser_graph",
+            "openclaw_mock_inspect_graph",
+            "task_retry_demo_graph",
+            "Template Library",
+            "Import / Export",
+            "workflow_template_id",
+            "workflow_template_version_id",
+            "workflow_template_run_id",
+            "Phase 48",
+            "Workflow Template Marketplace & Governance Foundation",
+            "workflow_template_reviews",
+            "workflow_template_promotions",
+            "workflow_template_audit_logs",
+            "workflow_template_compatibility_matrix",
+            "WorkflowTemplateGovernanceService",
+            "Template Governance",
+            "Review Queue",
+            "Compatibility Matrix",
+            "Marketplace View",
+            "not public marketplace",
+            "Phase 49",
+            "Workflow Run Observability & Replay Center",
+            "workflow_execution_traces",
+            "workflow_runtime_diagnostics",
+            "workflow_replay_sessions",
+            "WorkflowExecutionTraceService",
+            "WorkflowDiagnosticsService",
+            "Execution Trace",
+            "Replay Center",
+            "Runtime Summary",
+            "Failure Hotspots",
+            "not distributed tracing platform",
+            "not deterministic replay engine",
+            "not ComfyUI",
+            "Phase 50",
+            "Desktop Console Runtime UX & Client Packaging Readiness",
+            "Tauri icon resource",
+            "icons/icon.ico",
+            "bundle.icon",
+            "Start Runtime diagnostics",
+            "missing_config",
+            "port_conflict",
+            "server_environment_warning",
+            "local worker diagnostics",
+            "customer machine",
+            "not final installer",
+            "no code signing",
+            "no auto updater",
+            "Phase 51",
+            "Release Packaging & Deployment Bundle Foundation",
+            "release/manifest.json",
+            "release/version.json",
+            "server deployment bundle",
+            "frontend production build bundle",
+            "desktop release readiness",
+            "aiops.release.env.template",
+            "validate_release_packaging.py",
+            "Windows / Mac startup scripts",
+            "not a formal production release",
+            "no MSI/EXE",
+            "no DMG/notarization",
+            "no Kubernetes/Helm",
+            "Phase 52",
+            "Deployment Profiles & Environment Bootstrap",
+            "local-dev",
+            "server-docker",
+            "client-worker",
+            "desktop-client",
+            "staging",
+            "production-like",
+            "generate_env.py",
+            "check_dependencies.py",
+            "check_ports.py",
+            "verify_environment.py",
+            "env generation",
+            "dependency checks",
+            "port checks",
+            "health verification",
+            "profile bootstrap docs",
+            "Kubernetes/Helm/Terraform",
+            "Phase 53",
+            "Release Smoke Test Matrix & Preflight Automation",
+            "release/smoke",
+            "release_preflight.py",
+            "release_smoke_matrix.py",
+            "generate_release_report.py",
+            "check_migration_continuity.py",
+            "check_runtime_hygiene.py",
+            "runtime hygiene",
+            "migration continuity",
+            "smoke routes",
+            "Integration Candidate",
+            "Phase 54",
+            "Integration Branch & PR Chain Reconciliation",
+            "INTEGRATION_STRATEGY.md",
+            "INTEGRATION_STATUS.md",
+            "integration_preflight.py",
+            "detect_integration_conflicts.py",
+            "check_api_frontend_drift.py",
+            "PR chain",
+            "conflict surface",
+            "Phase 55",
+            "Mainline Integration",
+            "Release Candidate",
+            "MAINLINE_INTEGRATION_PLAN.md",
+            "RELEASE_CANDIDATE_PROCESS.md",
+            "mainline_readiness.py",
+            "simulate_mainline_merge.py",
+            "superseded PR",
         ]
         for term in required_terms:
             if term not in overview:
@@ -1366,8 +2044,175 @@ class DocsRuntimeVerifier:
                 or "not Kubernetes" not in text
             ):
                 self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 42 scope")
+            elif not re.search(r"Phase\s+43", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 43")
+            elif (
+                "Task Scheduler Persistence & Worker Recovery" not in text
+                or "task_scheduler_state" not in text
+                or "TaskRecoveryService" not in text
+                or "Task Lease" not in text
+                or "Scheduler Health" not in text
+                or "Failed Diagnostics" not in text
+                or "not Celery" not in text
+                or "not Kubernetes" not in text
+                or "not production HA" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 43 scope")
+            elif not re.search(r"Phase\s+44", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 44")
+            elif (
+                "Output Artifact Pipeline & Export System" not in text
+                or "Artifact lineage" not in text
+                or "artifact_relationships" not in text
+                or "ArtifactExportService" not in text
+                or "ArtifactPackagingService" not in text
+                or "ArtifactRetentionService" not in text
+                or "Artifact Explorer" not in text
+                or "not a full DAM" not in text
+                or "production object storage platform" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 44 scope")
+            elif not re.search(r"Phase\s+45", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 45")
+            elif (
+                "Workflow State & Agent Memory Foundation" not in text
+                or "workflow_runs" not in text
+                or "workflow_steps" not in text
+                or "workflow_checkpoints" not in text
+                or "agent_memory_snapshots" not in text
+                or "WorkflowStateService" not in text
+                or "Agent Memory Snapshots" not in text
+                or "Pause / Resume" not in text
+                or "Workflow lineage" not in text
+                or "not a full workflow builder" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 45 scope")
+            elif not re.search(r"Phase\s+46", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 46")
+            elif (
+                "Workflow Graph Runtime & Conditional Execution" not in text
+                or "workflow_graphs" not in text
+                or "workflow_graph_nodes" not in text
+                or "workflow_graph_edges" not in text
+                or "workflow_replays" not in text
+                or "WorkflowExecutionPlanner" not in text
+                or "Conditional Execution" not in text
+                or "Retry/Fallback Path" not in text
+                or "Replay Foundation" not in text
+                or "not a visual DAG builder" not in text
+                or "not distributed orchestration engine" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 46 scope")
+            elif not re.search(r"Phase\s+47", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 47")
+            elif (
+                "Workflow Template Registry & Versioning" not in text
+                or "workflow_templates" not in text
+                or "workflow_template_versions" not in text
+                or "workflow_template_runs" not in text
+                or "WorkflowTemplateRegistryService" not in text
+                or "WorkflowTemplateCompatibilityService" not in text
+                or "browser_screenshot_report_graph" not in text
+                or "Template Library" not in text
+                or "Import / Export" not in text
+                or "not a visual DAG builder" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 47 scope")
+            elif not re.search(r"Phase\s+48", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 48")
+            elif (
+                "Workflow Template Marketplace & Governance Foundation" not in text
+                or "workflow_template_reviews" not in text
+                or "workflow_template_audit_logs" not in text
+                or "workflow_template_compatibility_matrix" not in text
+                or "WorkflowTemplateGovernanceService" not in text
+                or "Review Queue" not in text
+                or "Marketplace View" not in text
+                or "Compatibility Matrix" not in text
+                or "not public marketplace" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 48 scope")
+            elif not re.search(r"Phase\s+49", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 49")
+            elif (
+                "Workflow Run Observability & Replay Center" not in text
+                or "workflow_execution_traces" not in text
+                or "workflow_runtime_diagnostics" not in text
+                or "workflow_replay_sessions" not in text
+                or "WorkflowExecutionTraceService" not in text
+                or "WorkflowDiagnosticsService" not in text
+                or "Replay Center" not in text
+                or "Failure Hotspots" not in text
+                or "not distributed tracing platform" not in text
+                or "not deterministic replay engine" not in text
+                or "not ComfyUI" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 49 scope")
+            elif not re.search(r"Phase\s+50", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 50")
+            elif (
+                "Desktop Console Runtime UX & Client Packaging Readiness" not in text
+                or "Tauri icon resource" not in text
+                or "icons/icon.ico" not in text
+                or "bundle.icon" not in text
+                or "Start Runtime diagnostics" not in text
+                or "missing_config" not in text
+                or "port_conflict" not in text
+                or "server_environment_warning" not in text
+                or "local worker diagnostics" not in text
+                or "customer machine" not in text
+                or "not final installer" not in text
+                or "no code signing" not in text
+                or "no auto updater" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 50 scope")
+            elif not re.search(r"Phase\s+51", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 51")
+            elif (
+                "Release Packaging & Deployment Bundle Foundation" not in text
+                or "release/manifest.json" not in text
+                or "release/version.json" not in text
+                or "server deployment bundle" not in text
+                or "frontend production build bundle" not in text
+                or "desktop release readiness" not in text
+                or "aiops.release.env.template" not in text
+                or "validate_release_packaging.py" not in text
+                or "Windows / Mac startup scripts" not in text
+                or "not a formal production release" not in text
+                or "no code signing" not in text
+                or "no auto updater" not in text
+                or "no MSI/EXE" not in text
+                or "no DMG/notarization" not in text
+                or "no Kubernetes/Helm" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 51 scope")
+            elif not re.search(r"Phase\s+52", text):
+                self.error(f"{name}/PROJECT_STATUS.md missing Phase 52")
+            elif (
+                "Deployment Profiles & Environment Bootstrap" not in text
+                or "local-dev" not in text
+                or "server-docker" not in text
+                or "client-worker" not in text
+                or "desktop-client" not in text
+                or "staging" not in text
+                or "production-like" not in text
+                or "generate_env.py" not in text
+                or "check_dependencies.py" not in text
+                or "check_ports.py" not in text
+                or "verify_environment.py" not in text
+                or "env generation" not in text
+                or "dependency checks" not in text
+                or "port checks" not in text
+                or "health verification" not in text
+                or "Kubernetes/Helm/Terraform" not in text
+            ):
+                self.error(f"{name}/PROJECT_STATUS.md does not describe Phase 52 scope")
             else:
-                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, and Phase 42")
+                self.pass_(f"{name}/PROJECT_STATUS documents Phase 35A, Phase 35B, Phase 36, Phase 37, Phase 38, Phase 39, Phase 40, Phase 41, Phase 42, Phase 43, Phase 44, Phase 45, Phase 46, Phase 47, Phase 48, Phase 49, Phase 50, Phase 51, and Phase 52")
 
     def print_results(self) -> None:
         """输出 PASS / WARNING / ERROR。"""

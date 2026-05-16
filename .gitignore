@@ -52,6 +52,22 @@ checkpoints/
 .coverage
 htmlcov/
 
+# Release packaging generated bundles
+/release/build/
+/release/reports/release_readiness_report.json
+/release/reports/integration_readiness_report.json
+/release/reports/integration_readiness_report.md
+/release/reports/conflict_surface_report.json
+/release/reports/conflict_surface_report.md
+/release/reports/mainline_integration_report.json
+/release/reports/mainline_integration_report.md
+/release/reports/superseded_prs.json
+.env.generated
+*.env.generated
+
+# Docs render QA generated output
+/docs/rendered/
+
 # Browser screenshots
 /screenshots/*
 !/screenshots/.gitkeep
@@ -61,6 +77,10 @@ htmlcov/
 !/storage/browser_runtime_snapshots/.gitkeep
 /storage/output_artifacts/*
 !/storage/output_artifacts/.gitkeep
+/storage/output_packages/*
+!/storage/output_packages/.gitkeep
+/storage/output_exports/*
+!/storage/output_exports/.gitkeep
 /worker/screenshots/*
 !/worker/screenshots/.gitkeep
 

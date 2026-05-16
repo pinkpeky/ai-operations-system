@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     )
     task_orchestrator_batch_size: int = Field(default=5, ge=1, le=100, alias="TASK_ORCHESTRATOR_BATCH_SIZE")
     task_run_default_max_retries: int = Field(default=3, ge=0, le=20, alias="TASK_RUN_DEFAULT_MAX_RETRIES")
+    task_scheduler_name: str = Field(default="api-in-process-task-scheduler", alias="TASK_SCHEDULER_NAME")
+    task_lease_seconds: int = Field(default=120, ge=10, le=3600, alias="TASK_LEASE_SECONDS")
+    task_stuck_timeout_seconds: int = Field(default=300, ge=30, le=86400, alias="TASK_STUCK_TIMEOUT_SECONDS")
+    task_scheduler_recovery_interval_seconds: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=3600.0,
+        alias="TASK_SCHEDULER_RECOVERY_INTERVAL_SECONDS",
+    )
     llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     local_llm_base_url: str = Field(
         default="http://host.docker.internal:11434",
@@ -118,6 +127,8 @@ class Settings(BaseSettings):
         alias="BROWSER_RUNTIME_SNAPSHOT_DIR",
     )
     output_artifact_dir: str = Field(default="storage/output_artifacts", alias="OUTPUT_ARTIFACT_DIR")
+    output_package_dir: str = Field(default="storage/output_packages", alias="OUTPUT_PACKAGE_DIR")
+    output_export_dir: str = Field(default="storage/output_exports", alias="OUTPUT_EXPORT_DIR")
     browser_profile_root: str = Field(default="worker/profiles", alias="BROWSER_PROFILE_ROOT")
     browser_profile_lock_timeout_seconds: int = Field(
         default=1800,

@@ -1,0 +1,8 @@
+{
+  "profile_key": "desktop-client",
+  "ports": [
+    { "name": "desktop-console-vite", "port": 5174, "required": false, "description": "Desktop Console dev web view" },
+    { "name": "worker-runtime", "port": 9100, "required": false, "description": "Local worker runtime" }
+  ]
+}
+

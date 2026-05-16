@@ -31,10 +31,22 @@ from app.api.routes.planning import router as planning_router
 from app.api.routes.rag import router as rag_router
 from app.api.routes.rag_eval import router as rag_eval_router
 from app.api.routes.reranker import router as reranker_router
+from app.api.routes.task_scheduler import router as task_scheduler_router
 from app.api.routes.task_runs import router as task_runs_router
 from app.api.routes.tasks import router as tasks_router
 from app.api.routes.tools import router as tools_router
 from app.api.routes.users import router as users_router
+from app.api.routes.workflows import memory_router as agent_memory_snapshots_router
+from app.api.routes.workflows import replay_session_router as workflow_replay_sessions_router
+from app.api.routes.workflows import graph_router as workflow_graphs_router
+from app.api.routes.workflows import router as workflow_runs_router
+from app.api.routes.workflow_templates import router as workflow_templates_router
+from app.api.routes.workflow_templates import runs_router as workflow_template_runs_router
+from app.api.routes.workflow_template_governance import audit_router as workflow_template_audit_router
+from app.api.routes.workflow_template_governance import marketplace_router as workflow_template_marketplace_router
+from app.api.routes.workflow_template_governance import matrix_router as workflow_template_matrix_router
+from app.api.routes.workflow_template_governance import reviews_router as workflow_template_reviews_router
+from app.api.routes.workflow_template_governance import templates_router as workflow_template_governance_router
 from app.api.routes.workspaces import router as workspaces_router
 
 logger = logging.getLogger(__name__)
@@ -68,10 +80,22 @@ def create_api_router() -> APIRouter:
         router.include_router(rag_router)
         router.include_router(rag_eval_router)
         router.include_router(reranker_router)
+        router.include_router(task_scheduler_router)
         router.include_router(task_runs_router)
         router.include_router(tasks_router)
         router.include_router(tools_router)
         router.include_router(users_router)
+        router.include_router(workflow_graphs_router)
+        router.include_router(workflow_templates_router)
+        router.include_router(workflow_template_reviews_router)
+        router.include_router(workflow_template_governance_router)
+        router.include_router(workflow_template_audit_router)
+        router.include_router(workflow_template_marketplace_router)
+        router.include_router(workflow_template_matrix_router)
+        router.include_router(workflow_template_runs_router)
+        router.include_router(workflow_runs_router)
+        router.include_router(workflow_replay_sessions_router)
+        router.include_router(agent_memory_snapshots_router)
         router.include_router(workspaces_router)
         logger.info("API router configured")
         return router

@@ -1,0 +1,10 @@
+{
+  "profile_key": "client-worker",
+  "name": "Client Worker",
+  "scenario": "Customer machine running worker_client and local Playwright browser runtime.",
+  "recommended_for": ["customer machine worker bootstrap", "real client E2E validation"],
+  "not_for": ["server Docker API host", "public 9100 exposure", "secret sharing"],
+  "required_env": ["SERVER_URL", "WORKSPACE_ID", "WORKER_NAME", "WORKER_RUNTIME_PORT"],
+  "notes": "Do not expose port 9100 publicly. Prefer VPN, Tailscale, or LAN access."
+}
+
