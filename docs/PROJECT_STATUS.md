@@ -15,4 +15,4 @@ Use `docs/PHASE_INDEX.md` as the complete phase index and `docs/CURRENT_NEXT_PHA
 
 ## Active Next Slice
 
-`codex/phase-56-ci-readiness-gates` is the active next branch. It is limited to CI/readiness gates and does not reuse the reverted Phase 56 branch.
+`codex/phase-56-required-checks-docs` is the active next branch. It is limited to branch-protection readiness, required-check documentation, and CI gate validation. It does not reuse the reverted Phase 56 branch.

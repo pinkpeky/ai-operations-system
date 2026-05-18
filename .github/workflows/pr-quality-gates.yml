@@ -51,6 +51,9 @@ jobs:
       - name: Check migration continuity
         run: python scripts/check_migration_continuity.py
 
+      - name: Check required CI gates
+        run: python scripts/check_required_ci_gates.py
+
       - name: Run static release smoke group
         run: python scripts/release_smoke_matrix.py --group static --skip-docker --skip-build --skip-docs
 
