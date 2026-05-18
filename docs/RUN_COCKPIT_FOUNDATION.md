@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-57-run-cockpit-foundation
+codex/phase-57-run-cockpit-actions
 ```
 
 ## Scope
@@ -24,6 +24,13 @@ Phase 57 adds an Admin Dashboard `Run Cockpit` page that correlates existing run
 
 The page is a frontend composition layer over existing APIs. It does not introduce a new backend aggregate model.
 
+The current action slice adds guarded operations directly inside the cockpit detail panel:
+
+- Approve, reject, cancel, or execute a selected thread approval.
+- Retry, cancel, resume, or recover a selected task run.
+- Export linked artifacts as markdown or JSON.
+- Show a compact last-action result preview after an operation.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -33,6 +40,7 @@ An operator can open one screen and answer:
 - Which task run has failed or can be recovered.
 - Which artifacts were produced by the selected run context.
 - What the latest thread event or task event says.
+- Whether the most common approval, task, or artifact action succeeded.
 
 ## Boundaries
 
@@ -42,6 +50,7 @@ An operator can open one screen and answer:
 - No replacement for the existing Conversations, Tasks, Playbooks, or Output Library pages.
 - No new workflow execution semantics.
 - No real OpenClaw or social media execution.
+- No bulk action mode; every action is scoped to the selected run context.
 
 ## Acceptance
 

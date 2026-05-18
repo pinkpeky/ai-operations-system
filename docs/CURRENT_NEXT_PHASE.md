@@ -14,7 +14,7 @@ Readiness and PR cleanup are complete. The current step is normal product develo
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-57-run-cockpit-foundation`. Its scope is a frontend run cockpit that correlates conversations, background task runs, approvals, playbook runs, artifacts, task diagnostics, and scheduler health. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-57-run-cockpit-actions`. Its scope is adding guarded cockpit actions for approvals, task recovery/control, artifact export, and last-action feedback. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -97,7 +97,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish Phase 57 Run Cockpit Foundation on `codex/phase-57-run-cockpit-foundation`.
+1. Finish Phase 57 Run Cockpit Actions on `codex/phase-57-run-cockpit-actions`.
 2. Verify Admin Dashboard typecheck/build and docs runtime checks.
 3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.

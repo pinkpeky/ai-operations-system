@@ -12,7 +12,7 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 Current effective phase: Phase 57 Run Cockpit Foundation. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-57-run-cockpit-foundation`. This returns to product development and does not reuse the reverted Phase 56 branch.
+The current fresh branch is `codex/phase-57-run-cockpit-actions`. This continues product development and does not reuse the reverted Phase 56 branch.
 
 ## Open PR List
 
@@ -99,7 +99,8 @@ The current fresh branch is `codex/phase-57-run-cockpit-foundation`. This return
 | 56B | Required Checks & Branch Protection Readiness | `codex/phase-56-required-checks-docs` | #19 | Merged to main | Machine-readable required checks, branch protection documentation, and required-check validation. |
 | 56C | Release Readiness Report Artifacts | `codex/phase-56-report-artifacts` | #20 | Merged to main | CI readiness report generation and artifact upload for PR and Docker smoke workflows. |
 | 56D | Scheduled Docker Smoke | `codex/phase-56-scheduled-docker-smoke` | #21 | Merged to main | Daily server-docker smoke schedule, default scheduled profile, concurrency guard, and scheduled-smoke documentation. |
-| 57 | Run Cockpit Foundation | `codex/phase-57-run-cockpit-foundation` | TBD | In progress | Admin Dashboard run cockpit for conversations, task runs, approvals, diagnostics, playbook runs, scheduler health, and linked artifacts. |
+| 57A | Run Cockpit Foundation | `codex/phase-57-run-cockpit-foundation` | #22 | Merged to main | Admin Dashboard run cockpit for conversations, task runs, approvals, diagnostics, playbook runs, scheduler health, and linked artifacts. |
+| 57B | Run Cockpit Actions | `codex/phase-57-run-cockpit-actions` | TBD | In progress | Guarded approval actions, task control/recovery actions, linked artifact export, and last-action result feedback from the Run Cockpit. |
 
 ## Runtime Evolution
 
