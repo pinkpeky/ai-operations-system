@@ -53,6 +53,27 @@ python scripts/verify_docs_runtime.py
 python scripts/release_smoke_matrix.py --group static --skip-docker --skip-build --skip-docs
 ```
 
+## Remote Verification
+
+PR #18 ran `PR Quality Gates` on GitHub Actions for commit `895cd40`.
+
+Result:
+
+```text
+PR Quality Gates / Python docs and runtime gates: PASS
+PR Quality Gates / Frontend build (admin_dashboard): PASS
+PR Quality Gates / Frontend build (worker_console): PASS
+PR Quality Gates / Frontend build (worker_console_desktop): PASS
+```
+
+Workflow run:
+
+```text
+26037766993
+```
+
+The manual `Server Docker Smoke` workflow is available through `workflow_dispatch`; trigger it from GitHub Actions when a remote Docker compose/profile smoke is needed.
+
 For a full local server profile smoke, keep Docker Desktop running and run:
 
 ```powershell
