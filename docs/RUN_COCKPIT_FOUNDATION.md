@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-57-run-cockpit-actions
+codex/phase-57-run-cockpit-operator-controls
 ```
 
 ## Scope
@@ -31,6 +31,12 @@ The current action slice adds guarded operations directly inside the cockpit det
 - Export linked artifacts as markdown or JSON.
 - Show a compact last-action result preview after an operation.
 
+The current operator-controls slice adds:
+
+- Task view filters for active, attention, and all task runs.
+- Optional auto refresh using the dashboard refresh interval.
+- Navigation buttons from the cockpit detail panel to Conversations, Playbooks, Tasks, and Output Library.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -41,6 +47,8 @@ An operator can open one screen and answer:
 - Which artifacts were produced by the selected run context.
 - What the latest thread event or task event says.
 - Whether the most common approval, task, or artifact action succeeded.
+- Which task runs need attention without leaving the cockpit.
+- Where to continue deeper inspection in the existing specialist pages.
 
 ## Boundaries
 
@@ -51,6 +59,7 @@ An operator can open one screen and answer:
 - No new workflow execution semantics.
 - No real OpenClaw or social media execution.
 - No bulk action mode; every action is scoped to the selected run context.
+- Navigation buttons switch pages only; they do not auto-select matching rows in the destination page yet.
 
 ## Acceptance
 

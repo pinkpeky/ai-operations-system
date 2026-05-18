@@ -495,7 +495,7 @@ function WorkersPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function RunCockpitPage({ settings }: { settings: AdminSettings }) {
+function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onNavigate: (page: PageKey) => void }) {
   const [state, setState] = useState<AsyncState<{
     threads: ConversationThread[];
     taskRuns: TaskRun[];
@@ -515,6 +515,8 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState("idle");
   const [actionPreview, setActionPreview] = useState<JsonRecord | null>(null);
+  const [taskView, setTaskView] = useState<"all" | "active" | "attention">("active");
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const selectedThreadId = selectedThread?.id ?? null;
   const selectedTaskId = selectedTask?.id ?? null;
 
@@ -674,6 +676,8 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
     void load();
   }, [load]);
 
+  useAutoRefresh(autoRefresh, settings.refreshIntervalMs, load);
+
   useEffect(() => {
     if (selectedThread) {
       void loadThread(selectedThread);
@@ -689,6 +693,12 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
   const data = state.data;
   const activeTasks = data?.taskRuns.filter((task) => isActiveStatus(task.status)) ?? [];
   const problemTasks = data?.taskRuns.filter((task) => isProblemStatus(task.status) || task.recoverable) ?? [];
+  const visibleTasks =
+    taskView === "active"
+      ? activeTasks
+      : taskView === "attention"
+        ? problemTasks
+        : data?.taskRuns ?? [];
   const pendingApprovals = threadApprovals.filter((approval) => approval.approval_status === "pending");
   const selectedThreadPlaybookRuns = data?.playbookRuns.filter((run) => run.thread_id === selectedThreadId) ?? [];
   const selectedThreadArtifacts =
@@ -718,6 +728,8 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
       <LoadNotice state={state} />
       <div className="summary-strip cockpit-action-strip">
         <span>Action status: <StatusPill value={actionStatus} /></span>
+        <span>Task view: {taskView}</span>
+        <span>Auto refresh: <StatusPill value={autoRefresh} /></span>
         <span>Selected thread: {selectedThreadId ?? "-"}</span>
         <span>Selected task: {selectedTaskId ?? "-"}</span>
       </div>
@@ -728,7 +740,24 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
         </div>
       ) : null}
       <div className="cockpit-grid">
-        <Panel title="Recent Runs" description="A single scanning surface for conversation threads and background task runs." action={<RefreshButton onClick={load} />}>
+        <Panel
+          title="Recent Runs"
+          description="A single scanning surface for conversation threads and background task runs."
+          action={
+            <div className="inline-controls">
+              <select value={taskView} onChange={(event) => setTaskView(event.target.value as "all" | "active" | "attention")} aria-label="Task view">
+                <option value="active">active tasks</option>
+                <option value="attention">needs attention</option>
+                <option value="all">all tasks</option>
+              </select>
+              <label className="checkbox-row">
+                <input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
+                Auto refresh
+              </label>
+              <RefreshButton onClick={load} />
+            </div>
+          }
+        >
           <h3>Conversation threads</h3>
           <Table
             rows={(data?.threads ?? []) as unknown as JsonRecord[]}
@@ -744,10 +773,10 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
           />
           <h3>Task runs</h3>
           <Table
-            rows={(data?.taskRuns ?? []) as unknown as JsonRecord[]}
+            rows={visibleTasks as unknown as JsonRecord[]}
             selectedId={selectedTaskId}
             onSelect={(row) => void loadTask(row as unknown as TaskRun)}
-            emptyLabel="No task runs."
+            emptyLabel="No task runs for the selected view."
             columns={[
               { key: "id", label: "task_run_id" },
               { key: "task_type", label: "task_type" },
@@ -778,6 +807,14 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
               <Field label="events" value={threadEvents.length} />
               <Field label="approvals" value={threadApprovals.length} />
               <Field label="artifacts" value={selectedThreadArtifacts.length} />
+            </div>
+            <div className="conversation-actions">
+              <button className="ghost-button" onClick={() => onNavigate("conversations")}>
+                Open Conversations
+              </button>
+              <button className="ghost-button" onClick={() => onNavigate("playbooks")}>
+                Open Playbooks
+              </button>
             </div>
             <h3>Latest message</h3>
             <div className="empty-chat">{latestMessage ? `${latestMessage.role}: ${latestMessage.content}` : "No messages on selected thread."}</div>
@@ -825,6 +862,9 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
               <Field label="artifacts" value={selectedTaskArtifacts.length} />
             </div>
             <div className="conversation-actions">
+              <button className="ghost-button" onClick={() => onNavigate("tasks")}>
+                Open Tasks
+              </button>
               <button className="ghost-button" onClick={() => void mutateCockpitTask("retry")} disabled={!selectedTask}>
                 Retry
               </button>
@@ -845,6 +885,11 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
           </section>
           <section className="cockpit-section">
             <h3>Linked artifacts</h3>
+            <div className="conversation-actions">
+              <button className="ghost-button" onClick={() => onNavigate("output-library")}>
+                Open Output Library
+              </button>
+            </div>
             {linkedArtifacts.slice(0, 8).map((artifact) => (
               <div className="approval-card" key={`${artifact.id}-${artifact.task_run_id ?? artifact.thread_id ?? "linked"}`}>
                 <div className="approval-card-header">
@@ -3027,7 +3072,7 @@ function App() {
         </header>
         <div className="content">
           {activePage === "overview" ? <OverviewPage settings={settings} /> : null}
-          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} /> : null}
+          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={setActivePage} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} /> : null}
