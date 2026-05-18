@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`main`
+`codex/phase-57-run-cockpit-foundation`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke.
 
-Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not included in the accepted baseline, and not a valid continuation point.
+Current effective phase: Phase 57 Run Cockpit Foundation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Post-merge stabilization and PR cleanup are complete. The current step is to prepare the next accepted development phase without reviving the reverted Phase 56 branch.
+Readiness and PR cleanup are complete. The current step is normal product development on the Admin Dashboard run cockpit.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-56-scheduled-docker-smoke`. Its scope is scheduled Docker smoke and readiness artifact continuity. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`.
+The next active branch is `codex/phase-57-run-cockpit-foundation`. Its scope is a frontend run cockpit that correlates conversations, background task runs, approvals, playbook runs, artifacts, task diagnostics, and scheduler health. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -37,7 +37,7 @@ The next active branch is `codex/phase-56-scheduled-docker-smoke`. Its scope is 
 | #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
 | #1 | Fix browser worker runtime registration and launch | `codex/browser-worker-runtime-fix-20260515` | Closed as superseded by `main` plus post-merge stabilization |
 
-There are no open pull requests at the time of this update.
+The active pull request for Phase 57 is not opened yet at the time of this update.
 
 ## Current Architecture State
 
@@ -50,17 +50,18 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Browser worker registration, heartbeat, remote browser runtime, screenshots, page snapshots, timeline, replay metadata.
 - Conversation threads, messages, events, tool routing, approvals, playbooks, background execution, artifacts.
 - Workflow state, graph runtime, templates, governance, observability, and replay center are accepted on `main`.
+- Admin Dashboard now has an in-progress run cockpit for scanning conversations, task runs, approvals, diagnostics, and artifacts from one page.
 
 ## Current Deployment State
 
-- `main` is Phase 55 stable after PR #17.
+- `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
 - Phase 54 adds integration strategy, PR chain inventory, conflict surface detection, API/frontend drift checks, and integration report generation.
 - Phase 55 adds mainline readiness, merge simulation, superseded PR decision reporting, and Release Candidate process documentation.
-- Phase 56 is reverted/not active and must not enter post-merge stabilization.
+- The old reverted Phase 56 branch is not active and must not be reused.
 
 ## Current Packaging State
 
@@ -96,8 +97,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Create a new `codex/` branch from `main` for the next phase; do not reuse the reverted Phase 56 branch.
-2. Prefer a maintenance/readiness phase first: CI checks for docs encoding, DOCX render readiness, release packaging, deployment verification, runtime hygiene, and the smoke matrix.
-3. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
-4. Keep `docs/POST_MERGE_STABILIZATION.md` updated if any new host, Docker, remote, or rollback decision changes.
-5. Define any future Phase 56 as a fresh scope with explicit acceptance criteria, rollback posture, and deferred-feature boundaries.
+1. Finish Phase 57 Run Cockpit Foundation on `codex/phase-57-run-cockpit-foundation`.
+2. Verify Admin Dashboard typecheck/build and docs runtime checks.
+3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
+4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
+5. Keep `docs/RUN_COCKPIT_FOUNDATION.md` updated if the cockpit scope changes.

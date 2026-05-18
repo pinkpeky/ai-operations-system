@@ -6,6 +6,7 @@ import {
   Bot,
   Brain,
   ClipboardList,
+  Crosshair,
   Database,
   FileText,
   Gauge,
@@ -79,6 +80,7 @@ import "./styles.css";
 
 type PageKey =
   | "overview"
+  | "run-cockpit"
   | "workers"
   | "browser-runtime"
   | "conversations"
@@ -110,6 +112,7 @@ interface AsyncState<T> {
 
 const pages: PageDefinition[] = [
   { key: "overview", label: "Overview", icon: <LayoutDashboard size={18} /> },
+  { key: "run-cockpit", label: "Run Cockpit", icon: <Crosshair size={18} /> },
   { key: "workers", label: "Workers", icon: <Server size={18} /> },
   { key: "browser-runtime", label: "Browser Runtime", icon: <MonitorCheck size={18} /> },
   { key: "conversations", label: "Conversations", icon: <MessageSquareText size={18} /> },
@@ -262,6 +265,22 @@ function LoadNotice<T>({ state }: { state: AsyncState<T> }) {
 
 function JsonPreview({ value }: { value: unknown }) {
   return <pre className="json-preview">{shortJson(value, 1600)}</pre>;
+}
+
+function formatDateLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+function isActiveStatus(status: string | null | undefined): boolean {
+  return /pending|queued|running|waiting_approval|retrying/i.test(status ?? "");
+}
+
+function isProblemStatus(status: string | null | undefined): boolean {
+  return /failed|error|expired|cancelled/i.test(status ?? "");
 }
 
 function Table({
@@ -476,6 +495,273 @@ function WorkersPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
+function RunCockpitPage({ settings }: { settings: AdminSettings }) {
+  const [state, setState] = useState<AsyncState<{
+    threads: ConversationThread[];
+    taskRuns: TaskRun[];
+    playbookRuns: ConversationPlaybookRun[];
+    artifacts: OutputArtifact[];
+    schedulerHealth: TaskSchedulerHealth | null;
+  }>>(emptyState());
+  const [selectedThread, setSelectedThread] = useState<ConversationThread | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskRun | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ConversationMessage[]>([]);
+  const [threadEvents, setThreadEvents] = useState<ConversationEvent[]>([]);
+  const [threadApprovals, setThreadApprovals] = useState<ConversationApproval[]>([]);
+  const [threadArtifacts, setThreadArtifacts] = useState<OutputArtifact[]>([]);
+  const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
+  const [taskDiagnostics, setTaskDiagnostics] = useState<TaskRunDiagnostics | null>(null);
+  const [taskArtifacts, setTaskArtifacts] = useState<OutputArtifact[]>([]);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const selectedThreadId = selectedThread?.id ?? null;
+  const selectedTaskId = selectedTask?.id ?? null;
+
+  const load = useCallback(async () => {
+    setState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [threadResponse, taskResponse, playbookRunResponse, artifactResponse, schedulerHealth] = await Promise.all([
+        conversationClient.listThreads(settings),
+        taskRunClient.listTaskRuns(settings),
+        conversationClient.listPlaybookRuns(settings),
+        outputArtifactClient.listArtifacts(settings),
+        taskRunClient.schedulerHealth(settings).catch(() => null),
+      ]);
+      const data = {
+        threads: threadResponse.items ?? [],
+        taskRuns: taskResponse.items ?? [],
+        playbookRuns: playbookRunResponse.items ?? [],
+        artifacts: artifactResponse.items ?? [],
+        schedulerHealth,
+      };
+      setState({ data, error: null, loading: false, updatedAt: nowLabel() });
+      if (!selectedThread && data.threads.length) {
+        setSelectedThread(data.threads[0]);
+      }
+      if (!selectedTask && data.taskRuns.length) {
+        setSelectedTask(data.taskRuns[0]);
+      }
+    } catch (error) {
+      setState({
+        data: null,
+        error: error instanceof Error ? error.message : "Run cockpit data unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [selectedTask, selectedThread, settings]);
+
+  const loadThread = useCallback(
+    async (thread: ConversationThread) => {
+      setSelectedThread(thread);
+      setDetailError(null);
+      try {
+        const [messageList, eventList, approvalList, artifactList] = await Promise.all([
+          conversationClient.listMessages(thread.id, settings),
+          conversationClient.listEvents(thread.id, settings),
+          conversationClient.listApprovals(thread.id, settings),
+          outputArtifactClient.listArtifacts(settings, { threadId: thread.id }),
+        ]);
+        setThreadMessages(messageList.items ?? []);
+        setThreadEvents(eventList.items ?? []);
+        setThreadApprovals(approvalList.items ?? []);
+        setThreadArtifacts(artifactList.items ?? []);
+      } catch (error) {
+        setThreadMessages([]);
+        setThreadEvents([]);
+        setThreadApprovals([]);
+        setThreadArtifacts([]);
+        setDetailError(error instanceof Error ? error.message : "Conversation detail unavailable");
+      }
+    },
+    [settings],
+  );
+
+  const loadTask = useCallback(
+    async (task: TaskRun) => {
+      setSelectedTask(task);
+      setDetailError(null);
+      try {
+        const [eventList, diagnostics, artifactList] = await Promise.all([
+          taskRunClient.listEvents(task.id, settings),
+          taskRunClient.diagnostics(task.id, settings).catch(() => null),
+          outputArtifactClient.listArtifacts(settings, { taskRunId: task.id }),
+        ]);
+        setTaskEvents(eventList.items ?? []);
+        setTaskDiagnostics(diagnostics);
+        setTaskArtifacts(artifactList.items ?? []);
+      } catch (error) {
+        setTaskEvents([]);
+        setTaskDiagnostics(null);
+        setTaskArtifacts([]);
+        setDetailError(error instanceof Error ? error.message : "Task detail unavailable");
+      }
+    },
+    [settings],
+  );
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    if (selectedThread) {
+      void loadThread(selectedThread);
+    }
+  }, [loadThread, selectedThread]);
+
+  useEffect(() => {
+    if (selectedTask) {
+      void loadTask(selectedTask);
+    }
+  }, [loadTask, selectedTask]);
+
+  const data = state.data;
+  const activeTasks = data?.taskRuns.filter((task) => isActiveStatus(task.status)) ?? [];
+  const problemTasks = data?.taskRuns.filter((task) => isProblemStatus(task.status) || task.recoverable) ?? [];
+  const pendingApprovals = threadApprovals.filter((approval) => approval.approval_status === "pending");
+  const selectedThreadPlaybookRuns = data?.playbookRuns.filter((run) => run.thread_id === selectedThreadId) ?? [];
+  const selectedThreadArtifacts =
+    selectedThreadId && data
+      ? data.artifacts.filter((artifact) => artifact.thread_id === selectedThreadId || artifact.source_conversation_id === selectedThreadId)
+      : threadArtifacts;
+  const selectedTaskArtifacts =
+    selectedTaskId && data
+      ? data.artifacts.filter((artifact) => artifact.task_run_id === selectedTaskId || artifact.source_task_run_id === selectedTaskId)
+      : taskArtifacts;
+  const latestMessage = threadMessages[threadMessages.length - 1];
+  const latestTaskEvent = taskEvents[taskEvents.length - 1];
+
+  return (
+    <div className="page-stack">
+      <section className="metrics-grid">
+        <DataCard title="Active tasks" value={activeTasks.length} detail={`${problemTasks.length} needs attention`} icon={<Activity size={20} />} warning={problemTasks.length > 0} />
+        <DataCard title="Threads" value={data?.threads.length ?? "-"} detail={`selected: ${selectedThread?.title ?? "-"}`} icon={<MessageSquareText size={20} />} />
+        <DataCard title="Pending approvals" value={pendingApprovals.length} detail="selected thread" icon={<ShieldCheck size={20} />} warning={pendingApprovals.length > 0} />
+        <DataCard title="Artifacts" value={data?.artifacts.length ?? "-"} detail={`${selectedThreadArtifacts.length + selectedTaskArtifacts.length} linked to selection`} icon={<FileText size={20} />} />
+        <DataCard title="Playbook runs" value={data?.playbookRuns.length ?? "-"} detail={`${selectedThreadPlaybookRuns.length} on selected thread`} icon={<History size={20} />} />
+        <DataCard title="Scheduler" value={data?.schedulerHealth?.status ?? "unavailable"} detail={`active: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
+      </section>
+      <LoadNotice state={state} />
+      {detailError ? (
+        <div className="notice notice-error">
+          <AlertTriangle size={16} />
+          {detailError}
+        </div>
+      ) : null}
+      <div className="cockpit-grid">
+        <Panel title="Recent Runs" description="A single scanning surface for conversation threads and background task runs." action={<RefreshButton onClick={load} />}>
+          <h3>Conversation threads</h3>
+          <Table
+            rows={(data?.threads ?? []) as unknown as JsonRecord[]}
+            selectedId={selectedThreadId}
+            onSelect={(row) => void loadThread(row as unknown as ConversationThread)}
+            emptyLabel="No conversation threads."
+            columns={[
+              { key: "id", label: "thread_id" },
+              { key: "title", label: "title" },
+              { key: "status", label: "status" },
+              { key: "updated_at", label: "updated_at" },
+            ]}
+          />
+          <h3>Task runs</h3>
+          <Table
+            rows={(data?.taskRuns ?? []) as unknown as JsonRecord[]}
+            selectedId={selectedTaskId}
+            onSelect={(row) => void loadTask(row as unknown as TaskRun)}
+            emptyLabel="No task runs."
+            columns={[
+              { key: "id", label: "task_run_id" },
+              { key: "task_type", label: "task_type" },
+              { key: "source_type", label: "source" },
+              { key: "status", label: "status" },
+              { key: "recoverable", label: "recoverable" },
+              { key: "updated_at", label: "updated_at" },
+            ]}
+          />
+          <div className="last-updated">Last updated: {state.updatedAt ?? "-"}</div>
+        </Panel>
+        <aside className="detail-panel cockpit-detail-panel">
+          <div className="detail-title">
+            <div>
+              <h2>Run Detail</h2>
+              <p className="foundation-note">Correlates selected thread, task, approvals, events, and artifacts without changing execution semantics.</p>
+            </div>
+          </div>
+          <section className="cockpit-section">
+            <h3>Selected thread</h3>
+            <div className="summary-strip">
+              <span>title: {selectedThread?.title ?? "-"}</span>
+              <span>status: <StatusPill value={selectedThread?.status ?? "none"} /></span>
+              <span>updated: {formatDateLabel(selectedThread?.updated_at)}</span>
+            </div>
+            <div className="run-summary-grid">
+              <Field label="messages" value={threadMessages.length} />
+              <Field label="events" value={threadEvents.length} />
+              <Field label="approvals" value={threadApprovals.length} />
+              <Field label="artifacts" value={selectedThreadArtifacts.length} />
+            </div>
+            <h3>Latest message</h3>
+            <div className="empty-chat">{latestMessage ? `${latestMessage.role}: ${latestMessage.content}` : "No messages on selected thread."}</div>
+            <h3>Pending approvals</h3>
+            {pendingApprovals.length ? (
+              pendingApprovals.map((approval) => (
+                <div className={`approval-card approval-risk-${approval.risk_level}`} key={approval.id}>
+                  <div className="approval-card-header">
+                    <strong>{approval.proposed_action}</strong>
+                    <StatusPill value={approval.risk_level} />
+                    <StatusPill value={approval.approval_status} />
+                  </div>
+                  <p>{approval.selected_tool ?? approval.route_name}</p>
+                </div>
+              ))
+            ) : (
+              <div className="empty-chat">No pending approvals on selected thread.</div>
+            )}
+          </section>
+          <section className="cockpit-section">
+            <h3>Selected task</h3>
+            <div className="summary-strip">
+              <span>task: {selectedTask?.task_type ?? "-"}</span>
+              <span>status: <StatusPill value={selectedTask?.status ?? "none"} /></span>
+              <span>updated: {formatDateLabel(selectedTask?.updated_at)}</span>
+            </div>
+            <div className="run-summary-grid">
+              <Field label="retry" value={selectedTask ? `${selectedTask.retry_count}/${selectedTask.max_retries}` : "-"} />
+              <Field label="recoverable" value={<StatusPill value={selectedTask?.recoverable ?? false} />} />
+              <Field label="events" value={taskEvents.length} />
+              <Field label="artifacts" value={selectedTaskArtifacts.length} />
+            </div>
+            <h3>Latest task event</h3>
+            <div className="empty-chat">{latestTaskEvent ? `${latestTaskEvent.event_type}: ${latestTaskEvent.message ?? latestTaskEvent.status ?? "-"}` : "No task events for selected task."}</div>
+            <h3>Diagnostics</h3>
+            <JsonPreview value={taskDiagnostics || { status: "select a task run" }} />
+          </section>
+          <section className="cockpit-section">
+            <h3>Linked artifacts</h3>
+            {[...selectedThreadArtifacts, ...selectedTaskArtifacts].slice(0, 8).map((artifact) => (
+              <div className="approval-card" key={`${artifact.id}-${artifact.task_run_id ?? artifact.thread_id ?? "linked"}`}>
+                <div className="approval-card-header">
+                  <strong>{artifact.title}</strong>
+                  <StatusPill value={artifact.artifact_type} />
+                  <StatusPill value={artifact.status} />
+                </div>
+                <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
+              </div>
+            ))}
+            {selectedThreadArtifacts.length + selectedTaskArtifacts.length === 0 ? (
+              <div className="empty-chat">No artifacts linked to the selected run context.</div>
+            ) : null}
+          </section>
+          <section className="cockpit-section">
+            <h3>Thread events</h3>
+            <Timeline rows={threadEvents as unknown as JsonRecord[]} primary="event_type" secondary="message" />
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 function BrowserRuntimePage({ settings }: { settings: AdminSettings }) {
   const [sessions, setSessions] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedSession, setSelectedSession] = useState<JsonRecord | null>(null);
@@ -600,7 +886,7 @@ function ConversationsPage({ settings }: { settings: AdminSettings }) {
   const [artifacts, setArtifacts] = useState<OutputArtifact[]>([]);
   const [selectedPlaybookName, setSelectedPlaybookName] = useState("browser_screenshot_report");
   const [newTitle, setNewTitle] = useState("Phase 37 frontend conversation test");
-  const [messageInput, setMessageInput] = useState("请帮我生成一条短视频文案，并展示执行事件。");
+  const [messageInput, setMessageInput] = useState("Create a short operations update and show the execution events.");
   const [runStatus, setRunStatus] = useState("idle");
   const [connectionState, setConnectionState] = useState("unknown");
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -2593,7 +2879,7 @@ function App() {
           </span>
           <div>
             <strong>AI Ops Admin</strong>
-            <small>Monitoring Foundation</small>
+            <small>Operations Console</small>
           </div>
         </div>
         <nav>
@@ -2605,23 +2891,24 @@ function App() {
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 36</strong>
-          <span>Read-only monitoring foundation. No login UI, permission UI, publishing flow, or real social platform control.</span>
+          <strong>Phase 57</strong>
+          <span>Run cockpit foundation for conversations, background tasks, approvals, and artifacts. No production publishing flow.</span>
         </div>
       </aside>
       <main>
         <header className="topbar">
           <div>
             <h1>{currentPage.label}</h1>
-            <p>{settings.aiServerUrl} · workspace {settings.workspaceId} · user {settings.userId}</p>
+            <p>{settings.aiServerUrl} / workspace {settings.workspaceId} / user {settings.userId}</p>
           </div>
           <div className="topbar-actions">
             <StatusPill value="foundation" />
-            <StatusPill value="read-only" />
+            <StatusPill value={activePage === "run-cockpit" ? "operational" : "read-only"} />
           </div>
         </header>
         <div className="content">
           {activePage === "overview" ? <OverviewPage settings={settings} /> : null}
+          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} /> : null}
