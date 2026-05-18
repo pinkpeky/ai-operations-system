@@ -29,10 +29,15 @@ Verified on the migrated Windows server:
 - Docker Compose: `v5.1.3`.
 - Docker runtime smoke: `docker run --rm hello-world` passed.
 - Compose syntax smoke: `docker compose -f docker-compose.yml config --quiet` passed.
+- Docker compose service smoke: `docker compose -f docker-compose.yml up -d --build` started PostgreSQL, Redis, Qdrant, browser-worker, and API successfully.
+- Server Docker profile verification: `python deployment/scripts/verify_environment.py --profile server-docker` passed.
+- Release smoke matrix: `python scripts/release_smoke_matrix.py --profile server-docker` passed.
+- Browser runtime HTTP E2E through the API passed: worker registration, runtime session creation, navigation to `https://example.com`, screenshot storage, page content retrieval, and session close.
 
 Known host risk:
 
 - `DISM /Online /Cleanup-Image /RestoreHealth` still requires a matching Windows IoT Enterprise LTSC 2024 `26100.x` source when the component store needs repair. Docker and WSL are currently functional, but OS servicing should be revisited with a matching install source.
+- Local Docker Qdrant uses an API key over HTTP, so the Qdrant Python client emits an insecure-connection warning during API startup. This is expected for the local `server-docker` profile and is not a production TLS posture.
 
 ## Stabilization Fixes
 
@@ -57,6 +62,32 @@ python -m pytest tests/test_browser_runtime_playwright.py tests/test_browser_run
 ```text
 python -m pytest <browser_runtime_related_files> -q
 17 passed
+```
+
+### Redis Queue Idle Polling
+
+The API container initially logged repeated task executor errors while the Redis queue was empty. Root cause: the Redis client's `socket_timeout=5` matched the task executor's `BLPOP timeout=5`, so Redis socket timeout could fire before `BLPOP` returned a normal empty result.
+
+The fix keeps `socket_connect_timeout=5` and sets `socket_timeout=None`, allowing blocking Redis commands to use their command-level timeout. After rebuilding the API image, idle queue polling no longer logs `Failed to dequeue task` / `Timeout reading from redis:6379`.
+
+Verified tests:
+
+```text
+python -m pytest tests/test_queue.py tests/test_task_executor.py tests/test_task_events.py tests/test_task_logs.py -q
+6 passed
+```
+
+### Qdrant Client Compatibility
+
+The first Docker service smoke installed `qdrant-client 1.18.0` while the compose service uses `qdrant:v1.16.3`, which emitted a client/server minor-version compatibility warning at API startup.
+
+The fix pins the Python dependency to `qdrant-client>=1.16.0,<1.18.0`. Local and rebuilt Docker images now use `qdrant-client 1.17.1`, which is within the compatibility range for Qdrant `1.16.3`.
+
+Verified tests:
+
+```text
+python -m pytest tests/test_queue.py tests/test_task_executor.py tests/test_vector_store.py tests/test_embedding_health.py -q
+11 passed
 ```
 
 ## Verification Results
@@ -111,6 +142,26 @@ docker compose -f docker-compose.yml config --quiet
 PASS
 ```
 
+```text
+python deployment/scripts/verify_environment.py --profile server-docker
+SUMMARY: PASS
+```
+
+```text
+python scripts/release_smoke_matrix.py --profile server-docker
+SUMMARY: PASS
+```
+
+```text
+Browser runtime API E2E
+registered=online
+created=active
+page_title=Example Domain
+screenshot_path_present=true
+page_contains_example=true
+closed=closed
+```
+
 ## Documentation Expectations
 
 Post-merge stabilization documentation must stay complete enough to recover the project on a new machine:
@@ -123,6 +174,6 @@ Post-merge stabilization documentation must stay complete enough to recover the 
 
 ## Next Stabilization Gates
 
-1. Run Docker compose service health / smoke checks with the repaired Docker Desktop backend.
-2. Compare PR #1 against `main` and decide whether it is superseded or still needs an independent merge.
+1. Compare PR #1 against `main` and decide whether it is superseded or still needs an independent merge.
+2. Decide whether to keep the local Docker compose stack running for manual inspection or shut it down after review.
 3. Only after these gates pass, move to PR cleanup or the next accepted phase.

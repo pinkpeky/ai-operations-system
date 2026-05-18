@@ -25,7 +25,7 @@ async def init_redis(settings: Settings) -> None:
             settings.redis_url,
             decode_responses=True,
             socket_connect_timeout=5,
-            socket_timeout=5,
+            socket_timeout=None,
         )
         # 等待 Redis 完成启动，避免 API 容器抢跑导致启动失败。
         for attempt in range(1, 11):
