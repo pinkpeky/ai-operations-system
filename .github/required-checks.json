@@ -1,0 +1,18 @@
+{
+  "protected_branch": "main",
+  "required_status_checks": [
+    "Python docs and runtime gates",
+    "Frontend build (admin_dashboard)",
+    "Frontend build (worker_console)",
+    "Frontend build (worker_console_desktop)"
+  ],
+  "advisory_checks": [
+    "Server Docker Smoke / Docker compose smoke (server-docker)",
+    "Server Docker Smoke / Docker compose smoke (staging)",
+    "Server Docker Smoke / Docker compose smoke (production-like)"
+  ],
+  "notes": [
+    "Required checks come from PR Quality Gates and run automatically on pull requests to main.",
+    "Server Docker Smoke is workflow_dispatch-only and should stay advisory unless the repository later adds a scheduled or pull-request Docker profile gate."
+  ]
+}
