@@ -14,7 +14,7 @@ Post-merge stabilization and PR cleanup are complete. The current step is to pre
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-56-required-checks-docs`. Its scope is branch-protection readiness, required-check documentation, and CI gate validation. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`.
+The next active branch is `codex/phase-56-scheduled-docker-smoke`. Its scope is scheduled Docker smoke and readiness artifact continuity. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`.
 
 ## PR State
 

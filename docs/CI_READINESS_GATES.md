@@ -37,6 +37,8 @@ File: `.github/workflows/server-docker-smoke.yml`
 
 Runs by manual dispatch for `server-docker`, `staging`, or `production-like` profile verification.
 
+It also runs on a daily schedule at `19:00 UTC` / `03:00 Asia/Shanghai` using the `server-docker` profile. Scheduled-smoke details live in `docs/SCHEDULED_SMOKE.md`.
+
 Checks:
 
 - `docker compose -f docker-compose.yml config --quiet`.
@@ -75,11 +77,11 @@ Workflow run:
 26037766993
 ```
 
-The manual `Server Docker Smoke` workflow is available through `workflow_dispatch`; trigger it from GitHub Actions when a remote Docker compose/profile smoke is needed.
+`Server Docker Smoke` runs daily for `server-docker` and is also available through `workflow_dispatch`; trigger it manually from GitHub Actions when a remote Docker compose/profile smoke is needed for release-sensitive changes.
 
 Required branch-protection checks are tracked in `.github/required-checks.json` and documented in `docs/BRANCH_PROTECTION.md`.
 
-`PR Quality Gates` uploads `release-readiness-report` as a GitHub Actions artifact. The manual `Server Docker Smoke` workflow uploads a profile-specific readiness report after its strict smoke matrix passes.
+`PR Quality Gates` uploads `release-readiness-report` as a GitHub Actions artifact. `Server Docker Smoke` uploads a profile-specific readiness report after its strict smoke matrix passes.
 
 For a full local server profile smoke, keep Docker Desktop running and run:
 

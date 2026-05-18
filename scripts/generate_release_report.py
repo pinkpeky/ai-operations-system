@@ -53,7 +53,7 @@ def build_report(profile: str, include_live_checks: bool) -> dict[str, Any]:
         },
         "remaining_risks": [
             "Tauri native packaging still needs customer-machine validation beyond frontend build.",
-            "Server Docker Smoke is currently workflow_dispatch-only and should be triggered for release-sensitive changes.",
+            "Server Docker Smoke is scheduled for daily server-docker coverage but should still be triggered manually for release-sensitive profile changes.",
             "GitHub branch protection must be configured in repository settings; this report only records the expected required checks.",
         ],
         "deferred_features": [
