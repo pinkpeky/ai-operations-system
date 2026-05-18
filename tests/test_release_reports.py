@@ -27,11 +27,14 @@ def test_generate_release_report_writes_json(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     report = json.loads(output.read_text(encoding="utf-8"))
     assert payload["success"] is True
-    assert report["phase"] == "53"
-    assert report["status"] == "integration_candidate"
-    assert "known_blockers" in report
+    assert report["phase"] == "56"
+    assert report["baseline_phase"] == "55"
+    assert report["status"] == "ci_readiness_snapshot"
+    assert "mainline_state" in report
+    assert "remaining_risks" in report
 
 
 def test_release_report_generated_output_is_ignored() -> None:
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "/release/reports/release_readiness_report.json" in gitignore
+    assert "/release/reports/ci/" in gitignore

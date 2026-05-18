@@ -1,4 +1,4 @@
-"""Generate a Phase 53 release readiness report."""
+"""Generate a release readiness report for the accepted mainline baseline."""
 
 from __future__ import annotations
 
@@ -38,20 +38,23 @@ def build_report(profile: str, include_live_checks: bool) -> dict[str, Any]:
     profile_matrix = json.loads((ROOT / "release/smoke/profile_matrix.json").read_text(encoding="utf-8"))
     report: dict[str, Any] = {
         "schema_version": "1.0",
-        "phase": "53",
+        "phase": "56",
+        "baseline_phase": "55",
         "generated_at": datetime.now(UTC).isoformat(),
         "profile": profile,
-        "status": "integration_candidate",
+        "status": "ci_readiness_snapshot",
         "smoke_matrix": smoke_matrix,
         "profile_matrix": profile_matrix.get("profiles", {}).get(profile, {}),
-        "open_pr_chain": {
-            "main": "Phase 42 stable baseline",
-            "phase_43_to_52": "open PR chain",
-            "docs_stabilization": "PR #13",
+        "mainline_state": {
+            "main": "Phase 55 stable baseline after PR #17 and post-merge stabilization",
+            "post_merge_stabilization": "accepted on main",
+            "ci_readiness_gates": "accepted on main",
+            "required_checks": "tracked in .github/required-checks.json",
         },
-        "known_blockers": [
-            "Phase 43-52 PR chain remains open and must be integrated deliberately.",
-            "Tauri native packaging still needs customer-machine validation.",
+        "remaining_risks": [
+            "Tauri native packaging still needs customer-machine validation beyond frontend build.",
+            "Server Docker Smoke is currently workflow_dispatch-only and should be triggered for release-sensitive changes.",
+            "GitHub branch protection must be configured in repository settings; this report only records the expected required checks.",
         ],
         "deferred_features": [
             "no production installer",
@@ -77,6 +80,21 @@ def build_report(profile: str, include_live_checks: bool) -> dict[str, Any]:
                 "--skip-pytest",
                 "--skip-build",
                 "--skip-docker",
+                "--skip-docs",
+            ]
+        )
+        report["required_ci_gates"] = run_json([PYTHON, "scripts/check_required_ci_gates.py", "--json"])
+        report["release_smoke_static"] = run_json(
+            [
+                PYTHON,
+                "scripts/release_smoke_matrix.py",
+                "--profile",
+                profile,
+                "--json",
+                "--group",
+                "static",
+                "--skip-docker",
+                "--skip-build",
                 "--skip-docs",
             ]
         )

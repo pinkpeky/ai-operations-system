@@ -57,6 +57,16 @@ jobs:
       - name: Run static release smoke group
         run: python scripts/release_smoke_matrix.py --group static --skip-docker --skip-build --skip-docs
 
+      - name: Generate release readiness report
+        run: python scripts/generate_release_report.py --profile server-docker --include-live-checks --output release/reports/ci/release_readiness_report.json
+
+      - name: Upload release readiness report
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-report
+          path: release/reports/ci/release_readiness_report.json
+          if-no-files-found: error
+
   frontend-builds:
     name: Frontend build (${{ matrix.project }})
     runs-on: ubuntu-latest

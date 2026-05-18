@@ -28,6 +28,7 @@ Checks:
 - `python scripts/check_migration_continuity.py`.
 - `python scripts/check_required_ci_gates.py`.
 - Static release smoke group.
+- Release readiness report generation and artifact upload.
 - `npm ci`, `npm run typecheck`, and `npm run build` for `admin_dashboard`, `worker_console`, and `worker_console_desktop`.
 
 ### Server Docker Smoke
@@ -77,6 +78,8 @@ Workflow run:
 The manual `Server Docker Smoke` workflow is available through `workflow_dispatch`; trigger it from GitHub Actions when a remote Docker compose/profile smoke is needed.
 
 Required branch-protection checks are tracked in `.github/required-checks.json` and documented in `docs/BRANCH_PROTECTION.md`.
+
+`PR Quality Gates` uploads `release-readiness-report` as a GitHub Actions artifact. The manual `Server Docker Smoke` workflow uploads a profile-specific readiness report after its strict smoke matrix passes.
 
 For a full local server profile smoke, keep Docker Desktop running and run:
 
