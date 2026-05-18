@@ -12,3 +12,7 @@
 ## Notes
 
 Use `docs/PHASE_INDEX.md` as the complete phase index and `docs/CURRENT_NEXT_PHASE.md` as the next-conversation recovery state file.
+
+## Active Next Slice
+
+`codex/phase-56-ci-readiness-gates` is the active next branch. It is limited to CI/readiness gates and does not reuse the reverted Phase 56 branch.

@@ -12,6 +12,8 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not part of the accepted baseline, and should not be used as the base for stabilization.
 
+The next fresh branch is `codex/phase-56-ci-readiness-gates`. This is a CI/readiness slice, not the reverted Phase 56 work.
+
 ## Open PR List
 
 | PR | Title | Branch | Status / Note |
@@ -93,6 +95,7 @@ Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and
 | 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Merged to main | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
 | 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Closed as superseded | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
 | 55 | Mainline Integration & Release Candidate Merge Window | `codex/phase-55-mainline-integration-release-candidate` | #16/#17 | Merged to main | Mainline readiness, merge simulation, release candidate model, superseded PR report. |
+| 56A | CI Readiness Gates | `codex/phase-56-ci-readiness-gates` | TBD | In progress | GitHub Actions gates for docs/runtime verification, packaging, hygiene, migration continuity, frontend builds, and manual Docker smoke. |
 
 ## Runtime Evolution
 
