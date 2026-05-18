@@ -23,10 +23,15 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Manual recovery from Run Cockpit" in text
     assert "Export markdown" in text
     assert "Export JSON" in text
+    assert "Task view" in text
+    assert "Auto refresh" in text
+    assert "Open Conversations" in text
+    assert "Open Tasks" in text
+    assert "Open Output Library" in text
 
 
 def test_run_cockpit_docs_track_action_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit action slice."""
+    """Recovery docs should point to the active Run Cockpit operator-controls slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -38,4 +43,4 @@ def test_run_cockpit_docs_track_action_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-57-run-cockpit-actions" in text or "Run Cockpit Actions" in text, path
+        assert "phase-57-run-cockpit-operator-controls" in text or "Run Cockpit Operator Controls" in text, path
