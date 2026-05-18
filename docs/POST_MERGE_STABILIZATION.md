@@ -162,6 +162,32 @@ page_contains_example=true
 closed=closed
 ```
 
+## PR #1 Disposition
+
+PR #1: `Fix browser worker runtime registration and launch`
+
+- Branch: `codex/browser-worker-runtime-fix-20260515`
+- Commit: `9ea26a6`
+- Compared against: `codex/post-merge-stabilization` at `d775d5d`
+- Status: superseded by the accepted mainline plus post-merge stabilization fixes.
+
+Review result:
+
+- PR #1 added worker registration state matching for `worker_base_url`; the current code already includes that behavior.
+- PR #1 added browser runtime Playwright provider coverage; the current code already includes the provider and now has additional screenshot fallback hardening.
+- PR #1 added tests for registration refresh and browser runtime screenshot flow; those tests exist and pass on the stabilization branch.
+- Current stabilization branch includes one extra registration status improvement: successful registration status now records `worker_base_url`.
+- Current stabilization branch has passed real Docker service smoke, including Browser Worker registration and API-driven browser runtime screenshot E2E.
+
+Verification:
+
+```text
+python -m pytest tests/test_worker_client_registration.py tests/test_browser_runtime_playwright.py tests/test_browser_runtime_worker.py -q
+6 passed
+```
+
+Recommendation: close PR #1 as superseded after the `codex/post-merge-stabilization` branch is reviewed or merged. Do not merge PR #1 directly into `main`, because it is based on an older branch and would reintroduce stale branch history without adding unique runtime value.
+
 ## Documentation Expectations
 
 Post-merge stabilization documentation must stay complete enough to recover the project on a new machine:
@@ -174,6 +200,7 @@ Post-merge stabilization documentation must stay complete enough to recover the 
 
 ## Next Stabilization Gates
 
-1. Compare PR #1 against `main` and decide whether it is superseded or still needs an independent merge.
-2. Decide whether to keep the local Docker compose stack running for manual inspection or shut it down after review.
-3. Only after these gates pass, move to PR cleanup or the next accepted phase.
+1. Decide whether to keep the local Docker compose stack running for manual inspection or shut it down after review.
+2. Review or merge `codex/post-merge-stabilization`.
+3. Close PR #1 as superseded after the stabilization branch lands.
+4. Only after these gates pass, move to broader PR cleanup or the next accepted phase.
