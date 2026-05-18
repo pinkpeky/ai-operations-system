@@ -13,6 +13,6 @@
   ],
   "notes": [
     "Required checks come from PR Quality Gates and run automatically on pull requests to main.",
-    "Server Docker Smoke is workflow_dispatch-only and should stay advisory unless the repository later adds a scheduled or pull-request Docker profile gate."
+    "Server Docker Smoke runs by daily schedule and workflow_dispatch, but should stay advisory unless the repository later adds a pull-request Docker profile gate."
   ]
 }

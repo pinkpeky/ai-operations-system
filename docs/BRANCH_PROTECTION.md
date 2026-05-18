@@ -48,7 +48,7 @@ python scripts/check_required_ci_gates.py
 
 ## Advisory Checks
 
-`Server Docker Smoke` is intentionally manual through `workflow_dispatch`.
+`Server Docker Smoke` is intentionally advisory. It runs daily for the `server-docker` profile and can also be triggered manually through `workflow_dispatch` for `server-docker`, `staging`, or `production-like`.
 
 Use it before release-sensitive merges, server migration, Docker/WSL repair work, or deployment profile changes. It is not currently a required pull-request status check because it starts a Docker compose stack and runs heavier profile smoke.
 

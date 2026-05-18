@@ -12,7 +12,7 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not part of the accepted baseline, and should not be used as the base for stabilization.
 
-The current fresh branch is `codex/phase-56-required-checks-docs`. This continues the CI/readiness slice and does not reuse the reverted Phase 56 work.
+The current fresh branch is `codex/phase-56-scheduled-docker-smoke`. This continues the CI/readiness slice and does not reuse the reverted Phase 56 work.
 
 ## Open PR List
 
@@ -95,8 +95,10 @@ The current fresh branch is `codex/phase-56-required-checks-docs`. This continue
 | 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Merged to main | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
 | 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Closed as superseded | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
 | 55 | Mainline Integration & Release Candidate Merge Window | `codex/phase-55-mainline-integration-release-candidate` | #16/#17 | Merged to main | Mainline readiness, merge simulation, release candidate model, superseded PR report. |
-| 56A | CI Readiness Gates | `codex/phase-56-ci-readiness-gates` | TBD | In progress | GitHub Actions gates for docs/runtime verification, packaging, hygiene, migration continuity, frontend builds, and manual Docker smoke. |
-| 56B | Required Checks & Branch Protection Readiness | `codex/phase-56-required-checks-docs` | TBD | In progress | Machine-readable required checks, branch protection documentation, and required-check validation. |
+| 56A | CI Readiness Gates | `codex/phase-56-ci-readiness-gates` | #18 | Merged to main | GitHub Actions gates for docs/runtime verification, packaging, hygiene, migration continuity, frontend builds, and manual Docker smoke. |
+| 56B | Required Checks & Branch Protection Readiness | `codex/phase-56-required-checks-docs` | #19 | Merged to main | Machine-readable required checks, branch protection documentation, and required-check validation. |
+| 56C | Release Readiness Report Artifacts | `codex/phase-56-report-artifacts` | #20 | Merged to main | CI readiness report generation and artifact upload for PR and Docker smoke workflows. |
+| 56D | Scheduled Docker Smoke | `codex/phase-56-scheduled-docker-smoke` | TBD | In progress | Daily server-docker smoke schedule, default scheduled profile, concurrency guard, and scheduled-smoke documentation. |
 
 ## Runtime Evolution
 
