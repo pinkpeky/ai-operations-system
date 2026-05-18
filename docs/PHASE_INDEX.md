@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. It includes the Phase 42 runtime foundation plus the accepted Phase 43-55 scheduler, artifact, workflow, template, observability, packaging, deployment, smoke, integration, and readiness layers.
 
-PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; this was a GitHub containment result, not a manual cleanup pass. PR #15 and PR #1 remain open. PR #16 was accepted into the Phase 54 branch, and PR #17 merged the combined Phase 43-55 RC into `main`.
+PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after post-merge verification. PR #16 was accepted into the Phase 54 branch, and PR #17 merged the combined Phase 43-55 RC into `main`.
 
 ## Current Active Development Branch
 
@@ -16,7 +16,7 @@ Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and
 
 | PR | Title | Branch | Status / Note |
 |---|---|---|---|
-| #1 | Fix browser worker runtime registration and launch | `codex/browser-worker-runtime-fix-20260515` | Open; verify before merge because later branches include this fix lineage. |
+| #1 | Fix browser worker runtime registration and launch | `codex/browser-worker-runtime-fix-20260515` | Closed as superseded |
 | #3 | Phase 43 Task Scheduler Persistence and Worker Recovery | `codex/phase-43-task-scheduler-recovery` | Marked merged after PR #17 |
 | #4 | Phase 44 Output Artifact Pipeline and Export System | `codex/phase-44-output-artifact-pipeline` | Marked merged after PR #17 |
 | #5 | Phase 45 Workflow State and Agent Memory Foundation | `codex/phase-45-workflow-state-memory` | Marked merged after PR #17 |
@@ -29,7 +29,7 @@ Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Marked merged after PR #17 |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Marked merged after PR #17 |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Marked merged after PR #17 |
-| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
+| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Closed as superseded |
 | #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Merged into PR #15 branch |
 | #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
 
@@ -80,19 +80,19 @@ Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and
 | 40 | Conversation Execution Templates & Playbooks | `codex/phase-31-worker-console-desktop` | #2 | Merged to main | Built-in playbooks, step executor, playbook runs, approval integration. |
 | 41 | Playbook Run Artifacts & Output Library | `codex/phase-31-worker-console-desktop` | #2 | Merged to main | Output artifacts, export markdown/json/txt, Output Library UI. |
 | 42 | Task Orchestration & Background Execution | `codex/phase-31-worker-console-desktop` | #2 | Merged to main | Task runs, task events, background executor, retry policy, artifact linkage. |
-| 43 | Task Scheduler Persistence & Worker Recovery | `codex/phase-43-task-scheduler-recovery` | #3 | Open PR | Task lease, scheduler state, recovery service, diagnostics. |
-| 44 | Output Artifact Pipeline & Export System | `codex/phase-44-output-artifact-pipeline` | #4 | Open PR | Artifact lineage, relationship graph, export/package/retention services. |
-| 45 | Workflow State & Agent Memory Foundation | `codex/phase-45-workflow-state-memory` | #5 | Open PR | Workflow runs, steps, checkpoints, agent memory snapshots. |
-| 46 | Workflow Graph Runtime & Conditional Execution | `codex/phase-46-workflow-graph-runtime` | #6 | Open PR | Workflow graphs, planner, conditional routing, retry/fallback, replay foundation. |
-| 47 | Workflow Template Registry & Versioning | `codex/phase-47-workflow-template-registry` | #7 | Open PR | Workflow templates, versions, built-in templates, import/export. |
-| 48 | Workflow Template Marketplace & Governance Foundation | `codex/phase-48-template-marketplace-governance` | #8 | Open PR | Reviews, lifecycle, rollback, compatibility matrix, internal marketplace. |
-| 49 | Workflow Run Observability & Replay Center | `codex/phase-49-workflow-observability-replay` | #9 | Open PR | Execution traces, diagnostics, replay sessions, runtime analytics. |
-| 50 | Desktop Console Runtime UX & Client Packaging Readiness | `codex/phase-50-desktop-runtime-ux-packaging-readiness` | #10 | Open PR | Tauri icon fix, Start Runtime diagnostics, server/client boundary UX. |
-| 51 | Release Packaging & Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | #11 | Open PR | Release manifest, version metadata, bundle scripts, startup scripts. |
-| 52 | Deployment Profiles & Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | #12 | Open PR | Deployment profiles, env generator, dependency/port/env verification. |
-| 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Open PR | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
-| 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Open PR | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
-| 55 | Mainline Integration & Release Candidate Merge Window | `codex/phase-55-mainline-integration-release-candidate` | #16 | In progress | Mainline readiness, merge simulation, release candidate model, superseded PR report. |
+| 43 | Task Scheduler Persistence & Worker Recovery | `codex/phase-43-task-scheduler-recovery` | #3 | Merged to main | Task lease, scheduler state, recovery service, diagnostics. |
+| 44 | Output Artifact Pipeline & Export System | `codex/phase-44-output-artifact-pipeline` | #4 | Merged to main | Artifact lineage, relationship graph, export/package/retention services. |
+| 45 | Workflow State & Agent Memory Foundation | `codex/phase-45-workflow-state-memory` | #5 | Merged to main | Workflow runs, steps, checkpoints, agent memory snapshots. |
+| 46 | Workflow Graph Runtime & Conditional Execution | `codex/phase-46-workflow-graph-runtime` | #6 | Merged to main | Workflow graphs, planner, conditional routing, retry/fallback, replay foundation. |
+| 47 | Workflow Template Registry & Versioning | `codex/phase-47-workflow-template-registry` | #7 | Merged to main | Workflow templates, versions, built-in templates, import/export. |
+| 48 | Workflow Template Marketplace & Governance Foundation | `codex/phase-48-template-marketplace-governance` | #8 | Merged to main | Reviews, lifecycle, rollback, compatibility matrix, internal marketplace. |
+| 49 | Workflow Run Observability & Replay Center | `codex/phase-49-workflow-observability-replay` | #9 | Merged to main | Execution traces, diagnostics, replay sessions, runtime analytics. |
+| 50 | Desktop Console Runtime UX & Client Packaging Readiness | `codex/phase-50-desktop-runtime-ux-packaging-readiness` | #10 | Merged to main | Tauri icon fix, Start Runtime diagnostics, server/client boundary UX. |
+| 51 | Release Packaging & Deployment Bundle Foundation | `codex/phase-51-release-packaging-foundation` | #11 | Merged to main | Release manifest, version metadata, bundle scripts, startup scripts. |
+| 52 | Deployment Profiles & Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | #12 | Merged to main | Deployment profiles, env generator, dependency/port/env verification. |
+| 53 | Release Smoke Test Matrix & Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | #14 | Merged to main | Unified preflight, smoke matrix, release report, migration continuity, runtime hygiene. |
+| 54 | Integration Branch & PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | #15 | Closed as superseded | Integration strategy, PR inventory, dependency matrix, conflict detection, drift checks, integration report. |
+| 55 | Mainline Integration & Release Candidate Merge Window | `codex/phase-55-mainline-integration-release-candidate` | #16/#17 | Merged to main | Mainline readiness, merge simulation, release candidate model, superseded PR report. |
 
 ## Runtime Evolution
 
@@ -100,7 +100,7 @@ The runtime evolved from a FastAPI service with PostgreSQL, Redis, Qdrant, local
 
 ## Workflow Evolution
 
-Workflow capability begins with plans and playbooks, then moves into approvals, background tasks, persistent workflow state, graph execution, templates, governance, and observability. Phases 43-49 remain open PRs and should be merged only after review in dependency order.
+Workflow capability begins with plans and playbooks, then moves into approvals, background tasks, persistent workflow state, graph execution, templates, governance, and observability. Phases 43-49 are accepted on `main`.
 
 ## Artifact Evolution
 

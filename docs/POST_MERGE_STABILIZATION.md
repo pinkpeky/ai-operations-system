@@ -11,7 +11,7 @@ This document records the post-merge stabilization state after the server migrat
 - Remote: `origin` -> `https://github.com/pinkpeky/ai-operations-system.git`.
 - Do not force-push `main`.
 - Use feature/stabilization branches with the `codex/` prefix.
-- Keep PR #15 and PR #1 open until the separate PR cleanup / superseded decision phase.
+- PR #15 and PR #1 were closed as superseded after the stabilization branch landed on `main`.
 - Push stabilization work only after local verification has a clear report.
 
 ## Server Toolchain State
@@ -186,7 +186,29 @@ python -m pytest tests/test_worker_client_registration.py tests/test_browser_run
 6 passed
 ```
 
-Recommendation: close PR #1 as superseded after the `codex/post-merge-stabilization` branch is reviewed or merged. Do not merge PR #1 directly into `main`, because it is based on an older branch and would reintroduce stale branch history without adding unique runtime value.
+Disposition: PR #1 was closed as superseded after the `codex/post-merge-stabilization` branch was merged to `main`. Do not reopen or merge PR #1 directly into `main`, because it is based on an older branch and would reintroduce stale branch history without adding unique runtime value.
+
+## PR #15 Disposition
+
+PR #15: `Phase 54 Integration Branch and PR Chain Reconciliation`
+
+- Branch: `codex/phase-54-integration-branch-pr-chain-reconciliation`
+- Status: closed as superseded after post-merge stabilization landed on `main`.
+
+Review result:
+
+- `main` was ahead of the PR #15 branch after Phase 55 and post-merge stabilization landed.
+- The PR #15 branch had no unique commits left relative to `main`.
+- Directly merging PR #15 after stabilization would have reintroduced older documentation/runtime state and removed the stabilization record.
+
+Verification:
+
+```text
+git rev-list --left-right --count main...origin/codex/phase-54-integration-branch-pr-chain-reconciliation
+6 0
+```
+
+Disposition: PR #15 was closed as superseded. Do not merge it directly into `main`.
 
 ## Documentation Expectations
 
@@ -201,6 +223,6 @@ Post-merge stabilization documentation must stay complete enough to recover the 
 ## Next Stabilization Gates
 
 1. Decide whether to keep the local Docker compose stack running for manual inspection or shut it down after review.
-2. Review or merge `codex/post-merge-stabilization`.
-3. Close PR #1 as superseded after the stabilization branch lands.
-4. Only after these gates pass, move to broader PR cleanup or the next accepted phase.
+2. Start future work from a fresh `codex/` branch based on `main`.
+3. Prefer maintenance/readiness gates before any new runtime feature scope.
+4. Do not reuse the reverted Phase 56 branch; define a fresh Phase 56 only after acceptance criteria and rollback posture are explicit.

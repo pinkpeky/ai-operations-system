@@ -4,21 +4,20 @@
 
 `main`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; this was a GitHub containment result, not a manual cleanup pass. PR #15 and PR #1 remain open.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification.
 
 Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not included in the accepted baseline, and not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Post-merge stabilization is the current step. It does not add runtime features; it verifies the accepted Phase 55 baseline on `main`, preserves the rollback path, and prepares a separate PR cleanup / superseded marking phase.
+Post-merge stabilization and PR cleanup are complete. The current step is to prepare the next accepted development phase without reviving the reverted Phase 56 branch.
 
-Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, and verification gates.
+Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-## Open PRs
+## PR State
 
 | PR | Title | Branch | Status / Note |
 |---|---|---|---|
-| #1 | Fix browser worker runtime registration and launch | `codex/browser-worker-runtime-fix-20260515` | Open; verify before merge because later branches include this fix lineage. |
 | #3 | Phase 43 Task Scheduler Persistence and Worker Recovery | `codex/phase-43-task-scheduler-recovery` | Marked merged after PR #17 |
 | #4 | Phase 44 Output Artifact Pipeline and Export System | `codex/phase-44-output-artifact-pipeline` | Marked merged after PR #17 |
 | #5 | Phase 45 Workflow State and Agent Memory Foundation | `codex/phase-45-workflow-state-memory` | Marked merged after PR #17 |
@@ -31,9 +30,12 @@ Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. T
 | #12 | Phase 52 Deployment Profiles and Environment Bootstrap | `codex/phase-52-deployment-profiles-bootstrap` | Marked merged after PR #17 |
 | #13 | Docs Stabilization Sprint | `codex/docs-stabilization-sprint` | Marked merged after PR #17 |
 | #14 | Phase 53 Release Smoke Test Matrix and Preflight Automation | `codex/phase-53-release-smoke-test-matrix-preflight` | Marked merged after PR #17 |
-| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Open |
+| #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Closed as superseded after `main` advanced beyond the PR branch |
 | #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Merged into PR #15 branch |
 | #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
+| #1 | Fix browser worker runtime registration and launch | `codex/browser-worker-runtime-fix-20260515` | Closed as superseded by `main` plus post-merge stabilization |
+
+There are no open pull requests at the time of this update.
 
 ## Current Architecture State
 
@@ -45,13 +47,14 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Workspace isolation across RAG, tasks, tools, browser, conversations, artifacts, and workflows.
 - Browser worker registration, heartbeat, remote browser runtime, screenshots, page snapshots, timeline, replay metadata.
 - Conversation threads, messages, events, tool routing, approvals, playbooks, background execution, artifacts.
-- Workflow state, graph runtime, templates, governance, observability, and replay center are implemented in open PRs #3-#9.
+- Workflow state, graph runtime, templates, governance, observability, and replay center are accepted on `main`.
 
 ## Current Deployment State
 
 - `main` is Phase 55 stable after PR #17.
 - Phase 43-55 are present on `main` through the combined RC merge.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
+- PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
 - Phase 54 adds integration strategy, PR chain inventory, conflict surface detection, API/frontend drift checks, and integration report generation.
 - Phase 55 adds mainline readiness, merge simulation, superseded PR decision reporting, and Release Candidate process documentation.
@@ -59,8 +62,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Current Packaging State
 
-- Release packaging foundation exists in PR #11.
-- Deployment bootstrap foundation exists in PR #12.
+- Release packaging foundation is accepted on `main`.
+- Deployment bootstrap foundation is accepted on `main`.
 - There is no formal production installer, code signing, auto updater, MSI/EXE release, DMG, notarization, Kubernetes, Helm, Terraform, or Ansible automation.
 
 ## Current Desktop Runtime State
@@ -91,9 +94,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Keep feature work paused until post-merge verification on `main` is complete.
-2. Keep PR #15 and PR #1 open until the separate cleanup / archival phase; do not perform additional PR cleanup in post-merge verification.
-3. Decide whether PR #1 should be closed as superseded or merged independently after comparing it with the accepted mainline runtime.
-4. Add CI checks for docs encoding, DOCX render readiness, and release/deployment validation in a later maintenance phase.
-5. Do not start Phase 56 until PR cleanup, rollback posture, and deferred-feature boundaries are explicitly accepted.
-6. Keep `docs/POST_MERGE_STABILIZATION.md` updated whenever environment repair, verification, branch, or remote status changes.
+1. Create a new `codex/` branch from `main` for the next phase; do not reuse the reverted Phase 56 branch.
+2. Prefer a maintenance/readiness phase first: CI checks for docs encoding, DOCX render readiness, release packaging, deployment verification, runtime hygiene, and the smoke matrix.
+3. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
+4. Keep `docs/POST_MERGE_STABILIZATION.md` updated if any new host, Docker, remote, or rollback decision changes.
+5. Define any future Phase 56 as a fresh scope with explicit acceptance criteria, rollback posture, and deferred-feature boundaries.
