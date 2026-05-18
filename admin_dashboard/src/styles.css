@@ -416,9 +416,41 @@ tr:last-child td {
   margin-bottom: 12px;
 }
 
+.field {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.field-label {
+  color: #647483;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.field-value {
+  min-width: 0;
+  color: #17212b;
+  font-size: 15px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
 .split-page {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(380px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.cockpit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(460px, 0.9fr);
   gap: 18px;
   align-items: start;
 }
@@ -428,6 +460,26 @@ tr:last-child td {
   top: 18px;
   max-height: calc(100vh - 132px);
   overflow: auto;
+}
+
+.cockpit-detail-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.cockpit-section {
+  display: grid;
+  gap: 10px;
+}
+
+.cockpit-section h3 {
+  margin-bottom: 0;
+}
+
+.run-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .timeline {
@@ -581,6 +633,7 @@ textarea {
   .metrics-grid,
   .json-grid,
   .split-page,
+  .cockpit-grid,
   .settings-grid {
     grid-template-columns: 1fr;
   }

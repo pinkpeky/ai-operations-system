@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch for Phase 55 post-merge verification.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures.
 
-Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and is not active, not part of the accepted baseline, and should not be used as the base for stabilization.
+Current effective phase: Phase 57 Run Cockpit Foundation. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-56-scheduled-docker-smoke`. This continues the CI/readiness slice and does not reuse the reverted Phase 56 work.
+The current fresh branch is `codex/phase-57-run-cockpit-foundation`. This returns to product development and does not reuse the reverted Phase 56 branch.
 
 ## Open PR List
 
@@ -98,7 +98,8 @@ The current fresh branch is `codex/phase-56-scheduled-docker-smoke`. This contin
 | 56A | CI Readiness Gates | `codex/phase-56-ci-readiness-gates` | #18 | Merged to main | GitHub Actions gates for docs/runtime verification, packaging, hygiene, migration continuity, frontend builds, and manual Docker smoke. |
 | 56B | Required Checks & Branch Protection Readiness | `codex/phase-56-required-checks-docs` | #19 | Merged to main | Machine-readable required checks, branch protection documentation, and required-check validation. |
 | 56C | Release Readiness Report Artifacts | `codex/phase-56-report-artifacts` | #20 | Merged to main | CI readiness report generation and artifact upload for PR and Docker smoke workflows. |
-| 56D | Scheduled Docker Smoke | `codex/phase-56-scheduled-docker-smoke` | TBD | In progress | Daily server-docker smoke schedule, default scheduled profile, concurrency guard, and scheduled-smoke documentation. |
+| 56D | Scheduled Docker Smoke | `codex/phase-56-scheduled-docker-smoke` | #21 | Merged to main | Daily server-docker smoke schedule, default scheduled profile, concurrency guard, and scheduled-smoke documentation. |
+| 57 | Run Cockpit Foundation | `codex/phase-57-run-cockpit-foundation` | TBD | In progress | Admin Dashboard run cockpit for conversations, task runs, approvals, diagnostics, playbook runs, scheduler health, and linked artifacts. |
 
 ## Runtime Evolution
 
