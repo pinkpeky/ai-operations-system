@@ -37,7 +37,7 @@ Generate a local readiness report:
 python scripts/generate_release_report.py --profile server-docker
 ```
 
-The generated `release/reports/release_readiness_report.json` is a local QA artifact and is ignored by git.
+The generated `release/reports/release_readiness_report.json` is a local QA artifact and is ignored by git. GitHub Actions writes CI report artifacts under `release/reports/ci/` and uploads them from the workflow run.
 
 ## Current Boundaries
 

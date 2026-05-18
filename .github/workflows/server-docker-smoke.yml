@@ -60,6 +60,16 @@ jobs:
       - name: Run release smoke matrix
         run: python scripts/release_smoke_matrix.py --profile "${{ inputs.profile }}" --strict
 
+      - name: Generate release readiness report
+        run: python scripts/generate_release_report.py --profile "${{ inputs.profile }}" --include-live-checks --output release/reports/ci/${{ inputs.profile }}-readiness-report.json
+
+      - name: Upload release readiness report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.profile }}-readiness-report
+          path: release/reports/ci/${{ inputs.profile }}-readiness-report.json
+          if-no-files-found: error
+
       - name: Write compose logs on failure
         if: failure()
         run: docker compose -f docker-compose.yml logs --no-color --tail=500 > server-docker-smoke.log
