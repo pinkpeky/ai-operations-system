@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, Root } from "react-dom/client";
 import {
   Activity,
   AlertTriangle,
@@ -513,6 +513,8 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
   const [taskDiagnostics, setTaskDiagnostics] = useState<TaskRunDiagnostics | null>(null);
   const [taskArtifacts, setTaskArtifacts] = useState<OutputArtifact[]>([]);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState("idle");
+  const [actionPreview, setActionPreview] = useState<JsonRecord | null>(null);
   const selectedThreadId = selectedThread?.id ?? null;
   const selectedTaskId = selectedTask?.id ?? null;
 
@@ -599,6 +601,75 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
     [settings],
   );
 
+  const mutateCockpitApproval = async (approval: ConversationApproval, action: "approve" | "reject" | "cancel" | "execute") => {
+    if (!selectedThread) {
+      return;
+    }
+    setDetailError(null);
+    setActionStatus(`${action} approval`);
+    try {
+      if (action === "approve") {
+        const updated = await conversationClient.approveApproval(approval.id, "Approved from Run Cockpit.", settings);
+        setActionPreview(updated as unknown as JsonRecord);
+      } else if (action === "reject") {
+        const updated = await conversationClient.rejectApproval(approval.id, "Rejected from Run Cockpit.", settings);
+        setActionPreview(updated as unknown as JsonRecord);
+      } else if (action === "cancel") {
+        const updated = await conversationClient.cancelApproval(approval.id, "Cancelled from Run Cockpit.", settings);
+        setActionPreview(updated as unknown as JsonRecord);
+      } else {
+        const response = await conversationClient.executeApproval(approval.id, settings);
+        setActionPreview(response as unknown as JsonRecord);
+      }
+      await loadThread(selectedThread);
+      await load();
+      setActionStatus(`${action} approval completed`);
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : `${action} approval failed`);
+      setActionStatus("approval action failed");
+    }
+  };
+
+  const mutateCockpitTask = async (action: "retry" | "cancel" | "resume" | "recover") => {
+    if (!selectedTask) {
+      return;
+    }
+    setDetailError(null);
+    setActionStatus(`${action} task`);
+    try {
+      const updated =
+        action === "retry"
+          ? await taskRunClient.retry(selectedTask.id, "Manual retry from Run Cockpit", settings)
+          : action === "cancel"
+            ? await taskRunClient.cancel(selectedTask.id, "Manual cancel from Run Cockpit", settings)
+            : action === "recover"
+              ? await taskRunClient.recover(selectedTask.id, "Manual recovery from Run Cockpit", settings)
+              : await taskRunClient.resume(selectedTask.id, settings);
+      setSelectedTask(updated);
+      setActionPreview(updated as unknown as JsonRecord);
+      await loadTask(updated);
+      await load();
+      setActionStatus(`${action} task completed`);
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : `${action} task failed`);
+      setActionStatus("task action failed");
+    }
+  };
+
+  const exportCockpitArtifact = async (artifact: OutputArtifact, format: "markdown" | "json" | "txt" = "markdown") => {
+    setDetailError(null);
+    setActionStatus(`export ${format}`);
+    try {
+      const exported = await outputArtifactClient.exportArtifact(artifact.id, format, settings);
+      setActionPreview(exported as unknown as JsonRecord);
+      await load();
+      setActionStatus(`artifact exported as ${format}`);
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : "Artifact export failed");
+      setActionStatus("artifact export failed");
+    }
+  };
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -628,6 +699,9 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
     selectedTaskId && data
       ? data.artifacts.filter((artifact) => artifact.task_run_id === selectedTaskId || artifact.source_task_run_id === selectedTaskId)
       : taskArtifacts;
+  const linkedArtifacts = [...selectedThreadArtifacts, ...selectedTaskArtifacts].filter(
+    (artifact, index, items) => items.findIndex((candidate) => candidate.id === artifact.id) === index,
+  );
   const latestMessage = threadMessages[threadMessages.length - 1];
   const latestTaskEvent = taskEvents[taskEvents.length - 1];
 
@@ -642,6 +716,11 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
         <DataCard title="Scheduler" value={data?.schedulerHealth?.status ?? "unavailable"} detail={`active: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
       </section>
       <LoadNotice state={state} />
+      <div className="summary-strip cockpit-action-strip">
+        <span>Action status: <StatusPill value={actionStatus} /></span>
+        <span>Selected thread: {selectedThreadId ?? "-"}</span>
+        <span>Selected task: {selectedTaskId ?? "-"}</span>
+      </div>
       {detailError ? (
         <div className="notice notice-error">
           <AlertTriangle size={16} />
@@ -710,11 +789,25 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
                     <strong>{approval.proposed_action}</strong>
                     <StatusPill value={approval.risk_level} />
                     <StatusPill value={approval.approval_status} />
-                  </div>
-                  <p>{approval.selected_tool ?? approval.route_name}</p>
                 </div>
-              ))
-            ) : (
+                <p>{approval.selected_tool ?? approval.route_name}</p>
+                <div className="conversation-actions">
+                  <button className="ghost-button" onClick={() => void mutateCockpitApproval(approval, "approve")} disabled={approval.approval_status !== "pending"}>
+                    Approve
+                  </button>
+                  <button className="ghost-button" onClick={() => void mutateCockpitApproval(approval, "reject")} disabled={approval.approval_status !== "pending"}>
+                    Reject
+                  </button>
+                  <button className="ghost-button" onClick={() => void mutateCockpitApproval(approval, "cancel")} disabled={!["pending", "approved"].includes(approval.approval_status)}>
+                    Cancel
+                  </button>
+                  <button className="primary-button" onClick={() => void mutateCockpitApproval(approval, "execute")} disabled={approval.approval_status !== "approved"}>
+                    Execute
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
               <div className="empty-chat">No pending approvals on selected thread.</div>
             )}
           </section>
@@ -731,6 +824,20 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
               <Field label="events" value={taskEvents.length} />
               <Field label="artifacts" value={selectedTaskArtifacts.length} />
             </div>
+            <div className="conversation-actions">
+              <button className="ghost-button" onClick={() => void mutateCockpitTask("retry")} disabled={!selectedTask}>
+                Retry
+              </button>
+              <button className="ghost-button" onClick={() => void mutateCockpitTask("cancel")} disabled={!selectedTask}>
+                Cancel
+              </button>
+              <button className="ghost-button" onClick={() => void mutateCockpitTask("resume")} disabled={!selectedTask}>
+                Resume
+              </button>
+              <button className="ghost-button" onClick={() => void mutateCockpitTask("recover")} disabled={!selectedTask || !selectedTask.recoverable}>
+                Recover
+              </button>
+            </div>
             <h3>Latest task event</h3>
             <div className="empty-chat">{latestTaskEvent ? `${latestTaskEvent.event_type}: ${latestTaskEvent.message ?? latestTaskEvent.status ?? "-"}` : "No task events for selected task."}</div>
             <h3>Diagnostics</h3>
@@ -738,7 +845,7 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
           </section>
           <section className="cockpit-section">
             <h3>Linked artifacts</h3>
-            {[...selectedThreadArtifacts, ...selectedTaskArtifacts].slice(0, 8).map((artifact) => (
+            {linkedArtifacts.slice(0, 8).map((artifact) => (
               <div className="approval-card" key={`${artifact.id}-${artifact.task_run_id ?? artifact.thread_id ?? "linked"}`}>
                 <div className="approval-card-header">
                   <strong>{artifact.title}</strong>
@@ -746,11 +853,23 @@ function RunCockpitPage({ settings }: { settings: AdminSettings }) {
                   <StatusPill value={artifact.status} />
                 </div>
                 <p>{artifact.summary ?? artifact.file_path ?? "No summary"}</p>
+                <div className="conversation-actions">
+                  <button className="ghost-button" onClick={() => void exportCockpitArtifact(artifact, "markdown")} disabled={!artifact.exportable}>
+                    Export markdown
+                  </button>
+                  <button className="ghost-button" onClick={() => void exportCockpitArtifact(artifact, "json")} disabled={!artifact.exportable}>
+                    Export JSON
+                  </button>
+                </div>
               </div>
             ))}
-            {selectedThreadArtifacts.length + selectedTaskArtifacts.length === 0 ? (
+            {linkedArtifacts.length === 0 ? (
               <div className="empty-chat">No artifacts linked to the selected run context.</div>
             ) : null}
+          </section>
+          <section className="cockpit-section">
+            <h3>Last action result</h3>
+            <JsonPreview value={actionPreview || { status: "No cockpit action has run yet." }} />
           </section>
           <section className="cockpit-section">
             <h3>Thread events</h3>
@@ -2930,7 +3049,12 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root") as HTMLElement).render(
+const rootElement = document.getElementById("root") as HTMLElement;
+const rootWindow = window as Window & { __aiOpsAdminRoot?: Root };
+const root = rootWindow.__aiOpsAdminRoot ?? createRoot(rootElement);
+rootWindow.__aiOpsAdminRoot = root;
+
+root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,

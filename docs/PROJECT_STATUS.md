@@ -15,4 +15,4 @@ Use `docs/PHASE_INDEX.md` as the complete phase index and `docs/CURRENT_NEXT_PHA
 
 ## Active Next Slice
 
-`codex/phase-57-run-cockpit-foundation` is the active next branch. It returns to product development by adding an Admin Dashboard run cockpit for conversations, task runs, approvals, diagnostics, playbook runs, and artifacts. It does not reuse the reverted Phase 56 branch.
+`codex/phase-57-run-cockpit-actions` is the active next branch. It continues product development by adding guarded approval, task, and artifact actions to the Admin Dashboard run cockpit. It does not reuse the reverted Phase 56 branch.

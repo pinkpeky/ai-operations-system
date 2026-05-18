@@ -416,6 +416,14 @@ tr:last-child td {
   margin-bottom: 12px;
 }
 
+.cockpit-action-strip {
+  margin-top: 0;
+  padding: 10px 12px;
+  border: 1px solid #dde6ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .field {
   display: grid;
   gap: 4px;
