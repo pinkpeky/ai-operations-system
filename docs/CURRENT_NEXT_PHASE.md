@@ -12,6 +12,8 @@ Current effective phase: Phase 55 Mainline Acceptance. Phase 56 was reverted and
 
 Post-merge stabilization is the current step. It does not add runtime features; it verifies the accepted Phase 55 baseline on `main`, preserves the rollback path, and prepares a separate PR cleanup / superseded marking phase.
 
+Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, and verification gates.
+
 ## Open PRs
 
 | PR | Title | Branch | Status / Note |
@@ -94,3 +96,4 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 3. Decide whether PR #1 should be closed as superseded or merged independently after comparing it with the accepted mainline runtime.
 4. Add CI checks for docs encoding, DOCX render readiness, and release/deployment validation in a later maintenance phase.
 5. Do not start Phase 56 until PR cleanup, rollback posture, and deferred-feature boundaries are explicitly accepted.
+6. Keep `docs/POST_MERGE_STABILIZATION.md` updated whenever environment repair, verification, branch, or remote status changes.

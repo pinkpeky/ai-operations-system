@@ -280,16 +280,18 @@ class PlaywrightBrowserRuntimeProvider:
         record: BrowserRuntimeSessionRecord,
         request: BrowserRuntimeScreenshotRequest,
     ) -> bytes:
-        try:
-            result = await record.page.screenshot(full_page=request.full_page)
-            if isinstance(result, bytes):
-                return result
-        except TypeError:
-            pass
         screenshot_path = self._screenshot_path(record=record, request=request)
         screenshot_path.parent.mkdir(parents=True, exist_ok=True)
-        await record.page.screenshot(path=str(screenshot_path), full_page=request.full_page)
-        return screenshot_path.read_bytes()
+        try:
+            await record.page.screenshot(path=str(screenshot_path), full_page=request.full_page)
+            if screenshot_path.exists():
+                return screenshot_path.read_bytes()
+        except (OSError, TypeError):
+            pass
+        result = await record.page.screenshot(full_page=request.full_page)
+        if isinstance(result, bytes):
+            return result
+        raise RuntimeError("Browser runtime screenshot produced no image bytes or file")
 
     def _screenshot_path(self, *, record: BrowserRuntimeSessionRecord, request: BrowserRuntimeScreenshotRequest) -> Path:
         workspace_id = self._safe_name(str(record.workspace_id or "default-workspace"))

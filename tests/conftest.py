@@ -67,9 +67,13 @@ def fake_playwright(monkeypatch):  # type: ignore[no-untyped-def]
         async def fill(self, selector: str, text: str, timeout: int) -> None:
             self.filled = (selector, text)
 
-        async def screenshot(self, path: str, full_page: bool = True) -> None:
+        async def screenshot(self, path: str | None = None, full_page: bool = True) -> bytes | None:
+            image_bytes = b"\x89PNG\r\n\x1a\n"
+            if path is None:
+                return image_bytes
             Path(path).parent.mkdir(parents=True, exist_ok=True)
-            Path(path).write_bytes(b"\x89PNG\r\n\x1a\n")
+            Path(path).write_bytes(image_bytes)
+            return None
 
     class FakeContext:
         def __init__(self) -> None:
