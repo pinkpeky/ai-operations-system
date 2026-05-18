@@ -14,6 +14,8 @@ Post-merge stabilization and PR cleanup are complete. The current step is to pre
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
+The next active branch is `codex/phase-56-ci-readiness-gates`. Its scope is CI/readiness gates only and is tracked in `docs/CI_READINESS_GATES.md`.
+
 ## PR State
 
 | PR | Title | Branch | Status / Note |

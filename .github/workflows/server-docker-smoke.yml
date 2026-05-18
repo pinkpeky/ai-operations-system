@@ -1,0 +1,81 @@
+name: Server Docker Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Deployment profile to verify.
+        required: true
+        default: server-docker
+        type: choice
+        options:
+          - server-docker
+          - staging
+          - production-like
+
+permissions:
+  contents: read
+
+jobs:
+  server-docker-smoke:
+    name: Docker compose smoke (${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Validate compose syntax
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Build and start stack
+        run: docker compose -f docker-compose.yml up -d --build
+
+      - name: Wait for API and worker readiness
+        shell: bash
+        run: |
+          for i in {1..60}; do
+            if curl -fsS -H "X-Workspace-Id: demo-workspace" -H "X-User-Id: demo-user" http://localhost:8000/api/v1/health >/dev/null; then
+              exit 0
+            fi
+            docker compose -f docker-compose.yml ps
+            sleep 5
+          done
+          docker compose -f docker-compose.yml logs --tail=200
+          exit 1
+
+      - name: Verify deployment profile
+        run: python deployment/scripts/verify_environment.py --profile "${{ inputs.profile }}"
+
+      - name: Run release smoke matrix
+        run: python scripts/release_smoke_matrix.py --profile "${{ inputs.profile }}" --strict
+
+      - name: Write compose logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml logs --no-color --tail=500 > server-docker-smoke.log
+
+      - name: Upload compose logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-docker-smoke-logs
+          path: server-docker-smoke.log
+          if-no-files-found: ignore
+
+      - name: Print compose logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml logs --tail=300
+
+      - name: Stop stack
+        if: always()
+        run: docker compose -f docker-compose.yml down --remove-orphans
