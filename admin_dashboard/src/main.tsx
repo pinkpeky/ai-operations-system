@@ -292,6 +292,12 @@ type UiTextKey =
   | "ragConsoleTitle"
   | "ragConsoleDescription"
   | "ragOperatorSummary"
+  | "ragValidationLoopTitle"
+  | "ragValidationUploadStep"
+  | "ragValidationInspectStep"
+  | "ragValidationSearchStep"
+  | "ragValidationDebugStep"
+  | "ragValidationCleanupStep"
   | "ragEmbeddingStep"
   | "ragCollectionStep"
   | "ragDocumentsStep"
@@ -447,8 +453,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60F",
-    boundaryBody: "工作流观测简洁化。回放中心会更清楚展示运行状态、异常、等待审批和回放入口。",
+    boundaryTitle: "Phase 60G",
+    boundaryBody: "RAG 真实联调。知识库页面展示上传、查看、检索、调试、重写和删除闭环。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -620,6 +626,12 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     ragConsoleTitle: "知识库操作台",
     ragConsoleDescription: "查看 embedding 健康、集合状态、文档索引和混合检索结果。",
     ragOperatorSummary: "维护人员先确认向量服务健康，再看集合容量和失败文档；工作站人员直接用集合与问题做检索验证。",
+    ragValidationLoopTitle: "操作闭环",
+    ragValidationUploadStep: "上传或写入",
+    ragValidationInspectStep: "查看文档索引",
+    ragValidationSearchStep: "检索验证",
+    ragValidationDebugStep: "调试分数",
+    ragValidationCleanupStep: "重写或删除确认",
     ragEmbeddingStep: "健康：Embedding Provider 可用性",
     ragCollectionStep: "集合：Qdrant collection 与向量数量",
     ragDocumentsStep: "文档：索引状态、chunk 数和错误",
@@ -704,8 +716,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60F",
-    boundaryBody: "Workflow observability simplification: clearer run status, attention signals, approval waits, and replay entry points.",
+    boundaryTitle: "Phase 60G",
+    boundaryBody: "RAG live validation: upload, inspect, search, debug, reingest, and delete from one clear loop.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -877,6 +889,12 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     ragConsoleTitle: "Knowledge Console",
     ragConsoleDescription: "Inspect embedding health, collection state, document indexing, and hybrid retrieval results.",
     ragOperatorSummary: "Maintainers confirm vector service health, collection capacity, and failed documents; workstation users validate retrieval with a collection and query.",
+    ragValidationLoopTitle: "Operation loop",
+    ragValidationUploadStep: "Upload or ingest",
+    ragValidationInspectStep: "Inspect document index",
+    ragValidationSearchStep: "Search to verify",
+    ragValidationDebugStep: "Debug scores",
+    ragValidationCleanupStep: "Reingest or confirm delete",
     ragEmbeddingStep: "Health: Embedding Provider availability",
     ragCollectionStep: "Collections: Qdrant collection and vector counts",
     ragDocumentsStep: "Documents: index status, chunk count, and errors",
@@ -4611,6 +4629,14 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
           <span>{t("ragCollectionStep")}</span>
           <span>{t("ragDocumentsStep")}</span>
           <span>{t("ragSearchStep")}</span>
+        </div>
+        <div className="rag-live-loop" aria-label={t("ragValidationLoopTitle")}>
+          <strong>{t("ragValidationLoopTitle")}</strong>
+          <span>{t("ragValidationUploadStep")}</span>
+          <span>{t("ragValidationInspectStep")}</span>
+          <span>{t("ragValidationSearchStep")}</span>
+          <span>{t("ragValidationDebugStep")}</span>
+          <span>{t("ragValidationCleanupStep")}</span>
         </div>
       </section>
 

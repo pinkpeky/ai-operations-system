@@ -88,7 +88,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "运行驾驶舱" in text
     assert "中文" in text
     assert "English" in text
-    assert "工作流观测简洁化" in text
+    assert "RAG 真实联调" in text
     assert "OverviewPersona" in text
     assert "overview-command-center" in text
     assert "overview-mode-switch" in text
@@ -102,16 +102,18 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "对话运行台" in text
     assert "rag-command-center" in text
     assert "rag-flow-grid" in text
+    assert "rag-live-loop" in text
     assert "rag-operations-grid" in text
     assert "知识库操作台" in text
+    assert "操作闭环" in text
     assert "workflow-observability-command-center" in text
     assert "workflow-observability-flow-grid" in text
     assert "workflow-trace-toolbar" in text
     assert "工作流观测台" in text
 
 
-def test_run_cockpit_docs_track_workflow_observability_slice() -> None:
-    """Recovery docs should point to the active workflow observability simplification slice."""
+def test_run_cockpit_docs_track_rag_live_validation_slice() -> None:
+    """Recovery docs should point to the active RAG live validation slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -125,7 +127,7 @@ def test_run_cockpit_docs_track_workflow_observability_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-60-workflow-observability-simplification" in text or "Workflow Observability" in text, path
+        assert "phase-60-rag-live-validation" in text or "RAG Live Validation" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -152,8 +154,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_60_workflow_observability_slice() -> None:
-    """Phase 60E should be merged and Phase 60F should be the active workflow observability slice."""
+def test_run_cockpit_phase_index_tracks_phase_60_rag_live_validation_slice() -> None:
+    """Phase 60F should be merged and Phase 60G should be the active RAG live validation slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -267,6 +269,13 @@ def test_run_cockpit_phase_index_tracks_phase_60_workflow_observability_slice() 
     assert "In progress" not in phase_60_lines["60E"]
 
     assert "60F" in phase_60_lines
+    assert "#39" in phase_60_lines["60F"]
     assert "phase-60-workflow-observability-simplification" in phase_60_lines["60F"]
-    assert "TBD" in phase_60_lines["60F"]
-    assert "In progress" in phase_60_lines["60F"]
+    assert "Merged to main" in phase_60_lines["60F"]
+    assert "TBD" not in phase_60_lines["60F"]
+    assert "In progress" not in phase_60_lines["60F"]
+
+    assert "60G" in phase_60_lines
+    assert "phase-60-rag-live-validation" in phase_60_lines["60G"]
+    assert "TBD" in phase_60_lines["60G"]
+    assert "In progress" in phase_60_lines["60G"]

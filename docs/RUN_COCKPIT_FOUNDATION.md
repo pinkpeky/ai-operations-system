@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60-workflow-observability-simplification
+codex/phase-60-rag-live-validation
 ```
 
 ## Scope
@@ -132,6 +132,14 @@ The current workflow observability and simplification slice adds:
 - Trace filtering for all traces, attention items, approval waits, and replay events.
 - Clearer metadata-only replay boundaries so operators know replay records do not re-execute actions or bypass approvals.
 
+The current RAG live-validation slice adds:
+
+- A live validation guide for `/files/upload`, `/rag/ingest`, `/rag/search`, `/rag/debug`, `/documents/reingest`, and `/documents/by-source/{source_id}`.
+- A documented test collection, `phase60g_live_validation`, so validation data stays isolated from real knowledge.
+- A validated workstation flow for upload or text ingest, document inspection, hybrid search, debug, reingest, and source cleanup.
+- A validated server-maintainer flow for API health, embedding health, Qdrant collection health, and delete-by-source cleanup.
+- A concise RAG / Documents operation-loop hint in Chinese and English.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -157,6 +165,7 @@ An operator can open one screen and answer:
 - A RAG / Documents page that lets a maintainer verify vector health, collection status, document indexing, and retrieval results from one concise screen.
 - A RAG / Documents page that lets a maintainer upload files, write text knowledge, inspect chunks, reingest sources, delete a confirmed source, and debug retrieval from the same concise screen.
 - A Replay Center page that lets an operator select a workflow run, scan attention metrics, filter traces, inspect diagnostics, and create a metadata-only replay record from one concise screen.
+- A RAG live-validation guide that a workstation user or server maintainer can follow to prove upload, search, debug, reingest, and delete behavior end to end.
 
 ## Boundaries
 
@@ -180,6 +189,7 @@ An operator can open one screen and answer:
 - The Phase 60D RAG Documents slice is a frontend clarity layer only; it does not add new ingest/delete/reingest APIs, new retrieval semantics, or full document management.
 - The Phase 60E RAG operations slice is a frontend operation layer only; it does not add new parser support, OCR, PPTX/XLSX ingestion, auth or permission UI, new retrieval semantics, or backend lifecycle behavior.
 - The Phase 60F Workflow Observability slice is a frontend clarity layer only; it does not add OpenTelemetry, WebSocket/SSE streaming, deterministic replay, new workflow execution semantics, or action re-execution.
+- The Phase 60G RAG live-validation slice is validation and guidance only; it does not add OCR, PPTX/XLSX ingestion, new parser support, new retrieval semantics, auth/RBAC, or production knowledge-quality scoring.
 
 ## Acceptance
 
