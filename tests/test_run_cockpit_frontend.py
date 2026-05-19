@@ -56,10 +56,17 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Open linked task run" in text
     assert "Show all artifacts" in text
     assert "No output artifacts for linked run context." in text
+    assert "cockpitQuery" in text
+    assert "filteredThreads" in text
+    assert "filteredTasks" in text
+    assert "filteredArtifacts" in text
+    assert "Search hits" in text
+    assert "Clear search" in text
+    assert "No task runs match the cockpit search." in text
 
 
-def test_run_cockpit_docs_track_closeout_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit closeout slice."""
+def test_run_cockpit_docs_track_search_density_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit search-density slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -71,7 +78,7 @@ def test_run_cockpit_docs_track_closeout_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-58-run-cockpit-closeout" in text or "Run Cockpit Closeout" in text, path
+        assert "phase-59-run-cockpit-search-density" in text or "Run Cockpit Search" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -98,8 +105,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_58_closeout_slice() -> None:
-    """Phase 58D should be merged and Phase 58E should be the active closeout slice."""
+def test_run_cockpit_phase_index_tracks_phase_59_search_density_slice() -> None:
+    """Phase 58E should be merged and Phase 59A should be the active search-density slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -137,5 +144,19 @@ def test_run_cockpit_phase_index_tracks_phase_58_closeout_slice() -> None:
     assert "In progress" not in phase_lines["58D"]
 
     assert "58E" in phase_lines
+    assert "#30" in phase_lines["58E"]
     assert "phase-58-run-cockpit-closeout" in phase_lines["58E"]
-    assert "In progress" in phase_lines["58E"]
+    assert "Merged to main" in phase_lines["58E"]
+    assert "TBD" not in phase_lines["58E"]
+    assert "In progress" not in phase_lines["58E"]
+
+    text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    phase_59_lines = {
+        line.split("|")[1].strip(): line
+        for line in text.splitlines()
+        if line.startswith("| 59") and "Run Cockpit" in line
+    }
+
+    assert "59A" in phase_59_lines
+    assert "phase-59-run-cockpit-search-density" in phase_59_lines["59A"]
+    assert "In progress" in phase_59_lines["59A"]

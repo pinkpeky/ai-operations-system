@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-58-run-cockpit-closeout
+codex/phase-59-run-cockpit-search-density
 ```
 
 ## Scope
@@ -67,11 +67,17 @@ The current output-library-context slice adds:
 - Filtered artifact lists when opened from a selected Run Cockpit thread or task.
 - Controls to open the linked Conversation, open the linked Task Run, or clear the Output Library context.
 
-The current Phase 58 closeout slice records:
+The Phase 58 closeout slice recorded:
 
 - Phase 58A, 58B, 58C, and 58D are merged to `main`.
 - PR #29 completed the Output Library context handoff.
-- Recovery docs now point at `codex/phase-58-run-cockpit-closeout` while the closeout branch is active.
+- PR #30 reconciled Phase 58 closeout and marked `codex/phase-58-run-cockpit-closeout` as merged.
+
+The current search-density slice adds:
+
+- Run Cockpit search across thread titles/status, task ids/types/status/errors, playbook run ids/status, and artifact titles/summaries/context ids.
+- Filtered density counters for visible threads, visible tasks, search hits, and matching artifacts.
+- Linked artifact display that respects the current cockpit search while preserving selected run context.
 
 ## User Outcome
 
@@ -89,6 +95,7 @@ An operator can open one screen and answer:
 - Whether cockpit data is idle, refreshing, or stale without losing the previous scan result.
 - A Playbooks page that stays scoped to the selected cockpit thread until the operator clears that context.
 - An Output Library page that stays scoped to the selected cockpit thread/task/artifact until the operator clears that context.
+- A Run Cockpit search layer for scanning large local result sets without leaving the cockpit.
 
 ## Boundaries
 
@@ -103,6 +110,7 @@ An operator can open one screen and answer:
 - Auto refresh remains polling-based; no WebSocket or SSE stream is introduced.
 - Playbooks filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
 - Output Library context filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
+- Run Cockpit search is local to the Admin Dashboard list; it does not add new backend query semantics.
 
 ## Acceptance
 

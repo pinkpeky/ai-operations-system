@@ -202,6 +202,26 @@ function shortJson(value: unknown, limit = 110): string {
   return rendered.length > limit ? `${rendered.slice(0, limit)}...` : rendered;
 }
 
+function searchText(...values: unknown[]): string {
+  return values
+    .map((value) => {
+      if (value === null || value === undefined) {
+        return "";
+      }
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        return String(value);
+      }
+      return JSON.stringify(value);
+    })
+    .join(" ")
+    .toLowerCase();
+}
+
+function matchesSearch(query: string, ...values: unknown[]): boolean {
+  const normalized = query.trim().toLowerCase();
+  return !normalized || searchText(...values).includes(normalized);
+}
+
 function useAutoRefresh(enabled: boolean, intervalMs: number, callback: () => void): void {
   useEffect(() => {
     if (!enabled) {
@@ -550,6 +570,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const [actionStatus, setActionStatus] = useState("idle");
   const [actionPreview, setActionPreview] = useState<JsonRecord | null>(null);
   const [taskView, setTaskView] = useState<"all" | "active" | "attention">("active");
+  const [cockpitQuery, setCockpitQuery] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefreshAtMs, setLastRefreshAtMs] = useState<number | null>(null);
   const [refreshClockMs, setRefreshClockMs] = useState(() => Date.now());
@@ -746,6 +767,48 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
       : taskView === "attention"
         ? problemTasks
         : data?.taskRuns ?? [];
+  const filteredThreads = (data?.threads ?? []).filter((thread) =>
+    matchesSearch(cockpitQuery, thread.id, thread.title, thread.status, thread.metadata, thread.created_at, thread.updated_at),
+  );
+  const filteredTasks = visibleTasks.filter((task) =>
+    matchesSearch(
+      cockpitQuery,
+      task.id,
+      task.task_type,
+      task.source_type,
+      task.source_id,
+      task.status,
+      task.priority,
+      task.error,
+      task.failure_category,
+      task.failure_reason,
+      task.suggested_action,
+      task.last_event_summary,
+      task.workflow_run_id,
+      task.workflow_template_run_id,
+      task.metadata,
+    ),
+  );
+  const filteredPlaybookRuns = (data?.playbookRuns ?? []).filter((run) =>
+    matchesSearch(cockpitQuery, run.id, run.playbook_id, run.thread_id, run.status, run.error, run.input_payload, run.output_payload),
+  );
+  const filteredArtifacts = (data?.artifacts ?? []).filter((artifact) =>
+    matchesSearch(
+      cockpitQuery,
+      artifact.id,
+      artifact.title,
+      artifact.summary,
+      artifact.source_type,
+      artifact.artifact_type,
+      artifact.artifact_stage,
+      artifact.status,
+      artifact.thread_id,
+      artifact.task_run_id,
+      artifact.workflow_run_id,
+      artifact.workflow_template_run_id,
+      artifact.metadata,
+    ),
+  );
   const pendingApprovals = threadApprovals.filter((approval) => approval.approval_status === "pending");
   const selectedThreadPlaybookRuns = data?.playbookRuns.filter((run) => run.thread_id === selectedThreadId) ?? [];
   const selectedThreadArtifacts =
@@ -759,6 +822,25 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const linkedArtifacts = [...selectedThreadArtifacts, ...selectedTaskArtifacts].filter(
     (artifact, index, items) => items.findIndex((candidate) => candidate.id === artifact.id) === index,
   );
+  const visibleLinkedArtifacts = linkedArtifacts.filter((artifact) =>
+    matchesSearch(
+      cockpitQuery,
+      artifact.id,
+      artifact.title,
+      artifact.summary,
+      artifact.source_type,
+      artifact.artifact_type,
+      artifact.artifact_stage,
+      artifact.status,
+      artifact.thread_id,
+      artifact.task_run_id,
+      artifact.workflow_run_id,
+      artifact.workflow_template_run_id,
+      artifact.metadata,
+    ),
+  );
+  const queryActive = Boolean(cockpitQuery.trim());
+  const queryMatchCount = queryActive ? filteredThreads.length + filteredTasks.length + filteredPlaybookRuns.length + filteredArtifacts.length : "-";
   const latestMessage = threadMessages[threadMessages.length - 1];
   const latestTaskEvent = taskEvents[taskEvents.length - 1];
   const refreshIntervalSeconds = Math.max(1, Math.round(settings.refreshIntervalMs / 1000));
@@ -777,11 +859,15 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         <DataCard title="Artifacts" value={data?.artifacts.length ?? "-"} detail={`${selectedThreadArtifacts.length + selectedTaskArtifacts.length} linked to selection`} icon={<FileText size={20} />} />
         <DataCard title="Playbook runs" value={data?.playbookRuns.length ?? "-"} detail={`${selectedThreadPlaybookRuns.length} on selected thread`} icon={<History size={20} />} />
         <DataCard title="Scheduler" value={data?.schedulerHealth?.status ?? "unavailable"} detail={`active: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
+        <DataCard title="Search hits" value={queryMatchCount} detail={`${filteredThreads.length} threads / ${filteredTasks.length} tasks / ${filteredArtifacts.length} artifacts`} icon={<Search size={20} />} />
       </section>
       <LoadNotice state={state} />
       <div className="summary-strip cockpit-action-strip">
         <span>Action status: <StatusPill value={actionStatus} /></span>
         <span>Task view: {taskView}</span>
+        <span>Search query: {cockpitQuery.trim() || "-"}</span>
+        <span>Filtered threads: {filteredThreads.length}/{data?.threads.length ?? 0}</span>
+        <span>Filtered tasks: {filteredTasks.length}/{visibleTasks.length}</span>
         <span>Auto refresh: <StatusPill value={autoRefresh} /></span>
         <span>Refresh state: <StatusPill value={refreshState} /></span>
         <span>Interval: {refreshIntervalSeconds}s</span>
@@ -801,6 +887,18 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
           description="A single scanning surface for conversation threads and background task runs."
           action={
             <div className="inline-controls">
+              <label className="cockpit-search-field">
+                <Search size={16} />
+                <input
+                  value={cockpitQuery}
+                  onChange={(event) => setCockpitQuery(event.target.value)}
+                  aria-label="Run cockpit search"
+                  placeholder="Search run context"
+                />
+              </label>
+              <button className="ghost-button" onClick={() => setCockpitQuery("")} disabled={!queryActive}>
+                Clear search
+              </button>
               <select value={taskView} onChange={(event) => setTaskView(event.target.value as "all" | "active" | "attention")} aria-label="Task view">
                 <option value="active">active tasks</option>
                 <option value="attention">needs attention</option>
@@ -814,12 +912,12 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
             </div>
           }
         >
-          <h3>Conversation threads</h3>
+          <h3>Conversation threads ({filteredThreads.length}/{data?.threads.length ?? 0})</h3>
           <Table
-            rows={(data?.threads ?? []) as unknown as JsonRecord[]}
+            rows={filteredThreads as unknown as JsonRecord[]}
             selectedId={selectedThreadId}
             onSelect={(row) => void loadThread(row as unknown as ConversationThread)}
-            emptyLabel="No conversation threads."
+            emptyLabel={queryActive ? "No conversation threads match the cockpit search." : "No conversation threads."}
             columns={[
               { key: "id", label: "thread_id" },
               { key: "title", label: "title" },
@@ -827,12 +925,12 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
               { key: "updated_at", label: "updated_at" },
             ]}
           />
-          <h3>Task runs</h3>
+          <h3>Task runs ({filteredTasks.length}/{visibleTasks.length})</h3>
           <Table
-            rows={visibleTasks as unknown as JsonRecord[]}
+            rows={filteredTasks as unknown as JsonRecord[]}
             selectedId={selectedTaskId}
             onSelect={(row) => void loadTask(row as unknown as TaskRun)}
-            emptyLabel="No task runs for the selected view."
+            emptyLabel={queryActive ? "No task runs match the cockpit search." : "No task runs for the selected view."}
             columns={[
               { key: "id", label: "task_run_id" },
               { key: "task_type", label: "task_type" },
@@ -943,6 +1041,11 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
           </section>
           <section className="cockpit-section">
             <h3>Linked artifacts</h3>
+            <div className="summary-strip">
+              <span>visible: {visibleLinkedArtifacts.length}</span>
+              <span>linked: {linkedArtifacts.length}</span>
+              <span>search artifacts: {filteredArtifacts.length}/{data?.artifacts.length ?? 0}</span>
+            </div>
             <div className="conversation-actions">
               <button
                 className="ghost-button"
@@ -955,7 +1058,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
                 Open Output Library
               </button>
             </div>
-            {linkedArtifacts.slice(0, 8).map((artifact) => (
+            {visibleLinkedArtifacts.slice(0, 8).map((artifact) => (
               <div className="approval-card" key={`${artifact.id}-${artifact.task_run_id ?? artifact.thread_id ?? "linked"}`}>
                 <div className="approval-card-header">
                   <strong>{artifact.title}</strong>
@@ -973,8 +1076,8 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
                 </div>
               </div>
             ))}
-            {linkedArtifacts.length === 0 ? (
-              <div className="empty-chat">No artifacts linked to the selected run context.</div>
+            {visibleLinkedArtifacts.length === 0 ? (
+              <div className="empty-chat">{queryActive ? "No linked artifacts match the cockpit search." : "No artifacts linked to the selected run context."}</div>
             ) : null}
           </section>
           <section className="cockpit-section">
@@ -3253,8 +3356,8 @@ function App() {
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 58D</strong>
-          <span>Run cockpit output artifact context and linked run filtering. No production publishing flow.</span>
+          <strong>Phase 59A</strong>
+          <span>Run cockpit search, filtered density, and operator scan ergonomics. No production publishing flow.</span>
         </div>
       </aside>
       <main>
