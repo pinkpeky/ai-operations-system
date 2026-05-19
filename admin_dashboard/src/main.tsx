@@ -462,8 +462,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61A",
-    boundaryBody: "商业运营项目中心。把运营目标沉淀为项目、计划、知识集合、审批和执行入口。",
+    boundaryTitle: "Phase 61B",
+    boundaryBody: "商业运营证据与交接。把运营目标、计划、知识、审批、产物和执行上下文串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -725,8 +725,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61A",
-    boundaryBody: "Commercial operations foundation: turn a business goal into a project, plan, knowledge, approval, and execution entry point.",
+    boundaryTitle: "Phase 61B",
+    boundaryBody: "Commercial operation evidence and handoff: connect goals, plans, knowledge, approvals, artifacts, and execution context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4385,6 +4385,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
+    phaseLabel: "Phase 61B",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划与操作入口；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4398,6 +4399,8 @@ const commercialOperationCopy = {
     listTitle: "项目列表",
     detailTitle: "项目详情",
     detailDescription: "计划草案是可审阅的执行路线，不会触发 OpenClaw、ComfyUI、浏览器 Worker 或外部发布。",
+    linksTitle: "证据与交接",
+    linksDescription: "把需求沟通、内容产物、任务运行、工作流、RAG 文档、审批记录或外部素材挂到当前项目，便于后续人员接手。",
     titleLabel: "项目名称",
     objectiveLabel: "运营目标",
     audienceLabel: "目标人群",
@@ -4409,15 +4412,24 @@ const commercialOperationCopy = {
     budgetLabel: "预算",
     currencyLabel: "币种",
     constraintsLabel: "约束",
+    linkTypeLabel: "关联类型",
+    targetTypeLabel: "目标对象",
+    targetIdLabel: "目标 ID",
+    sourceNameLabel: "来源",
+    linkSummaryLabel: "说明",
     createAction: "创建项目",
+    createLinkAction: "添加关联",
+    deleteLinkAction: "移除",
     planAction: "重新生成计划",
     markReady: "标记就绪",
     activate: "启动跟踪",
     pause: "暂停",
     noOperations: "暂无商业运营项目。",
+    noLinks: "暂无证据或交接关联。",
     noPlan: "还没有计划草案。",
     actionResult: "操作结果",
     selectedHint: "从项目列表选择一行查看计划。",
+    linksSelectedHint: "先选择一个项目，再添加证据或交接关联。",
     planTitle: "计划草案",
     statusColumn: "状态",
     priorityColumn: "优先级",
@@ -4427,6 +4439,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
+    phaseLabel: "Phase 61B",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans and operator entry points only. It does not publish, control real accounts, or bypass approval.",
@@ -4440,6 +4453,8 @@ const commercialOperationCopy = {
     listTitle: "Operation list",
     detailTitle: "Operation detail",
     detailDescription: "The plan outline is reviewable. It does not trigger OpenClaw, ComfyUI, Browser Worker, or external publishing.",
+    linksTitle: "Evidence and handoff",
+    linksDescription: "Attach intake notes, content artifacts, task runs, workflow runs, RAG documents, approvals, or external materials to the selected operation.",
     titleLabel: "Title",
     objectiveLabel: "Objective",
     audienceLabel: "Audience",
@@ -4451,15 +4466,24 @@ const commercialOperationCopy = {
     budgetLabel: "Budget",
     currencyLabel: "Currency",
     constraintsLabel: "Constraints",
+    linkTypeLabel: "Link type",
+    targetTypeLabel: "Target object",
+    targetIdLabel: "Target ID",
+    sourceNameLabel: "Source",
+    linkSummaryLabel: "Summary",
     createAction: "Create operation",
+    createLinkAction: "Add link",
+    deleteLinkAction: "Remove",
     planAction: "Regenerate plan",
     markReady: "Mark ready",
     activate: "Start tracking",
     pause: "Pause",
     noOperations: "No commercial operations yet.",
+    noLinks: "No evidence or handoff links yet.",
     noPlan: "No plan outline yet.",
     actionResult: "Action result",
     selectedHint: "Select one row from the operation list to inspect the plan.",
+    linksSelectedHint: "Select an operation before adding evidence or handoff links.",
     planTitle: "Plan outline",
     statusColumn: "status",
     priorityColumn: "priority",
@@ -4480,6 +4504,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const copy = commercialOperationCopy[language];
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
   const [objective, setObjective] = useState<string>(copy.objectivePlaceholder);
@@ -4492,6 +4517,12 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetCurrency, setBudgetCurrency] = useState("CNY");
   const [constraintsDraft, setConstraintsDraft] = useState(language === "zh-CN" ? "人工审批后执行, 不自动发布" : "execute after human approval, no auto publish");
+  const [linkType, setLinkType] = useState("conversation");
+  const [targetType, setTargetType] = useState("conversation_thread");
+  const [targetId, setTargetId] = useState("");
+  const [linkTitle, setLinkTitle] = useState(language === "zh-CN" ? "需求沟通记录" : "Goal intake record");
+  const [linkSummary, setLinkSummary] = useState("");
+  const [linkSourceName, setLinkSourceName] = useState("admin_dashboard");
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -4519,6 +4550,38 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     void load();
   }, [load]);
 
+  const selectedOperationId = selectedOperation ? valueAt(selectedOperation, ["id"], "") : "";
+
+  const loadLinks = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setLinksState(emptyState());
+        return;
+      }
+      setLinksState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.links(operationId, settings);
+        setLinksState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setLinksState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation links API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
+  useEffect(() => {
+    if (selectedOperationId) {
+      void loadLinks(selectedOperationId);
+      return;
+    }
+    setLinksState(emptyState());
+  }, [selectedOperationId, loadLinks]);
+
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
     try {
@@ -4538,7 +4601,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         risk_level: riskLevel,
         budget_amount: budget,
         budget_currency: budgetCurrency.trim() || "CNY",
-        metadata: { source: "admin_dashboard", phase: "61A" },
+        metadata: { source: "admin_dashboard", phase: "61B" },
       };
       const created = await commercialOperationsApi.create(payload, settings);
       setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
@@ -4548,6 +4611,60 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const createOperationLink = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: copy.linksSelectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const payload: JsonRecord = {
+        link_type: linkType,
+        target_type: targetType.trim(),
+        target_id: targetId.trim(),
+        title: linkTitle.trim(),
+        summary: linkSummary.trim() || undefined,
+        source_name: linkSourceName.trim() || undefined,
+        metadata: { source: "admin_dashboard", phase: "61B" },
+      };
+      const created = await commercialOperationsApi.createLink(selectedOperationId, payload, settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setTargetId("");
+      await loadLinks(selectedOperationId);
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation link create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const deleteOperationLink = async (linkId: string) => {
+    if (!selectedOperationId || !linkId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const deleted = await commercialOperationsApi.deleteLink(selectedOperationId, linkId, settings);
+      setActionState({ data: deleted, error: null, loading: false, updatedAt: nowLabel() });
+      await loadLinks(selectedOperationId);
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation link delete unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -4607,12 +4724,13 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     return total + (Array.isArray(outline) ? outline.length : 0);
   }, 0);
   const planRows = selectedOperation && Array.isArray(selectedOperation.plan_outline) ? (selectedOperation.plan_outline as JsonRecord[]) : [];
+  const links = linksState.data || [];
 
   return (
     <div className="page-stack">
       <section className="commercial-command-center">
         <div>
-          <p className="section-eyebrow">{copy.connection}: {settings.aiServerUrl}</p>
+          <p className="section-eyebrow">{copy.connection}: {settings.aiServerUrl} / {copy.phaseLabel}</p>
           <h2>{copy.title}</h2>
           <p>{copy.description}</p>
           <p>{copy.summary}</p>
@@ -4628,7 +4746,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={copy.planTitle} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -4764,6 +4882,90 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
             { key: "checks", label: "checks" },
           ]}
         />
+      </Panel>
+
+      <Panel title={copy.linksTitle} description={copy.linksDescription}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-link-grid">
+              <label>
+                {copy.linkTypeLabel}
+                <select value={linkType} onChange={(event) => setLinkType(event.target.value)}>
+                  <option value="conversation">conversation</option>
+                  <option value="artifact">artifact</option>
+                  <option value="task_run">task_run</option>
+                  <option value="workflow_run">workflow_run</option>
+                  <option value="rag_document">rag_document</option>
+                  <option value="knowledge_source">knowledge_source</option>
+                  <option value="approval">approval</option>
+                  <option value="external">external</option>
+                </select>
+              </label>
+              <label>
+                {copy.targetTypeLabel}
+                <input value={targetType} onChange={(event) => setTargetType(event.target.value)} />
+              </label>
+              <label>
+                {copy.targetIdLabel}
+                <input value={targetId} onChange={(event) => setTargetId(event.target.value)} placeholder="thread / artifact / document id" />
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={linkTitle} onChange={(event) => setLinkTitle(event.target.value)} />
+              </label>
+              <label>
+                {copy.sourceNameLabel}
+                <input value={linkSourceName} onChange={(event) => setLinkSourceName(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {copy.linkSummaryLabel}
+                <textarea value={linkSummary} onChange={(event) => setLinkSummary(event.target.value)} />
+              </label>
+            </div>
+            <button
+              className="primary-button"
+              onClick={() => void createOperationLink()}
+              disabled={!targetType.trim() || !targetId.trim() || !linkTitle.trim() || actionState.loading}
+            >
+              <FileText size={15} />
+              {copy.createLinkAction}
+            </button>
+            <LoadNotice state={linksState} />
+            {linksState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {linksState.updatedAt}</div> : null}
+            {links.length ? (
+              <div className="commercial-link-list">
+                {links.map((link) => {
+                  const linkId = valueAt(link, ["id"], "");
+                  return (
+                    <article className="commercial-link-item" key={linkId}>
+                      <div>
+                        <strong>{valueAt(link, ["title"])}</strong>
+                        <span>{valueAt(link, ["link_type"])} / {valueAt(link, ["target_type"])}</span>
+                        <p>{valueAt(link, ["summary"])}</p>
+                        <code>{valueAt(link, ["target_id"])}</code>
+                      </div>
+                      <div className="commercial-link-actions">
+                        <span>{valueAt(link, ["source_name"])}</span>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void deleteOperationLink(linkId)}
+                          disabled={actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {copy.deleteLinkAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{copy.noLinks}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{copy.linksSelectedHint}</div>
+        )}
       </Panel>
     </div>
   );

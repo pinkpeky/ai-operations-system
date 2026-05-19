@@ -12,12 +12,12 @@ from app.api.router import create_api_router
 from app.core.errors import AppError, app_error_handler
 from app.db.base import Base
 from app.db.postgres import get_session
-from app.models import CommercialOperation
+from app.models import CommercialOperation, CommercialOperationLink
 
 
 @pytest.mark.asyncio
 async def test_commercial_operations_api_flow() -> None:
-    _ = CommercialOperation
+    _ = (CommercialOperation, CommercialOperationLink)
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -104,6 +104,47 @@ async def test_commercial_operations_api_flow() -> None:
             listed = await client.get("/api/v1/commercial-operations?status=ready", headers=headers)
             assert listed.status_code == 200
             assert [item["id"] for item in listed.json()["items"]] == [operation_id]
+
+            link = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/links",
+                headers=headers,
+                json={
+                    "link_type": "conversation",
+                    "target_type": "conversation_thread",
+                    "target_id": "thread-123",
+                    "title": "Intake conversation",
+                    "summary": "Initial operator goal intake.",
+                    "source_name": "admin_dashboard",
+                    "metadata": {"handoff": "operator"},
+                },
+            )
+            assert link.status_code == 201
+            link_body = link.json()
+            assert link_body["workspace_id"] == "workspace-commercial-api"
+            assert link_body["operation_id"] == operation_id
+            assert link_body["link_type"] == "conversation"
+            assert link_body["target_id"] == "thread-123"
+
+            links = await client.get(f"/api/v1/commercial-operations/{operation_id}/links", headers=headers)
+            assert links.status_code == 200
+            assert [item["id"] for item in links.json()["items"]] == [link_body["id"]]
+
+            hidden_links = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/links",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_links.status_code == 404
+
+            deleted = await client.delete(
+                f"/api/v1/commercial-operations/{operation_id}/links/{link_body['id']}",
+                headers=headers,
+            )
+            assert deleted.status_code == 200
+            assert deleted.json()["id"] == link_body["id"]
+
+            links_after_delete = await client.get(f"/api/v1/commercial-operations/{operation_id}/links", headers=headers)
+            assert links_after_delete.status_code == 200
+            assert links_after_delete.json()["items"] == []
 
             invalid = await client.post(
                 "/api/v1/commercial-operations",

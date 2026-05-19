@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60g-closeout-61a-operations-foundation
+codex/phase-61b-commercial-operation-links
 ```
 
 ## Scope
@@ -190,7 +190,7 @@ An operator can open one screen and answer:
 - The Phase 60E RAG operations slice is a frontend operation layer only; it does not add new parser support, OCR, PPTX/XLSX ingestion, auth or permission UI, new retrieval semantics, or backend lifecycle behavior.
 - The Phase 60F Workflow Observability slice is a frontend clarity layer only; it does not add OpenTelemetry, WebSocket/SSE streaming, deterministic replay, new workflow execution semantics, or action re-execution.
 - The Phase 60G RAG live-validation slice is validation and guidance only; it does not add OCR, PPTX/XLSX ingestion, new parser support, new retrieval semantics, auth/RBAC, or production knowledge-quality scoring.
-- Phase 61A adds the adjacent Commercial Ops project center. Run Cockpit still remains the execution-monitoring surface; Commercial Ops is the goal-to-plan entry point and does not publish or execute external actions.
+- Phase 61A adds the adjacent Commercial Ops project center. Phase 61B adds manual evidence and handoff links from Commercial Ops back to conversations, artifacts, tasks, workflows, RAG documents, approvals, and external materials. Run Cockpit still remains the execution-monitoring surface; Commercial Ops is the goal-to-plan and handoff entry point and does not publish or execute external actions.
 
 ## Acceptance
 

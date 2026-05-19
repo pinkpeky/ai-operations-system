@@ -862,6 +862,70 @@ textarea {
   margin: 12px 0 8px;
 }
 
+.commercial-link-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.commercial-link-grid label {
+  display: grid;
+  gap: 6px;
+  color: #5e6e7d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.commercial-link-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.commercial-link-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.commercial-link-item strong,
+.commercial-link-item span,
+.commercial-link-item code {
+  display: block;
+}
+
+.commercial-link-item strong {
+  color: #17212b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.commercial-link-item span,
+.commercial-link-item p {
+  margin: 4px 0 0;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-link-item code {
+  max-width: 100%;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.commercial-link-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
 .rag-command-center {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, 0.75fr);
@@ -1156,6 +1220,8 @@ textarea {
   .commercial-grid,
   .commercial-detail-grid,
   .commercial-form-grid,
+  .commercial-link-grid,
+  .commercial-link-item,
   .rag-metrics-grid,
   .rag-operations-grid,
   .rag-status-grid,

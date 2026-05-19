@@ -8,7 +8,11 @@ The repository currently has no committed `.env` file. Without local overrides, 
 
 ## Commercial Operations Runtime
 
-Phase 61A adds the `commercial_operations` table, `CommercialOperationService`, and `/api/v1/commercial-operations` route group. These APIs are workspace-scoped and create reviewable plan outlines only. They do not publish, execute OpenClaw actions, run ComfyUI jobs, control real accounts, or bypass approval.
+Phase 61A added the `commercial_operations` table, `CommercialOperationService`, and `/api/v1/commercial-operations` route group. These APIs are workspace-scoped and create reviewable plan outlines only.
+
+Phase 61B adds `commercial_operation_links` and `/api/v1/commercial-operations/{operation_id}/links` so operators can attach evidence and handoff references to an operation. Supported link categories are `conversation`, `artifact`, `task_run`, `workflow_run`, `rag_document`, `knowledge_source`, `approval`, and `external`.
+
+Commercial operations still do not publish, execute OpenClaw actions, run ComfyUI jobs, control real accounts, or bypass approval.
 
 ## Provider Defaults
 

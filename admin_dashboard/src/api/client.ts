@@ -209,6 +209,25 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  links: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/links`, {}, settings),
+  createLink: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/links`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  deleteLink: (operationId: string, linkId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}`,
+      {
+        method: "DELETE",
+      },
+      settings,
+    ),
 };
 
 export const tasksApi = {

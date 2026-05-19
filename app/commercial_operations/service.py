@@ -10,7 +10,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.commercial_operation import CommercialOperation
+from app.models.commercial_operation import CommercialOperation, CommercialOperationLink
 from app.models.enums import CommercialOperationStatus
 
 
@@ -153,6 +153,79 @@ class CommercialOperationService:
         await self.session.commit()
         await self.session.refresh(operation)
         return operation
+
+    async def create_link(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        link_type: str,
+        target_type: str,
+        target_id: str,
+        title: str,
+        summary: str | None = None,
+        source_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationLink:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        link = CommercialOperationLink(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            link_type=link_type,
+            target_type=self._clean_required_text(target_type, "target_type"),
+            target_id=self._clean_required_text(target_id, "target_id"),
+            title=self._clean_required_text(title, "title"),
+            summary=summary.strip() if summary and summary.strip() else None,
+            source_name=source_name.strip() if source_name and source_name.strip() else None,
+            link_metadata=metadata or {},
+        )
+        self.session.add(link)
+        await self.session.commit()
+        await self.session.refresh(link)
+        return link
+
+    async def list_links(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        link_type: str | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationLink]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationLink).where(
+            CommercialOperationLink.workspace_id == workspace_id,
+            CommercialOperationLink.operation_id == operation_id,
+        )
+        if link_type is not None:
+            statement = statement.where(CommercialOperationLink.link_type == link_type)
+        result = await self.session.execute(statement.order_by(CommercialOperationLink.updated_at.desc()).limit(limit))
+        return list(result.scalars().all())
+
+    async def require_link(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        link_id: UUID,
+    ) -> CommercialOperationLink:
+        result = await self.session.execute(
+            select(CommercialOperationLink).where(
+                CommercialOperationLink.workspace_id == workspace_id,
+                CommercialOperationLink.operation_id == operation_id,
+                CommercialOperationLink.id == link_id,
+            )
+        )
+        link = result.scalar_one_or_none()
+        if link is None:
+            raise ValueError("Commercial operation link not found in workspace")
+        return link
+
+    async def delete_link(self, *, workspace_id: str, operation_id: UUID, link_id: UUID) -> CommercialOperationLink:
+        link = await self.require_link(workspace_id=workspace_id, operation_id=operation_id, link_id=link_id)
+        await self.session.delete(link)
+        await self.session.commit()
+        return link
 
     def build_plan_outline(self, operation: CommercialOperation) -> list[dict[str, Any]]:
         """Build a deterministic non-executing plan outline.

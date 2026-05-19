@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operations slice."""
+    """Recovery docs should point to the active commercial operation links slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,7 +130,7 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-60g-closeout-61a-operations-foundation" in text or "Commercial Operations Foundation" in text, path
+        assert "phase-61b-commercial-operation-links" in text or "Commercial Operation Evidence" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -158,7 +158,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 60G should be merged and Phase 61A should be the active commercial operations slice."""
+    """Phase 61A should be merged and Phase 61B should be the active commercial operation links slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -294,5 +294,13 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "61A" in phase_61_lines
     assert "phase-60g-closeout-61a-operations-foundation" in phase_61_lines["61A"]
     assert "Commercial Operations Foundation" in phase_61_lines["61A"]
-    assert "TBD" in phase_61_lines["61A"]
-    assert "In progress" in phase_61_lines["61A"]
+    assert "#41" in phase_61_lines["61A"]
+    assert "Merged to main" in phase_61_lines["61A"]
+    assert "TBD" not in phase_61_lines["61A"]
+    assert "In progress" not in phase_61_lines["61A"]
+
+    assert "61B" in phase_61_lines
+    assert "phase-61b-commercial-operation-links" in phase_61_lines["61B"]
+    assert "Commercial Operation Evidence" in phase_61_lines["61B"]
+    assert "TBD" in phase_61_lines["61B"]
+    assert "In progress" in phase_61_lines["61B"]
