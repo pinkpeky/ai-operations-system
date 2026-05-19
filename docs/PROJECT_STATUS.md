@@ -2,7 +2,7 @@
 
 ## Branch Status
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, and Phase 59A-59C have also landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff, and workflow focus/provenance.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A have also landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff, workflow focus/provenance, and the frontend language foundation.
 
 ## Localized Status Docs
 
@@ -15,4 +15,4 @@ Use `docs/PHASE_INDEX.md` as the complete phase index and `docs/CURRENT_NEXT_PHA
 
 ## Active Next Slice
 
-`codex/phase-60-frontend-i18n-foundation` is the active next branch. It adds the Admin Dashboard language switch, Chinese default shell and navigation labels, English fallback labels, localized Run Cockpit operator labels, and a foundation for later interface simplification. It does not reuse the reverted Phase 56 branch.
+`codex/phase-60-overview-persona-simplification` is the active next branch. It adds a Chinese-first Overview role switch for workstation operators and server maintainers, role-specific entry cards, localized overview metrics, and concise snapshot labels. It does not reuse the reverted Phase 56 branch.
