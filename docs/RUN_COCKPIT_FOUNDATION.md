@@ -1,13 +1,13 @@
 # Run Cockpit Foundation
 
-Updated: 2026-05-18
+Updated: 2026-05-19
 
 This document records the Phase 57 return to normal product development after the Phase 56 readiness and CI closure work.
 
 ## Branch
 
 ```text
-codex/phase-57-run-cockpit-operator-controls
+codex/phase-57-run-cockpit-closeout
 ```
 
 ## Scope
@@ -36,6 +36,12 @@ The current operator-controls slice adds:
 - Task view filters for active, attention, and all task runs.
 - Optional auto refresh using the dashboard refresh interval.
 - Navigation buttons from the cockpit detail panel to Conversations, Playbooks, Tasks, and Output Library.
+
+The current closeout slice records Phase 57 status after PR #24:
+
+- Phase 57A, 57B, and 57C are merged to `main`.
+- Phase 57D reconciles status docs so the completed 57C branch is no longer listed as active.
+- A lightweight test guards the phase index against leaving merged run cockpit slices as `TBD` or `In progress`.
 
 ## User Outcome
 
