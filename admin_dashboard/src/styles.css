@@ -136,7 +136,23 @@ main {
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #526575;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.language-switch select {
+  min-height: 32px;
+  padding: 0 8px;
 }
 
 .content {

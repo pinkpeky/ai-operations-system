@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-59-run-cockpit-workflow-focus
+codex/phase-60-frontend-i18n-foundation
 ```
 
 ## Scope
@@ -91,6 +91,12 @@ The current workflow-focus slice adds:
 - Linked workflow provenance from the selected task, selected thread playbook runs, and linked artifacts.
 - A compact source-candidate list so operators can see why a `workflow_run_id` was selected before opening Workflows or Replay Center.
 
+The current frontend language and simplification slice adds:
+
+- An Admin Dashboard language switch with Chinese as the default and English as the fallback.
+- Localized dashboard shell, navigation, topbar status, and Run Cockpit operator scan labels.
+- A small i18n foundation for later full-interface simplification without changing runtime APIs or execution semantics.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -110,6 +116,7 @@ An operator can open one screen and answer:
 - A Run Cockpit search layer for scanning large local result sets without leaving the cockpit.
 - A workflow handoff path from Run Cockpit into Workflows and Replay Center for deeper runtime inspection.
 - Workflow focus context that explains which selected runtime object supplied the linked workflow and whether detail loading is ready or unavailable.
+- A Chinese-first dashboard shell with an English switch so workstation operators and server maintainers can orient themselves quickly.
 
 ## Boundaries
 
@@ -127,6 +134,7 @@ An operator can open one screen and answer:
 - Run Cockpit search is local to the Admin Dashboard list; it does not add new backend query semantics.
 - Workflow handoff does not add new workflow execution semantics, replay semantics, or backend query semantics.
 - Workflow focus is a frontend provenance and state layer; it does not change workflow selection, replay, or execution behavior on the server.
+- The Phase 60A language slice is a frontend foundation only; it does not provide full translation coverage, RBAC, workflow execution changes, or production publishing.
 
 ## Acceptance
 

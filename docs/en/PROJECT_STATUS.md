@@ -4,6 +4,8 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
+Current update (2026-05-19): Phase 57A-59C have landed on `main` through PR #22-#33, covering Run Cockpit foundation, actions, operator controls, deep links, refresh UX, Playbooks and Output Library context, search density, workflow handoff, and workflow focus/provenance. The active next branch is `codex/phase-60-frontend-i18n-foundation`, scoped to the Admin Dashboard language switch, Chinese default shell/navigation labels, English fallback labels, and clearer Run Cockpit operator labels.
+
 
 ## Phase 36: Server Admin Dashboard Foundation
 

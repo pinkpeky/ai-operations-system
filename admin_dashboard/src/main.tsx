@@ -110,6 +110,55 @@ interface DeepLinkTarget {
   workflowRunId?: string;
 }
 
+type UiLanguage = "zh-CN" | "en-US";
+
+type UiTextKey =
+  | "brandSubtitle"
+  | "languageLabel"
+  | "foundationMode"
+  | "operatorMode"
+  | "readOnlyMode"
+  | "boundaryTitle"
+  | "boundaryBody"
+  | "activeTasks"
+  | "needsAttention"
+  | "threads"
+  | "selected"
+  | "pendingApprovals"
+  | "selectedThread"
+  | "artifacts"
+  | "linkedToSelection"
+  | "playbookRuns"
+  | "onSelectedThread"
+  | "scheduler"
+  | "active"
+  | "searchHits"
+  | "workflow"
+  | "noWorkflowContext"
+  | "actionStatus"
+  | "taskView"
+  | "searchQuery"
+  | "filteredThreads"
+  | "filteredTasks"
+  | "autoRefresh"
+  | "refreshState"
+  | "interval"
+  | "nextRefresh"
+  | "selectedTask"
+  | "linkedWorkflow"
+  | "workflowSource"
+  | "workflowFocus"
+  | "recentRuns"
+  | "recentRunsDescription"
+  | "searchRunContext"
+  | "clearSearch"
+  | "activeTasksOption"
+  | "needsAttentionOption"
+  | "allTasksOption"
+  | "conversationThreads"
+  | "lastUpdated"
+  | "workflowFocusSlice";
+
 interface AsyncState<T> {
   data: T | null;
   error: string | null;
@@ -139,6 +188,143 @@ const pages: PageDefinition[] = [
 
 const pageKeys = new Set<PageKey>(pages.map((page) => page.key));
 const deepLinkParamKeys = ["thread_id", "task_run_id", "artifact_id", "workflow_run_id"];
+const languageStorageKey = "aiops.admin.language";
+const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
+  "zh-CN": {
+    overview: "总览",
+    "run-cockpit": "运行驾驶舱",
+    workers: "Worker 管理",
+    "browser-runtime": "浏览器运行时",
+    conversations: "对话",
+    playbooks: "剧本",
+    "output-library": "产物库",
+    tasks: "任务",
+    workflows: "工作流",
+    "workflow-observability": "回放中心",
+    "workflow-graphs": "工作流图",
+    "workflow-templates": "工作流模板",
+    "template-governance": "模板治理",
+    openclaw: "OpenClaw",
+    "audit-logs": "审计日志",
+    "rag-documents": "RAG / 文档",
+    settings: "设置",
+  },
+  "en-US": {
+    overview: "Overview",
+    "run-cockpit": "Run Cockpit",
+    workers: "Workers",
+    "browser-runtime": "Browser Runtime",
+    conversations: "Conversations",
+    playbooks: "Playbooks",
+    "output-library": "Output Library",
+    tasks: "Tasks",
+    workflows: "Workflows",
+    "workflow-observability": "Replay Center",
+    "workflow-graphs": "Workflow Graphs",
+    "workflow-templates": "Workflow Templates",
+    "template-governance": "Template Governance",
+    openclaw: "OpenClaw",
+    "audit-logs": "Audit Logs",
+    "rag-documents": "RAG / Documents",
+    settings: "Settings",
+  },
+};
+const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
+  "zh-CN": {
+    brandSubtitle: "运维控制台",
+    languageLabel: "语言",
+    foundationMode: "基础模式",
+    operatorMode: "运行处理",
+    readOnlyMode: "只读查看",
+    boundaryTitle: "Phase 60A",
+    boundaryBody: "中英切换与简洁化基础。默认中文，保留英文切换。",
+    activeTasks: "运行中任务",
+    needsAttention: "需要处理",
+    threads: "对话",
+    selected: "已选",
+    pendingApprovals: "待审批",
+    selectedThread: "当前对话",
+    artifacts: "产物",
+    linkedToSelection: "关联当前选择",
+    playbookRuns: "剧本运行",
+    onSelectedThread: "当前对话关联",
+    scheduler: "调度器",
+    active: "活跃",
+    searchHits: "搜索命中",
+    workflow: "工作流",
+    noWorkflowContext: "无工作流上下文",
+    actionStatus: "操作状态",
+    taskView: "任务视图",
+    searchQuery: "搜索词",
+    filteredThreads: "筛选对话",
+    filteredTasks: "筛选任务",
+    autoRefresh: "自动刷新",
+    refreshState: "刷新状态",
+    interval: "间隔",
+    nextRefresh: "下次刷新",
+    selectedTask: "已选任务",
+    linkedWorkflow: "关联工作流",
+    workflowSource: "工作流来源",
+    workflowFocus: "工作流状态",
+    recentRuns: "近期运行",
+    recentRunsDescription: "面向操作员的统一入口：查看对话、后台任务和需要处理的问题。",
+    searchRunContext: "搜索运行上下文",
+    clearSearch: "清除搜索",
+    activeTasksOption: "运行中任务",
+    needsAttentionOption: "需要处理",
+    allTasksOption: "全部任务",
+    conversationThreads: "对话列表",
+    lastUpdated: "最后更新",
+    workflowFocusSlice: "工作流来源与状态聚焦",
+  },
+  "en-US": {
+    brandSubtitle: "Operations Console",
+    languageLabel: "Language",
+    foundationMode: "foundation",
+    operatorMode: "operational",
+    readOnlyMode: "read-only",
+    boundaryTitle: "Phase 60A",
+    boundaryBody: "Frontend language switch and simplification foundation. Chinese by default with English available.",
+    activeTasks: "Active tasks",
+    needsAttention: "needs attention",
+    threads: "Threads",
+    selected: "selected",
+    pendingApprovals: "Pending approvals",
+    selectedThread: "selected thread",
+    artifacts: "Artifacts",
+    linkedToSelection: "linked to selection",
+    playbookRuns: "Playbook runs",
+    onSelectedThread: "on selected thread",
+    scheduler: "Scheduler",
+    active: "active",
+    searchHits: "Search hits",
+    workflow: "Workflow",
+    noWorkflowContext: "no workflow context",
+    actionStatus: "Action status",
+    taskView: "Task view",
+    searchQuery: "Search query",
+    filteredThreads: "Filtered threads",
+    filteredTasks: "Filtered tasks",
+    autoRefresh: "Auto refresh",
+    refreshState: "Refresh state",
+    interval: "Interval",
+    nextRefresh: "Next refresh",
+    selectedTask: "Selected task",
+    linkedWorkflow: "Linked workflow",
+    workflowSource: "Workflow source",
+    workflowFocus: "Workflow focus",
+    recentRuns: "Recent Runs",
+    recentRunsDescription: "A single operator surface for conversation threads, background task runs, and problems needing attention.",
+    searchRunContext: "Search run context",
+    clearSearch: "Clear search",
+    activeTasksOption: "active tasks",
+    needsAttentionOption: "needs attention",
+    allTasksOption: "all tasks",
+    conversationThreads: "Conversation threads",
+    lastUpdated: "Last updated",
+    workflowFocusSlice: "Workflow focus slice",
+  },
+};
 
 function pageFromLocation(): PageKey {
   const page = new URLSearchParams(window.location.search).get("page");
@@ -165,6 +351,31 @@ function updateLocation(page: PageKey, target: DeepLinkTarget = {}) {
   if (target.workflowRunId) params.set("workflow_run_id", target.workflowRunId);
   const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
   window.history.pushState({}, "", nextUrl);
+}
+
+function readUiLanguage(): UiLanguage {
+  try {
+    const stored = window.localStorage.getItem(languageStorageKey);
+    return stored === "en-US" ? "en-US" : "zh-CN";
+  } catch {
+    return "zh-CN";
+  }
+}
+
+function writeUiLanguage(language: UiLanguage): void {
+  try {
+    window.localStorage.setItem(languageStorageKey, language);
+  } catch {
+    // localStorage may be unavailable in hardened embedded browsers.
+  }
+}
+
+function pageLabel(page: PageKey, language: UiLanguage): string {
+  return pageLabels[language][page] ?? pageLabels["en-US"][page];
+}
+
+function textFor(language: UiLanguage, key: UiTextKey): string {
+  return uiText[language][key] ?? uiText["en-US"][key];
 }
 
 const taskStatuses = ["pending", "queued", "running", "waiting_approval", "retrying", "failed", "completed", "cancelled", "expired"];
@@ -552,7 +763,16 @@ function WorkersPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onNavigate: (page: PageKey, target?: DeepLinkTarget) => void }) {
+function RunCockpitPage({
+  settings,
+  onNavigate,
+  language,
+}: {
+  settings: AdminSettings;
+  onNavigate: (page: PageKey, target?: DeepLinkTarget) => void;
+  language: UiLanguage;
+}) {
+  const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [state, setState] = useState<AsyncState<{
     threads: ConversationThread[];
     taskRuns: TaskRun[];
@@ -973,31 +1193,31 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   return (
     <div className="page-stack">
       <section className="metrics-grid">
-        <DataCard title="Active tasks" value={activeTasks.length} detail={`${problemTasks.length} needs attention`} icon={<Activity size={20} />} warning={problemTasks.length > 0} />
-        <DataCard title="Threads" value={data?.threads.length ?? "-"} detail={`selected: ${selectedThread?.title ?? "-"}`} icon={<MessageSquareText size={20} />} />
-        <DataCard title="Pending approvals" value={pendingApprovals.length} detail="selected thread" icon={<ShieldCheck size={20} />} warning={pendingApprovals.length > 0} />
-        <DataCard title="Artifacts" value={data?.artifacts.length ?? "-"} detail={`${selectedThreadArtifacts.length + selectedTaskArtifacts.length} linked to selection`} icon={<FileText size={20} />} />
-        <DataCard title="Playbook runs" value={data?.playbookRuns.length ?? "-"} detail={`${selectedThreadPlaybookRuns.length} on selected thread`} icon={<History size={20} />} />
-        <DataCard title="Scheduler" value={data?.schedulerHealth?.status ?? "unavailable"} detail={`active: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
-        <DataCard title="Search hits" value={queryMatchCount} detail={`${filteredThreads.length} threads / ${filteredTasks.length} tasks / ${filteredArtifacts.length} artifacts`} icon={<Search size={20} />} />
-        <DataCard title="Workflow" value={linkedWorkflow?.status ?? (linkedWorkflowRunId ? linkedWorkflowFocusState : "none")} detail={linkedWorkflowSource ? `${linkedWorkflowSource.sourceLabel}: ${linkedWorkflowSource.sourceId}` : "no workflow context"} icon={<GitBranch size={20} />} />
+        <DataCard title={t("activeTasks")} value={activeTasks.length} detail={`${problemTasks.length} ${t("needsAttention")}`} icon={<Activity size={20} />} warning={problemTasks.length > 0} />
+        <DataCard title={t("threads")} value={data?.threads.length ?? "-"} detail={`${t("selected")}: ${selectedThread?.title ?? "-"}`} icon={<MessageSquareText size={20} />} />
+        <DataCard title={t("pendingApprovals")} value={pendingApprovals.length} detail={t("selectedThread")} icon={<ShieldCheck size={20} />} warning={pendingApprovals.length > 0} />
+        <DataCard title={t("artifacts")} value={data?.artifacts.length ?? "-"} detail={`${selectedThreadArtifacts.length + selectedTaskArtifacts.length} ${t("linkedToSelection")}`} icon={<FileText size={20} />} />
+        <DataCard title={t("playbookRuns")} value={data?.playbookRuns.length ?? "-"} detail={`${selectedThreadPlaybookRuns.length} ${t("onSelectedThread")}`} icon={<History size={20} />} />
+        <DataCard title={t("scheduler")} value={data?.schedulerHealth?.status ?? "unavailable"} detail={`${t("active")}: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
+        <DataCard title={t("searchHits")} value={queryMatchCount} detail={`${filteredThreads.length} ${t("threads")} / ${filteredTasks.length} ${t("filteredTasks")} / ${filteredArtifacts.length} ${t("artifacts")}`} icon={<Search size={20} />} />
+        <DataCard title={t("workflow")} value={linkedWorkflow?.status ?? (linkedWorkflowRunId ? linkedWorkflowFocusState : "none")} detail={linkedWorkflowSource ? `${linkedWorkflowSource.sourceLabel}: ${linkedWorkflowSource.sourceId}` : t("noWorkflowContext")} icon={<GitBranch size={20} />} />
       </section>
       <LoadNotice state={state} />
       <div className="summary-strip cockpit-action-strip">
-        <span>Action status: <StatusPill value={actionStatus} /></span>
-        <span>Task view: {taskView}</span>
-        <span>Search query: {cockpitQuery.trim() || "-"}</span>
-        <span>Filtered threads: {filteredThreads.length}/{data?.threads.length ?? 0}</span>
-        <span>Filtered tasks: {filteredTasks.length}/{visibleTasks.length}</span>
-        <span>Auto refresh: <StatusPill value={autoRefresh} /></span>
-        <span>Refresh state: <StatusPill value={refreshState} /></span>
-        <span>Interval: {refreshIntervalSeconds}s</span>
-        <span>Next refresh: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}</span>
-        <span>Selected thread: {selectedThreadId ?? "-"}</span>
-        <span>Selected task: {selectedTaskId ?? "-"}</span>
-        <span>Linked workflow: {linkedWorkflowRunId ?? "-"}</span>
-        <span>Workflow source: {linkedWorkflowSource ? `${linkedWorkflowSource.sourceType}:${linkedWorkflowSource.sourceId}` : "-"}</span>
-        <span>Workflow focus: <StatusPill value={linkedWorkflowFocusState} /></span>
+        <span>{t("actionStatus")}: <StatusPill value={actionStatus} /></span>
+        <span>{t("taskView")}: {taskView}</span>
+        <span>{t("searchQuery")}: {cockpitQuery.trim() || "-"}</span>
+        <span>{t("filteredThreads")}: {filteredThreads.length}/{data?.threads.length ?? 0}</span>
+        <span>{t("filteredTasks")}: {filteredTasks.length}/{visibleTasks.length}</span>
+        <span>{t("autoRefresh")}: <StatusPill value={autoRefresh} /></span>
+        <span>{t("refreshState")}: <StatusPill value={refreshState} /></span>
+        <span>{t("interval")}: {refreshIntervalSeconds}s</span>
+        <span>{t("nextRefresh")}: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}</span>
+        <span>{t("selectedThread")}: {selectedThreadId ?? "-"}</span>
+        <span>{t("selectedTask")}: {selectedTaskId ?? "-"}</span>
+        <span>{t("linkedWorkflow")}: {linkedWorkflowRunId ?? "-"}</span>
+        <span>{t("workflowSource")}: {linkedWorkflowSource ? `${linkedWorkflowSource.sourceType}:${linkedWorkflowSource.sourceId}` : "-"}</span>
+        <span>{t("workflowFocus")}: <StatusPill value={linkedWorkflowFocusState} /></span>
       </div>
       {detailError ? (
         <div className="notice notice-error">
@@ -1007,8 +1227,8 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
       ) : null}
       <div className="cockpit-grid">
         <Panel
-          title="Recent Runs"
-          description="A single scanning surface for conversation threads and background task runs."
+          title={t("recentRuns")}
+          description={t("recentRunsDescription")}
           action={
             <div className="inline-controls">
               <label className="cockpit-search-field">
@@ -1016,27 +1236,27 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
                 <input
                   value={cockpitQuery}
                   onChange={(event) => setCockpitQuery(event.target.value)}
-                  aria-label="Run cockpit search"
-                  placeholder="Search run context"
+                  aria-label={t("searchRunContext")}
+                  placeholder={t("searchRunContext")}
                 />
               </label>
               <button className="ghost-button" onClick={() => setCockpitQuery("")} disabled={!queryActive}>
-                Clear search
+                {t("clearSearch")}
               </button>
-              <select value={taskView} onChange={(event) => setTaskView(event.target.value as "all" | "active" | "attention")} aria-label="Task view">
-                <option value="active">active tasks</option>
-                <option value="attention">needs attention</option>
-                <option value="all">all tasks</option>
+              <select value={taskView} onChange={(event) => setTaskView(event.target.value as "all" | "active" | "attention")} aria-label={t("taskView")}>
+                <option value="active">{t("activeTasksOption")}</option>
+                <option value="attention">{t("needsAttentionOption")}</option>
+                <option value="all">{t("allTasksOption")}</option>
               </select>
               <label className="checkbox-row">
                 <input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
-                Auto refresh
+                {t("autoRefresh")}
               </label>
               <RefreshButton onClick={load} />
             </div>
           }
         >
-          <h3>Conversation threads ({filteredThreads.length}/{data?.threads.length ?? 0})</h3>
+          <h3>{t("conversationThreads")} ({filteredThreads.length}/{data?.threads.length ?? 0})</h3>
           <Table
             rows={filteredThreads as unknown as JsonRecord[]}
             selectedId={selectedThreadId}
@@ -1065,7 +1285,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
             ]}
           />
           <div className="last-updated">
-            Last updated: {state.updatedAt ?? "-"} | Auto refresh: {autoRefresh ? `every ${refreshIntervalSeconds}s` : "off"} | Next refresh: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}
+            {t("lastUpdated")}: {state.updatedAt ?? "-"} | {t("autoRefresh")}: {autoRefresh ? `every ${refreshIntervalSeconds}s` : "off"} | {t("nextRefresh")}: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}
           </div>
         </Panel>
         <aside className="detail-panel cockpit-detail-panel">
@@ -3533,11 +3753,18 @@ function App() {
   const [activePage, setActivePage] = useState<PageKey>(() => pageFromLocation());
   const [deepLinkTarget, setDeepLinkTarget] = useState<DeepLinkTarget>(() => targetFromLocation());
   const [settings, setSettings] = useState<AdminSettings>(() => readAdminSettings());
+  const [language, setLanguage] = useState<UiLanguage>(() => readUiLanguage());
+  const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const currentPage = useMemo(() => pages.find((page) => page.key === activePage) || pages[0], [activePage]);
+  const currentPageLabel = pageLabel(currentPage.key, language);
   const navigate = useCallback((page: PageKey, target: DeepLinkTarget = {}) => {
     setActivePage(page);
     setDeepLinkTarget(target);
     updateLocation(page, target);
+  }, []);
+  const changeLanguage = useCallback((nextLanguage: UiLanguage) => {
+    setLanguage(nextLanguage);
+    writeUiLanguage(nextLanguage);
   }, []);
 
   useEffect(() => {
@@ -3558,36 +3785,43 @@ function App() {
           </span>
           <div>
             <strong>AI Ops Admin</strong>
-            <small>Operations Console</small>
+            <small>{t("brandSubtitle")}</small>
           </div>
         </div>
         <nav>
           {pages.map((page) => (
             <button key={page.key} className={activePage === page.key ? "active" : ""} onClick={() => navigate(page.key)}>
               {page.icon}
-              {page.label}
+              {pageLabel(page.key, language)}
             </button>
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 59B</strong>
-          <span>Run cockpit workflow handoff and Replay Center context. No production publishing flow.</span>
+          <strong>{t("boundaryTitle")}</strong>
+          <span>{t("boundaryBody")}</span>
         </div>
       </aside>
       <main>
         <header className="topbar">
           <div>
-            <h1>{currentPage.label}</h1>
+            <h1>{currentPageLabel}</h1>
             <p>{settings.aiServerUrl} / workspace {settings.workspaceId} / user {settings.userId}</p>
           </div>
           <div className="topbar-actions">
-            <StatusPill value="foundation" />
-            <StatusPill value={activePage === "run-cockpit" ? "operational" : "read-only"} />
+            <label className="language-switch">
+              <span>{t("languageLabel")}</span>
+              <select value={language} onChange={(event) => changeLanguage(event.target.value as UiLanguage)} aria-label={t("languageLabel")}>
+                <option value="zh-CN">中文</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
+            <StatusPill value={t("foundationMode")} />
+            <StatusPill value={activePage === "run-cockpit" ? t("operatorMode") : t("readOnlyMode")} />
           </div>
         </header>
         <div className="content">
           {activePage === "overview" ? <OverviewPage settings={settings} /> : null}
-          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} /> : null}
+          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} language={language} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} /> : null}
