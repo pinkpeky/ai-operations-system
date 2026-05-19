@@ -1,10 +1,14 @@
 # Current Runtime
 
-Last updated: 2026-05-15
+Last updated: 2026-05-19
 
 This document records the current real runtime defaults for `E:\ai-operations-system`. Values are based on `app/core/config.py`, `.env.example`, and `docker-compose.yml`.
 
 The repository currently has no committed `.env` file. Without local overrides, the application uses the defaults below.
+
+## Commercial Operations Runtime
+
+Phase 61A adds the `commercial_operations` table, `CommercialOperationService`, and `/api/v1/commercial-operations` route group. These APIs are workspace-scoped and create reviewable plan outlines only. They do not publish, execute OpenClaw actions, run ComfyUI jobs, control real accounts, or bypass approval.
 
 ## Provider Defaults
 

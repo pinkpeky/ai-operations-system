@@ -3124,3 +3124,21 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
+
+## Phase 61A: 商业运营基础
+
+状态：进行中。
+
+Phase 61A 增加 workspace 级商业运营项目中心。它提供 `commercial_operations`、`CommercialOperationService` 和 Admin Dashboard 商业运营页，用于把一个商业目标保存为可追踪记录，并生成可审阅的计划草案。
+
+API：
+
+- `GET /api/v1/commercial-operations`
+- `POST /api/v1/commercial-operations`
+- `GET /api/v1/commercial-operations/{operation_id}`
+- `PATCH /api/v1/commercial-operations/{operation_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/plan-draft`
+
+主要字段：`title`、`objective`、`target_audience`、`channels`、`status`、`priority`、`risk_level`、`budget_amount`、`budget_currency`、`start_at`、`end_at`、`knowledge_collection`、`success_metrics`、`constraints`、`plan_outline`、`metadata`。
+
+边界：此阶段不会自动发布，不会执行 OpenClaw 动作，不会运行 ComfyUI 任务，不会控制真实账号，也不会绕过审批。

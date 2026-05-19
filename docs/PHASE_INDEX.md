@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, and Phase 60A-60F frontend simplification slices.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, and Phase 60A-60G frontend/RAG validation slices.
 
-Current effective phase: Phase 60G RAG Live Validation & Operator Guidance. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 61A Commercial Operations Foundation. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-60-rag-live-validation`. This validates the RAG operator loop against a live local stack, documents the upload/search/debug/reingest/delete path, and keeps the RAG / Documents page simple enough for workstation operators and server maintainers.
+The current fresh branch is `codex/phase-60g-closeout-61a-operations-foundation`. It closes out Phase 60G after PR #40 and starts the Phase 61A commercial operations project center: a durable goal-to-plan record, conservative plan-draft API, and simple bilingual Admin Dashboard entry point.
 
 ## Open PR List
 
@@ -56,6 +56,7 @@ The current fresh branch is `codex/phase-60-rag-live-validation`. This validates
 | #37 | Phase 60D RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | Merged to main |
 | #38 | Phase 60E RAG Operations & Simplicity Foundation | `codex/phase-60-rag-operations-ui` | Merged to main |
 | #39 | Phase 60F Workflow Observability Operator & Simplicity Foundation | `codex/phase-60-workflow-observability-simplification` | Merged to main |
+| #40 | Phase 60G RAG Live Validation & Operator Guidance | `codex/phase-60-rag-live-validation` | Merged to main |
 
 ## Phase Timeline Table
 
@@ -139,7 +140,8 @@ The current fresh branch is `codex/phase-60-rag-live-validation`. This validates
 | 60D | RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | #37 | Merged to main | RAG / Documents knowledge console, localized health/collection/document/search labels, operator summary cards, and clearer hybrid retrieval feedback. |
 | 60E | RAG Operations & Simplicity Foundation | `codex/phase-60-rag-operations-ui` | #38 | Merged to main | RAG upload, text ingest, document detail, reingest, delete confirmation, retrieval debug, and operator result feedback. |
 | 60F | Workflow Observability Operator & Simplicity Foundation | `codex/phase-60-workflow-observability-simplification` | #39 | Merged to main | Replay Center command center, localized scan labels, attention metrics, trace filters, and clearer replay boundaries. |
-| 60G | RAG Live Validation & Operator Guidance | `codex/phase-60-rag-live-validation` | TBD | In progress | Live RAG upload/search/debug/reingest/delete validation, operator guide, and a concise RAG operation loop hint. |
+| 60G | RAG Live Validation & Operator Guidance | `codex/phase-60-rag-live-validation` | #40 | Merged to main | Live RAG upload/search/debug/reingest/delete validation, operator guide, and a concise RAG operation loop hint. |
+| 61A | Commercial Operations Foundation | `codex/phase-60g-closeout-61a-operations-foundation` | TBD | In progress | `commercial_operations`, `/api/v1/commercial-operations`, goal-to-plan API, Admin Dashboard Commercial Ops page, and clear boundary that planning does not publish or execute external actions. |
 
 ## Runtime Evolution
 

@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-60-rag-live-validation`
+`codex/phase-60g-closeout-61a-operations-foundation`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60F have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, and Replay Center workflow observability simplification.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60G have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, and RAG live validation guidance.
 
-Current effective phase: Phase 60G RAG Live Validation & Operator Guidance. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 61A Commercial Operations Foundation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. The current step is normal product development on RAG live validation and operator guidance after PR #39 merged the workflow observability foundation.
+Readiness and PR cleanup are complete. The current step is normal product development on the commercial operations foundation after PR #40 merged RAG live validation and operator guidance.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-60-rag-live-validation`. Its scope is validating the live RAG upload/search/debug/reingest/delete loop, documenting workstation and server-maintainer steps in `docs/RAG_LIVE_VALIDATION_GUIDE.md`, and keeping the RAG / Documents page concise without changing backend runtime semantics. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-60g-closeout-61a-operations-foundation`. Its scope is adding a Commercial Ops project center, `/api/v1/commercial-operations` API, `commercial_operations` persistence, and `docs/COMMERCIAL_OPERATIONS_FOUNDATION.md`. It creates plans and operator entry points only; it does not auto-publish, control real accounts, execute OpenClaw actions, run ComfyUI jobs, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -58,8 +58,9 @@ The next active branch is `codex/phase-60-rag-live-validation`. Its scope is val
 | #37 | Phase 60D RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | Merged to `main` |
 | #38 | Phase 60E RAG Operations & Simplicity Foundation | `codex/phase-60-rag-operations-ui` | Merged to `main` |
 | #39 | Phase 60F Workflow Observability Operator & Simplicity Foundation | `codex/phase-60-workflow-observability-simplification` | Merged to `main` |
+| #40 | Phase 60G RAG Live Validation & Operator Guidance | `codex/phase-60-rag-live-validation` | Merged to `main` |
 
-The active pull request for Phase 60G is not opened yet at the time of this update.
+The active pull request for Phase 61A is not opened yet at the time of this update.
 
 ## Current Architecture State
 
@@ -73,12 +74,13 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Conversation threads, messages, events, tool routing, approvals, playbooks, background execution, artifacts.
 - Workflow state, graph runtime, templates, governance, observability, and replay center are accepted on `main`.
 - Admin Dashboard now has a run cockpit for scanning conversations, task runs, approvals, diagnostics, playbook runs, and artifacts from one page.
+- Admin Dashboard now has a Commercial Ops project center for turning an operating goal into a workspace-scoped project and reviewable plan draft.
 
 ## Current Deployment State
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60F are present on `main` through PR #22-#39.
+- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60G are present on `main` through PR #22-#40.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -120,8 +122,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish Phase 60G RAG Live Validation & Operator Guidance on `codex/phase-60-rag-live-validation`.
-2. Verify Admin Dashboard typecheck/build, docs runtime checks, live RAG guide coverage, and focused frontend guards.
+1. Finish Phase 61A Commercial Operations Foundation on `codex/phase-60g-closeout-61a-operations-foundation`.
+2. Verify Admin Dashboard typecheck/build, commercial operations API tests, docs runtime checks, and focused frontend guards.
 3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
-5. After this slice, continue toward richer cockpit workflow diagnostics, trace timeline density, or operator bookmarks.
+5. After this slice, continue toward connecting commercial operations to approvals, content artifacts, workflow runs, RAG evidence, ComfyUI assets, and safe execution dry-runs.
