@@ -30,8 +30,8 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Open Output Library" in text
 
 
-def test_run_cockpit_docs_track_action_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit operator-controls slice."""
+def test_run_cockpit_docs_track_closeout_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit closeout slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -43,4 +43,25 @@ def test_run_cockpit_docs_track_action_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-57-run-cockpit-operator-controls" in text or "Run Cockpit Operator Controls" in text, path
+        assert "phase-57-run-cockpit-closeout" in text or "Run Cockpit Closeout" in text, path
+
+
+def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
+    """Merged run cockpit slices should not remain marked as active or missing a PR."""
+
+    text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    phase_lines = {
+        line.split("|")[1].strip(): line
+        for line in text.splitlines()
+        if line.startswith("| 57") and "Run Cockpit" in line
+    }
+
+    assert "57C" in phase_lines
+    assert "#24" in phase_lines["57C"]
+    assert "Merged to main" in phase_lines["57C"]
+    assert "TBD" not in phase_lines["57C"]
+    assert "In progress" not in phase_lines["57C"]
+
+    assert "57D" in phase_lines
+    assert "phase-57-run-cockpit-closeout" in phase_lines["57D"]
+    assert "In progress" in phase_lines["57D"]
