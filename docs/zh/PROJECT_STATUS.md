@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-当前更新（2026-05-19）：Phase 57A-59C 和 Phase 60A 已通过 PR #22-#34 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦和前端语言基础。当前下一分支是 `codex/phase-60-overview-persona-simplification`，范围是 Overview 中文优先角色切换、工作站人员/服务器维护人员入口卡片、首页指标本地化和更简洁的系统快照标签。
+当前更新（2026-05-19）：Phase 57A-59C 和 Phase 60A-60B 已通过 PR #22-#35 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础和 Overview 角色入口。当前下一分支是 `codex/phase-60-conversation-operator-simplification`，范围是 Conversations 中文优先命令摘要、创建/发送/运行控件本地化、运行模式说明、摘要卡片，以及更清晰的审批/事件/产物区域。
 
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
