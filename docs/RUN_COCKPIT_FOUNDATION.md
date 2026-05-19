@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-58-run-cockpit-deep-links
+codex/phase-58-run-cockpit-refresh-ux
 ```
 
 ## Scope
@@ -49,6 +49,12 @@ The current deep-link slice adds:
 - Run Cockpit handoff links with `thread_id`, `task_run_id`, and `artifact_id`.
 - Specialist pages that open the linked Conversation, Task Run, or Output Artifact detail directly.
 
+The current refresh-UX slice adds:
+
+- Auto-refresh state labels in the Run Cockpit summary strip.
+- Refresh interval and next-refresh countdown labels.
+- Stale-data preservation when a cockpit refresh fails after prior data loaded.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -62,6 +68,7 @@ An operator can open one screen and answer:
 - Which task runs need attention without leaving the cockpit.
 - Where to continue deeper inspection in the existing specialist pages.
 - A shareable URL for the selected specialist page context after leaving the cockpit.
+- Whether cockpit data is idle, refreshing, or stale without losing the previous scan result.
 
 ## Boundaries
 
@@ -74,6 +81,7 @@ An operator can open one screen and answer:
 - No bulk action mode; every action is scoped to the selected run context.
 - Playbooks navigation can carry `thread_id` in the URL, but the Playbooks page does not auto-filter run history by that thread yet.
 - Deep links do not add authentication, permissions, or share-token semantics; they only restore local dashboard page context.
+- Auto refresh remains polling-based; no WebSocket or SSE stream is introduced.
 
 ## Acceptance
 

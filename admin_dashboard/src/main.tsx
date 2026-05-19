@@ -551,6 +551,8 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const [actionPreview, setActionPreview] = useState<JsonRecord | null>(null);
   const [taskView, setTaskView] = useState<"all" | "active" | "attention">("active");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastRefreshAtMs, setLastRefreshAtMs] = useState<number | null>(null);
+  const [refreshClockMs, setRefreshClockMs] = useState(() => Date.now());
   const selectedThreadId = selectedThread?.id ?? null;
   const selectedTaskId = selectedTask?.id ?? null;
 
@@ -571,6 +573,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         artifacts: artifactResponse.items ?? [],
         schedulerHealth,
       };
+      setLastRefreshAtMs(Date.now());
       setState({ data, error: null, loading: false, updatedAt: nowLabel() });
       if (!selectedThread && data.threads.length) {
         setSelectedThread(data.threads[0]);
@@ -579,12 +582,13 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         setSelectedTask(data.taskRuns[0]);
       }
     } catch (error) {
-      setState({
-        data: null,
+      setLastRefreshAtMs(Date.now());
+      setState((current) => ({
+        ...current,
         error: error instanceof Error ? error.message : "Run cockpit data unavailable",
         loading: false,
         updatedAt: nowLabel(),
-      });
+      }));
     }
   }, [selectedTask, selectedThread, settings]);
 
@@ -713,6 +717,15 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   useAutoRefresh(autoRefresh, settings.refreshIntervalMs, load);
 
   useEffect(() => {
+    if (!autoRefresh) {
+      return undefined;
+    }
+    setRefreshClockMs(Date.now());
+    const timer = window.setInterval(() => setRefreshClockMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [autoRefresh]);
+
+  useEffect(() => {
     if (selectedThread) {
       void loadThread(selectedThread);
     }
@@ -748,6 +761,12 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   );
   const latestMessage = threadMessages[threadMessages.length - 1];
   const latestTaskEvent = taskEvents[taskEvents.length - 1];
+  const refreshIntervalSeconds = Math.max(1, Math.round(settings.refreshIntervalMs / 1000));
+  const nextRefreshSeconds =
+    autoRefresh && lastRefreshAtMs
+      ? Math.max(0, Math.ceil((lastRefreshAtMs + settings.refreshIntervalMs - refreshClockMs) / 1000))
+      : null;
+  const refreshState = state.loading ? "refreshing" : state.error ? "stale data" : "idle";
 
   return (
     <div className="page-stack">
@@ -764,6 +783,9 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         <span>Action status: <StatusPill value={actionStatus} /></span>
         <span>Task view: {taskView}</span>
         <span>Auto refresh: <StatusPill value={autoRefresh} /></span>
+        <span>Refresh state: <StatusPill value={refreshState} /></span>
+        <span>Interval: {refreshIntervalSeconds}s</span>
+        <span>Next refresh: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}</span>
         <span>Selected thread: {selectedThreadId ?? "-"}</span>
         <span>Selected task: {selectedTaskId ?? "-"}</span>
       </div>
@@ -820,7 +842,9 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
               { key: "updated_at", label: "updated_at" },
             ]}
           />
-          <div className="last-updated">Last updated: {state.updatedAt ?? "-"}</div>
+          <div className="last-updated">
+            Last updated: {state.updatedAt ?? "-"} | Auto refresh: {autoRefresh ? `every ${refreshIntervalSeconds}s` : "off"} | Next refresh: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}
+          </div>
         </Panel>
         <aside className="detail-panel cockpit-detail-panel">
           <div className="detail-title">
@@ -3144,8 +3168,8 @@ function App() {
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 58A</strong>
-          <span>Run cockpit deep links for selected conversations, task runs, and artifacts. No production publishing flow.</span>
+          <strong>Phase 58B</strong>
+          <span>Run cockpit refresh status, countdown, and stale-data handling. No production publishing flow.</span>
         </div>
       </aside>
       <main>

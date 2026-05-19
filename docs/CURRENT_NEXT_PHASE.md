@@ -2,11 +2,11 @@
 
 ## Current Active Branch
 
-`codex/phase-58-run-cockpit-deep-links`
+`codex/phase-58-run-cockpit-refresh-ux`
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke.
 
-Current effective phase: Phase 58 Run Cockpit Deep Linking. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 58 Run Cockpit Refresh UX. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
@@ -14,7 +14,7 @@ Readiness and PR cleanup are complete. The current step is normal product develo
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-58-run-cockpit-deep-links`. Its scope is URL-backed navigation from the Run Cockpit into specialist pages, including selected thread, task run, and output artifact handoff. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-58-run-cockpit-refresh-ux`. Its scope is making Run Cockpit refresh behavior visible and resilient: auto-refresh status, interval/countdown labels, and stale-data preservation on load failures. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -37,7 +37,7 @@ The next active branch is `codex/phase-58-run-cockpit-deep-links`. Its scope is 
 | #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
 | #1 | Fix browser worker runtime registration and launch | `codex/browser-worker-runtime-fix-20260515` | Closed as superseded by `main` plus post-merge stabilization |
 
-The active pull request for Phase 58A is not opened yet at the time of this update.
+The active pull request for Phase 58B is not opened yet at the time of this update.
 
 ## Current Architecture State
 
@@ -97,7 +97,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish Phase 58A Run Cockpit Deep Links on `codex/phase-58-run-cockpit-deep-links`.
+1. Finish Phase 58B Run Cockpit Refresh UX on `codex/phase-58-run-cockpit-refresh-ux`.
 2. Verify Admin Dashboard typecheck/build, docs runtime checks, and the focused run cockpit frontend guard.
 3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
