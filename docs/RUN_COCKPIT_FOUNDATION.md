@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-58-output-library-context
+codex/phase-58-run-cockpit-closeout
 ```
 
 ## Scope
@@ -66,6 +66,12 @@ The current output-library-context slice adds:
 - Output Library awareness of `thread_id`, `task_run_id`, and `artifact_id` deep-link context.
 - Filtered artifact lists when opened from a selected Run Cockpit thread or task.
 - Controls to open the linked Conversation, open the linked Task Run, or clear the Output Library context.
+
+The current Phase 58 closeout slice records:
+
+- Phase 58A, 58B, 58C, and 58D are merged to `main`.
+- PR #29 completed the Output Library context handoff.
+- Recovery docs now point at `codex/phase-58-run-cockpit-closeout` while the closeout branch is active.
 
 ## User Outcome
 
