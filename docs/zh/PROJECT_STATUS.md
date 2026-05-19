@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-当前更新（2026-05-19）：Phase 57A-59C 和 Phase 60A-60C 已通过 PR #22-#36 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础、Overview 角色入口和 Conversations 操作台。当前下一分支是 `codex/phase-60-rag-documents-simplification`，范围是 RAG Documents 中文优先知识库操作台、健康/集合/文档/检索标签本地化、摘要卡片、混合检索反馈和检索错误提示。
+当前更新（2026-05-19）：Phase 57A-59C 和 Phase 60A-60D 已通过 PR #22-#37 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础、Overview 角色入口、Conversations 操作台和 RAG Documents 知识库操作台。当前下一分支是 `codex/phase-60-rag-operations-ui`，范围是 RAG 上传、文本写入、文档详情、重写入、删除确认、检索调试和操作结果反馈。
 
 
 ## Phase 28 OpenClaw Worker Adapter Foundation

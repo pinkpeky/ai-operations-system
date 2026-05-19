@@ -77,7 +77,8 @@ export async function requestJson<T>(
   const headers = new Headers(options.headers);
   headers.set("X-Workspace-Id", settings.workspaceId);
   headers.set("X-User-Id", settings.userId);
-  if (!headers.has("Content-Type") && options.body) {
+  const isFormDataBody = typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (!headers.has("Content-Type") && options.body && !isFormDataBody) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -234,10 +235,67 @@ export const auditApi = {
 export const ragApi = {
   embeddingHealth: (settings?: AdminSettings) => requestJson<JsonRecord>("/rag/embedding/health", {}, settings),
   documents: (settings?: AdminSettings) => requestJson<ApiList<JsonRecord>>("/documents", {}, settings),
+  documentDetail: (documentId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/documents/${encodeURIComponent(documentId)}`, {}, settings),
   collections: (settings?: AdminSettings) => requestJson<ApiList<JsonRecord>>("/rag/collections", {}, settings),
+  uploadFile: (
+    payload: {
+      file: File;
+      collectionName?: string;
+      duplicateStrategy?: "skip" | "force_reingest";
+      chunkSize?: number;
+      chunkOverlap?: number;
+    },
+    settings?: AdminSettings,
+  ) => {
+    const form = new FormData();
+    form.set("file", payload.file);
+    if (payload.collectionName) {
+      form.set("collection_name", payload.collectionName);
+    }
+    form.set("duplicate_strategy", payload.duplicateStrategy || "skip");
+    form.set("chunk_size", String(payload.chunkSize ?? 500));
+    form.set("chunk_overlap", String(payload.chunkOverlap ?? 50));
+    return requestJson<JsonRecord>("/files/upload", { method: "POST", body: form }, settings);
+  },
+  ingestText: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/rag/ingest",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  reingestText: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/documents/reingest",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  deleteBySource: (sourceId: string, collectionName?: string, settings?: AdminSettings) => {
+    const params = new URLSearchParams();
+    if (collectionName) {
+      params.set("collection_name", collectionName);
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(`/documents/by-source/${encodeURIComponent(sourceId)}${suffix}`, { method: "DELETE" }, settings);
+  },
   search: (payload: JsonRecord, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(
       "/rag/search",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  debug: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/rag/debug",
       {
         method: "POST",
         body: JSON.stringify(payload),

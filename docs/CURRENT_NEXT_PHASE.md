@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-60-rag-documents-simplification`
+`codex/phase-60-rag-operations-ui`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60C have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, and the Conversations operator console.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60D have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, and the RAG Documents knowledge console.
 
-Current effective phase: Phase 60 RAG Documents & Simplicity Foundation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 60 RAG Operations & Simplicity Foundation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. The current step is normal product development on RAG / Documents operator clarity after PR #36 merged the Conversations operator foundation.
+Readiness and PR cleanup are complete. The current step is normal product development on RAG / Documents operational controls after PR #37 merged the RAG knowledge console foundation.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-60-rag-documents-simplification`. Its scope is adding a Chinese-first RAG Documents knowledge console, localized health/collection/document/search labels, operator summary cards, clearer hybrid retrieval feedback, and inline search errors without changing backend runtime semantics. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-60-rag-operations-ui`. Its scope is adding RAG upload, text ingest, document detail, reingest, delete confirmation, retrieval debug, and operator result feedback without changing backend runtime semantics. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -55,8 +55,9 @@ The next active branch is `codex/phase-60-rag-documents-simplification`. Its sco
 | #34 | Phase 60A Frontend Language & Simplicity Foundation | `codex/phase-60-frontend-i18n-foundation` | Merged to `main` |
 | #35 | Phase 60B Overview Persona & Simplicity Foundation | `codex/phase-60-overview-persona-simplification` | Merged to `main` |
 | #36 | Phase 60C Conversation Operator & Simplicity Foundation | `codex/phase-60-conversation-operator-simplification` | Merged to `main` |
+| #37 | Phase 60D RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | Merged to `main` |
 
-The active pull request for Phase 60D is not opened yet at the time of this update.
+The active pull request for Phase 60E is not opened yet at the time of this update.
 
 ## Current Architecture State
 
@@ -75,7 +76,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60C are present on `main` through PR #22-#36.
+- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, and Phase 60A-60D are present on `main` through PR #22-#37.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -117,7 +118,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish Phase 60D RAG Documents & Simplicity Foundation on `codex/phase-60-rag-documents-simplification`.
+1. Finish Phase 60E RAG Operations & Simplicity Foundation on `codex/phase-60-rag-operations-ui`.
 2. Verify Admin Dashboard typecheck/build, docs runtime checks, and the focused run cockpit frontend guard.
 3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.

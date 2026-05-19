@@ -294,7 +294,40 @@ type UiTextKey =
   | "ragSimilarityColumn"
   | "ragRerankColumn"
   | "ragTextColumn"
-  | "ragMetadataColumn";
+  | "ragMetadataColumn"
+  | "ragUploadTitle"
+  | "ragUploadDescription"
+  | "ragFileLabel"
+  | "ragDuplicateStrategy"
+  | "ragDuplicateSkip"
+  | "ragDuplicateForce"
+  | "ragChunkSize"
+  | "ragChunkOverlap"
+  | "ragUploadAction"
+  | "ragTextIngestTitle"
+  | "ragTextIngestDescription"
+  | "ragSourceId"
+  | "ragSourceName"
+  | "ragSourceType"
+  | "ragMetadataJson"
+  | "ragKnowledgeText"
+  | "ragIngestTextAction"
+  | "ragReingestTextAction"
+  | "ragActionResultTitle"
+  | "ragDocumentDetailTitle"
+  | "ragDocumentDetailDescription"
+  | "ragSelectDocumentHint"
+  | "ragChunksTitle"
+  | "ragNoChunks"
+  | "ragDeleteDangerTitle"
+  | "ragDeleteConfirmLabel"
+  | "ragDeleteConfirmPlaceholder"
+  | "ragDeleteSourceAction"
+  | "ragDebugTitle"
+  | "ragDebugDescription"
+  | "ragDebugAction"
+  | "ragDebugResultTitle"
+  | "ragNoDebugResult";
 
 interface AsyncState<T> {
   data: T | null;
@@ -373,8 +406,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60D",
-    boundaryBody: "RAG 文档操作台简洁化。健康、集合、文档和检索入口更清楚。",
+    boundaryTitle: "Phase 60E",
+    boundaryBody: "RAG 知识库操作简洁化。上传、写入、重写、删除和调试入口更清楚。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -549,6 +582,39 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     ragRerankColumn: "精排",
     ragTextColumn: "文本",
     ragMetadataColumn: "元数据",
+    ragUploadTitle: "上传知识文件",
+    ragUploadDescription: "支持 PDF、DOCX、TXT、MD、CSV。上传后会写入当前工作区和集合。",
+    ragFileLabel: "知识文件",
+    ragDuplicateStrategy: "重复策略",
+    ragDuplicateSkip: "跳过重复文件",
+    ragDuplicateForce: "强制重新写入",
+    ragChunkSize: "切分长度",
+    ragChunkOverlap: "重叠长度",
+    ragUploadAction: "上传并写入",
+    ragTextIngestTitle: "写入文本知识",
+    ragTextIngestDescription: "适合录入短规则、FAQ、操作说明；重写需要填写 source_id。",
+    ragSourceId: "来源 ID",
+    ragSourceName: "来源名称",
+    ragSourceType: "来源类型",
+    ragMetadataJson: "元数据 JSON",
+    ragKnowledgeText: "知识文本",
+    ragIngestTextAction: "写入文本",
+    ragReingestTextAction: "重写同一来源",
+    ragActionResultTitle: "操作结果",
+    ragDocumentDetailTitle: "文档详情",
+    ragDocumentDetailDescription: "选择文档后查看版本、错误、metadata 和 chunk 内容。",
+    ragSelectDocumentHint: "从文档索引表选择一行查看详情。",
+    ragChunksTitle: "Chunks",
+    ragNoChunks: "暂无 chunk。",
+    ragDeleteDangerTitle: "危险操作",
+    ragDeleteConfirmLabel: "输入 source_id 确认删除",
+    ragDeleteConfirmPlaceholder: "输入当前文档的 source_id",
+    ragDeleteSourceAction: "删除该来源",
+    ragDebugTitle: "检索调试",
+    ragDebugDescription: "查看 query embedding 维度、命中 chunk 和分数，定位为什么搜不到。",
+    ragDebugAction: "调试检索",
+    ragDebugResultTitle: "Debug 结果",
+    ragNoDebugResult: "还没有 debug 结果。",
   },
   "en-US": {
     brandSubtitle: "Operations Console",
@@ -556,8 +622,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60D",
-    boundaryBody: "RAG Documents simplification: clearer health, collections, documents, and retrieval entry points.",
+    boundaryTitle: "Phase 60E",
+    boundaryBody: "RAG operations simplification: clearer upload, ingest, reingest, delete, and debug entry points.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -732,6 +798,39 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     ragRerankColumn: "rerank",
     ragTextColumn: "text",
     ragMetadataColumn: "metadata",
+    ragUploadTitle: "Upload knowledge file",
+    ragUploadDescription: "Supports PDF, DOCX, TXT, MD, and CSV. Uploaded files are ingested into the active workspace and collection.",
+    ragFileLabel: "Knowledge file",
+    ragDuplicateStrategy: "Duplicate strategy",
+    ragDuplicateSkip: "Skip duplicate file",
+    ragDuplicateForce: "Force reingest",
+    ragChunkSize: "Chunk size",
+    ragChunkOverlap: "Chunk overlap",
+    ragUploadAction: "Upload and ingest",
+    ragTextIngestTitle: "Ingest text knowledge",
+    ragTextIngestDescription: "Use this for short rules, FAQs, and operating notes. Reingest requires source_id.",
+    ragSourceId: "source_id",
+    ragSourceName: "source_name",
+    ragSourceType: "source_type",
+    ragMetadataJson: "metadata JSON",
+    ragKnowledgeText: "Knowledge text",
+    ragIngestTextAction: "Ingest text",
+    ragReingestTextAction: "Reingest same source",
+    ragActionResultTitle: "Action result",
+    ragDocumentDetailTitle: "Document detail",
+    ragDocumentDetailDescription: "Select a document to inspect version, errors, metadata, and chunk content.",
+    ragSelectDocumentHint: "Select a row from the document index to inspect details.",
+    ragChunksTitle: "Chunks",
+    ragNoChunks: "No chunks.",
+    ragDeleteDangerTitle: "Danger zone",
+    ragDeleteConfirmLabel: "Type source_id to confirm delete",
+    ragDeleteConfirmPlaceholder: "Type the selected document source_id",
+    ragDeleteSourceAction: "Delete this source",
+    ragDebugTitle: "Retrieval debug",
+    ragDebugDescription: "Inspect query embedding dimension, matching chunks, and scores to explain retrieval misses.",
+    ragDebugAction: "Debug retrieval",
+    ragDebugResultTitle: "Debug result",
+    ragNoDebugResult: "No debug result yet.",
   },
 };
 
@@ -4058,6 +4157,20 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
   const [collection, setCollection] = useState("ai_knowledge_base");
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [searchState, setSearchState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [duplicateStrategy, setDuplicateStrategy] = useState<"skip" | "force_reingest">("skip");
+  const [chunkSize, setChunkSize] = useState("500");
+  const [chunkOverlap, setChunkOverlap] = useState("50");
+  const [sourceId, setSourceId] = useState("");
+  const [sourceName, setSourceName] = useState("manual-note");
+  const [sourceType, setSourceType] = useState("text");
+  const [metadataDraft, setMetadataDraft] = useState("{\n  \"category\": \"manual\"\n}");
+  const [knowledgeText, setKnowledgeText] = useState("AI Operations knowledge note.");
+  const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [debugState, setDebugState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [selectedDocument, setSelectedDocument] = useState<JsonRecord | null>(null);
+  const [documentDetail, setDocumentDetail] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [deleteConfirmSource, setDeleteConfirmSource] = useState("");
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -4103,6 +4216,163 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
     }
   };
 
+  const parseChunkOptions = () => {
+    const parsedChunkSize = Number(chunkSize);
+    const parsedChunkOverlap = Number(chunkOverlap);
+    if (!Number.isFinite(parsedChunkSize) || parsedChunkSize < 1 || parsedChunkSize > 10000) {
+      throw new Error("chunk_size must be between 1 and 10000");
+    }
+    if (!Number.isFinite(parsedChunkOverlap) || parsedChunkOverlap < 0 || parsedChunkOverlap > 9999) {
+      throw new Error("chunk_overlap must be between 0 and 9999");
+    }
+    if (parsedChunkOverlap >= parsedChunkSize) {
+      throw new Error("chunk_overlap must be smaller than chunk_size");
+    }
+    return { chunkSize: parsedChunkSize, chunkOverlap: parsedChunkOverlap };
+  };
+
+  const parseMetadata = () => {
+    const trimmed = metadataDraft.trim();
+    if (!trimmed) {
+      return {};
+    }
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("metadata must be a JSON object");
+    }
+    return parsed as JsonRecord;
+  };
+
+  const runUpload = async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      if (!uploadFile) {
+        throw new Error("Select a knowledge file first");
+      }
+      const options = parseChunkOptions();
+      const response = await ragApi.uploadFile(
+        {
+          file: uploadFile,
+          collectionName: collection.trim() || undefined,
+          duplicateStrategy,
+          ...options,
+        },
+        settings,
+      );
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "RAG upload unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const runTextIngest = async (mode: "ingest" | "reingest") => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const options = parseChunkOptions();
+      if (mode === "reingest" && !sourceId.trim()) {
+        throw new Error("source_id is required for reingest");
+      }
+      const payload: JsonRecord = {
+        text: knowledgeText,
+        metadata: parseMetadata(),
+        source_id: sourceId.trim() || undefined,
+        source_name: sourceName.trim() || undefined,
+        source_type: sourceType.trim() || "text",
+        collection_name: collection.trim() || undefined,
+        chunk_size: options.chunkSize,
+        chunk_overlap: options.chunkOverlap,
+      };
+      const response = mode === "reingest" ? await ragApi.reingestText(payload, settings) : await ragApi.ingestText(payload, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "RAG text ingest unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const loadDocumentDetail = async (document: JsonRecord) => {
+    setSelectedDocument(document);
+    setDeleteConfirmSource("");
+    setSourceId(valueAt(document, ["source_id"], ""));
+    setSourceName(valueAt(document, ["source_name"], ""));
+    setSourceType(valueAt(document, ["source_type"], "text"));
+    const nextCollection = valueAt(document, ["collection_name"], collection);
+    if (nextCollection !== "-") {
+      setCollection(nextCollection);
+    }
+    setDocumentDetail((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const detail = await ragApi.documentDetail(valueAt(document, ["id"]), settings);
+      setDocumentDetail({ data: detail, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setDocumentDetail({
+        data: null,
+        error: error instanceof Error ? error.message : "Document detail unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const deleteSelectedSource = async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const selectedSource = valueAt(selectedDocument, ["source_id"], "");
+      if (!selectedSource || selectedSource === "-") {
+        throw new Error("Select a document with source_id first");
+      }
+      if (deleteConfirmSource.trim() !== selectedSource) {
+        throw new Error("source_id confirmation does not match");
+      }
+      const response = await ragApi.deleteBySource(selectedSource, collection.trim() || undefined, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedDocument(null);
+      setDocumentDetail(emptyState());
+      setDeleteConfirmSource("");
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Document delete unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const runDebug = async () => {
+    setDebugState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await ragApi.debug(
+        {
+          query,
+          collection_name: collection.trim() || undefined,
+          top_k: 5,
+        },
+        settings,
+      );
+      setDebugState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setDebugState({
+        data: null,
+        error: error instanceof Error ? error.message : "RAG debug unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -4121,6 +4391,8 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
   }).length;
   const embeddingReachable = valueAt(embeddingHealth, ["reachable"], "unknown");
   const embeddingWarning = /false|error|unknown|unavailable/i.test(embeddingReachable);
+  const documentChunks = documentDetail.data && Array.isArray(documentDetail.data.chunks) ? (documentDetail.data.chunks as JsonRecord[]) : [];
+  const selectedSourceId = valueAt(selectedDocument, ["source_id"], "");
 
   return (
     <div className="page-stack">
@@ -4152,6 +4424,80 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
         <DataCard title={t("ragChunksMetric")} value={String(totalChunks)} detail={t("ragProblemDocumentsMetric") + `: ${problemDocuments}`} icon={<HardDrive size={20} />} warning={problemDocuments > 0} />
       </div>
 
+      <div className="rag-operations-grid">
+        <Panel title={t("ragUploadTitle")} description={t("ragUploadDescription")}>
+          <div className="rag-form-grid">
+            <label>
+              {t("ragFileLabel")}
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt,.md,.csv,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+              />
+            </label>
+            <label>
+              {t("ragDuplicateStrategy")}
+              <select value={duplicateStrategy} onChange={(event) => setDuplicateStrategy(event.target.value as "skip" | "force_reingest")}>
+                <option value="skip">{t("ragDuplicateSkip")}</option>
+                <option value="force_reingest">{t("ragDuplicateForce")}</option>
+              </select>
+            </label>
+            <label>
+              {t("ragChunkSize")}
+              <input value={chunkSize} onChange={(event) => setChunkSize(event.target.value)} />
+            </label>
+            <label>
+              {t("ragChunkOverlap")}
+              <input value={chunkOverlap} onChange={(event) => setChunkOverlap(event.target.value)} />
+            </label>
+          </div>
+          <button className="primary-button" onClick={() => void runUpload()} disabled={actionState.loading}>
+            <FileText size={15} />
+            {t("ragUploadAction")}
+          </button>
+        </Panel>
+
+        <Panel title={t("ragTextIngestTitle")} description={t("ragTextIngestDescription")}>
+          <div className="rag-form-grid">
+            <label>
+              {t("ragSourceId")}
+              <input value={sourceId} onChange={(event) => setSourceId(event.target.value)} placeholder="optional for first ingest" />
+            </label>
+            <label>
+              {t("ragSourceName")}
+              <input value={sourceName} onChange={(event) => setSourceName(event.target.value)} />
+            </label>
+            <label>
+              {t("ragSourceType")}
+              <input value={sourceType} onChange={(event) => setSourceType(event.target.value)} />
+            </label>
+          </div>
+          <label className="rag-wide-label">
+            {t("ragMetadataJson")}
+            <textarea value={metadataDraft} onChange={(event) => setMetadataDraft(event.target.value)} />
+          </label>
+          <label className="rag-wide-label">
+            {t("ragKnowledgeText")}
+            <textarea value={knowledgeText} onChange={(event) => setKnowledgeText(event.target.value)} />
+          </label>
+          <div className="conversation-actions">
+            <button className="primary-button" onClick={() => void runTextIngest("ingest")} disabled={!knowledgeText.trim() || actionState.loading}>
+              <FileText size={15} />
+              {t("ragIngestTextAction")}
+            </button>
+            <button className="ghost-button" onClick={() => void runTextIngest("reingest")} disabled={!knowledgeText.trim() || !sourceId.trim() || actionState.loading}>
+              <RefreshCcw size={15} />
+              {t("ragReingestTextAction")}
+            </button>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title={t("ragActionResultTitle")} description={actionState.updatedAt ? `${t("lastUpdated")}: ${actionState.updatedAt}` : undefined}>
+        <LoadNotice state={actionState} />
+        <JsonPreview value={actionState.data || { status: "no action yet" }} />
+      </Panel>
+
       <Panel title={t("ragPanelTitle")} description={t("ragPanelDescription")} action={<RefreshButton onClick={load} />}>
         <LoadNotice state={state} />
         <div className="rag-status-grid">
@@ -4170,6 +4516,8 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
         <Table
           rows={documents}
           emptyLabel={t("ragNoDocuments")}
+          selectedId={selectedDocument ? valueAt(selectedDocument, ["id"]) : null}
+          onSelect={(row) => void loadDocumentDetail(row)}
           columns={[
             { key: "id", label: t("ragDocumentIdColumn") },
             { key: "source_id", label: t("ragSourceIdColumn") },
@@ -4181,6 +4529,50 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
             { key: "updated_at", label: t("ragUpdatedAtColumn") },
           ]}
         />
+
+        <div className="rag-detail-grid">
+          <section className="rag-inline-section">
+            <h3>{t("ragDocumentDetailTitle")}</h3>
+            <p className="foundation-note">{selectedDocument ? t("ragDocumentDetailDescription") : t("ragSelectDocumentHint")}</p>
+            <LoadNotice state={documentDetail} />
+            <div className="rag-detail-fields">
+              <Field label={t("ragDocumentIdColumn")} value={valueAt(documentDetail.data || selectedDocument, ["id"], "-")} />
+              <Field label={t("ragSourceId")} value={selectedSourceId || "-"} />
+              <Field label={t("ragStatusColumn")} value={<StatusPill value={valueAt(documentDetail.data || selectedDocument, ["status"], "none")} />} />
+              <Field label={t("ragIngestStatusColumn")} value={<StatusPill value={valueAt(documentDetail.data || selectedDocument, ["ingest_status"], "none")} />} />
+              <Field label="version" value={valueAt(documentDetail.data || selectedDocument, ["version"], "-")} />
+              <Field label="error" value={valueAt(documentDetail.data || selectedDocument, ["error_message"], "-")} />
+            </div>
+            <JsonPreview value={documentDetail.data?.metadata || selectedDocument?.metadata || { status: "select a document" }} />
+            <h3>{t("ragChunksTitle")}</h3>
+            <Table
+              rows={documentChunks}
+              emptyLabel={t("ragNoChunks")}
+              columns={[
+                { key: "id", label: t("ragChunkIdColumn") },
+                { key: "chunk_index", label: "index" },
+                { key: "status", label: t("ragStatusColumn") },
+                { key: "text", label: t("ragTextColumn") },
+              ]}
+            />
+          </section>
+          <section className="rag-inline-section rag-danger-section">
+            <h3>{t("ragDeleteDangerTitle")}</h3>
+            <p className="foundation-note">{selectedSourceId ? `${t("ragSourceId")}: ${selectedSourceId}` : t("ragSelectDocumentHint")}</p>
+            <label className="rag-wide-label">
+              {t("ragDeleteConfirmLabel")}
+              <input value={deleteConfirmSource} onChange={(event) => setDeleteConfirmSource(event.target.value)} placeholder={t("ragDeleteConfirmPlaceholder")} />
+            </label>
+            <button
+              className="ghost-button danger-button"
+              onClick={() => void deleteSelectedSource()}
+              disabled={!selectedDocument || !selectedSourceId || deleteConfirmSource.trim() !== selectedSourceId || actionState.loading}
+            >
+              <AlertTriangle size={15} />
+              {t("ragDeleteSourceAction")}
+            </button>
+          </section>
+        </div>
 
         <h3>{t("ragSearchTitle")}</h3>
         <p className="foundation-note">{t("ragSearchDescription")}</p>
@@ -4197,6 +4589,10 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
             <Search size={15} />
             {t("ragSearchAction")}
           </button>
+          <button className="ghost-button" onClick={() => void runDebug()} disabled={!collection.trim() || !query.trim() || debugState.loading}>
+            <Search size={15} />
+            {t("ragDebugAction")}
+          </button>
         </div>
         <LoadNotice state={searchState} />
         {searchState.updatedAt ? <div className="last-updated">{t("lastUpdated")}: {searchState.updatedAt}</div> : null}
@@ -4212,6 +4608,15 @@ function RagDocumentsPage({ settings, language }: { settings: AdminSettings; lan
             { key: "metadata", label: t("ragMetadataColumn") },
           ]}
         />
+
+        <section className="rag-inline-section">
+          <h3>{t("ragDebugTitle")}</h3>
+          <p className="foundation-note">{t("ragDebugDescription")}</p>
+          <LoadNotice state={debugState} />
+          {debugState.updatedAt ? <div className="last-updated">{t("lastUpdated")}: {debugState.updatedAt}</div> : null}
+          <h3>{t("ragDebugResultTitle")}</h3>
+          <JsonPreview value={debugState.data || { status: t("ragNoDebugResult") }} />
+        </section>
 
         <div className="json-grid">
           <div>

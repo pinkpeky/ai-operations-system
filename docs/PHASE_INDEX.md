@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, and Phase 60A-60C frontend simplification slices.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, and Phase 60A-60D frontend simplification slices.
 
-Current effective phase: Phase 60 RAG Documents & Simplicity Foundation. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 60 RAG Operations & Simplicity Foundation. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-60-rag-documents-simplification`. This makes the RAG / Documents page easier for workstation users and server maintainers to use with Chinese-first health, collection, document indexing, and hybrid retrieval status.
+The current fresh branch is `codex/phase-60-rag-operations-ui`. This turns the RAG / Documents page into an operator-facing knowledge maintenance entry point with upload, text ingest, document detail, reingest, delete confirmation, and retrieval debug controls.
 
 ## Open PR List
 
@@ -53,6 +53,7 @@ The current fresh branch is `codex/phase-60-rag-documents-simplification`. This 
 | #34 | Phase 60A Frontend Language & Simplicity Foundation | `codex/phase-60-frontend-i18n-foundation` | Merged to main |
 | #35 | Phase 60B Overview Persona & Simplicity Foundation | `codex/phase-60-overview-persona-simplification` | Merged to main |
 | #36 | Phase 60C Conversation Operator & Simplicity Foundation | `codex/phase-60-conversation-operator-simplification` | Merged to main |
+| #37 | Phase 60D RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | Merged to main |
 
 ## Phase Timeline Table
 
@@ -133,7 +134,8 @@ The current fresh branch is `codex/phase-60-rag-documents-simplification`. This 
 | 60A | Frontend Language & Simplicity Foundation | `codex/phase-60-frontend-i18n-foundation` | #34 | Merged to main | Admin Dashboard language switch, Chinese default shell labels, localized Run Cockpit operator labels, and simplification foundation. |
 | 60B | Overview Persona & Simplicity Foundation | `codex/phase-60-overview-persona-simplification` | #35 | Merged to main | Overview role switch for workstation operators and server maintainers, role-specific entry points, localized overview metrics, and concise status snapshot labels. |
 | 60C | Conversation Operator & Simplicity Foundation | `codex/phase-60-conversation-operator-simplification` | #36 | Merged to main | Conversations page command summary, localized create/send/run controls, run-mode guidance, approval/event/artifact section labels, and operator-friendly conversation metrics. |
-| 60D | RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | TBD | In progress | RAG / Documents knowledge console, localized health/collection/document/search labels, operator summary cards, and clearer hybrid retrieval feedback. |
+| 60D | RAG Documents & Simplicity Foundation | `codex/phase-60-rag-documents-simplification` | #37 | Merged to main | RAG / Documents knowledge console, localized health/collection/document/search labels, operator summary cards, and clearer hybrid retrieval feedback. |
+| 60E | RAG Operations & Simplicity Foundation | `codex/phase-60-rag-operations-ui` | TBD | In progress | RAG upload, text ingest, document detail, reingest, delete confirmation, retrieval debug, and operator result feedback. |
 
 ## Runtime Evolution
 

@@ -42,8 +42,14 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/openclaw/health",
         "/browser/security/audit-logs",
         "/rag/embedding/health",
+        "/files/upload",
         "/documents",
+        "/documents/${encodeURIComponent(documentId)}",
+        "/documents/reingest",
+        "/documents/by-source/${encodeURIComponent(sourceId)}${suffix}",
         "/rag/search",
+        "/rag/ingest",
+        "/rag/debug",
     ):
         assert path in client
 

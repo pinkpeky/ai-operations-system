@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-Current update (2026-05-19): Phase 57A-59C and Phase 60A-60C have landed on `main` through PR #22-#36, covering Run Cockpit foundation, actions, operator controls, deep links, refresh UX, Playbooks and Output Library context, search density, workflow handoff, workflow focus/provenance, the frontend language foundation, the Overview role entry, and the Conversations operator console. The active next branch is `codex/phase-60-rag-documents-simplification`, scoped to a Chinese-first RAG Documents knowledge console, localized health/collection/document/search labels, operator summary cards, clearer hybrid retrieval feedback, and inline search errors.
+Current update (2026-05-19): Phase 57A-59C and Phase 60A-60D have landed on `main` through PR #22-#37, covering Run Cockpit foundation, actions, operator controls, deep links, refresh UX, Playbooks and Output Library context, search density, workflow handoff, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, and the RAG Documents knowledge console. The active next branch is `codex/phase-60-rag-operations-ui`, scoped to RAG upload, text ingest, document detail, reingest, delete confirmation, retrieval debug, and operator result feedback.
 
 
 ## Phase 36: Server Admin Dashboard Foundation
