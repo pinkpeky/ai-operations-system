@@ -3,6 +3,7 @@ import { createRoot, Root } from "react-dom/client";
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
   Bot,
   Brain,
   ClipboardList,
@@ -15,6 +16,7 @@ import {
   History,
   KeyRound,
   LayoutDashboard,
+  Megaphone,
   MessageSquareText,
   MonitorCheck,
   PlayCircle,
@@ -24,6 +26,8 @@ import {
   Server,
   Settings,
   ShieldCheck,
+  Sparkles,
+  Target,
   TerminalSquare,
   Users,
 } from "lucide-react";
@@ -31,6 +35,7 @@ import {
   AdminSettings,
   auditApi,
   browserRuntimeApi,
+  commercialOperationsApi,
   healthApi,
   JsonRecord,
   openclawApi,
@@ -81,6 +86,7 @@ import "./styles.css";
 type PageKey =
   | "overview"
   | "run-cockpit"
+  | "commercial-operations"
   | "workers"
   | "browser-runtime"
   | "conversations"
@@ -386,6 +392,7 @@ interface AsyncState<T> {
 const pages: PageDefinition[] = [
   { key: "overview", label: "Overview", icon: <LayoutDashboard size={18} /> },
   { key: "run-cockpit", label: "Run Cockpit", icon: <Crosshair size={18} /> },
+  { key: "commercial-operations", label: "Commercial Ops", icon: <Target size={18} /> },
   { key: "workers", label: "Workers", icon: <Server size={18} /> },
   { key: "browser-runtime", label: "Browser Runtime", icon: <MonitorCheck size={18} /> },
   { key: "conversations", label: "Conversations", icon: <MessageSquareText size={18} /> },
@@ -410,6 +417,7 @@ const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
   "zh-CN": {
     overview: "总览",
     "run-cockpit": "运行驾驶舱",
+    "commercial-operations": "商业运营",
     workers: "Worker 管理",
     "browser-runtime": "浏览器运行时",
     conversations: "对话",
@@ -429,6 +437,7 @@ const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
   "en-US": {
     overview: "Overview",
     "run-cockpit": "Run Cockpit",
+    "commercial-operations": "Commercial Ops",
     workers: "Workers",
     "browser-runtime": "Browser Runtime",
     conversations: "Conversations",
@@ -453,8 +462,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60G",
-    boundaryBody: "RAG 真实联调。知识库页面展示上传、查看、检索、调试、重写和删除闭环。",
+    boundaryTitle: "Phase 61A",
+    boundaryBody: "商业运营项目中心。把运营目标沉淀为项目、计划、知识集合、审批和执行入口。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -716,8 +725,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60G",
-    boundaryBody: "RAG live validation: upload, inspect, search, debug, reingest, and delete from one clear loop.",
+    boundaryTitle: "Phase 61A",
+    boundaryBody: "Commercial operations foundation: turn a business goal into a project, plan, knowledge, approval, and execution entry point.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -1317,6 +1326,7 @@ function OverviewPage({
   const overviewActions: { page: PageKey; title: string; detail: string }[] =
     persona === "workstation"
       ? [
+          { page: "commercial-operations", title: language === "zh-CN" ? "创建商业运营项目" : "Create commercial operation", detail: language === "zh-CN" ? "把运营目标转成计划、知识集合、审批和执行入口。" : "Turn a business goal into plan, knowledge, approval, and execution entry points." },
           { page: "run-cockpit", title: t("operatorOpenCockpit"), detail: t("operatorOpenCockpitDetail") },
           { page: "conversations", title: t("operatorConversations"), detail: t("operatorConversationsDetail") },
           { page: "playbooks", title: t("operatorPlaybooks"), detail: t("operatorPlaybooksDetail") },
@@ -4372,6 +4382,393 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
+const commercialOperationCopy = {
+  "zh-CN": {
+    connection: "AI 服务",
+    title: "商业运营项目中心",
+    description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
+    summary: "当前只创建计划与操作入口；不会自动发布、不会控制真实账号、不会绕过审批。",
+    flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "监控恢复"],
+    total: "项目",
+    active: "进行中",
+    attention: "高风险/需审",
+    steps: "计划步骤",
+    createTitle: "新建运营项目",
+    createDescription: "适合录入一次营销活动、转化目标、内容生产目标或客户运营目标。",
+    listTitle: "项目列表",
+    detailTitle: "项目详情",
+    detailDescription: "计划草案是可审阅的执行路线，不会触发 OpenClaw、ComfyUI、浏览器 Worker 或外部发布。",
+    titleLabel: "项目名称",
+    objectiveLabel: "运营目标",
+    audienceLabel: "目标人群",
+    channelsLabel: "渠道",
+    metricsLabel: "成功指标",
+    collectionLabel: "知识集合",
+    priorityLabel: "优先级",
+    riskLabel: "风险等级",
+    budgetLabel: "预算",
+    currencyLabel: "币种",
+    constraintsLabel: "约束",
+    createAction: "创建项目",
+    planAction: "重新生成计划",
+    markReady: "标记就绪",
+    activate: "启动跟踪",
+    pause: "暂停",
+    noOperations: "暂无商业运营项目。",
+    noPlan: "还没有计划草案。",
+    actionResult: "操作结果",
+    selectedHint: "从项目列表选择一行查看计划。",
+    planTitle: "计划草案",
+    statusColumn: "状态",
+    priorityColumn: "优先级",
+    riskColumn: "风险",
+    updatedColumn: "更新",
+    objectivePlaceholder: "例如：在 30 天内提升某产品线有效询盘，并形成可复用内容资产。",
+  },
+  "en-US": {
+    connection: "AI Server",
+    title: "Commercial operations center",
+    description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
+    summary: "This creates plans and operator entry points only. It does not publish, control real accounts, or bypass approval.",
+    flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
+    total: "Operations",
+    active: "In motion",
+    attention: "High risk/review",
+    steps: "Plan steps",
+    createTitle: "Create operation",
+    createDescription: "Use this for a campaign, conversion goal, content objective, or customer operation target.",
+    listTitle: "Operation list",
+    detailTitle: "Operation detail",
+    detailDescription: "The plan outline is reviewable. It does not trigger OpenClaw, ComfyUI, Browser Worker, or external publishing.",
+    titleLabel: "Title",
+    objectiveLabel: "Objective",
+    audienceLabel: "Audience",
+    channelsLabel: "Channels",
+    metricsLabel: "Success metrics",
+    collectionLabel: "Knowledge collection",
+    priorityLabel: "Priority",
+    riskLabel: "Risk",
+    budgetLabel: "Budget",
+    currencyLabel: "Currency",
+    constraintsLabel: "Constraints",
+    createAction: "Create operation",
+    planAction: "Regenerate plan",
+    markReady: "Mark ready",
+    activate: "Start tracking",
+    pause: "Pause",
+    noOperations: "No commercial operations yet.",
+    noPlan: "No plan outline yet.",
+    actionResult: "Action result",
+    selectedHint: "Select one row from the operation list to inspect the plan.",
+    planTitle: "Plan outline",
+    statusColumn: "status",
+    priorityColumn: "priority",
+    riskColumn: "risk",
+    updatedColumn: "updated",
+    objectivePlaceholder: "Example: increase qualified leads for one product line in 30 days and create reusable content assets.",
+  },
+} as const;
+
+function splitDraftList(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function CommercialOperationsPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
+  const copy = commercialOperationCopy[language];
+  const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
+  const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
+  const [objective, setObjective] = useState<string>(copy.objectivePlaceholder);
+  const [targetAudience, setTargetAudience] = useState(language === "zh-CN" ? "高意向企业客户" : "High-intent business customers");
+  const [channelsDraft, setChannelsDraft] = useState("website, newsletter, short-video");
+  const [metricsDraft, setMetricsDraft] = useState("qualified_leads, content_output, review_pass_rate");
+  const [knowledgeCollection, setKnowledgeCollection] = useState("ai_knowledge_base");
+  const [priority, setPriority] = useState<"low" | "normal" | "high">("normal");
+  const [riskLevel, setRiskLevel] = useState<"low" | "medium" | "high">("medium");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetCurrency, setBudgetCurrency] = useState("CNY");
+  const [constraintsDraft, setConstraintsDraft] = useState(language === "zh-CN" ? "人工审批后执行, 不自动发布" : "execute after human approval, no auto publish");
+
+  const load = useCallback(async () => {
+    setState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const operations = await commercialOperationsApi.list("", settings);
+      setState({ data: { operations }, error: null, loading: false, updatedAt: nowLabel() });
+      const items = toItems(operations);
+      setSelectedOperation((current) => {
+        if (current && items.some((item) => valueAt(item, ["id"]) === valueAt(current, ["id"]))) {
+          return items.find((item) => valueAt(item, ["id"]) === valueAt(current, ["id"])) ?? current;
+        }
+        return items[0] ?? null;
+      });
+    } catch (error) {
+      setState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operations API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const createOperation = async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const budget = budgetAmount.trim() ? Number(budgetAmount) : undefined;
+      if (budget !== undefined && (!Number.isFinite(budget) || budget < 0)) {
+        throw new Error("budget must be a positive number");
+      }
+      const payload: JsonRecord = {
+        title: title.trim(),
+        objective: objective.trim(),
+        target_audience: targetAudience.trim() || undefined,
+        channels: splitDraftList(channelsDraft),
+        success_metrics: splitDraftList(metricsDraft),
+        constraints: splitDraftList(constraintsDraft),
+        knowledge_collection: knowledgeCollection.trim() || undefined,
+        priority,
+        risk_level: riskLevel,
+        budget_amount: budget,
+        budget_currency: budgetCurrency.trim() || "CNY",
+        metadata: { source: "admin_dashboard", phase: "61A" },
+      };
+      const created = await commercialOperationsApi.create(payload, settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedOperation(created);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const regeneratePlan = async () => {
+    if (!selectedOperation) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const operationId = valueAt(selectedOperation, ["id"]);
+      const response = await commercialOperationsApi.planDraft(operationId, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial plan draft unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateSelectedStatus = async (status: "ready" | "active" | "paused") => {
+    if (!selectedOperation) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const operationId = valueAt(selectedOperation, ["id"]);
+      const updated = await commercialOperationsApi.update(operationId, { status }, settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedOperation(updated);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial status update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const operations = toItems(state.data?.operations);
+  const activeCount = operations.filter((operation) => /planning|ready|active/i.test(String(operation.status ?? ""))).length;
+  const attentionCount = operations.filter((operation) => {
+    const status = String(operation.status ?? "");
+    const risk = String(operation.risk_level ?? "");
+    return /high/i.test(risk) || /draft|planning/i.test(status);
+  }).length;
+  const planStepCount = operations.reduce((total, operation) => {
+    const outline = operation.plan_outline;
+    return total + (Array.isArray(outline) ? outline.length : 0);
+  }, 0);
+  const planRows = selectedOperation && Array.isArray(selectedOperation.plan_outline) ? (selectedOperation.plan_outline as JsonRecord[]) : [];
+
+  return (
+    <div className="page-stack">
+      <section className="commercial-command-center">
+        <div>
+          <p className="section-eyebrow">{copy.connection}: {settings.aiServerUrl}</p>
+          <h2>{copy.title}</h2>
+          <p>{copy.description}</p>
+          <p>{copy.summary}</p>
+        </div>
+        <div className="commercial-flow-grid" aria-label={copy.title}>
+          {copy.flow.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
+      </section>
+
+      <div className="metrics-grid commercial-metrics-grid">
+        <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
+        <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
+        <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={copy.planTitle} icon={<BarChart3 size={20} />} />
+      </div>
+
+      <div className="commercial-grid">
+        <Panel title={copy.createTitle} description={copy.createDescription}>
+          <div className="commercial-form-grid">
+            <label>
+              {copy.titleLabel}
+              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+            </label>
+            <label>
+              {copy.audienceLabel}
+              <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} />
+            </label>
+            <label className="commercial-wide-label">
+              {copy.objectiveLabel}
+              <textarea value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={copy.objectivePlaceholder} />
+            </label>
+            <label>
+              {copy.channelsLabel}
+              <input value={channelsDraft} onChange={(event) => setChannelsDraft(event.target.value)} />
+            </label>
+            <label>
+              {copy.metricsLabel}
+              <input value={metricsDraft} onChange={(event) => setMetricsDraft(event.target.value)} />
+            </label>
+            <label>
+              {copy.collectionLabel}
+              <input value={knowledgeCollection} onChange={(event) => setKnowledgeCollection(event.target.value)} />
+            </label>
+            <label>
+              {copy.priorityLabel}
+              <select value={priority} onChange={(event) => setPriority(event.target.value as "low" | "normal" | "high")}>
+                <option value="low">low</option>
+                <option value="normal">normal</option>
+                <option value="high">high</option>
+              </select>
+            </label>
+            <label>
+              {copy.riskLabel}
+              <select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value as "low" | "medium" | "high")}>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+            </label>
+            <label>
+              {copy.budgetLabel}
+              <input value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} placeholder="optional" />
+            </label>
+            <label>
+              {copy.currencyLabel}
+              <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
+            </label>
+            <label className="commercial-wide-label">
+              {copy.constraintsLabel}
+              <textarea value={constraintsDraft} onChange={(event) => setConstraintsDraft(event.target.value)} />
+            </label>
+          </div>
+          <button className="primary-button" onClick={() => void createOperation()} disabled={!title.trim() || !objective.trim() || actionState.loading}>
+            <Target size={15} />
+            {copy.createAction}
+          </button>
+        </Panel>
+
+        <Panel title={copy.actionResult} description={actionState.updatedAt ? `${textFor(language, "lastUpdated")}: ${actionState.updatedAt}` : undefined}>
+          <LoadNotice state={actionState} />
+          <JsonPreview value={actionState.data || { status: "no action yet" }} />
+        </Panel>
+      </div>
+
+      <Panel title={copy.listTitle} action={<RefreshButton onClick={load} />}>
+        <LoadNotice state={state} />
+        {state.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {state.updatedAt}</div> : null}
+        <Table
+          rows={operations}
+          emptyLabel={copy.noOperations}
+          selectedId={selectedOperation ? valueAt(selectedOperation, ["id"]) : null}
+          onSelect={(row) => setSelectedOperation(row)}
+          columns={[
+            { key: "title", label: copy.titleLabel },
+            { key: "status", label: copy.statusColumn },
+            { key: "priority", label: copy.priorityColumn },
+            { key: "risk_level", label: copy.riskColumn },
+            { key: "knowledge_collection", label: copy.collectionLabel },
+            { key: "updated_at", label: copy.updatedColumn },
+          ]}
+        />
+      </Panel>
+
+      <Panel title={copy.detailTitle} description={copy.detailDescription}>
+        {selectedOperation ? (
+          <div className="commercial-detail-grid">
+            <Field label={copy.titleLabel} value={valueAt(selectedOperation, ["title"])} />
+            <Field label={copy.statusColumn} value={<StatusPill value={valueAt(selectedOperation, ["status"])} />} />
+            <Field label={copy.priorityColumn} value={<StatusPill value={valueAt(selectedOperation, ["priority"])} />} />
+            <Field label={copy.riskColumn} value={<StatusPill value={valueAt(selectedOperation, ["risk_level"])} />} />
+            <Field label={copy.collectionLabel} value={valueAt(selectedOperation, ["knowledge_collection"])} />
+            <Field label={copy.metricsLabel} value={shortJson(selectedOperation.success_metrics)} />
+            <Field label={copy.channelsLabel} value={shortJson(selectedOperation.channels)} />
+            <Field label={copy.constraintsLabel} value={shortJson(selectedOperation.constraints)} />
+            <Field label={copy.objectiveLabel} value={valueAt(selectedOperation, ["objective"])} />
+          </div>
+        ) : (
+          <div className="empty-table">{copy.selectedHint}</div>
+        )}
+        <div className="commercial-action-row">
+          <button className="primary-button" onClick={() => void regeneratePlan()} disabled={!selectedOperation || actionState.loading}>
+            <Sparkles size={15} />
+            {copy.planAction}
+          </button>
+          <button className="ghost-button" onClick={() => void updateSelectedStatus("ready")} disabled={!selectedOperation || actionState.loading}>
+            <ShieldCheck size={15} />
+            {copy.markReady}
+          </button>
+          <button className="ghost-button" onClick={() => void updateSelectedStatus("active")} disabled={!selectedOperation || actionState.loading}>
+            <PlayCircle size={15} />
+            {copy.activate}
+          </button>
+          <button className="ghost-button" onClick={() => void updateSelectedStatus("paused")} disabled={!selectedOperation || actionState.loading}>
+            <AlertTriangle size={15} />
+            {copy.pause}
+          </button>
+        </div>
+        <h3>{copy.planTitle}</h3>
+        <Table
+          rows={planRows}
+          emptyLabel={copy.noPlan}
+          columns={[
+            { key: "step_key", label: "step_key" },
+            { key: "title", label: copy.titleLabel },
+            { key: "owner", label: "owner" },
+            { key: "status", label: copy.statusColumn },
+            { key: "checks", label: "checks" },
+          ]}
+        />
+      </Panel>
+    </div>
+  );
+}
+
 function RagDocumentsPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
   const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [query, setQuery] = useState("AI automation operations");
@@ -5032,12 +5429,13 @@ function App() {
               </select>
             </label>
             <StatusPill value={t("foundationMode")} />
-            <StatusPill value={activePage === "run-cockpit" ? t("operatorMode") : t("readOnlyMode")} />
+            <StatusPill value={activePage === "run-cockpit" || activePage === "commercial-operations" ? t("operatorMode") : t("readOnlyMode")} />
           </div>
         </header>
         <div className="content">
           {activePage === "overview" ? <OverviewPage settings={settings} language={language} onNavigate={navigate} /> : null}
           {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} language={language} /> : null}
+          {activePage === "commercial-operations" ? <CommercialOperationsPage settings={settings} language={language} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} language={language} /> : null}

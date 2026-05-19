@@ -764,6 +764,104 @@ textarea {
   line-height: 1.45;
 }
 
+.commercial-command-center {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.7fr);
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-command-center h2 {
+  margin: 0;
+  color: #17212b;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.commercial-command-center p {
+  margin: 6px 0 0;
+  color: #607080;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.commercial-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-flow-grid span {
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  color: #33485a;
+  background: #f8fafb;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.commercial-metrics-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.commercial-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.55fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.commercial-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.commercial-form-grid label,
+.commercial-wide-label {
+  display: grid;
+  gap: 6px;
+  color: #5e6e7d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.commercial-wide-label {
+  grid-column: 1 / -1;
+}
+
+.commercial-wide-label textarea {
+  width: 100%;
+  min-height: 86px;
+}
+
+.commercial-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.commercial-detail-grid .field:last-child {
+  grid-column: 1 / -1;
+}
+
+.commercial-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 12px 0 8px;
+}
+
 .rag-command-center {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, 0.75fr);
@@ -1054,6 +1152,10 @@ textarea {
   .metrics-grid,
   .json-grid,
   .workflow-observability-metrics,
+  .commercial-metrics-grid,
+  .commercial-grid,
+  .commercial-detail-grid,
+  .commercial-form-grid,
   .rag-metrics-grid,
   .rag-operations-grid,
   .rag-status-grid,
@@ -1076,6 +1178,8 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .commercial-command-center,
+  .commercial-flow-grid,
   .rag-command-center,
   .rag-flow-grid,
   .workflow-observability-command-center,

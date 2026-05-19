@@ -88,7 +88,10 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "运行驾驶舱" in text
     assert "中文" in text
     assert "English" in text
-    assert "RAG 真实联调" in text
+    assert "商业运营项目中心" in text
+    assert "Commercial operations center" in text
+    assert "commercial-command-center" in text
+    assert "commercial-flow-grid" in text
     assert "OverviewPersona" in text
     assert "overview-command-center" in text
     assert "overview-mode-switch" in text
@@ -112,8 +115,8 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "工作流观测台" in text
 
 
-def test_run_cockpit_docs_track_rag_live_validation_slice() -> None:
-    """Recovery docs should point to the active RAG live validation slice."""
+def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
+    """Recovery docs should point to the active commercial operations slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -127,7 +130,7 @@ def test_run_cockpit_docs_track_rag_live_validation_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-60-rag-live-validation" in text or "RAG Live Validation" in text, path
+        assert "phase-60g-closeout-61a-operations-foundation" in text or "Commercial Operations Foundation" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -154,8 +157,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_60_rag_live_validation_slice() -> None:
-    """Phase 60F should be merged and Phase 60G should be the active RAG live validation slice."""
+def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
+    """Phase 60G should be merged and Phase 61A should be the active commercial operations slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -277,5 +280,19 @@ def test_run_cockpit_phase_index_tracks_phase_60_rag_live_validation_slice() -> 
 
     assert "60G" in phase_60_lines
     assert "phase-60-rag-live-validation" in phase_60_lines["60G"]
-    assert "TBD" in phase_60_lines["60G"]
-    assert "In progress" in phase_60_lines["60G"]
+    assert "#40" in phase_60_lines["60G"]
+    assert "Merged to main" in phase_60_lines["60G"]
+    assert "TBD" not in phase_60_lines["60G"]
+    assert "In progress" not in phase_60_lines["60G"]
+
+    phase_61_lines = {
+        line.split("|")[1].strip(): line
+        for line in text.splitlines()
+        if line.startswith("| 61")
+    }
+
+    assert "61A" in phase_61_lines
+    assert "phase-60g-closeout-61a-operations-foundation" in phase_61_lines["61A"]
+    assert "Commercial Operations Foundation" in phase_61_lines["61A"]
+    assert "TBD" in phase_61_lines["61A"]
+    assert "In progress" in phase_61_lines["61A"]

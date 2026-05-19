@@ -34,6 +34,34 @@ class PublishLogStatus(StrEnum):
     COMPLETED = "completed"
 
 
+class CommercialOperationStatus(StrEnum):
+    """商业运营项目生命周期状态。"""
+
+    DRAFT = "draft"
+    PLANNING = "planning"
+    READY = "ready"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationPriority(StrEnum):
+    """商业运营项目优先级。"""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+
+
+class CommercialOperationRiskLevel(StrEnum):
+    """商业运营项目风险等级。"""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

@@ -176,6 +176,41 @@ export const conversationsApi = {
     requestJson<ApiList<JsonRecord>>(`/conversations/${threadId}/events`, {}, settings),
 };
 
+export const commercialOperationsApi = {
+  list: (status = "", settings?: AdminSettings) => {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+    return requestJson<ApiList<JsonRecord>>(`/commercial-operations${suffix}`, {}, settings);
+  },
+  create: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  get: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/commercial-operations/${encodeURIComponent(operationId)}`, {}, settings),
+  update: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  planDraft: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/plan-draft`,
+      {
+        method: "POST",
+      },
+      settings,
+    ),
+};
+
 export const tasksApi = {
   list: (status = "pending", settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/tasks?status=${encodeURIComponent(status)}`, {}, settings),

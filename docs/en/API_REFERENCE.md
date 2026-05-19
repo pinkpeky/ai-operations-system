@@ -3692,3 +3692,21 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
+
+## Phase 61A: Commercial Operations Foundation
+
+Status: in progress.
+
+Phase 61A adds a workspace-scoped commercial operation project center. It exposes `commercial_operations`, `CommercialOperationService`, and the Admin Dashboard Commercial Ops page for turning one business objective into a durable record and reviewable plan outline.
+
+APIs:
+
+- `GET /api/v1/commercial-operations`
+- `POST /api/v1/commercial-operations`
+- `GET /api/v1/commercial-operations/{operation_id}`
+- `PATCH /api/v1/commercial-operations/{operation_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/plan-draft`
+
+Main fields: `title`, `objective`, `target_audience`, `channels`, `status`, `priority`, `risk_level`, `budget_amount`, `budget_currency`, `start_at`, `end_at`, `knowledge_collection`, `success_metrics`, `constraints`, `plan_outline`, and `metadata`.
+
+Boundary: this phase does not publish, does not execute OpenClaw actions, does not run ComfyUI jobs, does not control real accounts, and does not bypass approval.
