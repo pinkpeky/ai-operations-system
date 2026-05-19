@@ -28,6 +28,19 @@ def test_admin_dashboard_conversation_page_supports_create_send_run_and_polling(
         "conversationClient.runConversation",
         "conversationClient.listMessages",
         "conversationClient.listEvents",
+        "conversation-command-center",
+        "conversation-mode-grid",
+        "conversationConsoleTitle",
+        "conversationOperatorSummary",
+        "autoSafeModeSummary",
+        "reviewFirstModeSummary",
+        "backgroundModeSummary",
+        "对话运行台",
+        "自动安全运行",
+        "先审后跑",
+        "后台队列",
+        "待审批",
+        "生成产物",
     ):
         assert term in text
 

@@ -715,6 +715,48 @@ textarea {
   align-items: center;
 }
 
+.conversation-command-center {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.65fr);
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.conversation-command-center h2 {
+  margin: 0;
+  color: #17212b;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.conversation-command-center p {
+  margin: 6px 0 0;
+  color: #607080;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.conversation-mode-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.conversation-mode-grid span {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  color: #33485a;
+  background: #f8fafb;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
 .conversation-toolbar {
   margin: 14px 0;
 }
@@ -779,6 +821,10 @@ textarea {
 
   .overview-command-center {
     display: grid;
+  }
+
+  .conversation-command-center {
+    grid-template-columns: 1fr;
   }
 
   .overview-mode-switch {

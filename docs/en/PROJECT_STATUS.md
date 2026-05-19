@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-Current update (2026-05-19): Phase 57A-59C and Phase 60A have landed on `main` through PR #22-#34, covering Run Cockpit foundation, actions, operator controls, deep links, refresh UX, Playbooks and Output Library context, search density, workflow handoff, workflow focus/provenance, and the frontend language foundation. The active next branch is `codex/phase-60-overview-persona-simplification`, scoped to a Chinese-first Overview role switch for workstation operators and server maintainers, role-specific entry cards, localized overview metrics, and concise snapshot labels.
+Current update (2026-05-19): Phase 57A-59C and Phase 60A-60B have landed on `main` through PR #22-#35, covering Run Cockpit foundation, actions, operator controls, deep links, refresh UX, Playbooks and Output Library context, search density, workflow handoff, workflow focus/provenance, the frontend language foundation, and the Overview role entry. The active next branch is `codex/phase-60-conversation-operator-simplification`, scoped to a Chinese-first Conversations command summary, localized create/send/run controls, run-mode guidance, summary cards, and clearer approval/event/artifact sections.
 
 
 ## Phase 36: Server Admin Dashboard Foundation

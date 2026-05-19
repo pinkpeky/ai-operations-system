@@ -203,7 +203,51 @@ type UiTextKey =
   | "maintainerSettingsDetail"
   | "openPage"
   | "recentSystemSnapshot"
-  | "recentSystemSnapshotDescription";
+  | "recentSystemSnapshotDescription"
+  | "conversationConsoleTitle"
+  | "conversationConsoleDescription"
+  | "conversationOperatorSummary"
+  | "autoSafeModeSummary"
+  | "reviewFirstModeSummary"
+  | "backgroundModeSummary"
+  | "conversationConnection"
+  | "workspaceLabel"
+  | "userLabel"
+  | "selectedConversation"
+  | "createConversationTitle"
+  | "createThreadAction"
+  | "noConversationThreads"
+  | "conversationDetailTitle"
+  | "conversationDetailDescription"
+  | "runStatusLabel"
+  | "routeSelectedLabel"
+  | "selectedToolLabel"
+  | "latestAssistantLabel"
+  | "messageInputPlaceholder"
+  | "sendMessageAction"
+  | "runAutoSafeAction"
+  | "runReviewFirstAction"
+  | "queueBackgroundAction"
+  | "refreshMessagesEventsAction"
+  | "pollEventsAction"
+  | "playbookSelectorTitle"
+  | "playbookSelectorDescription"
+  | "playbookListLabel"
+  | "selectedPlaybookLabel"
+  | "descriptionLabel"
+  | "runPlaybookAction"
+  | "runConversationWithPlaybookAction"
+  | "playbookRunsTitle"
+  | "pendingApprovalsTitle"
+  | "pendingApprovalsDescription"
+  | "noPendingApprovals"
+  | "messagesTitle"
+  | "noMessages"
+  | "generatedArtifactsTitle"
+  | "noGeneratedArtifacts"
+  | "eventsTitle"
+  | "latestEventPayloadTitle"
+  | "resultMetadataTitle";
 
 interface AsyncState<T> {
   data: T | null;
@@ -282,8 +326,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60B",
-    boundaryBody: "首页角色入口与简洁化基础。工作站和服务器维护视角可切换。",
+    boundaryTitle: "Phase 60C",
+    boundaryBody: "对话运行台简洁化。创建、发送、安全运行和审批状态更清楚。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -367,6 +411,50 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     openPage: "打开",
     recentSystemSnapshot: "系统快照",
     recentSystemSnapshotDescription: "局部接口失败会直接显示，首页仍可继续使用。",
+    conversationConsoleTitle: "对话运行台",
+    conversationConsoleDescription: "创建对话、发送消息、触发安全运行，并查看审批、事件和产物。",
+    conversationOperatorSummary: "先建立或选择对话，再发送消息，最后按风险选择自动运行、先审后跑或后台队列。",
+    autoSafeModeSummary: "auto_safe：仅自动执行低风险动作。",
+    reviewFirstModeSummary: "review_first：中高风险动作先进入人工审批。",
+    backgroundModeSummary: "background：把运行交给后台任务队列。",
+    conversationConnection: "AI 服务",
+    workspaceLabel: "工作区",
+    userLabel: "用户",
+    selectedConversation: "当前对话",
+    createConversationTitle: "对话标题",
+    createThreadAction: "创建对话",
+    noConversationThreads: "暂无对话线程。",
+    conversationDetailTitle: "消息 / 事件",
+    conversationDetailDescription: "基础界面：事件时间线通过轮询刷新；not WebSocket, not SSE, and not a full ChatGPT UI。",
+    runStatusLabel: "运行状态",
+    routeSelectedLabel: "路由",
+    selectedToolLabel: "工具",
+    latestAssistantLabel: "最新回复",
+    messageInputPlaceholder: "输入用户消息，然后选择运行方式。",
+    sendMessageAction: "发送消息",
+    runAutoSafeAction: "自动安全运行",
+    runReviewFirstAction: "先审后跑",
+    queueBackgroundAction: "后台队列",
+    refreshMessagesEventsAction: "刷新消息/事件",
+    pollEventsAction: "每 5 秒轮询事件",
+    playbookSelectorTitle: "剧本选择",
+    playbookSelectorDescription: "剧本用于标准化常见流程；仍会遵守审批门禁，不是完整工作流构建器。",
+    playbookListLabel: "剧本数量",
+    selectedPlaybookLabel: "已选剧本",
+    descriptionLabel: "说明",
+    runPlaybookAction: "运行剧本",
+    runConversationWithPlaybookAction: "按剧本运行对话",
+    playbookRunsTitle: "剧本运行",
+    pendingApprovalsTitle: "待审批",
+    pendingApprovalsDescription: "中高风险动作会停在这里，人工确认后才会执行。",
+    noPendingApprovals: "暂无待审批。可以用先审后跑模式触发需要审批的请求。",
+    messagesTitle: "消息",
+    noMessages: "暂无消息。",
+    generatedArtifactsTitle: "生成产物",
+    noGeneratedArtifacts: "暂无生成产物。剧本完成后会显示在这里。",
+    eventsTitle: "事件",
+    latestEventPayloadTitle: "最新事件数据",
+    resultMetadataTitle: "运行元数据",
   },
   "en-US": {
     brandSubtitle: "Operations Console",
@@ -374,8 +462,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60B",
-    boundaryBody: "Overview persona entry and simplification foundation for workstation and server maintenance modes.",
+    boundaryTitle: "Phase 60C",
+    boundaryBody: "Conversation console simplification: clearer create, send, safe run, and approval states.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -459,6 +547,50 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     openPage: "Open",
     recentSystemSnapshot: "System Snapshot",
     recentSystemSnapshotDescription: "Partial API failures are shown inline so the dashboard remains usable.",
+    conversationConsoleTitle: "Conversation Console",
+    conversationConsoleDescription: "Create threads, send messages, trigger safe runs, and inspect approvals, events, and artifacts.",
+    conversationOperatorSummary: "Create or select a thread, send a message, then choose auto-safe, review-first, or background execution based on risk.",
+    autoSafeModeSummary: "auto_safe: only low-risk actions run automatically.",
+    reviewFirstModeSummary: "review_first: medium/high-risk actions wait for human approval.",
+    backgroundModeSummary: "background: queue execution into the task runner.",
+    conversationConnection: "AI Server",
+    workspaceLabel: "workspace",
+    userLabel: "user",
+    selectedConversation: "selected",
+    createConversationTitle: "Conversation title",
+    createThreadAction: "Create thread",
+    noConversationThreads: "No conversation threads.",
+    conversationDetailTitle: "Messages / Events",
+    conversationDetailDescription: "Foundation UI only. Event timeline is polling based; this is not WebSocket, not SSE, and not a full ChatGPT UI.",
+    runStatusLabel: "Run status",
+    routeSelectedLabel: "Route selected",
+    selectedToolLabel: "Selected tool",
+    latestAssistantLabel: "Latest assistant",
+    messageInputPlaceholder: "Send a user message, then run the conversation turn.",
+    sendMessageAction: "Send message",
+    runAutoSafeAction: "Run conversation auto_safe",
+    runReviewFirstAction: "Run review_first",
+    queueBackgroundAction: "Queue background",
+    refreshMessagesEventsAction: "Refresh messages/events",
+    pollEventsAction: "Poll events every 5 seconds",
+    playbookSelectorTitle: "Playbook selector",
+    playbookSelectorDescription: "Conversation Playbooks standardize common flows. This is not a full workflow builder and still respects approval gates.",
+    playbookListLabel: "Playbook list",
+    selectedPlaybookLabel: "Selected",
+    descriptionLabel: "Description",
+    runPlaybookAction: "Run playbook",
+    runConversationWithPlaybookAction: "Run conversation with playbook",
+    playbookRunsTitle: "Playbook runs",
+    pendingApprovalsTitle: "Pending Approvals Panel",
+    pendingApprovalsDescription: "Medium/high risk actions stay pending until a human approves and explicitly executes them.",
+    noPendingApprovals: "No pending approvals yet. Try Run review_first with a browser request.",
+    messagesTitle: "Messages",
+    noMessages: "No messages yet.",
+    generatedArtifactsTitle: "Generated artifacts",
+    noGeneratedArtifacts: "No generated artifacts yet. Completed playbook runs will appear here.",
+    eventsTitle: "Events",
+    latestEventPayloadTitle: "Latest Event Payload",
+    resultMetadataTitle: "Result Metadata",
   },
 };
 
@@ -1783,7 +1915,16 @@ function BrowserRuntimePage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettings; targetThreadId?: string }) {
+function ConversationsPage({
+  settings,
+  targetThreadId,
+  language,
+}: {
+  settings: AdminSettings;
+  targetThreadId?: string;
+  language: UiLanguage;
+}) {
+  const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [threads, setThreads] = useState<AsyncState<ConversationThread[]>>(emptyState());
   const [selectedThread, setSelectedThread] = useState<ConversationThread | null>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -2073,52 +2214,75 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
   const latestEventPayload = events.length > 0 ? events[events.length - 1].payload : { status: "no events" };
   const routeEvent = [...events].reverse().find((event) => event.event_type === "route_selected");
+  const pendingApprovalCount = approvals.filter((approval) => approval.approval_status === "pending").length;
 
   return (
-    <div className="split-page">
-      <Panel
-        title="Conversations"
-        description="Conversation Runtime frontend integration. Polling event timeline only; this is not WebSocket, not SSE, and not a full ChatGPT UI."
-        action={<RefreshButton onClick={load} />}
-      >
-        <div className="conversation-toolbar">
-          <input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} aria-label="Conversation title" />
-          <button className="primary-button" onClick={() => void createThread()}>
-            <MessageSquareText size={15} />
-            Create thread
-          </button>
+    <div className="page-stack">
+      <section className="conversation-command-center">
+        <div>
+          <p className="section-eyebrow">{t("conversationConsoleTitle")}</p>
+          <h2>{t("conversationConsoleTitle")}</h2>
+          <p>{t("conversationOperatorSummary")}</p>
         </div>
-        <div className="summary-strip">
-          <span>AI Server: <StatusPill value={connectionState} /></span>
-          <span>workspace: {settings.workspaceId}</span>
-          <span>user: {settings.userId}</span>
-          <span>selected: {selectedThread?.id ?? "-"}</span>
+        <div className="conversation-mode-grid">
+          <span>{t("autoSafeModeSummary")}</span>
+          <span>{t("reviewFirstModeSummary")}</span>
+          <span>{t("backgroundModeSummary")}</span>
         </div>
-        <LoadNotice state={threads} />
-        <Table
-          rows={(threads.data || []) as unknown as JsonRecord[]}
-          selectedId={selectedId}
-          onSelect={(row) => void loadThread(row as unknown as ConversationThread)}
-          emptyLabel="No conversation threads."
-          columns={[
-            { key: "id", label: "thread_id", aliases: ["thread_id"] },
-            { key: "title", label: "title" },
-            { key: "status", label: "status" },
-            { key: "created_at", label: "created_at" },
-            { key: "updated_at", label: "updated_at" },
-          ]}
-        />
-      </Panel>
-      <aside className="detail-panel">
-        <h2>Messages / Events</h2>
-        <p className="foundation-note">
-          Foundation UI only. Event timeline is polling based; WebSocket and SSE remain placeholders.
-        </p>
+      </section>
+      <section className="metrics-grid compact">
+        <DataCard title={t("conversationThreads")} value={threads.data?.length ?? "-"} detail={selectedThread?.title ?? t("selectedConversation")} icon={<MessageSquareText size={20} />} />
+        <DataCard title={t("messagesTitle")} value={messages.length} detail={`${assistantMessages.length} assistant`} icon={<Send size={20} />} />
+        <DataCard title={t("pendingApprovalsTitle")} value={pendingApprovalCount} detail={`${approvals.length} total`} icon={<ShieldCheck size={20} />} warning={pendingApprovalCount > 0} />
+        <DataCard title={t("generatedArtifactsTitle")} value={artifacts.length} detail={selectedThread?.title ?? t("selectedConversation")} icon={<FileText size={20} />} />
+      </section>
+      <div className="split-page">
+        <Panel
+          title={t("conversationConsoleTitle")}
+          description={t("conversationConsoleDescription")}
+          action={<RefreshButton onClick={load} />}
+        >
+          <div className="conversation-toolbar">
+            <input
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value)}
+              aria-label={t("createConversationTitle")}
+              placeholder={t("createConversationTitle")}
+            />
+            <button className="primary-button" onClick={() => void createThread()}>
+              <MessageSquareText size={15} />
+              {t("createThreadAction")}
+            </button>
+          </div>
+          <div className="summary-strip">
+            <span>{t("conversationConnection")}: <StatusPill value={connectionState} /></span>
+            <span>{t("workspaceLabel")}: {settings.workspaceId}</span>
+            <span>{t("userLabel")}: {settings.userId}</span>
+            <span>{t("selectedConversation")}: {selectedThread?.id ?? "-"}</span>
+          </div>
+          <LoadNotice state={threads} />
+          <Table
+            rows={(threads.data || []) as unknown as JsonRecord[]}
+            selectedId={selectedId}
+            onSelect={(row) => void loadThread(row as unknown as ConversationThread)}
+            emptyLabel={t("noConversationThreads")}
+            columns={[
+              { key: "id", label: "thread_id", aliases: ["thread_id"] },
+              { key: "title", label: "title" },
+              { key: "status", label: "status" },
+              { key: "created_at", label: "created_at" },
+              { key: "updated_at", label: "updated_at" },
+            ]}
+          />
+        </Panel>
+        <aside className="detail-panel">
+          <h2>{t("conversationDetailTitle")}</h2>
+          <p className="foundation-note">{t("conversationDetailDescription")}</p>
         <div className="chat-status-row">
-          <span>Run status: <StatusPill value={runStatus} /></span>
-          <span>Route selected: {valueAt(routeEvent?.payload as JsonRecord, ["route_name"], "-")}</span>
-          <span>Selected tool: {valueAt(routeEvent?.payload as JsonRecord, ["selected_tool"], "-")}</span>
-          <span>Latest assistant: {latestAssistantMessage?.content ?? "-"}</span>
+          <span>{t("runStatusLabel")}: <StatusPill value={runStatus} /></span>
+          <span>{t("routeSelectedLabel")}: {valueAt(routeEvent?.payload as JsonRecord, ["route_name"], "-")}</span>
+          <span>{t("selectedToolLabel")}: {valueAt(routeEvent?.payload as JsonRecord, ["selected_tool"], "-")}</span>
+          <span>{t("latestAssistantLabel")}: {latestAssistantMessage?.content ?? "-"}</span>
         </div>
         {detailError ? (
           <div className="notice notice-error">
@@ -2130,28 +2294,28 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
           <textarea
             value={messageInput}
             onChange={(event) => setMessageInput(event.target.value)}
-            placeholder="Send a user message, then run the conversation turn."
+            placeholder={t("messageInputPlaceholder")}
           />
           <div className="conversation-actions">
             <button className="ghost-button" onClick={() => void sendMessage()} disabled={!selectedThread}>
               <Send size={15} />
-              Send message
+              {t("sendMessageAction")}
             </button>
             <button className="primary-button" onClick={() => void runConversation()} disabled={!selectedThread}>
               <Activity size={15} />
-              Run conversation auto_safe
+              {t("runAutoSafeAction")}
             </button>
             <button className="ghost-button" onClick={() => void runConversation("review_first")} disabled={!selectedThread}>
               <AlertTriangle size={15} />
-              Run review_first
+              {t("runReviewFirstAction")}
             </button>
             <button className="ghost-button" onClick={() => void runConversation("review_first", "background")} disabled={!selectedThread}>
               <PlayCircle size={15} />
-              Queue background
+              {t("queueBackgroundAction")}
             </button>
             <button className="ghost-button" onClick={() => void refreshSelected()} disabled={!selectedThread}>
               <RefreshCcw size={15} />
-              Refresh messages/events
+              {t("refreshMessagesEventsAction")}
             </button>
           </div>
           <label className="checkbox-row">
@@ -2160,13 +2324,11 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
               checked={autoRefreshEvents}
               onChange={(event) => setAutoRefreshEvents(event.target.checked)}
             />
-            Poll events every 5 seconds
+            {t("pollEventsAction")}
           </label>
         </div>
-        <h3>Playbook selector</h3>
-        <p className="foundation-note">
-          Conversation Playbooks standardize common flows. This is not a full workflow builder and still respects approval gates.
-        </p>
+        <h3>{t("playbookSelectorTitle")}</h3>
+        <p className="foundation-note">{t("playbookSelectorDescription")}</p>
         <div className="conversation-compose">
           <select value={selectedPlaybookName} onChange={(event) => setSelectedPlaybookName(event.target.value)}>
             {playbooks.map((playbook) => (
@@ -2176,22 +2338,22 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
             ))}
           </select>
           <div className="summary-strip">
-            <span>Playbook list: {playbooks.length}</span>
-            <span>Selected: {selectedPlaybookName || "-"}</span>
-            <span>Description: {playbooks.find((item) => item.name === selectedPlaybookName)?.description ?? "-"}</span>
+            <span>{t("playbookListLabel")}: {playbooks.length}</span>
+            <span>{t("selectedPlaybookLabel")}: {selectedPlaybookName || "-"}</span>
+            <span>{t("descriptionLabel")}: {playbooks.find((item) => item.name === selectedPlaybookName)?.description ?? "-"}</span>
           </div>
           <div className="conversation-actions">
             <button className="primary-button" onClick={() => void runSelectedPlaybook()}>
               <Activity size={15} />
-              Run playbook
+              {t("runPlaybookAction")}
             </button>
             <button className="ghost-button" onClick={() => void runConversation("review_first")} disabled={!selectedThread}>
               <AlertTriangle size={15} />
-              Run conversation with playbook
+              {t("runConversationWithPlaybookAction")}
             </button>
           </div>
         </div>
-        <h3>Playbook runs</h3>
+        <h3>{t("playbookRunsTitle")}</h3>
         <div className="approval-list">
           {playbookRuns.length > 0 ? (
             playbookRuns.slice(0, 6).map((run) => (
@@ -2213,10 +2375,8 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
             <div className="empty-chat">No Playbook runs yet. Try browser_screenshot_report or content_generation.</div>
           )}
         </div>
-        <h3>Pending Approvals Panel</h3>
-        <p className="foundation-note">
-          Approval Flow foundation. Medium/high risk actions stay pending until a human approves and explicitly executes them.
-        </p>
+        <h3>{t("pendingApprovalsTitle")}</h3>
+        <p className="foundation-note">{t("pendingApprovalsDescription")}</p>
         <div className="approval-list">
           {approvals.length > 0 ? (
             approvals.map((approval) => (
@@ -2249,10 +2409,10 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
               </div>
             ))
           ) : (
-            <div className="empty-chat">No pending approvals yet. Try Run review_first with a browser request.</div>
+            <div className="empty-chat">{t("noPendingApprovals")}</div>
           )}
         </div>
-        <h3>Messages</h3>
+        <h3>{t("messagesTitle")}</h3>
         <div className="approval-list">
           {messages.length > 0 ? (
             messages.map((message) => (
@@ -2270,10 +2430,10 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
               </div>
             ))
           ) : (
-            <div className="empty-chat">No messages yet.</div>
+            <div className="empty-chat">{t("noMessages")}</div>
           )}
         </div>
-        <h3>Generated artifacts</h3>
+        <h3>{t("generatedArtifactsTitle")}</h3>
         <div className="approval-list">
           {artifacts.length > 0 ? (
             artifacts.map((artifact) => (
@@ -2294,16 +2454,17 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
               </div>
             ))
           ) : (
-            <div className="empty-chat">No generated artifacts yet. Completed playbook runs will appear here.</div>
+            <div className="empty-chat">{t("noGeneratedArtifacts")}</div>
           )}
         </div>
-        <h3>Events</h3>
+        <h3>{t("eventsTitle")}</h3>
         <Timeline rows={events as unknown as JsonRecord[]} primary="event_type" secondary="message" />
-        <h3>Latest Event Payload</h3>
+        <h3>{t("latestEventPayloadTitle")}</h3>
         <JsonPreview value={latestEventPayload} />
-        <h3>Result Metadata</h3>
+        <h3>{t("resultMetadataTitle")}</h3>
         <JsonPreview value={lastRunMetadata || { status: "run a conversation to see full bridge metadata" }} />
-      </aside>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -4015,7 +4176,7 @@ function App() {
           {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} language={language} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
-          {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} /> : null}
+          {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} language={language} /> : null}
           {activePage === "playbooks" ? <PlaybooksPage settings={settings} targetThreadId={deepLinkTarget.threadId} onNavigate={navigate} /> : null}
           {activePage === "output-library" ? (
             <OutputLibraryPage

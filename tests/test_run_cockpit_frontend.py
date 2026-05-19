@@ -88,7 +88,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "运行驾驶舱" in text
     assert "中文" in text
     assert "English" in text
-    assert "首页角色入口与简洁化基础" in text
+    assert "对话运行台简洁化" in text
     assert "OverviewPersona" in text
     assert "overview-command-center" in text
     assert "overview-mode-switch" in text
@@ -97,10 +97,13 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "服务器维护" in text
     assert "工作站运行入口" in text
     assert "服务器维护入口" in text
+    assert "conversation-command-center" in text
+    assert "conversation-mode-grid" in text
+    assert "对话运行台" in text
 
 
-def test_run_cockpit_docs_track_overview_persona_slice() -> None:
-    """Recovery docs should point to the active overview persona slice."""
+def test_run_cockpit_docs_track_conversation_operator_slice() -> None:
+    """Recovery docs should point to the active conversation operator slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -114,7 +117,7 @@ def test_run_cockpit_docs_track_overview_persona_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-60-overview-persona-simplification" in text or "Overview Persona" in text, path
+        assert "phase-60-conversation-operator-simplification" in text or "Conversation Operator" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -141,8 +144,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_60_overview_persona_slice() -> None:
-    """Phase 60A should be merged and Phase 60B should be the active overview persona slice."""
+def test_run_cockpit_phase_index_tracks_phase_60_conversation_operator_slice() -> None:
+    """Phase 60B should be merged and Phase 60C should be the active conversation operator slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -228,6 +231,13 @@ def test_run_cockpit_phase_index_tracks_phase_60_overview_persona_slice() -> Non
     assert "In progress" not in phase_60_lines["60A"]
 
     assert "60B" in phase_60_lines
+    assert "#35" in phase_60_lines["60B"]
     assert "phase-60-overview-persona-simplification" in phase_60_lines["60B"]
-    assert "TBD" in phase_60_lines["60B"]
-    assert "In progress" in phase_60_lines["60B"]
+    assert "Merged to main" in phase_60_lines["60B"]
+    assert "TBD" not in phase_60_lines["60B"]
+    assert "In progress" not in phase_60_lines["60B"]
+
+    assert "60C" in phase_60_lines
+    assert "phase-60-conversation-operator-simplification" in phase_60_lines["60C"]
+    assert "TBD" in phase_60_lines["60C"]
+    assert "In progress" in phase_60_lines["60C"]

@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60-overview-persona-simplification
+codex/phase-60-conversation-operator-simplification
 ```
 
 ## Scope
@@ -103,6 +103,12 @@ The current overview persona and simplification slice adds:
 - Role-specific entry cards for Run Cockpit, Conversations, Playbooks, Output Library, Workers, Browser Runtime, Tasks, and Settings.
 - Localized overview metric labels and concise system snapshot labels while preserving the existing raw JSON diagnostics.
 
+The current conversation operator and simplification slice adds:
+
+- A Chinese-first Conversations command summary with run-mode guidance for `auto_safe`, `review_first`, and background execution.
+- Localized create, send, run, refresh, playbook, approval, event, and artifact labels on the Conversations page.
+- Operator summary cards for thread count, messages, pending approvals, and generated artifacts.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -124,6 +130,7 @@ An operator can open one screen and answer:
 - Workflow focus context that explains which selected runtime object supplied the linked workflow and whether detail loading is ready or unavailable.
 - A Chinese-first dashboard shell with an English switch so workstation operators and server maintainers can orient themselves quickly.
 - An Overview page that separates workstation operation from server maintenance and opens the most relevant dashboard pages directly.
+- A Conversations page that explains how to create, send, safely run, review approvals, and inspect event/artifact output.
 
 ## Boundaries
 
@@ -143,6 +150,7 @@ An operator can open one screen and answer:
 - Workflow focus is a frontend provenance and state layer; it does not change workflow selection, replay, or execution behavior on the server.
 - The Phase 60A language slice is a frontend foundation only; it does not provide full translation coverage, RBAC, workflow execution changes, or production publishing.
 - The Phase 60B Overview slice is a frontend navigation and clarity layer only; it does not add permissions, new backend APIs, or new runtime execution behavior.
+- The Phase 60C Conversations slice is a frontend clarity layer only; it does not add streaming, WebSocket/SSE, new approvals semantics, or new execution behavior.
 
 ## Acceptance
 
