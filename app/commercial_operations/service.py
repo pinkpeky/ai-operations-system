@@ -13,12 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
+    CommercialOperationAssetRequest,
     CommercialOperationContentDraft,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
 from app.models.enums import (
     CommercialOperationApprovalStatus,
+    CommercialOperationAssetRequestStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationStatus,
@@ -679,6 +681,309 @@ class CommercialOperationService:
             reviewer_notes=reviewer_notes,
         )
 
+    async def create_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        step_key: str = "content_production",
+        content_draft_id: UUID | None = None,
+        channel: str,
+        asset_type: str = "image",
+        title: str,
+        purpose: str | None = None,
+        dimensions: str | None = None,
+        style_constraints: str | None = None,
+        generation_prompt: str | None = None,
+        negative_prompt: str | None = None,
+        source_materials: list[str] | None = None,
+        readiness_checks: list[str] | None = None,
+        requested_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationAssetRequest:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        clean_step_key = self._clean_required_text(step_key, "step_key")
+        if not self._plan_step(operation, clean_step_key):
+            raise ValueError("step_key is not present in operation plan_outline")
+        content_draft: CommercialOperationContentDraft | None = None
+        if content_draft_id is not None:
+            content_draft = await self.require_content_draft(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                draft_id=content_draft_id,
+            )
+        clean_channel = self._clean_required_text(channel, "channel")
+        clean_asset_type = self._clean_required_text(asset_type, "asset_type")
+        clean_title = self._clean_required_text(title, "title")
+        clean_source_materials = self._clean_list(source_materials or (content_draft.source_materials if content_draft else []))
+        clean_readiness_checks = self._clean_list(readiness_checks) or [
+            "human review",
+            "source materials attached",
+            "no ComfyUI job created",
+        ]
+        asset_request = CommercialOperationAssetRequest(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            content_draft_id=content_draft_id,
+            step_key=clean_step_key,
+            channel=clean_channel,
+            asset_type=clean_asset_type,
+            title=clean_title,
+            request_status=CommercialOperationAssetRequestStatus.DRAFT.value,
+            purpose=purpose.strip() if purpose and purpose.strip() else None,
+            dimensions=dimensions.strip() if dimensions and dimensions.strip() else None,
+            style_constraints=style_constraints.strip() if style_constraints and style_constraints.strip() else None,
+            generation_prompt=generation_prompt.strip() if generation_prompt and generation_prompt.strip() else None,
+            negative_prompt=negative_prompt.strip() if negative_prompt and negative_prompt.strip() else None,
+            source_materials=clean_source_materials,
+            readiness_checks=clean_readiness_checks,
+            requested_by=requested_by,
+            updated_by=requested_by,
+            asset_metadata=metadata or {},
+        )
+        asset_request.handoff_payload = self._build_asset_handoff_payload(
+            operation=operation,
+            asset_request=asset_request,
+        )
+        self.session.add(asset_request)
+        await self.session.flush()
+        self._apply_asset_request_to_plan(operation, asset_request)
+        await self.session.commit()
+        await self.session.refresh(asset_request)
+        return asset_request
+
+    async def list_asset_requests(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        content_draft_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationAssetRequest]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationAssetRequest).where(
+            CommercialOperationAssetRequest.workspace_id == workspace_id,
+            CommercialOperationAssetRequest.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationAssetRequest.request_status == status)
+        if content_draft_id is not None:
+            statement = statement.where(CommercialOperationAssetRequest.content_draft_id == content_draft_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationAssetRequest.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+    ) -> CommercialOperationAssetRequest:
+        result = await self.session.execute(
+            select(CommercialOperationAssetRequest).where(
+                CommercialOperationAssetRequest.workspace_id == workspace_id,
+                CommercialOperationAssetRequest.operation_id == operation_id,
+                CommercialOperationAssetRequest.id == asset_request_id,
+            )
+        )
+        asset_request = result.scalar_one_or_none()
+        if asset_request is None:
+            raise ValueError("Commercial operation asset request not found in workspace")
+        return asset_request
+
+    async def update_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+        )
+        if asset_request.request_status == CommercialOperationAssetRequestStatus.ARCHIVED.value:
+            raise ValueError("Archived asset requests cannot be updated")
+        if "content_draft_id" in patch and patch["content_draft_id"] is not None:
+            await self.require_content_draft(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                draft_id=patch["content_draft_id"],
+            )
+        scalar_fields = {
+            "content_draft_id",
+            "channel",
+            "asset_type",
+            "title",
+            "purpose",
+            "dimensions",
+            "style_constraints",
+            "generation_prompt",
+            "negative_prompt",
+        }
+        required_text_fields = {"channel", "asset_type", "title"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                setattr(asset_request, field, value)
+        if "source_materials" in patch:
+            asset_request.source_materials = self._clean_list(patch["source_materials"])
+        if "readiness_checks" in patch:
+            asset_request.readiness_checks = self._clean_list(patch["readiness_checks"])
+        if "metadata" in patch:
+            asset_request.asset_metadata = patch["metadata"] or {}
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        asset_request.handoff_payload = self._build_asset_handoff_payload(
+            operation=operation,
+            asset_request=asset_request,
+        )
+        asset_request.updated_by = updated_by
+        asset_request.request_status = CommercialOperationAssetRequestStatus.DRAFT.value
+        asset_request.approved_by = None
+        asset_request.prepared_by = None
+        asset_request.approved_at = None
+        asset_request.rejected_at = None
+        asset_request.prepared_at = None
+        asset_request.failed_at = None
+        asset_request.failure_reason = None
+        asset_request.result_summary = None
+        self._apply_asset_request_to_plan(operation, asset_request)
+        await self.session.commit()
+        await self.session.refresh(asset_request)
+        return asset_request
+
+    async def mark_asset_request_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        return await self._decide_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            status=CommercialOperationAssetRequestStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        return await self._decide_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            status=CommercialOperationAssetRequestStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        return await self._decide_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            status=CommercialOperationAssetRequestStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def prepare_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        prepared_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        return await self._decide_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            status=CommercialOperationAssetRequestStatus.PREPARED.value,
+            actor_user_id=prepared_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        return await self._decide_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            status=CommercialOperationAssetRequestStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def archive_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationAssetRequest:
+        return await self._decide_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            status=CommercialOperationAssetRequestStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_link(
         self,
         *,
@@ -918,6 +1223,92 @@ class CommercialOperationService:
                 outline.append(dict(step))
         operation.plan_outline = outline
 
+    async def _decide_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationAssetRequest:
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+        )
+        if asset_request.request_status == CommercialOperationAssetRequestStatus.ARCHIVED.value:
+            raise ValueError("Archived asset requests cannot be changed")
+        if status == CommercialOperationAssetRequestStatus.READY_FOR_REVIEW.value and asset_request.request_status not in {
+            CommercialOperationAssetRequestStatus.DRAFT.value,
+            CommercialOperationAssetRequestStatus.REJECTED.value,
+            CommercialOperationAssetRequestStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed asset requests can be marked ready")
+        if status in {
+            CommercialOperationAssetRequestStatus.APPROVED.value,
+            CommercialOperationAssetRequestStatus.REJECTED.value,
+        } and asset_request.request_status != CommercialOperationAssetRequestStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready asset requests can be approved or rejected")
+        if status in {
+            CommercialOperationAssetRequestStatus.PREPARED.value,
+            CommercialOperationAssetRequestStatus.FAILED.value,
+        } and asset_request.request_status != CommercialOperationAssetRequestStatus.APPROVED.value:
+            raise ValueError("Only approved asset requests can be prepared or failed")
+        now = datetime.now(UTC)
+        asset_request.request_status = status
+        asset_request.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        asset_request.result_summary = result_summary.strip() if result_summary and result_summary.strip() else None
+        asset_request.failure_reason = failure_reason.strip() if failure_reason and failure_reason.strip() else None
+        asset_request.updated_by = actor_user_id
+        if status == CommercialOperationAssetRequestStatus.APPROVED.value:
+            asset_request.approved_by = actor_user_id
+            asset_request.approved_at = now
+            asset_request.rejected_at = None
+            asset_request.prepared_at = None
+            asset_request.failed_at = None
+            asset_request.archived_at = None
+        elif status == CommercialOperationAssetRequestStatus.REJECTED.value:
+            asset_request.rejected_at = now
+            asset_request.approved_by = None
+            asset_request.prepared_by = None
+            asset_request.approved_at = None
+            asset_request.prepared_at = None
+            asset_request.failed_at = None
+            asset_request.archived_at = None
+        elif status == CommercialOperationAssetRequestStatus.READY_FOR_REVIEW.value:
+            asset_request.approved_by = None
+            asset_request.prepared_by = None
+            asset_request.approved_at = None
+            asset_request.rejected_at = None
+            asset_request.prepared_at = None
+            asset_request.failed_at = None
+            asset_request.archived_at = None
+        elif status == CommercialOperationAssetRequestStatus.PREPARED.value:
+            asset_request.prepared_by = actor_user_id
+            asset_request.prepared_at = now
+            asset_request.failed_at = None
+            asset_request.archived_at = None
+        elif status == CommercialOperationAssetRequestStatus.FAILED.value:
+            asset_request.failed_at = now
+            asset_request.prepared_by = None
+            asset_request.prepared_at = None
+            asset_request.archived_at = None
+        elif status == CommercialOperationAssetRequestStatus.ARCHIVED.value:
+            asset_request.archived_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        asset_request.handoff_payload = self._build_asset_handoff_payload(
+            operation=operation,
+            asset_request=asset_request,
+        )
+        self._apply_asset_request_to_plan(operation, asset_request)
+        await self.session.commit()
+        await self.session.refresh(asset_request)
+        return asset_request
+
     async def _decide_content_draft(
         self,
         *,
@@ -1078,6 +1469,31 @@ class CommercialOperationService:
         lines.append("Boundary: this is a draft only; it does not publish or control external accounts.")
         return "\n".join(lines)
 
+    def _build_asset_handoff_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        asset_request: CommercialOperationAssetRequest,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "content_draft_id": str(asset_request.content_draft_id) if asset_request.content_draft_id else None,
+            "step_key": asset_request.step_key,
+            "channel": asset_request.channel,
+            "asset_type": asset_request.asset_type,
+            "title": asset_request.title,
+            "purpose": asset_request.purpose,
+            "dimensions": asset_request.dimensions,
+            "generation_prompt": asset_request.generation_prompt,
+            "negative_prompt": asset_request.negative_prompt,
+            "source_materials": asset_request.source_materials,
+            "readiness_checks": asset_request.readiness_checks,
+            "request_status": asset_request.request_status,
+            "execution_boundary": "no ComfyUI job is created in this phase",
+            "next_runtime": "future_comfyui_handoff",
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -1097,6 +1513,36 @@ class CommercialOperationService:
                     updated["content_draft_decision_at"] = draft.rejected_at.isoformat()
                 elif draft.archived_at is not None:
                     updated["content_draft_decision_at"] = draft.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_asset_request_to_plan(
+        self,
+        operation: CommercialOperation,
+        asset_request: CommercialOperationAssetRequest,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == asset_request.step_key:
+                updated = dict(step)
+                updated["asset_request_id"] = str(asset_request.id)
+                updated["asset_request_status"] = asset_request.request_status
+                updated["asset_request_channel"] = asset_request.channel
+                updated["asset_request_type"] = asset_request.asset_type
+                if asset_request.content_draft_id is not None:
+                    updated["asset_request_content_draft_id"] = str(asset_request.content_draft_id)
+                if asset_request.approved_at is not None:
+                    updated["asset_request_decision_at"] = asset_request.approved_at.isoformat()
+                elif asset_request.rejected_at is not None:
+                    updated["asset_request_decision_at"] = asset_request.rejected_at.isoformat()
+                elif asset_request.prepared_at is not None:
+                    updated["asset_request_decision_at"] = asset_request.prepared_at.isoformat()
+                elif asset_request.failed_at is not None:
+                    updated["asset_request_decision_at"] = asset_request.failed_at.isoformat()
+                elif asset_request.archived_at is not None:
+                    updated["asset_request_decision_at"] = asset_request.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

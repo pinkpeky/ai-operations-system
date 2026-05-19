@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61e-commercial-operation-content-drafts
+codex/phase-61f-commercial-operation-asset-requests
 ```
 
 ## What This Phase Adds
@@ -23,17 +23,20 @@ codex/phase-61e-commercial-operation-content-drafts
 - Database table: `commercial_operation_approvals`.
 - Database table: `commercial_operation_dry_runs`.
 - Database table: `commercial_operation_content_drafts`.
+- Database table: `commercial_operation_asset_requests`.
 - ORM model: `CommercialOperation`.
 - ORM model: `CommercialOperationLink`.
 - ORM model: `CommercialOperationApproval`.
 - ORM model: `CommercialOperationDryRun`.
 - ORM model: `CommercialOperationContentDraft`.
+- ORM model: `CommercialOperationAssetRequest`.
 - Service layer: `CommercialOperationService`.
 - API route group: `/api/v1/commercial-operations`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/links`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/approvals`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/dry-runs`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/content-drafts`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/asset-requests`.
 - Admin Dashboard page: `?page=commercial-operations`.
 - API client: `commercialOperationsApi`.
 - Migration: `0035_phase61a_commercial_ops`.
@@ -41,6 +44,7 @@ codex/phase-61e-commercial-operation-content-drafts
 - Migration: `0037_phase61c_op_approvals`.
 - Migration: `0038_phase61d_op_dry_runs`.
 - Migration: `0039_phase61e_content_drafts`.
+- Migration: `0040_phase61f_asset_requests`.
 
 Each commercial operation stores:
 
@@ -79,6 +83,13 @@ Each commercial operation content draft stores:
 - creator, updater, approver, decision timestamps, and archive timestamp;
 - `draft_status`: `draft`, `ready_for_review`, `approved`, `rejected`, or `archived`.
 
+Each commercial operation asset request stores:
+
+- workspace, operation, optional content draft, and plan-step context;
+- channel, asset type, title, purpose, dimensions, style constraints, future generation prompt, negative prompt, source materials, readiness checks, and handoff payload;
+- requester, updater, approver, preparer, reviewer notes, result summary, failure reason, decision timestamps, archive timestamp, and metadata;
+- `request_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, or `archived`.
+
 ## Evidence and Handoff Links
 
 Phase 61B treats these links as operator-readable evidence and handoff context. They are deliberately lightweight references so later phases can build approval-backed plan steps, content artifacts, RAG snapshots, safe dry-runs, monitoring, and result reports on top of a durable project record.
@@ -99,6 +110,12 @@ Phase 61E treats content drafts as reviewable artifacts for a specific operation
 
 Content drafts do not publish content, call OpenClaw, run ComfyUI jobs, control browser workers, or contact external accounts. Asset requests are placeholders only; they prepare the later ComfyUI handoff shape without starting a real generation job.
 
+## Asset Requests
+
+Phase 61F treats asset requests as first-class, reviewable records. A request can be created from a plan step and optionally linked to a content draft, edited, marked ready for review, approved, rejected, prepared for future ComfyUI handoff, failed during preparation, or archived. Creating or deciding an asset request writes the latest request state back to the matching `plan_outline` step so operators can see whether a channel needs visual, video, design, or supporting content assets.
+
+Asset requests do not start ComfyUI, publish assets, run OpenClaw, control Browser Worker actions, or contact external accounts. The `handoff_payload` is intentionally metadata-only and carries the later ComfyUI shape, source materials, checks, and safety boundary.
+
 ## Operator Flow
 
 1. Open Admin Dashboard and select Commercial Ops / 商业运营.
@@ -109,11 +126,12 @@ Content drafts do not publish content, call OpenClaw, run ComfyUI jobs, control 
 6. Regenerate the plan when the goal or constraints change.
 7. Move the operation to ready, active, or paused when the human operating process changes.
 8. Create content drafts for the relevant channels, edit them, send them for review, approve/reject them, and archive obsolete drafts.
-9. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
-10. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
-11. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, dry-run record, or external material.
+9. Create asset requests for images, videos, covers, design files, or supporting assets; approve, prepare, fail, or archive them without starting generation.
+10. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
+11. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
+12. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, dry-run record, or external material.
 
-The page is intentionally compact: form, list, selected detail, plan draft, content drafts, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
+The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
 
 ## Maintainer Flow
 
@@ -142,6 +160,15 @@ POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/read
 POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/approve
 POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/reject
 POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/archive
+GET /api/v1/commercial-operations/{operation_id}/asset-requests
+POST /api/v1/commercial-operations/{operation_id}/asset-requests
+PATCH /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/ready
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/approve
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/reject
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/prepare
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/fail
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/links
 POST /api/v1/commercial-operations/{operation_id}/links
 DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}
@@ -151,7 +178,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft and asset-placeholder foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation.
 
 It does not publish to social platforms.
 
@@ -172,7 +199,7 @@ The plan outline may mention future execution surfaces such as OpenClaw, ComfyUI
 Recommended follow-up slices:
 
 1. Attach RAG evidence snapshots to the plan outline.
-2. Promote asset request placeholders into first-class ComfyUI preparation records before real ComfyUI execution.
-3. Add monitored execution request records that can later connect to OpenClaw/browser worker actions after explicit approval.
+2. Add monitored execution request records that can later connect to OpenClaw/browser worker actions after explicit approval.
+3. Add a guarded ComfyUI job adapter after asset request approvals and preparation are stable.
 4. Add monitoring metrics and failure-recovery records.
 5. Add final business-result reporting once execution and monitoring data exist.

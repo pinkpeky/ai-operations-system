@@ -103,6 +103,18 @@ class CommercialOperationContentDraftStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationAssetRequestStatus(StrEnum):
+    """Commercial operation asset request lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PREPARED = "prepared"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

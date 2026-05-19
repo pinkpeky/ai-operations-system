@@ -462,8 +462,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61D",
-    boundaryBody: "商业运营安全干运行。把运营目标、计划、知识、证据、审批和干运行上下文串成可接手链路。",
+    boundaryTitle: "Phase 61F",
+    boundaryBody: "商业运营素材请求。把运营目标、计划、知识、内容草稿、审批、素材交接和安全干运行串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -725,8 +725,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61D",
-    boundaryBody: "Commercial operation safe dry-runs: connect goals, plans, knowledge, evidence, approvals, and dry-run context.",
+    boundaryTitle: "Phase 61F",
+    boundaryBody: "Commercial operation asset requests: connect goals, plans, knowledge, content drafts, approvals, asset handoff, and safe dry-run context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4385,10 +4385,10 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61E",
+    phaseLabel: "Phase 61F",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
-    summary: "当前只创建计划、审批、证据和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
+    summary: "当前只创建计划、审批、证据、内容草稿、素材请求和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
     flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "监控恢复"],
     total: "项目",
     active: "进行中",
@@ -4463,10 +4463,10 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61E",
+    phaseLabel: "Phase 61F",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
-    summary: "This creates plans, approvals, evidence, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
+    summary: "This creates plans, approvals, evidence, content drafts, asset requests, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
     flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
     total: "Operations",
     active: "In motion",
@@ -4615,11 +4615,60 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           selectedHint: "Select an operation before creating content drafts.",
           noDrafts: "No content drafts yet.",
         };
+  const assetCopy =
+    language === "zh-CN"
+      ? {
+          title: "素材请求",
+          description: "把图片、封面、视频、设计稿等素材需求登记为可审批、可准备、可恢复的记录；当前只做交接准备，不启动 ComfyUI。",
+          sourceDraftLabel: "来源草稿",
+          typeLabel: "素材类型",
+          purposeLabel: "用途",
+          dimensionsLabel: "尺寸/格式",
+          styleLabel: "风格约束",
+          promptLabel: "生成提示",
+          negativePromptLabel: "排除项",
+          readinessLabel: "检查项",
+          createAction: "创建请求",
+          saveAction: "保存请求",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          prepareAction: "准备",
+          failAction: "失败",
+          archiveAction: "归档",
+          selectedHint: "先选择一个项目，再创建素材请求。",
+          noRequests: "暂无素材请求。",
+        }
+      : {
+          title: "Asset requests",
+          description: "Register image, cover, video, or design needs as reviewable and recoverable records. This prepares handoff only; it does not start ComfyUI.",
+          sourceDraftLabel: "Source draft",
+          typeLabel: "Asset type",
+          purposeLabel: "Purpose",
+          dimensionsLabel: "Size / format",
+          styleLabel: "Style constraints",
+          promptLabel: "Generation prompt",
+          negativePromptLabel: "Negative prompt",
+          readinessLabel: "Readiness checks",
+          createAction: "Create request",
+          saveAction: "Save request",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          prepareAction: "Prepare",
+          failAction: "Fail",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation before creating asset requests.",
+          noRequests: "No asset requests yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [dryRunsState, setDryRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [contentDraftsState, setContentDraftsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [assetRequestsState, setAssetRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4656,6 +4705,19 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [sourceMaterialsDraft, setSourceMaterialsDraft] = useState("rag_document, intake_notes");
   const [assetRequestsDraft, setAssetRequestsDraft] = useState("hero image, product proof point");
   const [selectedContentDraftId, setSelectedContentDraftId] = useState("");
+  const [assetStepKey, setAssetStepKey] = useState("content_production");
+  const [assetContentDraftId, setAssetContentDraftId] = useState("");
+  const [assetChannel, setAssetChannel] = useState("newsletter");
+  const [assetType, setAssetType] = useState("image");
+  const [assetTitle, setAssetTitle] = useState(language === "zh-CN" ? "渠道头图素材请求" : "Channel hero asset request");
+  const [assetPurpose, setAssetPurpose] = useState(language === "zh-CN" ? "用于已批准内容草稿的视觉头图。" : "Visual header for the approved content draft.");
+  const [assetDimensions, setAssetDimensions] = useState("1200x628");
+  const [assetStyleConstraints, setAssetStyleConstraints] = useState(language === "zh-CN" ? "清晰、可信、避免不一致品牌元素。" : "Clear, credible, avoid off-brand elements.");
+  const [assetPrompt, setAssetPrompt] = useState(language === "zh-CN" ? "为 B2B 增长活动准备专业营销视觉。" : "Prepare a professional marketing visual for a B2B growth campaign.");
+  const [assetNegativePrompt, setAssetNegativePrompt] = useState(language === "zh-CN" ? "不要真实商标，不要不可读文字。" : "No real logos, no unreadable text.");
+  const [assetSourceMaterialsDraft, setAssetSourceMaterialsDraft] = useState("rag_document, approved_content_draft");
+  const [assetReadinessChecksDraft, setAssetReadinessChecksDraft] = useState("approved draft, source materials, no ComfyUI job");
+  const [selectedAssetRequestId, setSelectedAssetRequestId] = useState("");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -4779,19 +4841,43 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadAssetRequests = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setAssetRequestsState(emptyState());
+        return;
+      }
+      setAssetRequestsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.assetRequests(operationId, settings);
+        setAssetRequestsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setAssetRequestsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation asset requests API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
       void loadDryRuns(selectedOperationId);
       void loadContentDrafts(selectedOperationId);
+      void loadAssetRequests(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
     setApprovalsState(emptyState());
     setDryRunsState(emptyState());
     setContentDraftsState(emptyState());
+    setAssetRequestsState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -5000,6 +5086,123 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editOperationAssetRequest = (assetRequest: JsonRecord) => {
+    const assetRequestId = valueAt(assetRequest, ["id"], "");
+    if (!assetRequestId) {
+      return;
+    }
+    setSelectedAssetRequestId(assetRequestId);
+    setAssetStepKey(valueAt(assetRequest, ["step_key"], assetStepKey));
+    setAssetContentDraftId(valueAt(assetRequest, ["content_draft_id"], ""));
+    setAssetChannel(valueAt(assetRequest, ["channel"], assetChannel));
+    setAssetType(valueAt(assetRequest, ["asset_type"], assetType));
+    setAssetTitle(valueAt(assetRequest, ["title"], assetTitle));
+    setAssetPurpose(valueAt(assetRequest, ["purpose"], ""));
+    setAssetDimensions(valueAt(assetRequest, ["dimensions"], ""));
+    setAssetStyleConstraints(valueAt(assetRequest, ["style_constraints"], ""));
+    setAssetPrompt(valueAt(assetRequest, ["generation_prompt"], ""));
+    setAssetNegativePrompt(valueAt(assetRequest, ["negative_prompt"], ""));
+    setAssetSourceMaterialsDraft(draftListText(assetRequest.source_materials));
+    setAssetReadinessChecksDraft(draftListText(assetRequest.readiness_checks));
+  };
+
+  const assetRequestPayload = (): JsonRecord => ({
+    step_key: assetStepKey.trim() || "content_production",
+    content_draft_id: assetContentDraftId || undefined,
+    channel: assetChannel.trim() || "newsletter",
+    asset_type: assetType,
+    title: assetTitle.trim(),
+    purpose: assetPurpose.trim() || undefined,
+    dimensions: assetDimensions.trim() || undefined,
+    style_constraints: assetStyleConstraints.trim() || undefined,
+    generation_prompt: assetPrompt.trim() || undefined,
+    negative_prompt: assetNegativePrompt.trim() || undefined,
+    source_materials: splitDraftList(assetSourceMaterialsDraft),
+    readiness_checks: splitDraftList(assetReadinessChecksDraft),
+    metadata: { source: "admin_dashboard", phase: "61F" },
+  });
+
+  const createOperationAssetRequest = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: assetCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createAssetRequest(selectedOperationId, assetRequestPayload(), settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedAssetRequestId(valueAt(created, ["id"], ""));
+      await loadAssetRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation asset request create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOperationAssetRequest = async () => {
+    if (!selectedOperationId || !selectedAssetRequestId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateAssetRequest(selectedOperationId, selectedAssetRequestId, assetRequestPayload(), settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadAssetRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation asset request update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationAssetRequest = async (
+    assetRequestId: string,
+    action: "ready" | "approve" | "reject" | "prepare" | "fail" | "archive",
+  ) => {
+    if (!selectedOperationId || !assetRequestId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyAssetRequest(selectedOperationId, assetRequestId, "Ready for review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveAssetRequest(selectedOperationId, assetRequestId, "Approved from Commercial Ops.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectAssetRequest(selectedOperationId, assetRequestId, "Rejected from Commercial Ops.", settings)
+              : action === "prepare"
+                ? await commercialOperationsApi.prepareAssetRequest(selectedOperationId, assetRequestId, "Prepared for future ComfyUI handoff; no job started.", settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failAssetRequest(selectedOperationId, assetRequestId, "Failed during request preparation; operator review required.", settings)
+                  : await commercialOperationsApi.archiveAssetRequest(selectedOperationId, assetRequestId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadAssetRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation asset request action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const createOperationDryRun = async () => {
     if (!selectedOperationId) {
       setActionState({
@@ -5187,6 +5390,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const approvedApprovals = approvals.filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
   const dryRuns = dryRunsState.data || [];
   const contentDrafts = contentDraftsState.data || [];
+  const assetRequests = assetRequestsState.data || [];
   const links = linksState.data || [];
 
   useEffect(() => {
@@ -5217,7 +5421,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -5499,6 +5703,188 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{contentCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={assetCopy.title} description={assetCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-asset-grid">
+              <label>
+                {contentCopy.stepLabel}
+                <select value={assetStepKey} onChange={(event) => setAssetStepKey(event.target.value)}>
+                  {planRows.length ? null : <option value={assetStepKey}>{assetStepKey}</option>}
+                  {planRows.map((step) => {
+                    const stepKey = valueAt(step, ["step_key"], "");
+                    return (
+                      <option value={stepKey} key={stepKey}>
+                        {stepKey} / {valueAt(step, ["title"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {assetCopy.sourceDraftLabel}
+                <select value={assetContentDraftId} onChange={(event) => setAssetContentDraftId(event.target.value)}>
+                  <option value="">-</option>
+                  {contentDrafts.map((draft) => {
+                    const draftId = valueAt(draft, ["id"], "");
+                    return (
+                      <option value={draftId} key={draftId}>
+                        {valueAt(draft, ["title"])} / {valueAt(draft, ["draft_status"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {contentCopy.channelLabel}
+                <input value={assetChannel} onChange={(event) => setAssetChannel(event.target.value)} />
+              </label>
+              <label>
+                {assetCopy.typeLabel}
+                <select value={assetType} onChange={(event) => setAssetType(event.target.value)}>
+                  <option value="image">image</option>
+                  <option value="video">video</option>
+                  <option value="audio">audio</option>
+                  <option value="document">document</option>
+                  <option value="design">design</option>
+                  <option value="copy_asset">copy_asset</option>
+                  <option value="other">other</option>
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={assetTitle} onChange={(event) => setAssetTitle(event.target.value)} />
+              </label>
+              <label>
+                {assetCopy.dimensionsLabel}
+                <input value={assetDimensions} onChange={(event) => setAssetDimensions(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {assetCopy.purposeLabel}
+                <textarea value={assetPurpose} onChange={(event) => setAssetPurpose(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {assetCopy.styleLabel}
+                <textarea value={assetStyleConstraints} onChange={(event) => setAssetStyleConstraints(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {assetCopy.promptLabel}
+                <textarea value={assetPrompt} onChange={(event) => setAssetPrompt(event.target.value)} />
+              </label>
+              <label>
+                {assetCopy.negativePromptLabel}
+                <textarea value={assetNegativePrompt} onChange={(event) => setAssetNegativePrompt(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.sourceMaterialsLabel}
+                <textarea value={assetSourceMaterialsDraft} onChange={(event) => setAssetSourceMaterialsDraft(event.target.value)} />
+              </label>
+              <label>
+                {assetCopy.readinessLabel}
+                <textarea value={assetReadinessChecksDraft} onChange={(event) => setAssetReadinessChecksDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOperationAssetRequest()}
+                disabled={!assetStepKey.trim() || !assetChannel.trim() || !assetTitle.trim() || actionState.loading}
+              >
+                <FileText size={15} />
+                {assetCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOperationAssetRequest()}
+                disabled={!selectedAssetRequestId || !assetTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {assetCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={assetRequestsState} />
+            {assetRequestsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {assetRequestsState.updatedAt}</div> : null}
+            {assetRequests.length ? (
+              <div className="commercial-asset-list">
+                {assetRequests.map((assetRequest) => {
+                  const assetRequestId = valueAt(assetRequest, ["id"], "");
+                  const requestStatus = valueAt(assetRequest, ["request_status"], "");
+                  return (
+                    <article className="commercial-asset-item" key={assetRequestId}>
+                      <div>
+                        <strong>{valueAt(assetRequest, ["title"])}</strong>
+                        <span>{valueAt(assetRequest, ["step_key"])} / {valueAt(assetRequest, ["channel"])} / {valueAt(assetRequest, ["asset_type"])}</span>
+                        <p>{valueAt(assetRequest, ["purpose"], valueAt(assetRequest, ["generation_prompt"], ""))}</p>
+                        <p>{shortJson(assetRequest.handoff_payload, 90)}</p>
+                        <StatusPill value={requestStatus} />
+                      </div>
+                      <div className="commercial-asset-actions">
+                        <button className="ghost-button" onClick={() => editOperationAssetRequest(assetRequest)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {assetCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationAssetRequest(assetRequestId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(requestStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {assetCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationAssetRequest(assetRequestId, "approve")}
+                          disabled={requestStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {assetCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationAssetRequest(assetRequestId, "reject")}
+                          disabled={requestStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {assetCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationAssetRequest(assetRequestId, "prepare")}
+                          disabled={requestStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {assetCopy.prepareAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationAssetRequest(assetRequestId, "fail")}
+                          disabled={requestStatus !== "approved" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {assetCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationAssetRequest(assetRequestId, "archive")}
+                          disabled={requestStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {assetCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{assetCopy.noRequests}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{assetCopy.selectedHint}</div>
         )}
       </Panel>
 

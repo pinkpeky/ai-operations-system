@@ -17,6 +17,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationApprovalDecisionRequest,
     CommercialOperationApprovalListResponse,
     CommercialOperationApprovalResponse,
+    CommercialOperationAssetRequestCreateRequest,
+    CommercialOperationAssetRequestDecisionRequest,
+    CommercialOperationAssetRequestListResponse,
+    CommercialOperationAssetRequestResponse,
+    CommercialOperationAssetRequestUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
     CommercialOperationContentDraftListResponse,
@@ -658,6 +663,279 @@ async def archive_commercial_operation_content_draft(
             extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
         )
         raise AppError("Commercial operation content draft archive failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests", response_model=CommercialOperationAssetRequestResponse, status_code=201)
+async def create_commercial_operation_asset_request(
+    operation_id: UUID,
+    request: CommercialOperationAssetRequestCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Create a non-executing first-class asset request."""
+
+    try:
+        asset_request = await CommercialOperationService(session).create_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            requested_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation asset request create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation asset request create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/asset-requests", response_model=CommercialOperationAssetRequestListResponse)
+async def list_commercial_operation_asset_requests(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / prepared / failed / archived"),
+    content_draft_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestListResponse:
+    """List non-executing asset requests for a commercial operation."""
+
+    try:
+        asset_requests = await CommercialOperationService(session).list_asset_requests(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            content_draft_id=content_draft_id,
+            limit=limit,
+        )
+        return CommercialOperationAssetRequestListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationAssetRequestResponse.from_model(asset_request) for asset_request in asset_requests],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation asset request list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation asset request list failed", status_code=500) from exc
+
+
+@router.patch("/{operation_id}/asset-requests/{asset_request_id}", response_model=CommercialOperationAssetRequestResponse)
+async def update_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Patch one asset request without starting generation."""
+
+    try:
+        asset_request = await CommercialOperationService(session).update_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request update API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request update failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests/{asset_request_id}/ready", response_model=CommercialOperationAssetRequestResponse)
+async def ready_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Mark an asset request ready for review."""
+
+    try:
+        asset_request = await CommercialOperationService(session).mark_asset_request_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request ready API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request ready failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests/{asset_request_id}/approve", response_model=CommercialOperationAssetRequestResponse)
+async def approve_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Approve an asset request without generating assets."""
+
+    try:
+        asset_request = await CommercialOperationService(session).approve_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request approve API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request approve failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests/{asset_request_id}/reject", response_model=CommercialOperationAssetRequestResponse)
+async def reject_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Reject an asset request without generating assets."""
+
+    try:
+        asset_request = await CommercialOperationService(session).reject_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request reject API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request reject failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests/{asset_request_id}/prepare", response_model=CommercialOperationAssetRequestResponse)
+async def prepare_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Mark an approved asset request prepared for future ComfyUI handoff."""
+
+    try:
+        asset_request = await CommercialOperationService(session).prepare_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            prepared_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request prepare API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request prepare failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests/{asset_request_id}/fail", response_model=CommercialOperationAssetRequestResponse)
+async def fail_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Mark an approved asset request failed during preparation."""
+
+    try:
+        asset_request = await CommercialOperationService(session).fail_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request fail API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request fail failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/asset-requests/{asset_request_id}/archive", response_model=CommercialOperationAssetRequestResponse)
+async def archive_commercial_operation_asset_request(
+    operation_id: UUID,
+    asset_request_id: UUID,
+    request: CommercialOperationAssetRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Archive an asset request without deleting the audit trail."""
+
+    try:
+        asset_request = await CommercialOperationService(session).archive_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation asset request archive API failed",
+            extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
+        )
+        raise AppError("Commercial operation asset request archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)
