@@ -63,10 +63,18 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Search hits" in text
     assert "Clear search" in text
     assert "No task runs match the cockpit search." in text
+    assert "workflowRunId" in text
+    assert "workflow_run_id" in text
+    assert "linkedWorkflowRunId" in text
+    assert "Linked workflow" in text
+    assert "Open Workflows" in text
+    assert "Open Replay Center" in text
+    assert "targetWorkflowRunId" in text
+    assert "Replay context: Run Cockpit handoff" in text
 
 
-def test_run_cockpit_docs_track_search_density_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit search-density slice."""
+def test_run_cockpit_docs_track_workflow_handoff_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit workflow-handoff slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -78,7 +86,7 @@ def test_run_cockpit_docs_track_search_density_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-59-run-cockpit-search-density" in text or "Run Cockpit Search" in text, path
+        assert "phase-59-run-cockpit-workflow-handoff" in text or "Run Cockpit Workflow" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -105,8 +113,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_59_search_density_slice() -> None:
-    """Phase 58E should be merged and Phase 59A should be the active search-density slice."""
+def test_run_cockpit_phase_index_tracks_phase_59_workflow_handoff_slice() -> None:
+    """Phase 59A should be merged and Phase 59B should be the active workflow-handoff slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -158,5 +166,12 @@ def test_run_cockpit_phase_index_tracks_phase_59_search_density_slice() -> None:
     }
 
     assert "59A" in phase_59_lines
+    assert "#31" in phase_59_lines["59A"]
     assert "phase-59-run-cockpit-search-density" in phase_59_lines["59A"]
-    assert "In progress" in phase_59_lines["59A"]
+    assert "Merged to main" in phase_59_lines["59A"]
+    assert "TBD" not in phase_59_lines["59A"]
+    assert "In progress" not in phase_59_lines["59A"]
+
+    assert "59B" in phase_59_lines
+    assert "phase-59-run-cockpit-workflow-handoff" in phase_59_lines["59B"]
+    assert "In progress" in phase_59_lines["59B"]
