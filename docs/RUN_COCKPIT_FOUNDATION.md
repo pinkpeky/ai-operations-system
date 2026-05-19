@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-59-run-cockpit-workflow-handoff
+codex/phase-59-run-cockpit-workflow-focus
 ```
 
 ## Scope
@@ -85,6 +85,12 @@ The current workflow-handoff slice adds:
 - Linked workflow summary in Run Cockpit when the selected task, playbook run, or artifact has workflow context.
 - Navigation from Run Cockpit to Workflows or Replay Center with the linked workflow selected.
 
+The current workflow-focus slice adds:
+
+- Workflow focus state labels for no context, loading, ready, and unavailable linked workflow details.
+- Linked workflow provenance from the selected task, selected thread playbook runs, and linked artifacts.
+- A compact source-candidate list so operators can see why a `workflow_run_id` was selected before opening Workflows or Replay Center.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -103,6 +109,7 @@ An operator can open one screen and answer:
 - An Output Library page that stays scoped to the selected cockpit thread/task/artifact until the operator clears that context.
 - A Run Cockpit search layer for scanning large local result sets without leaving the cockpit.
 - A workflow handoff path from Run Cockpit into Workflows and Replay Center for deeper runtime inspection.
+- Workflow focus context that explains which selected runtime object supplied the linked workflow and whether detail loading is ready or unavailable.
 
 ## Boundaries
 
@@ -119,6 +126,7 @@ An operator can open one screen and answer:
 - Output Library context filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
 - Run Cockpit search is local to the Admin Dashboard list; it does not add new backend query semantics.
 - Workflow handoff does not add new workflow execution semantics, replay semantics, or backend query semantics.
+- Workflow focus is a frontend provenance and state layer; it does not change workflow selection, replay, or execution behavior on the server.
 
 ## Acceptance
 
