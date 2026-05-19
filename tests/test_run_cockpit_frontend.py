@@ -38,10 +38,16 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "thread_id" in text
     assert "task_run_id" in text
     assert "artifact_id" in text
+    assert "lastRefreshAtMs" in text
+    assert "refreshClockMs" in text
+    assert "Refresh state" in text
+    assert "Next refresh" in text
+    assert "stale data" in text
+    assert "setState((current) => ({" in text
 
 
-def test_run_cockpit_docs_track_deep_link_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit deep-link slice."""
+def test_run_cockpit_docs_track_refresh_ux_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit refresh-UX slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -53,7 +59,7 @@ def test_run_cockpit_docs_track_deep_link_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-58-run-cockpit-deep-links" in text or "Run Cockpit Deep Links" in text, path
+        assert "phase-58-run-cockpit-refresh-ux" in text or "Run Cockpit Refresh UX" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -80,8 +86,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_deep_link_slice() -> None:
-    """Phase 58A should be the active deep-link slice."""
+def test_run_cockpit_phase_index_tracks_refresh_ux_slice() -> None:
+    """Phase 58B should be the active refresh-UX slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -91,5 +97,12 @@ def test_run_cockpit_phase_index_tracks_deep_link_slice() -> None:
     }
 
     assert "58A" in phase_lines
+    assert "#26" in phase_lines["58A"]
     assert "phase-58-run-cockpit-deep-links" in phase_lines["58A"]
-    assert "In progress" in phase_lines["58A"]
+    assert "Merged to main" in phase_lines["58A"]
+    assert "TBD" not in phase_lines["58A"]
+    assert "In progress" not in phase_lines["58A"]
+
+    assert "58B" in phase_lines
+    assert "phase-58-run-cockpit-refresh-ux" in phase_lines["58B"]
+    assert "In progress" in phase_lines["58B"]

@@ -10,9 +10,9 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 `main` is the active accepted baseline branch after Phase 56A-56D readiness closures.
 
-Current effective phase: Phase 58 Run Cockpit Deep Linking. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 58 Run Cockpit Refresh UX. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-58-run-cockpit-deep-links`. This adds URL-backed navigation from the Run Cockpit into specialist pages and does not reuse the reverted Phase 56 branch.
+The current fresh branch is `codex/phase-58-run-cockpit-refresh-ux`. This improves Run Cockpit refresh visibility and stale-data handling and does not reuse the reverted Phase 56 branch.
 
 ## Open PR List
 
@@ -103,7 +103,8 @@ The current fresh branch is `codex/phase-58-run-cockpit-deep-links`. This adds U
 | 57B | Run Cockpit Actions | `codex/phase-57-run-cockpit-actions` | #23 | Merged to main | Guarded approval actions, task control/recovery actions, linked artifact export, and last-action result feedback from the Run Cockpit. |
 | 57C | Run Cockpit Operator Controls | `codex/phase-57-run-cockpit-operator-controls` | #24 | Merged to main | Task view filters, optional auto refresh, and navigation from the cockpit to Conversations, Playbooks, Tasks, and Output Library. |
 | 57D | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-57-run-cockpit-closeout` | #25 | Merged to main | Phase 57 documentation closeout, current-state reconciliation, and checks that prevent merged run cockpit slices from staying marked as active. |
-| 58A | Run Cockpit Deep Links | `codex/phase-58-run-cockpit-deep-links` | TBD | In progress | URL query state, selected thread/task/artifact handoff, and deep links from the cockpit into Conversations, Tasks, and Output Library. |
+| 58A | Run Cockpit Deep Links | `codex/phase-58-run-cockpit-deep-links` | #26 | Merged to main | URL query state, selected thread/task/artifact handoff, and deep links from the cockpit into Conversations, Tasks, and Output Library. |
+| 58B | Run Cockpit Refresh UX | `codex/phase-58-run-cockpit-refresh-ux` | TBD | In progress | Auto-refresh visibility, countdown/status labels, refresh interval display, and stale-data preservation on cockpit load failures. |
 
 ## Runtime Evolution
 
