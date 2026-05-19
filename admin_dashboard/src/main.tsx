@@ -944,7 +944,14 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
           <section className="cockpit-section">
             <h3>Linked artifacts</h3>
             <div className="conversation-actions">
-              <button className="ghost-button" onClick={() => onNavigate("output-library", linkedArtifacts[0] ? { artifactId: linkedArtifacts[0].id } : undefined)}>
+              <button
+                className="ghost-button"
+                onClick={() => onNavigate("output-library", {
+                  artifactId: linkedArtifacts[0]?.id,
+                  threadId: selectedThreadId ?? undefined,
+                  taskRunId: selectedTaskId ?? undefined,
+                })}
+              >
                 Open Output Library
               </button>
             </div>
@@ -1716,7 +1723,19 @@ function PlaybooksPage({
   );
 }
 
-function OutputLibraryPage({ settings, targetArtifactId }: { settings: AdminSettings; targetArtifactId?: string }) {
+function OutputLibraryPage({
+  settings,
+  targetArtifactId,
+  targetThreadId,
+  targetTaskRunId,
+  onNavigate,
+}: {
+  settings: AdminSettings;
+  targetArtifactId?: string;
+  targetThreadId?: string;
+  targetTaskRunId?: string;
+  onNavigate: (page: PageKey, target?: DeepLinkTarget) => void;
+}) {
   const [artifacts, setArtifacts] = useState<AsyncState<OutputArtifact[]>>(emptyState());
   const [selectedArtifact, setSelectedArtifact] = useState<OutputArtifact | null>(null);
   const [artifactType, setArtifactType] = useState("");
@@ -1764,6 +1783,16 @@ function OutputLibraryPage({ settings, targetArtifactId }: { settings: AdminSett
     void outputArtifactClient.getArtifact(targetArtifactId, settings).then(setSelectedArtifact).catch(() => undefined);
   }, [artifacts.data, selectedArtifact?.id, settings, targetArtifactId]);
 
+  const allArtifacts = artifacts.data ?? [];
+  const visibleArtifacts = allArtifacts.filter((artifact) => {
+    const matchesThread =
+      !targetThreadId || artifact.thread_id === targetThreadId || artifact.source_conversation_id === targetThreadId;
+    const matchesTask =
+      !targetTaskRunId || artifact.task_run_id === targetTaskRunId || artifact.source_task_run_id === targetTaskRunId;
+    return matchesThread && matchesTask;
+  });
+  const hasArtifactContext = Boolean(targetThreadId || targetTaskRunId || targetArtifactId);
+
   const exportSelected = async (format: "markdown" | "json" | "txt") => {
     if (!selectedArtifact) {
       return;
@@ -1806,6 +1835,31 @@ function OutputLibraryPage({ settings, targetArtifactId }: { settings: AdminSett
         description="Reusable Output Artifacts from Conversation, Playbook, Tool, Browser Runtime, RAG, ContentAgent, Planning, and OpenClaw mock. This is not a full DAM or cloud file manager."
         action={<RefreshButton onClick={load} />}
       >
+        <div className="summary-strip">
+          <span>Artifact context: {hasArtifactContext ? "linked run" : "all artifacts"}</span>
+          <span>thread_id: {targetThreadId ?? "-"}</span>
+          <span>task_run_id: {targetTaskRunId ?? "-"}</span>
+          <span>artifact_id: {targetArtifactId ?? "-"}</span>
+          <span>visible: {visibleArtifacts.length}</span>
+          <span>total: {allArtifacts.length}</span>
+        </div>
+        {hasArtifactContext ? (
+          <div className="conversation-actions">
+            {targetThreadId ? (
+              <button className="ghost-button" onClick={() => onNavigate("conversations", { threadId: targetThreadId })}>
+                Open linked conversation
+              </button>
+            ) : null}
+            {targetTaskRunId ? (
+              <button className="ghost-button" onClick={() => onNavigate("tasks", { taskRunId: targetTaskRunId })}>
+                Open linked task run
+              </button>
+            ) : null}
+            <button className="ghost-button" onClick={() => onNavigate("output-library")}>
+              Show all artifacts
+            </button>
+          </div>
+        ) : null}
         <div className="conversation-toolbar">
           <select value={artifactType} onChange={(event) => setArtifactType(event.target.value)} aria-label="artifact_type filter">
             <option value="">All artifact_type</option>
@@ -1840,10 +1894,10 @@ function OutputLibraryPage({ settings, targetArtifactId }: { settings: AdminSett
         </div>
         <LoadNotice state={artifacts} />
         <Table
-          rows={(artifacts.data || []) as unknown as JsonRecord[]}
+          rows={visibleArtifacts as unknown as JsonRecord[]}
           selectedId={selectedArtifact?.id ?? null}
           onSelect={(row) => setSelectedArtifact(row as unknown as OutputArtifact)}
-          emptyLabel="No output artifacts yet."
+          emptyLabel={hasArtifactContext ? "No output artifacts for linked run context." : "No output artifacts yet."}
           columns={[
             { key: "title", label: "title" },
             { key: "artifact_type", label: "artifact_type" },
@@ -3199,8 +3253,8 @@ function App() {
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 58C</strong>
-          <span>Run cockpit playbook thread context and filtered run handoff. No production publishing flow.</span>
+          <strong>Phase 58D</strong>
+          <span>Run cockpit output artifact context and linked run filtering. No production publishing flow.</span>
         </div>
       </aside>
       <main>
@@ -3221,7 +3275,15 @@ function App() {
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} /> : null}
           {activePage === "playbooks" ? <PlaybooksPage settings={settings} targetThreadId={deepLinkTarget.threadId} onNavigate={navigate} /> : null}
-          {activePage === "output-library" ? <OutputLibraryPage settings={settings} targetArtifactId={deepLinkTarget.artifactId} /> : null}
+          {activePage === "output-library" ? (
+            <OutputLibraryPage
+              settings={settings}
+              targetArtifactId={deepLinkTarget.artifactId}
+              targetThreadId={deepLinkTarget.threadId}
+              targetTaskRunId={deepLinkTarget.taskRunId}
+              onNavigate={navigate}
+            />
+          ) : null}
           {activePage === "tasks" ? <TasksPage settings={settings} targetTaskRunId={deepLinkTarget.taskRunId} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
           {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} /> : null}

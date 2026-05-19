@@ -50,10 +50,16 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Open linked conversation" in text
     assert "Show all runs" in text
     assert "No playbook runs for linked thread." in text
+    assert "targetTaskRunId" in text
+    assert "visibleArtifacts" in text
+    assert "Artifact context" in text
+    assert "Open linked task run" in text
+    assert "Show all artifacts" in text
+    assert "No output artifacts for linked run context." in text
 
 
-def test_run_cockpit_docs_track_playbook_context_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit playbook-context slice."""
+def test_run_cockpit_docs_track_output_library_context_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit output-library-context slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -65,7 +71,7 @@ def test_run_cockpit_docs_track_playbook_context_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-58-playbook-thread-context" in text or "Run Cockpit Playbook Thread Context" in text, path
+        assert "phase-58-output-library-context" in text or "Run Cockpit Output Library Context" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -92,8 +98,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_playbook_context_slice() -> None:
-    """Phase 58C should be the active playbook-context slice."""
+def test_run_cockpit_phase_index_tracks_output_library_context_slice() -> None:
+    """Phase 58D should be the active output-library-context slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -117,5 +123,12 @@ def test_run_cockpit_phase_index_tracks_playbook_context_slice() -> None:
     assert "In progress" not in phase_lines["58B"]
 
     assert "58C" in phase_lines
+    assert "#28" in phase_lines["58C"]
     assert "phase-58-playbook-thread-context" in phase_lines["58C"]
-    assert "In progress" in phase_lines["58C"]
+    assert "Merged to main" in phase_lines["58C"]
+    assert "TBD" not in phase_lines["58C"]
+    assert "In progress" not in phase_lines["58C"]
+
+    assert "58D" in phase_lines
+    assert "phase-58-output-library-context" in phase_lines["58D"]
+    assert "In progress" in phase_lines["58D"]

@@ -15,4 +15,4 @@ Use `docs/PHASE_INDEX.md` as the complete phase index and `docs/CURRENT_NEXT_PHA
 
 ## Active Next Slice
 
-`codex/phase-58-playbook-thread-context` is the active next branch. It continues Run Cockpit product development by applying Playbooks `thread_id` context, filtering run history, and adding linked-conversation and clear-context controls. It does not reuse the reverted Phase 56 branch.
+`codex/phase-58-output-library-context` is the active next branch. It continues Run Cockpit product development by applying Output Library thread/task/artifact context, filtering linked artifacts, and adding linked conversation/task plus clear-context controls. It does not reuse the reverted Phase 56 branch.

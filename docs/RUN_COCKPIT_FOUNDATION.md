@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-58-playbook-thread-context
+codex/phase-58-output-library-context
 ```
 
 ## Scope
@@ -61,6 +61,12 @@ The current playbook-context slice adds:
 - Filtered Playbook Runs when opened from a selected Run Cockpit thread.
 - Controls to open the linked Conversation or clear the Playbooks thread context.
 
+The current output-library-context slice adds:
+
+- Output Library awareness of `thread_id`, `task_run_id`, and `artifact_id` deep-link context.
+- Filtered artifact lists when opened from a selected Run Cockpit thread or task.
+- Controls to open the linked Conversation, open the linked Task Run, or clear the Output Library context.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -76,6 +82,7 @@ An operator can open one screen and answer:
 - A shareable URL for the selected specialist page context after leaving the cockpit.
 - Whether cockpit data is idle, refreshing, or stale without losing the previous scan result.
 - A Playbooks page that stays scoped to the selected cockpit thread until the operator clears that context.
+- An Output Library page that stays scoped to the selected cockpit thread/task/artifact until the operator clears that context.
 
 ## Boundaries
 
@@ -89,6 +96,7 @@ An operator can open one screen and answer:
 - Deep links do not add authentication, permissions, or share-token semantics; they only restore local dashboard page context.
 - Auto refresh remains polling-based; no WebSocket or SSE stream is introduced.
 - Playbooks filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
+- Output Library context filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
 
 ## Acceptance
 
