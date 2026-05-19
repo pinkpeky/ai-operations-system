@@ -14,7 +14,7 @@ The project is not a frontend dashboard. It is a backend foundation for future c
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke.
 
-The current next branch is `codex/phase-57-run-cockpit-closeout`, scoped to Phase 57 run cockpit documentation reconciliation after PR #24 and a lightweight status guard for merged cockpit slices.
+The current next branch is `codex/phase-58-run-cockpit-deep-links`, scoped to URL-backed Run Cockpit navigation and selected thread/task/artifact handoff into specialist pages.
 
 Completed capabilities:
 

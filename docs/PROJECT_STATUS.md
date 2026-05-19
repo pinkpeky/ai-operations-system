@@ -15,4 +15,4 @@ Use `docs/PHASE_INDEX.md` as the complete phase index and `docs/CURRENT_NEXT_PHA
 
 ## Active Next Slice
 
-`codex/phase-57-run-cockpit-closeout` is the active next branch. It reconciles the Phase 57 run cockpit documentation after PR #24, records the completed operator-controls slice, and adds a lightweight status guard so merged run cockpit slices do not remain marked active. It does not reuse the reverted Phase 56 branch.
+`codex/phase-58-run-cockpit-deep-links` is the active next branch. It continues Run Cockpit product development by adding URL-backed navigation and selected thread/task/artifact handoff into the specialist pages. It does not reuse the reverted Phase 56 branch.

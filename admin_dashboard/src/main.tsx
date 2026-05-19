@@ -103,6 +103,12 @@ interface PageDefinition {
   icon: React.ReactNode;
 }
 
+interface DeepLinkTarget {
+  threadId?: string;
+  taskRunId?: string;
+  artifactId?: string;
+}
+
 interface AsyncState<T> {
   data: T | null;
   error: string | null;
@@ -129,6 +135,34 @@ const pages: PageDefinition[] = [
   { key: "rag-documents", label: "RAG / Documents", icon: <Database size={18} /> },
   { key: "settings", label: "Settings", icon: <Settings size={18} /> },
 ];
+
+const pageKeys = new Set<PageKey>(pages.map((page) => page.key));
+const deepLinkParamKeys = ["thread_id", "task_run_id", "artifact_id"];
+
+function pageFromLocation(): PageKey {
+  const page = new URLSearchParams(window.location.search).get("page");
+  return page && pageKeys.has(page as PageKey) ? (page as PageKey) : "overview";
+}
+
+function targetFromLocation(): DeepLinkTarget {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    threadId: params.get("thread_id") ?? undefined,
+    taskRunId: params.get("task_run_id") ?? undefined,
+    artifactId: params.get("artifact_id") ?? undefined,
+  };
+}
+
+function updateLocation(page: PageKey, target: DeepLinkTarget = {}) {
+  const params = new URLSearchParams(window.location.search);
+  params.set("page", page);
+  deepLinkParamKeys.forEach((key) => params.delete(key));
+  if (target.threadId) params.set("thread_id", target.threadId);
+  if (target.taskRunId) params.set("task_run_id", target.taskRunId);
+  if (target.artifactId) params.set("artifact_id", target.artifactId);
+  const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+  window.history.pushState({}, "", nextUrl);
+}
 
 const taskStatuses = ["pending", "queued", "running", "waiting_approval", "retrying", "failed", "completed", "cancelled", "expired"];
 
@@ -495,7 +529,7 @@ function WorkersPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onNavigate: (page: PageKey) => void }) {
+function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onNavigate: (page: PageKey, target?: DeepLinkTarget) => void }) {
   const [state, setState] = useState<AsyncState<{
     threads: ConversationThread[];
     taskRuns: TaskRun[];
@@ -809,10 +843,10 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
               <Field label="artifacts" value={selectedThreadArtifacts.length} />
             </div>
             <div className="conversation-actions">
-              <button className="ghost-button" onClick={() => onNavigate("conversations")}>
+              <button className="ghost-button" onClick={() => onNavigate("conversations", selectedThreadId ? { threadId: selectedThreadId } : undefined)}>
                 Open Conversations
               </button>
-              <button className="ghost-button" onClick={() => onNavigate("playbooks")}>
+              <button className="ghost-button" onClick={() => onNavigate("playbooks", selectedThreadId ? { threadId: selectedThreadId } : undefined)}>
                 Open Playbooks
               </button>
             </div>
@@ -862,7 +896,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
               <Field label="artifacts" value={selectedTaskArtifacts.length} />
             </div>
             <div className="conversation-actions">
-              <button className="ghost-button" onClick={() => onNavigate("tasks")}>
+              <button className="ghost-button" onClick={() => onNavigate("tasks", selectedTaskId ? { taskRunId: selectedTaskId } : undefined)}>
                 Open Tasks
               </button>
               <button className="ghost-button" onClick={() => void mutateCockpitTask("retry")} disabled={!selectedTask}>
@@ -886,7 +920,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
           <section className="cockpit-section">
             <h3>Linked artifacts</h3>
             <div className="conversation-actions">
-              <button className="ghost-button" onClick={() => onNavigate("output-library")}>
+              <button className="ghost-button" onClick={() => onNavigate("output-library", linkedArtifacts[0] ? { artifactId: linkedArtifacts[0].id } : undefined)}>
                 Open Output Library
               </button>
             </div>
@@ -1039,7 +1073,7 @@ function BrowserRuntimePage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function ConversationsPage({ settings }: { settings: AdminSettings }) {
+function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettings; targetThreadId?: string }) {
   const [threads, setThreads] = useState<AsyncState<ConversationThread[]>>(emptyState());
   const [selectedThread, setSelectedThread] = useState<ConversationThread | null>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -1310,6 +1344,20 @@ function ConversationsPage({ settings }: { settings: AdminSettings }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!targetThreadId || selectedId === targetThreadId) {
+      return;
+    }
+    const listedThread = threads.data?.find((thread) => thread.id === targetThreadId);
+    if (listedThread) {
+      void loadThread(listedThread);
+      return;
+    }
+    void conversationClient.getThread(targetThreadId, settings).then(loadThread).catch((error) => {
+      setDetailError(error instanceof Error ? error.message : "Conversation deep link unavailable");
+    });
+  }, [loadThread, selectedId, settings, targetThreadId, threads.data]);
 
   const assistantMessages = messages.filter((message) => message.role === "assistant");
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
@@ -1613,7 +1661,7 @@ function PlaybooksPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
+function OutputLibraryPage({ settings, targetArtifactId }: { settings: AdminSettings; targetArtifactId?: string }) {
   const [artifacts, setArtifacts] = useState<AsyncState<OutputArtifact[]>>(emptyState());
   const [selectedArtifact, setSelectedArtifact] = useState<OutputArtifact | null>(null);
   const [artifactType, setArtifactType] = useState("");
@@ -1648,6 +1696,18 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!targetArtifactId || selectedArtifact?.id === targetArtifactId) {
+      return;
+    }
+    const listedArtifact = artifacts.data?.find((artifact) => artifact.id === targetArtifactId);
+    if (listedArtifact) {
+      setSelectedArtifact(listedArtifact);
+      return;
+    }
+    void outputArtifactClient.getArtifact(targetArtifactId, settings).then(setSelectedArtifact).catch(() => undefined);
+  }, [artifacts.data, selectedArtifact?.id, settings, targetArtifactId]);
 
   const exportSelected = async (format: "markdown" | "json" | "txt") => {
     if (!selectedArtifact) {
@@ -1803,7 +1863,7 @@ function OutputLibraryPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function TasksPage({ settings }: { settings: AdminSettings }) {
+function TasksPage({ settings, targetTaskRunId }: { settings: AdminSettings; targetTaskRunId?: string }) {
   const [status, setStatus] = useState("queued");
   const [recoveryFilter, setRecoveryFilter] = useState("all");
   const [tasks, setTasks] = useState<AsyncState<TaskRun[]>>(emptyState());
@@ -1881,6 +1941,20 @@ function TasksPage({ settings }: { settings: AdminSettings }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!targetTaskRunId || selectedId === targetTaskRunId) {
+      return;
+    }
+    const listedTask = tasks.data?.find((task) => task.id === targetTaskRunId);
+    if (listedTask) {
+      void loadTask(listedTask);
+      return;
+    }
+    void taskRunClient.getTaskRun(targetTaskRunId, settings).then(loadTask).catch((error) => {
+      setActionError(error instanceof Error ? error.message : "Task run deep link unavailable");
+    });
+  }, [selectedId, settings, targetTaskRunId, tasks.data]);
 
   return (
     <div className="split-page">
@@ -3030,9 +3104,24 @@ function RefreshButton({ onClick }: { onClick: () => void }) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<PageKey>("overview");
+  const [activePage, setActivePage] = useState<PageKey>(() => pageFromLocation());
+  const [deepLinkTarget, setDeepLinkTarget] = useState<DeepLinkTarget>(() => targetFromLocation());
   const [settings, setSettings] = useState<AdminSettings>(() => readAdminSettings());
   const currentPage = useMemo(() => pages.find((page) => page.key === activePage) || pages[0], [activePage]);
+  const navigate = useCallback((page: PageKey, target: DeepLinkTarget = {}) => {
+    setActivePage(page);
+    setDeepLinkTarget(target);
+    updateLocation(page, target);
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActivePage(pageFromLocation());
+      setDeepLinkTarget(targetFromLocation());
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   return (
     <div className="admin-shell">
@@ -3048,15 +3137,15 @@ function App() {
         </div>
         <nav>
           {pages.map((page) => (
-            <button key={page.key} className={activePage === page.key ? "active" : ""} onClick={() => setActivePage(page.key)}>
+            <button key={page.key} className={activePage === page.key ? "active" : ""} onClick={() => navigate(page.key)}>
               {page.icon}
               {page.label}
             </button>
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 57</strong>
-          <span>Run cockpit foundation for conversations, background tasks, approvals, and artifacts. No production publishing flow.</span>
+          <strong>Phase 58A</strong>
+          <span>Run cockpit deep links for selected conversations, task runs, and artifacts. No production publishing flow.</span>
         </div>
       </aside>
       <main>
@@ -3072,13 +3161,13 @@ function App() {
         </header>
         <div className="content">
           {activePage === "overview" ? <OverviewPage settings={settings} /> : null}
-          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={setActivePage} /> : null}
+          {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
-          {activePage === "conversations" ? <ConversationsPage settings={settings} /> : null}
+          {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} /> : null}
           {activePage === "playbooks" ? <PlaybooksPage settings={settings} /> : null}
-          {activePage === "output-library" ? <OutputLibraryPage settings={settings} /> : null}
-          {activePage === "tasks" ? <TasksPage settings={settings} /> : null}
+          {activePage === "output-library" ? <OutputLibraryPage settings={settings} targetArtifactId={deepLinkTarget.artifactId} /> : null}
+          {activePage === "tasks" ? <TasksPage settings={settings} targetTaskRunId={deepLinkTarget.taskRunId} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
           {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} /> : null}
           {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
