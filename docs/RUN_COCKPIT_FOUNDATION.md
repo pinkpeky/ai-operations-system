@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60-conversation-operator-simplification
+codex/phase-60-rag-documents-simplification
 ```
 
 ## Scope
@@ -109,6 +109,13 @@ The current conversation operator and simplification slice adds:
 - Localized create, send, run, refresh, playbook, approval, event, and artifact labels on the Conversations page.
 - Operator summary cards for thread count, messages, pending approvals, and generated artifacts.
 
+The current RAG Documents and simplification slice adds:
+
+- A Chinese-first RAG / Documents knowledge console for embedding health, collection state, document indexing, and hybrid retrieval.
+- Localized health, collection, document, search, result, and raw diagnostics labels on the RAG / Documents page.
+- Operator summary cards for embedding provider, collections, documents, chunk count, and problem documents.
+- Inline hybrid search loading/error state so failed retrieval attempts are visible without opening browser dev tools.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -131,6 +138,7 @@ An operator can open one screen and answer:
 - A Chinese-first dashboard shell with an English switch so workstation operators and server maintainers can orient themselves quickly.
 - An Overview page that separates workstation operation from server maintenance and opens the most relevant dashboard pages directly.
 - A Conversations page that explains how to create, send, safely run, review approvals, and inspect event/artifact output.
+- A RAG / Documents page that lets a maintainer verify vector health, collection status, document indexing, and retrieval results from one concise screen.
 
 ## Boundaries
 
@@ -151,6 +159,7 @@ An operator can open one screen and answer:
 - The Phase 60A language slice is a frontend foundation only; it does not provide full translation coverage, RBAC, workflow execution changes, or production publishing.
 - The Phase 60B Overview slice is a frontend navigation and clarity layer only; it does not add permissions, new backend APIs, or new runtime execution behavior.
 - The Phase 60C Conversations slice is a frontend clarity layer only; it does not add streaming, WebSocket/SSE, new approvals semantics, or new execution behavior.
+- The Phase 60D RAG Documents slice is a frontend clarity layer only; it does not add new ingest/delete/reingest APIs, new retrieval semantics, or full document management.
 
 ## Acceptance
 
