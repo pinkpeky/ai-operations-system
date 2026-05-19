@@ -13,11 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
+    CommercialOperationContentDraft,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
 from app.models.enums import (
     CommercialOperationApprovalStatus,
+    CommercialOperationContentDraftStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationStatus,
 )
@@ -449,6 +451,234 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        step_key: str = "content_production",
+        channel: str,
+        content_format: str = "copy",
+        title: str,
+        audience_segment: str | None = None,
+        content_body: str | None = None,
+        summary: str | None = None,
+        call_to_action: str | None = None,
+        source_materials: list[str] | None = None,
+        asset_requests: list[dict[str, Any]] | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationContentDraft:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        clean_step_key = self._clean_required_text(step_key, "step_key")
+        if not self._plan_step(operation, clean_step_key):
+            raise ValueError("step_key is not present in operation plan_outline")
+        clean_channel = self._clean_required_text(channel, "channel")
+        clean_title = self._clean_required_text(title, "title")
+        clean_summary = summary.strip() if summary and summary.strip() else None
+        clean_call_to_action = call_to_action.strip() if call_to_action and call_to_action.strip() else None
+        clean_source_materials = self._clean_list(source_materials)
+        clean_asset_requests = self._clean_asset_requests(asset_requests)
+        body = (
+            content_body.strip()
+            if content_body and content_body.strip()
+            else self._build_content_draft_body(
+                operation=operation,
+                channel=clean_channel,
+                content_format=content_format,
+                summary=clean_summary,
+                call_to_action=clean_call_to_action,
+            )
+        )
+        draft = CommercialOperationContentDraft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            step_key=clean_step_key,
+            channel=clean_channel,
+            content_format=content_format,
+            title=clean_title,
+            draft_status=CommercialOperationContentDraftStatus.DRAFT.value,
+            audience_segment=audience_segment.strip() if audience_segment and audience_segment.strip() else None,
+            content_body=body,
+            summary=clean_summary,
+            call_to_action=clean_call_to_action,
+            source_materials=clean_source_materials,
+            asset_requests=clean_asset_requests,
+            created_by=created_by,
+            updated_by=created_by,
+            content_metadata=metadata or {},
+        )
+        self.session.add(draft)
+        await self.session.flush()
+        self._apply_content_draft_to_plan(operation, draft)
+        await self.session.commit()
+        await self.session.refresh(draft)
+        return draft
+
+    async def list_content_drafts(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationContentDraft]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationContentDraft).where(
+            CommercialOperationContentDraft.workspace_id == workspace_id,
+            CommercialOperationContentDraft.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationContentDraft.draft_status == status)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationContentDraft.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+    ) -> CommercialOperationContentDraft:
+        result = await self.session.execute(
+            select(CommercialOperationContentDraft).where(
+                CommercialOperationContentDraft.workspace_id == workspace_id,
+                CommercialOperationContentDraft.operation_id == operation_id,
+                CommercialOperationContentDraft.id == draft_id,
+            )
+        )
+        draft = result.scalar_one_or_none()
+        if draft is None:
+            raise ValueError("Commercial operation content draft not found in workspace")
+        return draft
+
+    async def update_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationContentDraft:
+        draft = await self.require_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+        )
+        if draft.draft_status == CommercialOperationContentDraftStatus.ARCHIVED.value:
+            raise ValueError("Archived content drafts cannot be updated")
+        scalar_fields = {
+            "channel",
+            "content_format",
+            "title",
+            "audience_segment",
+            "content_body",
+            "summary",
+            "call_to_action",
+        }
+        required_text_fields = {"channel", "content_format", "title", "content_body"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                setattr(draft, field, value)
+        if "source_materials" in patch:
+            draft.source_materials = self._clean_list(patch["source_materials"])
+        if "asset_requests" in patch:
+            draft.asset_requests = self._clean_asset_requests(patch["asset_requests"])
+        if "metadata" in patch:
+            draft.content_metadata = patch["metadata"] or {}
+        draft.updated_by = updated_by
+        draft.draft_status = CommercialOperationContentDraftStatus.DRAFT.value
+        draft.approved_at = None
+        draft.rejected_at = None
+        draft.approved_by = None
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        self._apply_content_draft_to_plan(operation, draft)
+        await self.session.commit()
+        await self.session.refresh(draft)
+        return draft
+
+    async def mark_content_draft_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationContentDraft:
+        return await self._decide_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            status=CommercialOperationContentDraftStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def approve_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationContentDraft:
+        return await self._decide_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            status=CommercialOperationContentDraftStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def reject_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationContentDraft:
+        return await self._decide_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            status=CommercialOperationContentDraftStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def archive_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationContentDraft:
+        return await self._decide_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            status=CommercialOperationContentDraftStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
     async def create_link(
         self,
         *,
@@ -585,6 +815,19 @@ class CommercialOperationService:
     def _clean_list(self, values: list[str] | None) -> list[str]:
         return [item.strip() for item in values or [] if item and item.strip()]
 
+    def _clean_asset_requests(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        requests: list[dict[str, Any]] = []
+        for item in values or []:
+            title = str(item.get("title") or item.get("asset") or item.get("name") or "").strip()
+            if not title:
+                continue
+            cleaned = dict(item)
+            cleaned["title"] = title
+            cleaned["status"] = str(cleaned.get("status") or "placeholder")
+            cleaned["execution_boundary"] = "no ComfyUI job is created in this phase"
+            requests.append(cleaned)
+        return requests
+
     def _clean_required_text(self, value: str, field_name: str) -> str:
         cleaned = value.strip()
         if not cleaned:
@@ -675,6 +918,60 @@ class CommercialOperationService:
                 outline.append(dict(step))
         operation.plan_outline = outline
 
+    async def _decide_content_draft(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        draft_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+    ) -> CommercialOperationContentDraft:
+        draft = await self.require_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+        )
+        if draft.draft_status == CommercialOperationContentDraftStatus.ARCHIVED.value:
+            raise ValueError("Archived content drafts cannot be changed")
+        if status == CommercialOperationContentDraftStatus.READY_FOR_REVIEW.value and draft.draft_status not in {
+            CommercialOperationContentDraftStatus.DRAFT.value,
+            CommercialOperationContentDraftStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected content drafts can be marked ready")
+        if status in {
+            CommercialOperationContentDraftStatus.APPROVED.value,
+            CommercialOperationContentDraftStatus.REJECTED.value,
+        } and draft.draft_status != CommercialOperationContentDraftStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready content drafts can be approved or rejected")
+        now = datetime.now(UTC)
+        draft.draft_status = status
+        draft.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        draft.updated_by = actor_user_id
+        if status == CommercialOperationContentDraftStatus.APPROVED.value:
+            draft.approved_by = actor_user_id
+            draft.approved_at = now
+            draft.rejected_at = None
+            draft.archived_at = None
+        elif status == CommercialOperationContentDraftStatus.REJECTED.value:
+            draft.rejected_at = now
+            draft.approved_by = None
+            draft.approved_at = None
+            draft.archived_at = None
+        elif status == CommercialOperationContentDraftStatus.READY_FOR_REVIEW.value:
+            draft.approved_by = None
+            draft.approved_at = None
+            draft.rejected_at = None
+            draft.archived_at = None
+        elif status == CommercialOperationContentDraftStatus.ARCHIVED.value:
+            draft.archived_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        self._apply_content_draft_to_plan(operation, draft)
+        await self.session.commit()
+        await self.session.refresh(draft)
+        return draft
+
     async def _decide_dry_run(
         self,
         *,
@@ -753,6 +1050,57 @@ class CommercialOperationService:
                 "non_goals": ["no publish", "no real account control", "no OpenClaw action", "no ComfyUI job"],
             },
         ]
+
+    def _build_content_draft_body(
+        self,
+        *,
+        operation: CommercialOperation,
+        channel: str,
+        content_format: str,
+        summary: str | None,
+        call_to_action: str | None,
+    ) -> str:
+        audience = operation.target_audience or "target audience"
+        metrics = ", ".join(operation.success_metrics or ["reviewed content output"])
+        constraints = ", ".join(operation.constraints or ["human review before execution"])
+        lines = [
+            f"Channel: {channel}",
+            f"Format: {content_format}",
+            f"Audience: {audience}",
+            f"Objective: {operation.objective}",
+            f"Success metric focus: {metrics}",
+            f"Constraints: {constraints}",
+        ]
+        if summary:
+            lines.append(f"Draft summary: {summary}")
+        if call_to_action:
+            lines.append(f"Call to action: {call_to_action}")
+        lines.append("Boundary: this is a draft only; it does not publish or control external accounts.")
+        return "\n".join(lines)
+
+    def _apply_content_draft_to_plan(
+        self,
+        operation: CommercialOperation,
+        draft: CommercialOperationContentDraft,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == draft.step_key:
+                updated = dict(step)
+                updated["content_draft_id"] = str(draft.id)
+                updated["content_draft_status"] = draft.draft_status
+                updated["content_draft_channel"] = draft.channel
+                updated["content_draft_format"] = draft.content_format
+                if draft.approved_at is not None:
+                    updated["content_draft_decision_at"] = draft.approved_at.isoformat()
+                elif draft.rejected_at is not None:
+                    updated["content_draft_decision_at"] = draft.rejected_at.isoformat()
+                elif draft.archived_at is not None:
+                    updated["content_draft_decision_at"] = draft.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
 
     def _apply_dry_run_to_plan(
         self,

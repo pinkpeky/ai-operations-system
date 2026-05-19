@@ -16,6 +16,8 @@ Phase 61C adds `commercial_operation_approvals` and `/api/v1/commercial-operatio
 
 Phase 61D adds `commercial_operation_dry_runs` and `/api/v1/commercial-operations/{operation_id}/dry-runs` so operators can create, complete, fail, or cancel metadata-only dry-run records from approved approval gates. Dry-run decisions are reflected back into `plan_outline` metadata for operator visibility.
 
+Phase 61E adds `commercial_operation_content_drafts` and `/api/v1/commercial-operations/{operation_id}/content-drafts` so operators can create, edit, send for review, approve, reject, or archive per-channel content drafts. Draft decisions are reflected back into `plan_outline` metadata for operator visibility.
+
 Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, or bypass approval.
 
 ## Provider Defaults

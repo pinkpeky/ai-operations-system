@@ -876,6 +876,13 @@ textarea {
   margin-bottom: 14px;
 }
 
+.commercial-content-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .commercial-approval-grid {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.7fr) minmax(140px, 0.32fr);
@@ -885,6 +892,7 @@ textarea {
 
 .commercial-approval-grid label,
 .commercial-dry-run-grid label,
+.commercial-content-grid label,
 .commercial-link-grid label {
   display: grid;
   gap: 6px;
@@ -900,6 +908,12 @@ textarea {
 }
 
 .commercial-dry-run-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.commercial-content-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
@@ -933,6 +947,17 @@ textarea {
   background: #fbfcfd;
 }
 
+.commercial-content-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
 .commercial-link-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -946,11 +971,13 @@ textarea {
 
 .commercial-approval-item strong,
 .commercial-dry-run-item strong,
+.commercial-content-item strong,
 .commercial-approval-item span {
   display: block;
 }
 
-.commercial-dry-run-item span {
+.commercial-dry-run-item span,
+.commercial-content-item span {
   display: block;
 }
 
@@ -962,6 +989,7 @@ textarea {
 
 .commercial-approval-item strong,
 .commercial-dry-run-item strong,
+.commercial-content-item strong,
 .commercial-link-item strong {
   color: #17212b;
   font-size: 13px;
@@ -972,6 +1000,8 @@ textarea {
 .commercial-approval-item p,
 .commercial-dry-run-item span,
 .commercial-dry-run-item p,
+.commercial-content-item span,
+.commercial-content-item p,
 .commercial-link-item span,
 .commercial-link-item p {
   margin: 4px 0 0;
@@ -994,6 +1024,13 @@ textarea {
 }
 
 .commercial-dry-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.commercial-content-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1304,6 +1341,8 @@ textarea {
   .commercial-approval-item,
   .commercial-dry-run-grid,
   .commercial-dry-run-item,
+  .commercial-content-grid,
+  .commercial-content-item,
   .commercial-link-grid,
   .commercial-link-item,
   .rag-metrics-grid,

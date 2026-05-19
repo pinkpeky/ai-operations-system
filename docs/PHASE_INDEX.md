@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, and Phase 61C Commercial Operation Approval Gates.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, Phase 61C Commercial Operation Approval Gates, and Phase 61D Commercial Operation Safe Dry-Runs.
 
-Current effective phase: Phase 61D Commercial Operation Safe Dry-Runs. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 61E Commercial Operation Content Drafts. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-61d-commercial-operation-dry-runs`. It follows merged PR #43 and adds approved commercial operation dry-run records: `commercial_operation_dry_runs`, dry-run create/list/complete/fail/cancel APIs, and a bilingual Admin Dashboard surface for recording metadata-only execution preparation without external actions.
+The current fresh branch is `codex/phase-61e-commercial-operation-content-drafts`. It follows merged PR #44 and adds commercial operation content draft records: `commercial_operation_content_drafts`, content-draft create/list/update/ready/approve/reject/archive APIs, and a bilingual Admin Dashboard surface for recording reviewable channel drafts without publishing or ComfyUI execution.
 
 ## Open PR List
 
@@ -60,7 +60,8 @@ The current fresh branch is `codex/phase-61d-commercial-operation-dry-runs`. It 
 | #41 | Phase 61A Commercial Operations Foundation | `codex/phase-60g-closeout-61a-operations-foundation` | Merged to main |
 | #42 | Phase 61B Commercial Operation Links | `codex/phase-61b-commercial-operation-links` | Merged to main |
 | #43 | Phase 61C Commercial Operation Approvals | `codex/phase-61c-commercial-operation-approvals` | Merged to main |
-| #44 | Phase 61D Commercial Operation Safe Dry-Runs | `codex/phase-61d-commercial-operation-dry-runs` | Draft PR open |
+| #44 | Phase 61D Commercial Operation Safe Dry-Runs | `codex/phase-61d-commercial-operation-dry-runs` | Merged to main |
+| #45 | Phase 61E Commercial Operation Content Drafts | `codex/phase-61e-commercial-operation-content-drafts` | Not opened yet |
 
 ## Phase Timeline Table
 
@@ -148,7 +149,8 @@ The current fresh branch is `codex/phase-61d-commercial-operation-dry-runs`. It 
 | 61A | Commercial Operations Foundation | `codex/phase-60g-closeout-61a-operations-foundation` | #41 | Merged to main | `commercial_operations`, `/api/v1/commercial-operations`, goal-to-plan API, Admin Dashboard Commercial Ops page, and clear boundary that planning does not publish or execute external actions. |
 | 61B | Commercial Operation Evidence & Handoff Links | `codex/phase-61b-commercial-operation-links` | #42 | Merged to main | `commercial_operation_links`, operation link create/list/delete APIs, Admin Dashboard Evidence and handoff panel, and manual links to conversations, artifacts, task runs, workflow runs, RAG documents, approvals, knowledge sources, and external materials. |
 | 61C | Commercial Operation Approval Gates | `codex/phase-61c-commercial-operation-approvals` | #43 | Merged to main | `commercial_operation_approvals`, operation approval create/list/approve/reject/cancel APIs, Admin Dashboard Approval gates panel, and plan-step approval state written back to `plan_outline` without external execution. |
-| 61D | Commercial Operation Safe Dry-Runs | `codex/phase-61d-commercial-operation-dry-runs` | #44 | In progress | `commercial_operation_dry_runs`, approved-approval gated dry-run create/list/complete/fail/cancel APIs, Admin Dashboard Safe dry-runs panel, and plan-step dry-run state written back to `plan_outline` without OpenClaw, ComfyUI, browser worker, account, or publishing execution. |
+| 61D | Commercial Operation Safe Dry-Runs | `codex/phase-61d-commercial-operation-dry-runs` | #44 | Merged to main | `commercial_operation_dry_runs`, approved-approval gated dry-run create/list/complete/fail/cancel APIs, Admin Dashboard Safe dry-runs panel, and plan-step dry-run state written back to `plan_outline` without OpenClaw, ComfyUI, browser worker, account, or publishing execution. |
+| 61E | Commercial Operation Content Drafts | `codex/phase-61e-commercial-operation-content-drafts` | TBD | In progress | `commercial_operation_content_drafts`, content-draft create/list/update/ready/approve/reject/archive APIs, Admin Dashboard Content drafts panel, and plan-step content draft state written back to `plan_outline` without publishing, OpenClaw, ComfyUI, browser worker, or account execution. |
 
 ## Runtime Evolution
 

@@ -3751,7 +3751,7 @@ Boundary: approvals are human review records and plan-step gates only. They do n
 
 ## Phase 61D: Commercial Operation Safe Dry-Runs
 
-Status: in progress.
+Status: completed on `main` in PR #44.
 
 Phase 61D adds `commercial_operation_dry_runs` and `CommercialOperationDryRun` records below each commercial operation. Operators can create a metadata-only dry-run from an approved approval gate, review the generated runbook and readiness checks, then complete, fail, or cancel the dry-run for later handoff.
 
@@ -3768,3 +3768,25 @@ Main fields: `operation_id`, `approval_id`, `step_key`, `title`, `dry_run_status
 Supported `dry_run_status` values: `created`, `completed`, `failed`, and `cancelled`.
 
 Boundary: dry-runs are approved, metadata-only execution preparation records. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61E: Commercial Operation Content Drafts
+
+Status: in progress.
+
+Phase 61E adds `commercial_operation_content_drafts` and `CommercialOperationContentDraft` records below each commercial operation. Operators can create a reviewable channel draft for a plan step, update the draft, mark it ready for review, approve it, reject it, or archive it for later handoff.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/content-drafts`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts`
+- `PATCH /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/archive`
+
+Main fields: `operation_id`, `step_key`, `channel`, `content_format`, `title`, `draft_status`, `audience_segment`, `content_body`, `summary`, `call_to_action`, `source_materials`, `asset_requests`, `reviewer_notes`, `created_by`, `updated_by`, `approved_by`, and `metadata`.
+
+Supported `draft_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
+
+Boundary: content drafts and asset requests are review records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

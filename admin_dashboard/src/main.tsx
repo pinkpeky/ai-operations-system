@@ -4385,7 +4385,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61D",
+    phaseLabel: "Phase 61E",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4463,7 +4463,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61D",
+    phaseLabel: "Phase 61E",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
@@ -4548,12 +4548,78 @@ function splitDraftList(value: string): string[] {
     .filter(Boolean);
 }
 
+function draftListText(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item && typeof item === "object") {
+          return valueAt(item as JsonRecord, ["title", "asset", "name"], "");
+        }
+        return "";
+      })
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+  return typeof value === "string" ? value : "";
+}
+
 function CommercialOperationsPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
   const copy = commercialOperationCopy[language];
+  const contentCopy =
+    language === "zh-CN"
+      ? {
+          title: "内容草稿",
+          description: "为选中的计划步骤创建可审阅的渠道草稿和素材占位需求，只记录内容与审批状态，不发布、不启动 ComfyUI。",
+          stepLabel: "计划步骤",
+          channelLabel: "渠道",
+          formatLabel: "内容格式",
+          audienceLabel: "受众细分",
+          bodyLabel: "正文草稿",
+          summaryLabel: "摘要",
+          ctaLabel: "行动引导",
+          sourceMaterialsLabel: "素材/知识来源",
+          assetRequestsLabel: "素材占位需求",
+          createAction: "创建草稿",
+          saveAction: "保存草稿",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          archiveAction: "归档",
+          selectedHint: "先选择一个项目，再创建内容草稿。",
+          noDrafts: "暂无内容草稿。",
+        }
+      : {
+          title: "Content drafts",
+          description: "Create reviewable channel drafts and asset placeholders for the selected plan step. This records content and approval state only; it does not publish or start ComfyUI.",
+          stepLabel: "Plan step",
+          channelLabel: "Channel",
+          formatLabel: "Format",
+          audienceLabel: "Audience segment",
+          bodyLabel: "Draft body",
+          summaryLabel: "Summary",
+          ctaLabel: "Call to action",
+          sourceMaterialsLabel: "Sources",
+          assetRequestsLabel: "Asset placeholders",
+          createAction: "Create draft",
+          saveAction: "Save draft",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation before creating content drafts.",
+          noDrafts: "No content drafts yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [dryRunsState, setDryRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [contentDraftsState, setContentDraftsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4579,6 +4645,17 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [dryRunInputSummary, setDryRunInputSummary] = useState(language === "zh-CN" ? "检查审批后的执行输入、目标渠道和交接输出，不触发外部动作。" : "Review approved execution inputs, target channel, and handoff output without external actions.");
   const [expectedOutputsDraft, setExpectedOutputsDraft] = useState(language === "zh-CN" ? "payload preview, operator handoff" : "payload preview, operator handoff");
   const [readinessChecksDraft, setReadinessChecksDraft] = useState(language === "zh-CN" ? "approval gate, no external publish, operator review" : "approval gate, no external publish, operator review");
+  const [contentStepKey, setContentStepKey] = useState("content_production");
+  const [contentChannel, setContentChannel] = useState("newsletter");
+  const [contentFormat, setContentFormat] = useState("email");
+  const [contentTitle, setContentTitle] = useState(language === "zh-CN" ? "渠道内容草稿" : "Channel content draft");
+  const [contentAudienceSegment, setContentAudienceSegment] = useState(language === "zh-CN" ? "核心目标客户" : "Core target customers");
+  const [contentSummary, setContentSummary] = useState(language === "zh-CN" ? "根据运营目标生成可审阅内容草稿。" : "Reviewable draft generated from the operation goal.");
+  const [contentBody, setContentBody] = useState("");
+  const [contentCallToAction, setContentCallToAction] = useState(language === "zh-CN" ? "预约演示" : "Book a demo");
+  const [sourceMaterialsDraft, setSourceMaterialsDraft] = useState("rag_document, intake_notes");
+  const [assetRequestsDraft, setAssetRequestsDraft] = useState("hero image, product proof point");
+  const [selectedContentDraftId, setSelectedContentDraftId] = useState("");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -4680,17 +4757,41 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadContentDrafts = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setContentDraftsState(emptyState());
+        return;
+      }
+      setContentDraftsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.contentDrafts(operationId, settings);
+        setContentDraftsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setContentDraftsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation content drafts API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
       void loadDryRuns(selectedOperationId);
+      void loadContentDrafts(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
     setApprovalsState(emptyState());
     setDryRunsState(emptyState());
+    setContentDraftsState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -4785,6 +4886,114 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation approval action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const editOperationContentDraft = (draft: JsonRecord) => {
+    const draftId = valueAt(draft, ["id"], "");
+    if (!draftId) {
+      return;
+    }
+    setSelectedContentDraftId(draftId);
+    setContentStepKey(valueAt(draft, ["step_key"], contentStepKey));
+    setContentChannel(valueAt(draft, ["channel"], contentChannel));
+    setContentFormat(valueAt(draft, ["content_format"], contentFormat));
+    setContentTitle(valueAt(draft, ["title"], contentTitle));
+    setContentAudienceSegment(valueAt(draft, ["audience_segment"], ""));
+    setContentSummary(valueAt(draft, ["summary"], ""));
+    setContentBody(valueAt(draft, ["content_body"], ""));
+    setContentCallToAction(valueAt(draft, ["call_to_action"], ""));
+    setSourceMaterialsDraft(draftListText(draft.source_materials));
+    setAssetRequestsDraft(draftListText(draft.asset_requests));
+  };
+
+  const contentDraftPayload = (): JsonRecord => ({
+    step_key: contentStepKey.trim() || "content_production",
+    channel: contentChannel.trim() || "newsletter",
+    content_format: contentFormat,
+    title: contentTitle.trim(),
+    audience_segment: contentAudienceSegment.trim() || undefined,
+    content_body: contentBody.trim() || undefined,
+    summary: contentSummary.trim() || undefined,
+    call_to_action: contentCallToAction.trim() || undefined,
+    source_materials: splitDraftList(sourceMaterialsDraft),
+    asset_requests: splitDraftList(assetRequestsDraft).map((item) => ({ title: item, type: "asset_placeholder" })),
+    metadata: { source: "admin_dashboard", phase: "61E" },
+  });
+
+  const createOperationContentDraft = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: contentCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createContentDraft(selectedOperationId, contentDraftPayload(), settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedContentDraftId(valueAt(created, ["id"], ""));
+      setContentBody(valueAt(created, ["content_body"], contentBody));
+      await loadContentDrafts(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation content draft create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOperationContentDraft = async () => {
+    if (!selectedOperationId || !selectedContentDraftId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateContentDraft(selectedOperationId, selectedContentDraftId, contentDraftPayload(), settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      setContentBody(valueAt(updated, ["content_body"], contentBody));
+      await loadContentDrafts(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation content draft update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationContentDraft = async (draftId: string, action: "ready" | "approve" | "reject" | "archive") => {
+    if (!selectedOperationId || !draftId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyContentDraft(selectedOperationId, draftId, "Ready for review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveContentDraft(selectedOperationId, draftId, "Approved from Commercial Ops.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectContentDraft(selectedOperationId, draftId, "Rejected from Commercial Ops.", settings)
+              : await commercialOperationsApi.archiveContentDraft(selectedOperationId, draftId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadContentDrafts(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation content draft action unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -4977,6 +5186,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const approvals = approvalsState.data || [];
   const approvedApprovals = approvals.filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
   const dryRuns = dryRunsState.data || [];
+  const contentDrafts = contentDraftsState.data || [];
   const links = linksState.data || [];
 
   useEffect(() => {
@@ -5007,7 +5217,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -5143,6 +5353,153 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
             { key: "checks", label: "checks" },
           ]}
         />
+      </Panel>
+
+      <Panel title={contentCopy.title} description={contentCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-content-grid">
+              <label>
+                {contentCopy.stepLabel}
+                <select value={contentStepKey} onChange={(event) => setContentStepKey(event.target.value)}>
+                  {planRows.length ? null : <option value={contentStepKey}>{contentStepKey}</option>}
+                  {planRows.map((step) => {
+                    const stepKey = valueAt(step, ["step_key"], "");
+                    return (
+                      <option value={stepKey} key={stepKey}>
+                        {stepKey} / {valueAt(step, ["title"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {contentCopy.channelLabel}
+                <input value={contentChannel} onChange={(event) => setContentChannel(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.formatLabel}
+                <select value={contentFormat} onChange={(event) => setContentFormat(event.target.value)}>
+                  <option value="copy">copy</option>
+                  <option value="email">email</option>
+                  <option value="post">post</option>
+                  <option value="script">script</option>
+                  <option value="landing_page">landing_page</option>
+                  <option value="ad">ad</option>
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={contentTitle} onChange={(event) => setContentTitle(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.audienceLabel}
+                <input value={contentAudienceSegment} onChange={(event) => setContentAudienceSegment(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.ctaLabel}
+                <input value={contentCallToAction} onChange={(event) => setContentCallToAction(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {contentCopy.summaryLabel}
+                <textarea value={contentSummary} onChange={(event) => setContentSummary(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {contentCopy.bodyLabel}
+                <textarea value={contentBody} onChange={(event) => setContentBody(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.sourceMaterialsLabel}
+                <textarea value={sourceMaterialsDraft} onChange={(event) => setSourceMaterialsDraft(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.assetRequestsLabel}
+                <textarea value={assetRequestsDraft} onChange={(event) => setAssetRequestsDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOperationContentDraft()}
+                disabled={!contentStepKey.trim() || !contentChannel.trim() || !contentTitle.trim() || actionState.loading}
+              >
+                <FileText size={15} />
+                {contentCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOperationContentDraft()}
+                disabled={!selectedContentDraftId || !contentTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {contentCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={contentDraftsState} />
+            {contentDraftsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {contentDraftsState.updatedAt}</div> : null}
+            {contentDrafts.length ? (
+              <div className="commercial-content-list">
+                {contentDrafts.map((draft) => {
+                  const draftId = valueAt(draft, ["id"], "");
+                  const draftStatus = valueAt(draft, ["draft_status"], "");
+                  return (
+                    <article className="commercial-content-item" key={draftId}>
+                      <div>
+                        <strong>{valueAt(draft, ["title"])}</strong>
+                        <span>{valueAt(draft, ["step_key"])} / {valueAt(draft, ["channel"])} / {valueAt(draft, ["content_format"])}</span>
+                        <p>{valueAt(draft, ["summary"], valueAt(draft, ["content_body"], ""))}</p>
+                        <p>{shortJson(draft.asset_requests, 90)}</p>
+                        <StatusPill value={draftStatus} />
+                      </div>
+                      <div className="commercial-content-actions">
+                        <button className="ghost-button" onClick={() => editOperationContentDraft(draft)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {contentCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationContentDraft(draftId, "ready")}
+                          disabled={!["draft", "rejected"].includes(draftStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {contentCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationContentDraft(draftId, "approve")}
+                          disabled={draftStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {contentCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationContentDraft(draftId, "reject")}
+                          disabled={draftStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {contentCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationContentDraft(draftId, "archive")}
+                          disabled={draftStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {contentCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{contentCopy.noDrafts}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{contentCopy.selectedHint}</div>
+        )}
       </Panel>
 
       <Panel title={copy.approvalsTitle} description={copy.approvalsDescription}>

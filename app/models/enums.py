@@ -93,6 +93,16 @@ class CommercialOperationDryRunStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class CommercialOperationContentDraftStatus(StrEnum):
+    """Commercial operation content draft lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

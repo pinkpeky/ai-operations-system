@@ -17,6 +17,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationApprovalDecisionRequest,
     CommercialOperationApprovalListResponse,
     CommercialOperationApprovalResponse,
+    CommercialOperationContentDraftCreateRequest,
+    CommercialOperationContentDraftDecisionRequest,
+    CommercialOperationContentDraftListResponse,
+    CommercialOperationContentDraftResponse,
+    CommercialOperationContentDraftUpdateRequest,
     CommercialOperationCreateRequest,
     CommercialOperationDryRunCreateRequest,
     CommercialOperationDryRunDecisionRequest,
@@ -444,6 +449,215 @@ async def cancel_commercial_operation_dry_run(
             extra={"operation_id": str(operation_id), "dry_run_id": str(dry_run_id)},
         )
         raise AppError("Commercial operation dry-run cancel failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/content-drafts", response_model=CommercialOperationContentDraftResponse, status_code=201)
+async def create_commercial_operation_content_draft(
+    operation_id: UUID,
+    request: CommercialOperationContentDraftCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Create a non-publishing content draft for a commercial operation channel."""
+
+    try:
+        draft = await CommercialOperationService(session).create_content_draft(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            created_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation content draft create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation content draft create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/content-drafts", response_model=CommercialOperationContentDraftListResponse)
+async def list_commercial_operation_content_drafts(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / archived"),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftListResponse:
+    """List non-publishing content drafts for a commercial operation."""
+
+    try:
+        drafts = await CommercialOperationService(session).list_content_drafts(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            limit=limit,
+        )
+        return CommercialOperationContentDraftListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationContentDraftResponse.from_model(draft) for draft in drafts],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation content draft list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation content draft list failed", status_code=500) from exc
+
+
+@router.patch("/{operation_id}/content-drafts/{draft_id}", response_model=CommercialOperationContentDraftResponse)
+async def update_commercial_operation_content_draft(
+    operation_id: UUID,
+    draft_id: UUID,
+    request: CommercialOperationContentDraftUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Patch one commercial operation content draft without publishing it."""
+
+    try:
+        draft = await CommercialOperationService(session).update_content_draft(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation content draft update API failed",
+            extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
+        )
+        raise AppError("Commercial operation content draft update failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/content-drafts/{draft_id}/ready", response_model=CommercialOperationContentDraftResponse)
+async def ready_commercial_operation_content_draft(
+    operation_id: UUID,
+    draft_id: UUID,
+    request: CommercialOperationContentDraftDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Mark a content draft ready for human review."""
+
+    try:
+        draft = await CommercialOperationService(session).mark_content_draft_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation content draft ready API failed",
+            extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
+        )
+        raise AppError("Commercial operation content draft ready failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/content-drafts/{draft_id}/approve", response_model=CommercialOperationContentDraftResponse)
+async def approve_commercial_operation_content_draft(
+    operation_id: UUID,
+    draft_id: UUID,
+    request: CommercialOperationContentDraftDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Approve a ready content draft without publishing it."""
+
+    try:
+        draft = await CommercialOperationService(session).approve_content_draft(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation content draft approve API failed",
+            extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
+        )
+        raise AppError("Commercial operation content draft approve failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/content-drafts/{draft_id}/reject", response_model=CommercialOperationContentDraftResponse)
+async def reject_commercial_operation_content_draft(
+    operation_id: UUID,
+    draft_id: UUID,
+    request: CommercialOperationContentDraftDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Reject a ready content draft without publishing it."""
+
+    try:
+        draft = await CommercialOperationService(session).reject_content_draft(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation content draft reject API failed",
+            extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
+        )
+        raise AppError("Commercial operation content draft reject failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/content-drafts/{draft_id}/archive", response_model=CommercialOperationContentDraftResponse)
+async def archive_commercial_operation_content_draft(
+    operation_id: UUID,
+    draft_id: UUID,
+    request: CommercialOperationContentDraftDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Archive a content draft without deleting the audit trail."""
+
+    try:
+        draft = await CommercialOperationService(session).archive_content_draft(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            draft_id=draft_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation content draft archive API failed",
+            extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
+        )
+        raise AppError("Commercial operation content draft archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)
