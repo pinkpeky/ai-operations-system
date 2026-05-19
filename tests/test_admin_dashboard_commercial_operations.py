@@ -20,14 +20,19 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61A" in text
-    assert "Commercial operations foundation" in text
+    assert "Phase 61B" in text
+    assert "Commercial operation evidence" in text
+    assert "证据与交接" in text
+    assert "Evidence and handoff" in text
     assert "不会自动发布" in text
     assert "does not publish" in text
     assert "commercialOperationsApi.list" in text
     assert "commercialOperationsApi.create" in text
     assert "commercialOperationsApi.planDraft" in text
     assert "commercialOperationsApi.update" in text
+    assert "commercialOperationsApi.links" in text
+    assert "commercialOperationsApi.createLink" in text
+    assert "commercialOperationsApi.deleteLink" in text
 
 
 def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
@@ -37,7 +42,10 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
+    assert 'method: "DELETE"' in text
 
 
 def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
@@ -51,5 +59,9 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-form-grid",
         ".commercial-detail-grid",
         ".commercial-action-row",
+        ".commercial-link-grid",
+        ".commercial-link-list",
+        ".commercial-link-item",
+        ".commercial-link-actions",
     ):
         assert selector in text

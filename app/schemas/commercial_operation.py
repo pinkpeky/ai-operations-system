@@ -9,12 +9,22 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.commercial_operation import CommercialOperation
+from app.models.commercial_operation import CommercialOperation, CommercialOperationLink
 
 
 CommercialOperationStatusLiteral = Literal["draft", "planning", "ready", "active", "paused", "completed", "archived"]
 CommercialOperationPriorityLiteral = Literal["low", "normal", "high"]
 CommercialOperationRiskLiteral = Literal["low", "medium", "high"]
+CommercialOperationLinkTypeLiteral = Literal[
+    "conversation",
+    "artifact",
+    "task_run",
+    "workflow_run",
+    "rag_document",
+    "knowledge_source",
+    "approval",
+    "external",
+]
 
 
 class CommercialOperationCreateRequest(BaseModel):
@@ -132,3 +142,56 @@ class CommercialOperationPlanPreviewResponse(BaseModel):
 
     operation_id: UUID
     plan_outline: list[dict[str, Any]]
+
+
+class CommercialOperationLinkCreateRequest(BaseModel):
+    """Attach evidence or handoff context to a commercial operation."""
+
+    link_type: CommercialOperationLinkTypeLiteral = "external"
+    target_type: str = Field(min_length=1, max_length=64)
+    target_id: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=255)
+    summary: str | None = None
+    source_name: str | None = Field(default=None, max_length=128)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationLinkResponse(BaseModel):
+    """Commercial operation evidence or handoff link response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    link_type: str
+    target_type: str
+    target_id: str
+    title: str
+    summary: str | None
+    source_name: str | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, link: CommercialOperationLink) -> "CommercialOperationLinkResponse":
+        return cls(
+            id=link.id,
+            workspace_id=link.workspace_id,
+            operation_id=link.operation_id,
+            link_type=link.link_type,
+            target_type=link.target_type,
+            target_id=link.target_id,
+            title=link.title,
+            summary=link.summary,
+            source_name=link.source_name,
+            metadata=link.link_metadata,
+            created_at=link.created_at,
+            updated_at=link.updated_at,
+        )
+
+
+class CommercialOperationLinkListResponse(BaseModel):
+    """Commercial operation link list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationLinkResponse]

@@ -3710,3 +3710,21 @@ APIs:
 Main fields: `title`, `objective`, `target_audience`, `channels`, `status`, `priority`, `risk_level`, `budget_amount`, `budget_currency`, `start_at`, `end_at`, `knowledge_collection`, `success_metrics`, `constraints`, `plan_outline`, and `metadata`.
 
 Boundary: this phase does not publish, does not execute OpenClaw actions, does not run ComfyUI jobs, does not control real accounts, and does not bypass approval.
+
+## Phase 61B: Commercial Operation Evidence & Handoff Links
+
+Status: in progress.
+
+Phase 61B adds `commercial_operation_links` and `CommercialOperationLink` records below each commercial operation. Operators can attach handoff context and evidence before later phases introduce approval-backed execution.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/links`
+- `POST /api/v1/commercial-operations/{operation_id}/links`
+- `DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}`
+
+Main fields: `operation_id`, `link_type`, `target_type`, `target_id`, `title`, `summary`, `source_name`, and `metadata`.
+
+Supported `link_type` values: `conversation`, `artifact`, `task_run`, `workflow_run`, `rag_document`, `knowledge_source`, `approval`, and `external`.
+
+Boundary: links are manual references only. They do not execute linked tasks, publish content, run ComfyUI, run OpenClaw, or bypass approval.

@@ -3142,3 +3142,21 @@ API：
 主要字段：`title`、`objective`、`target_audience`、`channels`、`status`、`priority`、`risk_level`、`budget_amount`、`budget_currency`、`start_at`、`end_at`、`knowledge_collection`、`success_metrics`、`constraints`、`plan_outline`、`metadata`。
 
 边界：此阶段不会自动发布，不会执行 OpenClaw 动作，不会运行 ComfyUI 任务，不会控制真实账号，也不会绕过审批。
+
+## Phase 61B: 商业运营证据与交接关联
+
+状态：进行中。
+
+Phase 61B 在每个商业运营项目下新增 `commercial_operation_links` 与 `CommercialOperationLink` 记录。操作人员可以先把沟通记录、内容产物、任务运行、工作流运行、RAG 文档、审批记录、知识来源或外部素材手动挂到项目上，供后续审批和执行阶段接手。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/links`
+- `POST /api/v1/commercial-operations/{operation_id}/links`
+- `DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}`
+
+主要字段：`operation_id`、`link_type`、`target_type`、`target_id`、`title`、`summary`、`source_name`、`metadata`。
+
+支持的 `link_type`：`conversation`、`artifact`、`task_run`、`workflow_run`、`rag_document`、`knowledge_source`、`approval`、`external`。
+
+边界：这些关联只是可追踪引用，不会执行被关联任务，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，也不会绕过审批。

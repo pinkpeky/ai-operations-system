@@ -5,12 +5,18 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
-from sqlalchemy import DateTime, JSON, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, IdTimestampMixin
-from app.models.enums import CommercialOperationPriority, CommercialOperationRiskLevel, CommercialOperationStatus
+from app.models.enums import (
+    CommercialOperationLinkType,
+    CommercialOperationPriority,
+    CommercialOperationRiskLevel,
+    CommercialOperationStatus,
+)
 
 
 class CommercialOperation(IdTimestampMixin, Base):
@@ -64,4 +70,37 @@ class CommercialOperation(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Operation metadata",
+    )
+
+
+class CommercialOperationLink(IdTimestampMixin, Base):
+    """Evidence or handoff link attached to a commercial operation."""
+
+    __tablename__ = "commercial_operation_links"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    link_type: Mapped[str] = mapped_column(
+        String(64),
+        default=CommercialOperationLinkType.EXTERNAL.value,
+        index=True,
+        nullable=False,
+        comment="conversation / artifact / task_run / workflow_run / rag_document / knowledge_source / approval / external",
+    )
+    target_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Target entity type")
+    target_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target entity ID")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Operator-facing link title")
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Short context summary")
+    source_name: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Source surface")
+    link_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Link metadata",
     )

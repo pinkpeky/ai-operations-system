@@ -14,6 +14,9 @@ from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
 from app.schemas.commercial_operation import (
     CommercialOperationCreateRequest,
+    CommercialOperationLinkCreateRequest,
+    CommercialOperationLinkListResponse,
+    CommercialOperationLinkResponse,
     CommercialOperationListResponse,
     CommercialOperationPlanPreviewResponse,
     CommercialOperationResponse,
@@ -138,3 +141,82 @@ async def regenerate_commercial_operation_plan(
     except Exception as exc:
         logger.exception("Commercial operation plan API failed", extra={"operation_id": str(operation_id)})
         raise AppError("Commercial operation plan failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)
+async def create_commercial_operation_link(
+    operation_id: UUID,
+    request: CommercialOperationLinkCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationLinkResponse:
+    """Attach evidence, handoff, or runtime context to a commercial operation."""
+
+    try:
+        link = await CommercialOperationService(session).create_link(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationLinkResponse.from_model(link)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation link create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation link create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/links", response_model=CommercialOperationLinkListResponse)
+async def list_commercial_operation_links(
+    operation_id: UUID,
+    link_type: str | None = Query(default=None, description="conversation / artifact / task_run / workflow_run / rag_document / knowledge_source / approval / external"),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationLinkListResponse:
+    """List evidence and handoff links for a commercial operation."""
+
+    try:
+        links = await CommercialOperationService(session).list_links(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            link_type=link_type,
+            limit=limit,
+        )
+        return CommercialOperationLinkListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationLinkResponse.from_model(link) for link in links],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation link list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation link list failed", status_code=500) from exc
+
+
+@router.delete("/{operation_id}/links/{link_id}", response_model=CommercialOperationLinkResponse)
+async def delete_commercial_operation_link(
+    operation_id: UUID,
+    link_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationLinkResponse:
+    """Remove one commercial operation evidence or handoff link."""
+
+    try:
+        link = await CommercialOperationService(session).delete_link(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            link_id=link_id,
+        )
+        return CommercialOperationLinkResponse.from_model(link)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation link delete API failed",
+            extra={"operation_id": str(operation_id), "link_id": str(link_id)},
+        )
+        raise AppError("Commercial operation link delete failed", status_code=500) from exc

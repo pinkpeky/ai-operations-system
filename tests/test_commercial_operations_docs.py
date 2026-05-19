@@ -13,10 +13,16 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
 
     for marker in (
         "Phase 61A",
+        "Phase 61B",
         "commercial_operations",
+        "commercial_operation_links",
         "CommercialOperationService",
+        "CommercialOperationLink",
         "/api/v1/commercial-operations",
+        "/api/v1/commercial-operations/{operation_id}/links",
         "Admin Dashboard",
+        "Evidence",
+        "handoff",
         "does not publish",
         "does not execute OpenClaw actions",
         "does not run ComfyUI jobs",
@@ -25,7 +31,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61a_commercial_operations() -> None:
+def test_recovery_docs_point_to_phase_61b_commercial_operation_links() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -37,5 +43,6 @@ def test_recovery_docs_point_to_phase_61a_commercial_operations() -> None:
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61A" in text or "61A" in text, relative
+        assert "Phase 61B" in text or "61B" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
+        assert "commercial_operation_links" in text or "/links" in text, relative

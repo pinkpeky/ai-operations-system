@@ -62,6 +62,19 @@ class CommercialOperationRiskLevel(StrEnum):
     HIGH = "high"
 
 
+class CommercialOperationLinkType(StrEnum):
+    """商业运营项目证据与交接关联类型。"""
+
+    CONVERSATION = "conversation"
+    ARTIFACT = "artifact"
+    TASK_RUN = "task_run"
+    WORKFLOW_RUN = "workflow_run"
+    RAG_DOCUMENT = "rag_document"
+    KNOWLEDGE_SOURCE = "knowledge_source"
+    APPROVAL = "approval"
+    EXTERNAL = "external"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

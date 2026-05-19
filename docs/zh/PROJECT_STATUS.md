@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-当前更新（2026-05-19）：Phase 57A-59C 和 Phase 60A-60G 已通过 PR #22-#40 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础、Overview 角色入口、Conversations 操作台、RAG Documents 知识库操作台、RAG 知识维护入口、Replay Center 工作流观测简化和 RAG 真实联调指南。当前下一分支是 `codex/phase-60g-closeout-61a-operations-foundation`，范围是 Phase 61A 商业运营基础：商业运营项目记录、`/api/v1/commercial-operations`、Admin Dashboard 商业运营页，以及不会自动发布或执行外部动作的保守计划草案。
+当前更新（2026-05-19）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A 已通过 PR #22-#41 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础、Overview 角色入口、Conversations 操作台、RAG Documents 知识库操作台、RAG 知识维护入口、Replay Center 工作流观测简化、RAG 真实联调指南和 Commercial Ops 项目中心。当前下一分支是 `codex/phase-61b-commercial-operation-links`，范围是 Phase 61B 商业运营证据与交接关联：`commercial_operation_links`、`/api/v1/commercial-operations/{operation_id}/links`、Admin Dashboard 证据/交接操作，以及到会话、产物、任务运行、工作流运行、RAG 文档、审批记录、知识来源和外部素材的手动引用。
 
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
