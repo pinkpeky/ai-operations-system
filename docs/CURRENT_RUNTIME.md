@@ -12,6 +12,8 @@ Phase 61A added the `commercial_operations` table, `CommercialOperationService`,
 
 Phase 61B adds `commercial_operation_links` and `/api/v1/commercial-operations/{operation_id}/links` so operators can attach evidence and handoff references to an operation. Supported link categories are `conversation`, `artifact`, `task_run`, `workflow_run`, `rag_document`, `knowledge_source`, `approval`, and `external`.
 
+Phase 61C adds `commercial_operation_approvals` and `/api/v1/commercial-operations/{operation_id}/approvals` so operators can request, approve, reject, or cancel human approval for a specific operation plan step. Approval decisions are reflected back into `plan_outline` metadata for operator visibility.
+
 Commercial operations still do not publish, execute OpenClaw actions, run ComfyUI jobs, control real accounts, or bypass approval.
 
 ## Provider Defaults

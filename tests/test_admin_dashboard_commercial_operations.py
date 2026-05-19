@@ -20,8 +20,8 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61B" in text
-    assert "Commercial operation evidence" in text
+    assert "Phase 61C" in text
+    assert "Approval gates" in text
     assert "证据与交接" in text
     assert "Evidence and handoff" in text
     assert "不会自动发布" in text
@@ -30,6 +30,11 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.create" in text
     assert "commercialOperationsApi.planDraft" in text
     assert "commercialOperationsApi.update" in text
+    assert "commercialOperationsApi.approvals" in text
+    assert "commercialOperationsApi.createApproval" in text
+    assert "commercialOperationsApi.approveApproval" in text
+    assert "commercialOperationsApi.rejectApproval" in text
+    assert "commercialOperationsApi.cancelApproval" in text
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
@@ -42,6 +47,10 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/cancel" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
@@ -59,6 +68,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-form-grid",
         ".commercial-detail-grid",
         ".commercial-action-row",
+        ".commercial-approval-grid",
+        ".commercial-approval-list",
+        ".commercial-approval-item",
+        ".commercial-approval-actions",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",
