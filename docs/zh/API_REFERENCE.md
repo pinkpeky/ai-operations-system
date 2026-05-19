@@ -3127,7 +3127,7 @@ Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; serv
 
 ## Phase 61A: 商业运营基础
 
-状态：进行中。
+状态：已完成。
 
 Phase 61A 增加 workspace 级商业运营项目中心。它提供 `commercial_operations`、`CommercialOperationService` 和 Admin Dashboard 商业运营页，用于把一个商业目标保存为可追踪记录，并生成可审阅的计划草案。
 
@@ -3145,7 +3145,7 @@ API：
 
 ## Phase 61B: 商业运营证据与交接关联
 
-状态：进行中。
+状态：已完成。
 
 Phase 61B 在每个商业运营项目下新增 `commercial_operation_links` 与 `CommercialOperationLink` 记录。操作人员可以先把沟通记录、内容产物、任务运行、工作流运行、RAG 文档、审批记录、知识来源或外部素材手动挂到项目上，供后续审批和执行阶段接手。
 
@@ -3160,3 +3160,23 @@ API：
 支持的 `link_type`：`conversation`、`artifact`、`task_run`、`workflow_run`、`rag_document`、`knowledge_source`、`approval`、`external`。
 
 边界：这些关联只是可追踪引用，不会执行被关联任务，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，也不会绕过审批。
+
+## Phase 61C: 商业运营审批门禁
+
+状态：进行中。
+
+Phase 61C 在每个商业运营项目下新增 `commercial_operation_approvals` 与 `CommercialOperationApproval` 记录。操作人员可以针对某个 `plan_outline` 步骤发起审批，再批准、驳回或取消该门禁，供后续干运行或执行阶段接手。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/approvals`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/cancel`
+
+主要字段：`operation_id`、`step_key`、`title`、`requested_action`、`approval_status`、`risk_level`、`requested_by`、`reviewer_user_id`、`reviewer_notes`、`approved_at`、`rejected_at`、`cancelled_at`、`metadata`。
+
+支持的 `approval_status`：`pending`、`approved`、`rejected`、`cancelled`。
+
+边界：审批只是人工审阅记录和计划步骤门禁，不会执行被关联任务，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会控制真实账号，也不会绕过审批。

@@ -462,8 +462,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61B",
-    boundaryBody: "商业运营证据与交接。把运营目标、计划、知识、审批、产物和执行上下文串成可接手链路。",
+    boundaryTitle: "Phase 61C",
+    boundaryBody: "商业运营审批门禁。把运营目标、计划、知识、证据、审批和执行上下文串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -725,8 +725,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61B",
-    boundaryBody: "Commercial operation evidence and handoff: connect goals, plans, knowledge, approvals, artifacts, and execution context.",
+    boundaryTitle: "Phase 61C",
+    boundaryBody: "Commercial operation approval gates: connect goals, plans, knowledge, evidence, approvals, and execution context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4385,7 +4385,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61B",
+    phaseLabel: "Phase 61C",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划与操作入口；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4399,6 +4399,8 @@ const commercialOperationCopy = {
     listTitle: "项目列表",
     detailTitle: "项目详情",
     detailDescription: "计划草案是可审阅的执行路线，不会触发 OpenClaw、ComfyUI、浏览器 Worker 或外部发布。",
+    approvalsTitle: "审批门禁",
+    approvalsDescription: "为计划步骤创建人工审批，只有审批记录通过后，后续阶段才允许把该步骤交给执行或干运行。",
     linksTitle: "证据与交接",
     linksDescription: "把需求沟通、内容产物、任务运行、工作流、RAG 文档、审批记录或外部素材挂到当前项目，便于后续人员接手。",
     titleLabel: "项目名称",
@@ -4412,12 +4414,18 @@ const commercialOperationCopy = {
     budgetLabel: "预算",
     currencyLabel: "币种",
     constraintsLabel: "约束",
+    approvalStepLabel: "计划步骤",
+    requestedActionLabel: "审批事项",
     linkTypeLabel: "关联类型",
     targetTypeLabel: "目标对象",
     targetIdLabel: "目标 ID",
     sourceNameLabel: "来源",
     linkSummaryLabel: "说明",
     createAction: "创建项目",
+    requestApprovalAction: "创建审批",
+    approveAction: "批准",
+    rejectAction: "驳回",
+    cancelAction: "取消",
     createLinkAction: "添加关联",
     deleteLinkAction: "移除",
     planAction: "重新生成计划",
@@ -4425,10 +4433,12 @@ const commercialOperationCopy = {
     activate: "启动跟踪",
     pause: "暂停",
     noOperations: "暂无商业运营项目。",
+    noApprovals: "暂无审批记录。",
     noLinks: "暂无证据或交接关联。",
     noPlan: "还没有计划草案。",
     actionResult: "操作结果",
     selectedHint: "从项目列表选择一行查看计划。",
+    approvalsSelectedHint: "先选择一个项目，再为计划步骤创建审批。",
     linksSelectedHint: "先选择一个项目，再添加证据或交接关联。",
     planTitle: "计划草案",
     statusColumn: "状态",
@@ -4439,7 +4449,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61B",
+    phaseLabel: "Phase 61C",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans and operator entry points only. It does not publish, control real accounts, or bypass approval.",
@@ -4453,6 +4463,8 @@ const commercialOperationCopy = {
     listTitle: "Operation list",
     detailTitle: "Operation detail",
     detailDescription: "The plan outline is reviewable. It does not trigger OpenClaw, ComfyUI, Browser Worker, or external publishing.",
+    approvalsTitle: "Approval gates",
+    approvalsDescription: "Create human approvals for plan steps before later phases can hand them to execution or dry-run surfaces.",
     linksTitle: "Evidence and handoff",
     linksDescription: "Attach intake notes, content artifacts, task runs, workflow runs, RAG documents, approvals, or external materials to the selected operation.",
     titleLabel: "Title",
@@ -4466,12 +4478,18 @@ const commercialOperationCopy = {
     budgetLabel: "Budget",
     currencyLabel: "Currency",
     constraintsLabel: "Constraints",
+    approvalStepLabel: "Plan step",
+    requestedActionLabel: "Requested action",
     linkTypeLabel: "Link type",
     targetTypeLabel: "Target object",
     targetIdLabel: "Target ID",
     sourceNameLabel: "Source",
     linkSummaryLabel: "Summary",
     createAction: "Create operation",
+    requestApprovalAction: "Create approval",
+    approveAction: "Approve",
+    rejectAction: "Reject",
+    cancelAction: "Cancel",
     createLinkAction: "Add link",
     deleteLinkAction: "Remove",
     planAction: "Regenerate plan",
@@ -4479,10 +4497,12 @@ const commercialOperationCopy = {
     activate: "Start tracking",
     pause: "Pause",
     noOperations: "No commercial operations yet.",
+    noApprovals: "No approval gates yet.",
     noLinks: "No evidence or handoff links yet.",
     noPlan: "No plan outline yet.",
     actionResult: "Action result",
     selectedHint: "Select one row from the operation list to inspect the plan.",
+    approvalsSelectedHint: "Select an operation before creating plan-step approvals.",
     linksSelectedHint: "Select an operation before adding evidence or handoff links.",
     planTitle: "Plan outline",
     statusColumn: "status",
@@ -4504,6 +4524,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const copy = commercialOperationCopy[language];
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4517,6 +4538,10 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetCurrency, setBudgetCurrency] = useState("CNY");
   const [constraintsDraft, setConstraintsDraft] = useState(language === "zh-CN" ? "人工审批后执行, 不自动发布" : "execute after human approval, no auto publish");
+  const [approvalStepKey, setApprovalStepKey] = useState("human_review");
+  const [approvalTitle, setApprovalTitle] = useState(language === "zh-CN" ? "执行前人工审批" : "Review before execution");
+  const [requestedAction, setRequestedAction] = useState(language === "zh-CN" ? "审批通过后才允许进入干运行或外部执行准备。" : "Approve before dry-run or external execution preparation.");
+  const [approvalRiskLevel, setApprovalRiskLevel] = useState<"low" | "medium" | "high">("medium");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -4552,6 +4577,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
 
   const selectedOperationId = selectedOperation ? valueAt(selectedOperation, ["id"], "") : "";
 
+  const loadApprovals = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setApprovalsState(emptyState());
+        return;
+      }
+      setApprovalsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.approvals(operationId, settings);
+        setApprovalsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setApprovalsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation approvals API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadLinks = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -4576,11 +4623,13 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
 
   useEffect(() => {
     if (selectedOperationId) {
+      void loadApprovals(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
+    setApprovalsState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -4601,7 +4650,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         risk_level: riskLevel,
         budget_amount: budget,
         budget_currency: budgetCurrency.trim() || "CNY",
-        metadata: { source: "admin_dashboard", phase: "61B" },
+        metadata: { source: "admin_dashboard", phase: "61C" },
       };
       const created = await commercialOperationsApi.create(payload, settings);
       setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
@@ -4611,6 +4660,70 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const createOperationApproval = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: copy.approvalsSelectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    const outline = selectedOperation && Array.isArray(selectedOperation.plan_outline) ? (selectedOperation.plan_outline as JsonRecord[]) : [];
+    const selectedStep = outline.find((step) => valueAt(step, ["step_key"], "") === approvalStepKey);
+    const fallbackTitle = selectedStep ? valueAt(selectedStep, ["title"], approvalStepKey) : approvalStepKey;
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createApproval(
+        selectedOperationId,
+        {
+          step_key: approvalStepKey.trim(),
+          title: approvalTitle.trim() || fallbackTitle,
+          requested_action: requestedAction.trim() || undefined,
+          risk_level: approvalRiskLevel,
+          metadata: { source: "admin_dashboard", phase: "61C" },
+        },
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      await loadApprovals(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation approval create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationApproval = async (approvalId: string, action: "approve" | "reject" | "cancel") => {
+    if (!selectedOperationId || !approvalId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "approve"
+          ? await commercialOperationsApi.approveApproval(selectedOperationId, approvalId, "Approved from Commercial Ops.", settings)
+          : action === "reject"
+            ? await commercialOperationsApi.rejectApproval(selectedOperationId, approvalId, "Rejected from Commercial Ops.", settings)
+            : await commercialOperationsApi.cancelApproval(selectedOperationId, approvalId, "Cancelled from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadApprovals(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation approval action unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -4636,7 +4749,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         title: linkTitle.trim(),
         summary: linkSummary.trim() || undefined,
         source_name: linkSourceName.trim() || undefined,
-        metadata: { source: "admin_dashboard", phase: "61B" },
+        metadata: { source: "admin_dashboard", phase: "61C" },
       };
       const created = await commercialOperationsApi.createLink(selectedOperationId, payload, settings);
       setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
@@ -4724,6 +4837,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     return total + (Array.isArray(outline) ? outline.length : 0);
   }, 0);
   const planRows = selectedOperation && Array.isArray(selectedOperation.plan_outline) ? (selectedOperation.plan_outline as JsonRecord[]) : [];
+  const approvals = approvalsState.data || [];
   const links = linksState.data || [];
 
   return (
@@ -4746,7 +4860,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -4882,6 +4996,112 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
             { key: "checks", label: "checks" },
           ]}
         />
+      </Panel>
+
+      <Panel title={copy.approvalsTitle} description={copy.approvalsDescription}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-approval-grid">
+              <label>
+                {copy.approvalStepLabel}
+                <select
+                  value={approvalStepKey}
+                  onChange={(event) => {
+                    const nextStepKey = event.target.value;
+                    setApprovalStepKey(nextStepKey);
+                    const step = planRows.find((row) => valueAt(row, ["step_key"], "") === nextStepKey);
+                    if (step) {
+                      setApprovalTitle(valueAt(step, ["title"], nextStepKey));
+                    }
+                  }}
+                >
+                  {planRows.map((step) => {
+                    const stepKey = valueAt(step, ["step_key"], "");
+                    return (
+                      <option value={stepKey} key={stepKey}>
+                        {stepKey} / {valueAt(step, ["title"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={approvalTitle} onChange={(event) => setApprovalTitle(event.target.value)} />
+              </label>
+              <label>
+                {copy.riskLabel}
+                <select value={approvalRiskLevel} onChange={(event) => setApprovalRiskLevel(event.target.value as "low" | "medium" | "high")}>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label className="commercial-wide-label">
+                {copy.requestedActionLabel}
+                <textarea value={requestedAction} onChange={(event) => setRequestedAction(event.target.value)} />
+              </label>
+            </div>
+            <button
+              className="primary-button"
+              onClick={() => void createOperationApproval()}
+              disabled={!approvalStepKey.trim() || !approvalTitle.trim() || actionState.loading}
+            >
+              <ShieldCheck size={15} />
+              {copy.requestApprovalAction}
+            </button>
+            <LoadNotice state={approvalsState} />
+            {approvalsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {approvalsState.updatedAt}</div> : null}
+            {approvals.length ? (
+              <div className="commercial-approval-list">
+                {approvals.map((approval) => {
+                  const approvalId = valueAt(approval, ["id"], "");
+                  const approvalStatus = valueAt(approval, ["approval_status"], "");
+                  return (
+                    <article className="commercial-approval-item" key={approvalId}>
+                      <div>
+                        <strong>{valueAt(approval, ["title"])}</strong>
+                        <span>{valueAt(approval, ["step_key"])} / {valueAt(approval, ["risk_level"])}</span>
+                        <p>{valueAt(approval, ["requested_action"])}</p>
+                        <StatusPill value={approvalStatus} />
+                      </div>
+                      <div className="commercial-approval-actions">
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationApproval(approvalId, "approve")}
+                          disabled={approvalStatus !== "pending" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {copy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationApproval(approvalId, "reject")}
+                          disabled={approvalStatus !== "pending" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {copy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationApproval(approvalId, "cancel")}
+                          disabled={!["pending", "approved"].includes(approvalStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {copy.cancelAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{copy.noApprovals}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{copy.approvalsSelectedHint}</div>
+        )}
       </Panel>
 
       <Panel title={copy.linksTitle} description={copy.linksDescription}>

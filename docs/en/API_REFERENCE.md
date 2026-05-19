@@ -3713,7 +3713,7 @@ Boundary: this phase does not publish, does not execute OpenClaw actions, does n
 
 ## Phase 61B: Commercial Operation Evidence & Handoff Links
 
-Status: in progress.
+Status: completed.
 
 Phase 61B adds `commercial_operation_links` and `CommercialOperationLink` records below each commercial operation. Operators can attach handoff context and evidence before later phases introduce approval-backed execution.
 
@@ -3728,3 +3728,23 @@ Main fields: `operation_id`, `link_type`, `target_type`, `target_id`, `title`, `
 Supported `link_type` values: `conversation`, `artifact`, `task_run`, `workflow_run`, `rag_document`, `knowledge_source`, `approval`, and `external`.
 
 Boundary: links are manual references only. They do not execute linked tasks, publish content, run ComfyUI, run OpenClaw, or bypass approval.
+
+## Phase 61C: Commercial Operation Approval Gates
+
+Status: in progress.
+
+Phase 61C adds `commercial_operation_approvals` and `CommercialOperationApproval` records below each commercial operation. Operators can request approval for a specific `plan_outline` step, then approve, reject, or cancel that gate before later dry-run or execution phases.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/approvals`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/cancel`
+
+Main fields: `operation_id`, `step_key`, `title`, `requested_action`, `approval_status`, `risk_level`, `requested_by`, `reviewer_user_id`, `reviewer_notes`, `approved_at`, `rejected_at`, `cancelled_at`, and `metadata`.
+
+Supported `approval_status` values: `pending`, `approved`, `rejected`, and `cancelled`.
+
+Boundary: approvals are human review records and plan-step gates only. They do not execute linked tasks, publish content, run ComfyUI, run OpenClaw, control real accounts, or bypass approval.

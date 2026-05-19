@@ -13,6 +13,10 @@ from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
 from app.schemas.commercial_operation import (
+    CommercialOperationApprovalCreateRequest,
+    CommercialOperationApprovalDecisionRequest,
+    CommercialOperationApprovalListResponse,
+    CommercialOperationApprovalResponse,
     CommercialOperationCreateRequest,
     CommercialOperationLinkCreateRequest,
     CommercialOperationLinkListResponse,
@@ -141,6 +145,153 @@ async def regenerate_commercial_operation_plan(
     except Exception as exc:
         logger.exception("Commercial operation plan API failed", extra={"operation_id": str(operation_id)})
         raise AppError("Commercial operation plan failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/approvals", response_model=CommercialOperationApprovalResponse, status_code=201)
+async def create_commercial_operation_approval(
+    operation_id: UUID,
+    request: CommercialOperationApprovalCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationApprovalResponse:
+    """Request human approval for one commercial operation plan step."""
+
+    try:
+        approval = await CommercialOperationService(session).create_approval(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            requested_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationApprovalResponse.from_model(approval)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation approval create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation approval create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/approvals", response_model=CommercialOperationApprovalListResponse)
+async def list_commercial_operation_approvals(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="pending / approved / rejected / cancelled"),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationApprovalListResponse:
+    """List approval gates for a commercial operation."""
+
+    try:
+        approvals = await CommercialOperationService(session).list_approvals(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            limit=limit,
+        )
+        return CommercialOperationApprovalListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationApprovalResponse.from_model(approval) for approval in approvals],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation approval list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation approval list failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/approvals/{approval_id}/approve", response_model=CommercialOperationApprovalResponse)
+async def approve_commercial_operation_approval(
+    operation_id: UUID,
+    approval_id: UUID,
+    request: CommercialOperationApprovalDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationApprovalResponse:
+    """Approve a pending commercial operation plan-step gate."""
+
+    try:
+        approval = await CommercialOperationService(session).approve_approval(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            reviewer_user_id=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationApprovalResponse.from_model(approval)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation approval approve API failed",
+            extra={"operation_id": str(operation_id), "approval_id": str(approval_id)},
+        )
+        raise AppError("Commercial operation approval approve failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/approvals/{approval_id}/reject", response_model=CommercialOperationApprovalResponse)
+async def reject_commercial_operation_approval(
+    operation_id: UUID,
+    approval_id: UUID,
+    request: CommercialOperationApprovalDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationApprovalResponse:
+    """Reject a pending commercial operation plan-step gate."""
+
+    try:
+        approval = await CommercialOperationService(session).reject_approval(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            reviewer_user_id=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationApprovalResponse.from_model(approval)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation approval reject API failed",
+            extra={"operation_id": str(operation_id), "approval_id": str(approval_id)},
+        )
+        raise AppError("Commercial operation approval reject failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/approvals/{approval_id}/cancel", response_model=CommercialOperationApprovalResponse)
+async def cancel_commercial_operation_approval(
+    operation_id: UUID,
+    approval_id: UUID,
+    request: CommercialOperationApprovalDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationApprovalResponse:
+    """Cancel a pending or approved commercial operation plan-step gate before execution."""
+
+    try:
+        approval = await CommercialOperationService(session).cancel_approval(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            reviewer_user_id=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationApprovalResponse.from_model(approval)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation approval cancel API failed",
+            extra={"operation_id": str(operation_id), "approval_id": str(approval_id)},
+        )
+        raise AppError("Commercial operation approval cancel failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)

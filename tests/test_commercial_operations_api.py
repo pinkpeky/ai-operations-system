@@ -12,12 +12,12 @@ from app.api.router import create_api_router
 from app.core.errors import AppError, app_error_handler
 from app.db.base import Base
 from app.db.postgres import get_session
-from app.models import CommercialOperation, CommercialOperationLink
+from app.models import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
 
 
 @pytest.mark.asyncio
 async def test_commercial_operations_api_flow() -> None:
-    _ = (CommercialOperation, CommercialOperationLink)
+    _ = (CommercialOperation, CommercialOperationApproval, CommercialOperationLink)
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -104,6 +104,80 @@ async def test_commercial_operations_api_flow() -> None:
             listed = await client.get("/api/v1/commercial-operations?status=ready", headers=headers)
             assert listed.status_code == 200
             assert [item["id"] for item in listed.json()["items"]] == [operation_id]
+
+            approval = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/approvals",
+                headers=headers,
+                json={
+                    "step_key": "human_review",
+                    "title": "Review before execution",
+                    "requested_action": "Approve the plan before any dry-run or external account action.",
+                    "risk_level": "high",
+                    "metadata": {"gate": "human_review"},
+                },
+            )
+            assert approval.status_code == 201
+            approval_body = approval.json()
+            approval_id = approval_body["id"]
+            assert approval_body["workspace_id"] == "workspace-commercial-api"
+            assert approval_body["operation_id"] == operation_id
+            assert approval_body["approval_status"] == "pending"
+            assert approval_body["requested_by"] == "user-commercial-api"
+
+            approvals = await client.get(f"/api/v1/commercial-operations/{operation_id}/approvals", headers=headers)
+            assert approvals.status_code == 200
+            assert [item["id"] for item in approvals.json()["items"]] == [approval_id]
+
+            hidden_approvals = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/approvals",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_approvals.status_code == 404
+
+            approved = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved for dry-run only."},
+            )
+            assert approved.status_code == 200
+            assert approved.json()["approval_status"] == "approved"
+            assert approved.json()["reviewer_user_id"] == "user-commercial-api"
+
+            fetched_after_approval = await client.get(f"/api/v1/commercial-operations/{operation_id}", headers=headers)
+            assert fetched_after_approval.status_code == 200
+            human_review_step = [
+                step
+                for step in fetched_after_approval.json()["plan_outline"]
+                if step["step_key"] == "human_review"
+            ][0]
+            assert human_review_step["approval_id"] == approval_id
+            assert human_review_step["approval_status"] == "approved"
+
+            reject_after_approval = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/reject",
+                headers=headers,
+                json={"reviewer_notes": "Too late to reject."},
+            )
+            assert reject_after_approval.status_code == 400
+
+            cancelled = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/cancel",
+                headers=headers,
+                json={"reviewer_notes": "Cancelled before execution."},
+            )
+            assert cancelled.status_code == 200
+            assert cancelled.json()["approval_status"] == "cancelled"
+
+            invalid_approval = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/approvals",
+                headers=headers,
+                json={
+                    "step_key": "missing_step",
+                    "title": "Invalid step",
+                    "risk_level": "medium",
+                },
+            )
+            assert invalid_approval.status_code == 400
 
             link = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/links",

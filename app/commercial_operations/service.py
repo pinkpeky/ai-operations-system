@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -10,8 +10,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.commercial_operation import CommercialOperation, CommercialOperationLink
-from app.models.enums import CommercialOperationStatus
+from app.models.commercial_operation import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
+from app.models.enums import CommercialOperationApprovalStatus, CommercialOperationStatus
 
 
 class CommercialOperationService:
@@ -153,6 +153,133 @@ class CommercialOperationService:
         await self.session.commit()
         await self.session.refresh(operation)
         return operation
+
+    async def create_approval(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        step_key: str,
+        title: str,
+        requested_by: str | None = None,
+        requested_action: str | None = None,
+        risk_level: str = "medium",
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationApproval:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        clean_step_key = self._clean_required_text(step_key, "step_key")
+        if not self._plan_step(operation, clean_step_key):
+            raise ValueError("step_key is not present in operation plan_outline")
+        approval = CommercialOperationApproval(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            step_key=clean_step_key,
+            title=self._clean_required_text(title, "title"),
+            requested_action=requested_action.strip() if requested_action and requested_action.strip() else None,
+            approval_status=CommercialOperationApprovalStatus.PENDING.value,
+            risk_level=risk_level,
+            requested_by=requested_by,
+            approval_metadata=metadata or {},
+        )
+        self.session.add(approval)
+        await self.session.flush()
+        self._apply_approval_to_plan(operation, approval)
+        await self.session.commit()
+        await self.session.refresh(approval)
+        return approval
+
+    async def list_approvals(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationApproval]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationApproval).where(
+            CommercialOperationApproval.workspace_id == workspace_id,
+            CommercialOperationApproval.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationApproval.approval_status == status)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationApproval.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_approval(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        approval_id: UUID,
+    ) -> CommercialOperationApproval:
+        result = await self.session.execute(
+            select(CommercialOperationApproval).where(
+                CommercialOperationApproval.workspace_id == workspace_id,
+                CommercialOperationApproval.operation_id == operation_id,
+                CommercialOperationApproval.id == approval_id,
+            )
+        )
+        approval = result.scalar_one_or_none()
+        if approval is None:
+            raise ValueError("Commercial operation approval not found in workspace")
+        return approval
+
+    async def approve_approval(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        approval_id: UUID,
+        reviewer_user_id: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationApproval:
+        return await self._decide_approval(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            status=CommercialOperationApprovalStatus.APPROVED.value,
+            reviewer_user_id=reviewer_user_id,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def reject_approval(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        approval_id: UUID,
+        reviewer_user_id: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationApproval:
+        return await self._decide_approval(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            status=CommercialOperationApprovalStatus.REJECTED.value,
+            reviewer_user_id=reviewer_user_id,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def cancel_approval(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        approval_id: UUID,
+        reviewer_user_id: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationApproval:
+        return await self._decide_approval(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            status=CommercialOperationApprovalStatus.CANCELLED.value,
+            reviewer_user_id=reviewer_user_id,
+            reviewer_notes=reviewer_notes,
+        )
 
     async def create_link(
         self,
@@ -299,3 +426,83 @@ class CommercialOperationService:
     def _validate_date_range(self, *, start_at: datetime | None, end_at: datetime | None) -> None:
         if start_at is not None and end_at is not None and end_at < start_at:
             raise ValueError("end_at must be after start_at")
+
+    async def _decide_approval(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        approval_id: UUID,
+        status: str,
+        reviewer_user_id: str | None,
+        reviewer_notes: str | None,
+    ) -> CommercialOperationApproval:
+        approval = await self.require_approval(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+        )
+        if status in {
+            CommercialOperationApprovalStatus.APPROVED.value,
+            CommercialOperationApprovalStatus.REJECTED.value,
+        } and approval.approval_status != CommercialOperationApprovalStatus.PENDING.value:
+            raise ValueError("Only pending approvals can be approved or rejected")
+        if status == CommercialOperationApprovalStatus.CANCELLED.value and approval.approval_status not in {
+            CommercialOperationApprovalStatus.PENDING.value,
+            CommercialOperationApprovalStatus.APPROVED.value,
+        }:
+            raise ValueError("Only pending or approved approvals can be cancelled")
+        now = datetime.now(UTC)
+        approval.approval_status = status
+        approval.reviewer_user_id = reviewer_user_id
+        approval.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        if status == CommercialOperationApprovalStatus.APPROVED.value:
+            approval.approved_at = now
+            approval.rejected_at = None
+            approval.cancelled_at = None
+        elif status == CommercialOperationApprovalStatus.REJECTED.value:
+            approval.rejected_at = now
+            approval.approved_at = None
+            approval.cancelled_at = None
+        elif status == CommercialOperationApprovalStatus.CANCELLED.value:
+            approval.cancelled_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        self._apply_approval_to_plan(operation, approval)
+        await self.session.commit()
+        await self.session.refresh(approval)
+        return approval
+
+    def _plan_step(self, operation: CommercialOperation, step_key: str) -> dict[str, Any] | None:
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == step_key:
+                return step
+        return None
+
+    def _apply_approval_to_plan(
+        self,
+        operation: CommercialOperation,
+        approval: CommercialOperationApproval,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == approval.step_key:
+                updated = dict(step)
+                updated["approval_id"] = str(approval.id)
+                updated["approval_status"] = approval.approval_status
+                updated["approval_risk_level"] = approval.risk_level
+                if (
+                    approval.approval_status == CommercialOperationApprovalStatus.CANCELLED.value
+                    and approval.cancelled_at is not None
+                ):
+                    updated["approval_decision_at"] = approval.cancelled_at.isoformat()
+                elif (
+                    approval.approval_status == CommercialOperationApprovalStatus.REJECTED.value
+                    and approval.rejected_at is not None
+                ):
+                    updated["approval_decision_at"] = approval.rejected_at.isoformat()
+                elif approval.approved_at is not None:
+                    updated["approval_decision_at"] = approval.approved_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline

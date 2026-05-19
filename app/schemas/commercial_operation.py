@@ -9,12 +9,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.commercial_operation import CommercialOperation, CommercialOperationLink
+from app.models.commercial_operation import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
 
 
 CommercialOperationStatusLiteral = Literal["draft", "planning", "ready", "active", "paused", "completed", "archived"]
 CommercialOperationPriorityLiteral = Literal["low", "normal", "high"]
 CommercialOperationRiskLiteral = Literal["low", "medium", "high"]
+CommercialOperationApprovalStatusLiteral = Literal["pending", "approved", "rejected", "cancelled"]
 CommercialOperationLinkTypeLiteral = Literal[
     "conversation",
     "artifact",
@@ -142,6 +143,73 @@ class CommercialOperationPlanPreviewResponse(BaseModel):
 
     operation_id: UUID
     plan_outline: list[dict[str, Any]]
+
+
+class CommercialOperationApprovalCreateRequest(BaseModel):
+    """Request human approval for a commercial operation plan step."""
+
+    step_key: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=255)
+    requested_action: str | None = None
+    risk_level: CommercialOperationRiskLiteral = "medium"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationApprovalDecisionRequest(BaseModel):
+    """Approve, reject, or cancel a commercial operation step approval."""
+
+    reviewer_notes: str | None = None
+
+
+class CommercialOperationApprovalResponse(BaseModel):
+    """Commercial operation plan-step approval response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    step_key: str
+    title: str
+    requested_action: str | None
+    approval_status: str
+    risk_level: str
+    requested_by: str | None
+    reviewer_user_id: str | None
+    reviewer_notes: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    cancelled_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, approval: CommercialOperationApproval) -> "CommercialOperationApprovalResponse":
+        return cls(
+            id=approval.id,
+            workspace_id=approval.workspace_id,
+            operation_id=approval.operation_id,
+            step_key=approval.step_key,
+            title=approval.title,
+            requested_action=approval.requested_action,
+            approval_status=approval.approval_status,
+            risk_level=approval.risk_level,
+            requested_by=approval.requested_by,
+            reviewer_user_id=approval.reviewer_user_id,
+            reviewer_notes=approval.reviewer_notes,
+            approved_at=approval.approved_at,
+            rejected_at=approval.rejected_at,
+            cancelled_at=approval.cancelled_at,
+            metadata=approval.approval_metadata,
+            created_at=approval.created_at,
+            updated_at=approval.updated_at,
+        )
+
+
+class CommercialOperationApprovalListResponse(BaseModel):
+    """Commercial operation approval list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationApprovalResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

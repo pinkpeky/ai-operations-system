@@ -869,6 +869,14 @@ textarea {
   margin-bottom: 14px;
 }
 
+.commercial-approval-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.7fr) minmax(140px, 0.32fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.commercial-approval-grid label,
 .commercial-link-grid label {
   display: grid;
   gap: 6px;
@@ -877,10 +885,27 @@ textarea {
   font-weight: 700;
 }
 
+.commercial-approval-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .commercial-link-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
+}
+
+.commercial-approval-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #d9e6df;
+  border-radius: 8px;
+  background: #fbfdfb;
 }
 
 .commercial-link-item {
@@ -894,18 +919,26 @@ textarea {
   background: #fbfcfd;
 }
 
+.commercial-approval-item strong,
+.commercial-approval-item span {
+  display: block;
+}
+
 .commercial-link-item strong,
 .commercial-link-item span,
 .commercial-link-item code {
   display: block;
 }
 
+.commercial-approval-item strong,
 .commercial-link-item strong {
   color: #17212b;
   font-size: 13px;
   line-height: 1.45;
 }
 
+.commercial-approval-item span,
+.commercial-approval-item p,
 .commercial-link-item span,
 .commercial-link-item p {
   margin: 4px 0 0;
@@ -918,6 +951,13 @@ textarea {
   max-width: 100%;
   margin-top: 6px;
   overflow-wrap: anywhere;
+}
+
+.commercial-approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .commercial-link-actions {
@@ -1220,6 +1260,8 @@ textarea {
   .commercial-grid,
   .commercial-detail-grid,
   .commercial-form-grid,
+  .commercial-approval-grid,
+  .commercial-approval-item,
   .commercial-link-grid,
   .commercial-link-item,
   .rag-metrics-grid,

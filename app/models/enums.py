@@ -75,6 +75,15 @@ class CommercialOperationLinkType(StrEnum):
     EXTERNAL = "external"
 
 
+class CommercialOperationApprovalStatus(StrEnum):
+    """Commercial operation plan-step approval status."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

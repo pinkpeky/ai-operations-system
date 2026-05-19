@@ -19,7 +19,7 @@ from app.models.browser import (
 from app.models.browser_worker import BrowserWorker, BrowserWorkerAction, BrowserWorkerSession
 from app.models.browser_runtime import BrowserRuntimeEvent, BrowserRuntimeReplay, BrowserRuntimeSession, BrowserRuntimeSnapshot
 from app.models.collection_metadata import CollectionMetadata
-from app.models.commercial_operation import CommercialOperation, CommercialOperationLink
+from app.models.commercial_operation import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
 from app.models.conversation import (
     ConversationApproval,
     ConversationEvent,
@@ -47,6 +47,7 @@ from app.models.enums import (
     BrowserWorkerSessionStatus,
     BrowserWorkerStatus,
     CollectionMetadataStatus,
+    CommercialOperationApprovalStatus,
     CommercialOperationPriority,
     CommercialOperationLinkType,
     CommercialOperationRiskLevel,
@@ -175,6 +176,8 @@ __all__ = [
     "CollectionMetadata",
     "CollectionMetadataStatus",
     "CommercialOperation",
+    "CommercialOperationApproval",
+    "CommercialOperationApprovalStatus",
     "CommercialOperationLink",
     "CommercialOperationLinkType",
     "CommercialOperationPriority",
