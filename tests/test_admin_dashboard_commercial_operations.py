@@ -20,8 +20,9 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61C" in text
+    assert "Phase 61D" in text
     assert "Approval gates" in text
+    assert "Safe dry-runs" in text
     assert "证据与交接" in text
     assert "Evidence and handoff" in text
     assert "不会自动发布" in text
@@ -35,6 +36,11 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.approveApproval" in text
     assert "commercialOperationsApi.rejectApproval" in text
     assert "commercialOperationsApi.cancelApproval" in text
+    assert "commercialOperationsApi.dryRuns" in text
+    assert "commercialOperationsApi.createDryRun" in text
+    assert "commercialOperationsApi.completeDryRun" in text
+    assert "commercialOperationsApi.failDryRun" in text
+    assert "commercialOperationsApi.cancelDryRun" in text
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
@@ -51,6 +57,10 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/approve" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/reject" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/dry-runs" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/complete" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/cancel" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
@@ -72,6 +82,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-approval-list",
         ".commercial-approval-item",
         ".commercial-approval-actions",
+        ".commercial-dry-run-grid",
+        ".commercial-dry-run-list",
+        ".commercial-dry-run-item",
+        ".commercial-dry-run-actions",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",

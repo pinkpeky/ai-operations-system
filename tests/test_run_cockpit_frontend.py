@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation approvals slice."""
+    """Recovery docs should point to the active commercial operation dry-run slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61c-commercial-operation-approvals" in text or "Commercial Operation Approval" in text, path
-        assert "commercial_operation_approvals" in text or "/approvals" in text, path
+        assert "phase-61d-commercial-operation-dry-runs" in text or "Commercial Operation Safe Dry-Runs" in text, path
+        assert "commercial_operation_dry_runs" in text or "/dry-runs" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A/61B should be merged and Phase 61C should be the active approval slice."""
+    """Phase 61A/61B/61C should be merged and Phase 61D should be the active dry-run slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -311,5 +311,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "61C" in phase_61_lines
     assert "phase-61c-commercial-operation-approvals" in phase_61_lines["61C"]
     assert "Commercial Operation Approval" in phase_61_lines["61C"]
-    assert "TBD" in phase_61_lines["61C"]
-    assert "In progress" in phase_61_lines["61C"]
+    assert "#43" in phase_61_lines["61C"]
+    assert "Merged to main" in phase_61_lines["61C"]
+    assert "TBD" not in phase_61_lines["61C"]
+    assert "In progress" not in phase_61_lines["61C"]
+
+    assert "61D" in phase_61_lines
+    assert "phase-61d-commercial-operation-dry-runs" in phase_61_lines["61D"]
+    assert "Commercial Operation Safe Dry-Runs" in phase_61_lines["61D"]
+    assert "#44" in phase_61_lines["61D"]
+    assert "TBD" not in phase_61_lines["61D"]
+    assert "In progress" in phase_61_lines["61D"]

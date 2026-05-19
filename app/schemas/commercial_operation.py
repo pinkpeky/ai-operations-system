@@ -9,13 +9,20 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.commercial_operation import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
+from app.models.commercial_operation import (
+    CommercialOperation,
+    CommercialOperationApproval,
+    CommercialOperationDryRun,
+    CommercialOperationLink,
+)
 
 
 CommercialOperationStatusLiteral = Literal["draft", "planning", "ready", "active", "paused", "completed", "archived"]
 CommercialOperationPriorityLiteral = Literal["low", "normal", "high"]
 CommercialOperationRiskLiteral = Literal["low", "medium", "high"]
 CommercialOperationApprovalStatusLiteral = Literal["pending", "approved", "rejected", "cancelled"]
+CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
+CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
     "conversation",
     "artifact",
@@ -210,6 +217,90 @@ class CommercialOperationApprovalListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationApprovalResponse]
+
+
+class CommercialOperationDryRunCreateRequest(BaseModel):
+    """Create a safe dry-run record from an approved operation approval."""
+
+    approval_id: UUID
+    step_key: str = Field(default="execution_dry_run", min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=255)
+    execution_mode: CommercialOperationDryRunModeLiteral = "metadata_only"
+    execution_target: str | None = Field(default=None, max_length=128)
+    input_summary: str | None = None
+    expected_outputs: list[str] = Field(default_factory=list)
+    readiness_checks: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationDryRunDecisionRequest(BaseModel):
+    """Complete, fail, or cancel a commercial operation dry-run record."""
+
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationDryRunResponse(BaseModel):
+    """Commercial operation dry-run response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    approval_id: UUID
+    step_key: str
+    title: str
+    dry_run_status: str
+    execution_mode: str
+    execution_target: str | None
+    input_summary: str | None
+    runbook: list[dict[str, Any]]
+    expected_outputs: list[str]
+    readiness_checks: list[str]
+    result_summary: str | None
+    failure_reason: str | None
+    requested_by: str | None
+    completed_by: str | None
+    completed_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, dry_run: CommercialOperationDryRun) -> "CommercialOperationDryRunResponse":
+        return cls(
+            id=dry_run.id,
+            workspace_id=dry_run.workspace_id,
+            operation_id=dry_run.operation_id,
+            approval_id=dry_run.approval_id,
+            step_key=dry_run.step_key,
+            title=dry_run.title,
+            dry_run_status=dry_run.dry_run_status,
+            execution_mode=dry_run.execution_mode,
+            execution_target=dry_run.execution_target,
+            input_summary=dry_run.input_summary,
+            runbook=dry_run.runbook,
+            expected_outputs=dry_run.expected_outputs,
+            readiness_checks=dry_run.readiness_checks,
+            result_summary=dry_run.result_summary,
+            failure_reason=dry_run.failure_reason,
+            requested_by=dry_run.requested_by,
+            completed_by=dry_run.completed_by,
+            completed_at=dry_run.completed_at,
+            failed_at=dry_run.failed_at,
+            cancelled_at=dry_run.cancelled_at,
+            metadata=dry_run.dry_run_metadata,
+            created_at=dry_run.created_at,
+            updated_at=dry_run.updated_at,
+        )
+
+
+class CommercialOperationDryRunListResponse(BaseModel):
+    """Commercial operation dry-run list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationDryRunResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

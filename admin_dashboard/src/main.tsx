@@ -462,8 +462,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61C",
-    boundaryBody: "商业运营审批门禁。把运营目标、计划、知识、证据、审批和执行上下文串成可接手链路。",
+    boundaryTitle: "Phase 61D",
+    boundaryBody: "商业运营安全干运行。把运营目标、计划、知识、证据、审批和干运行上下文串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -725,8 +725,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61C",
-    boundaryBody: "Commercial operation approval gates: connect goals, plans, knowledge, evidence, approvals, and execution context.",
+    boundaryTitle: "Phase 61D",
+    boundaryBody: "Commercial operation safe dry-runs: connect goals, plans, knowledge, evidence, approvals, and dry-run context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4385,10 +4385,10 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61C",
+    phaseLabel: "Phase 61D",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
-    summary: "当前只创建计划与操作入口；不会自动发布、不会控制真实账号、不会绕过审批。",
+    summary: "当前只创建计划、审批、证据和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
     flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "监控恢复"],
     total: "项目",
     active: "进行中",
@@ -4401,6 +4401,8 @@ const commercialOperationCopy = {
     detailDescription: "计划草案是可审阅的执行路线，不会触发 OpenClaw、ComfyUI、浏览器 Worker 或外部发布。",
     approvalsTitle: "审批门禁",
     approvalsDescription: "为计划步骤创建人工审批，只有审批记录通过后，后续阶段才允许把该步骤交给执行或干运行。",
+    dryRunsTitle: "安全干运行",
+    dryRunsDescription: "基于已批准审批创建 metadata-only 干运行记录，用于检查输入、目标、预期输出和交接结果，不触发外部动作。",
     linksTitle: "证据与交接",
     linksDescription: "把需求沟通、内容产物、任务运行、工作流、RAG 文档、审批记录或外部素材挂到当前项目，便于后续人员接手。",
     titleLabel: "项目名称",
@@ -4415,6 +4417,12 @@ const commercialOperationCopy = {
     currencyLabel: "币种",
     constraintsLabel: "约束",
     approvalStepLabel: "计划步骤",
+    dryRunApprovalLabel: "已批准审批",
+    executionModeLabel: "执行模式",
+    executionTargetLabel: "执行目标",
+    inputSummaryLabel: "输入摘要",
+    expectedOutputsLabel: "预期输出",
+    readinessChecksLabel: "检查项",
     requestedActionLabel: "审批事项",
     linkTypeLabel: "关联类型",
     targetTypeLabel: "目标对象",
@@ -4423,6 +4431,9 @@ const commercialOperationCopy = {
     linkSummaryLabel: "说明",
     createAction: "创建项目",
     requestApprovalAction: "创建审批",
+    createDryRunAction: "创建干运行",
+    completeDryRunAction: "完成",
+    failDryRunAction: "失败",
     approveAction: "批准",
     rejectAction: "驳回",
     cancelAction: "取消",
@@ -4434,11 +4445,14 @@ const commercialOperationCopy = {
     pause: "暂停",
     noOperations: "暂无商业运营项目。",
     noApprovals: "暂无审批记录。",
+    noDryRuns: "暂无干运行记录。",
     noLinks: "暂无证据或交接关联。",
     noPlan: "还没有计划草案。",
     actionResult: "操作结果",
     selectedHint: "从项目列表选择一行查看计划。",
     approvalsSelectedHint: "先选择一个项目，再为计划步骤创建审批。",
+    dryRunsSelectedHint: "先选择一个项目，并批准至少一个审批记录，再创建干运行。",
+    dryRunRequiresApproval: "需要先批准一个审批记录。",
     linksSelectedHint: "先选择一个项目，再添加证据或交接关联。",
     planTitle: "计划草案",
     statusColumn: "状态",
@@ -4449,10 +4463,10 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61C",
+    phaseLabel: "Phase 61D",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
-    summary: "This creates plans and operator entry points only. It does not publish, control real accounts, or bypass approval.",
+    summary: "This creates plans, approvals, evidence, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
     flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
     total: "Operations",
     active: "In motion",
@@ -4465,6 +4479,8 @@ const commercialOperationCopy = {
     detailDescription: "The plan outline is reviewable. It does not trigger OpenClaw, ComfyUI, Browser Worker, or external publishing.",
     approvalsTitle: "Approval gates",
     approvalsDescription: "Create human approvals for plan steps before later phases can hand them to execution or dry-run surfaces.",
+    dryRunsTitle: "Safe dry-runs",
+    dryRunsDescription: "Create metadata-only dry-run records from approved approvals to review inputs, targets, expected outputs, and handoff results without external actions.",
     linksTitle: "Evidence and handoff",
     linksDescription: "Attach intake notes, content artifacts, task runs, workflow runs, RAG documents, approvals, or external materials to the selected operation.",
     titleLabel: "Title",
@@ -4479,6 +4495,12 @@ const commercialOperationCopy = {
     currencyLabel: "Currency",
     constraintsLabel: "Constraints",
     approvalStepLabel: "Plan step",
+    dryRunApprovalLabel: "Approved approval",
+    executionModeLabel: "Execution mode",
+    executionTargetLabel: "Execution target",
+    inputSummaryLabel: "Input summary",
+    expectedOutputsLabel: "Expected outputs",
+    readinessChecksLabel: "Readiness checks",
     requestedActionLabel: "Requested action",
     linkTypeLabel: "Link type",
     targetTypeLabel: "Target object",
@@ -4487,6 +4509,9 @@ const commercialOperationCopy = {
     linkSummaryLabel: "Summary",
     createAction: "Create operation",
     requestApprovalAction: "Create approval",
+    createDryRunAction: "Create dry-run",
+    completeDryRunAction: "Complete",
+    failDryRunAction: "Fail",
     approveAction: "Approve",
     rejectAction: "Reject",
     cancelAction: "Cancel",
@@ -4498,11 +4523,14 @@ const commercialOperationCopy = {
     pause: "Pause",
     noOperations: "No commercial operations yet.",
     noApprovals: "No approval gates yet.",
+    noDryRuns: "No dry-runs yet.",
     noLinks: "No evidence or handoff links yet.",
     noPlan: "No plan outline yet.",
     actionResult: "Action result",
     selectedHint: "Select one row from the operation list to inspect the plan.",
     approvalsSelectedHint: "Select an operation before creating plan-step approvals.",
+    dryRunsSelectedHint: "Select an operation and approve at least one gate before creating a dry-run.",
+    dryRunRequiresApproval: "Approve one approval gate first.",
     linksSelectedHint: "Select an operation before adding evidence or handoff links.",
     planTitle: "Plan outline",
     statusColumn: "status",
@@ -4525,6 +4553,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [dryRunsState, setDryRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4542,6 +4571,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [approvalTitle, setApprovalTitle] = useState(language === "zh-CN" ? "执行前人工审批" : "Review before execution");
   const [requestedAction, setRequestedAction] = useState(language === "zh-CN" ? "审批通过后才允许进入干运行或外部执行准备。" : "Approve before dry-run or external execution preparation.");
   const [approvalRiskLevel, setApprovalRiskLevel] = useState<"low" | "medium" | "high">("medium");
+  const [dryRunApprovalId, setDryRunApprovalId] = useState("");
+  const [dryRunStepKey, setDryRunStepKey] = useState("execution_dry_run");
+  const [dryRunTitle, setDryRunTitle] = useState(language === "zh-CN" ? "安全执行干运行" : "Safe execution dry-run");
+  const [executionMode, setExecutionMode] = useState<"metadata_only" | "dry_run">("metadata_only");
+  const [executionTarget, setExecutionTarget] = useState("newsletter");
+  const [dryRunInputSummary, setDryRunInputSummary] = useState(language === "zh-CN" ? "检查审批后的执行输入、目标渠道和交接输出，不触发外部动作。" : "Review approved execution inputs, target channel, and handoff output without external actions.");
+  const [expectedOutputsDraft, setExpectedOutputsDraft] = useState(language === "zh-CN" ? "payload preview, operator handoff" : "payload preview, operator handoff");
+  const [readinessChecksDraft, setReadinessChecksDraft] = useState(language === "zh-CN" ? "approval gate, no external publish, operator review" : "approval gate, no external publish, operator review");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -4621,15 +4658,39 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadDryRuns = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setDryRunsState(emptyState());
+        return;
+      }
+      setDryRunsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.dryRuns(operationId, settings);
+        setDryRunsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setDryRunsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation dry-runs API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
+      void loadDryRuns(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
     setApprovalsState(emptyState());
+    setDryRunsState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -4724,6 +4785,82 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation approval action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const createOperationDryRun = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: copy.dryRunsSelectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    const approved = (approvalsState.data || []).filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
+    const approvalId = dryRunApprovalId || (approved[0] ? valueAt(approved[0], ["id"], "") : "");
+    if (!approvalId) {
+      setActionState({
+        data: null,
+        error: copy.dryRunRequiresApproval,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createDryRun(
+        selectedOperationId,
+        {
+          approval_id: approvalId,
+          step_key: dryRunStepKey.trim() || "execution_dry_run",
+          title: dryRunTitle.trim(),
+          execution_mode: executionMode,
+          execution_target: executionTarget.trim() || undefined,
+          input_summary: dryRunInputSummary.trim() || undefined,
+          expected_outputs: splitDraftList(expectedOutputsDraft),
+          readiness_checks: splitDraftList(readinessChecksDraft),
+          metadata: { source: "admin_dashboard", phase: "61D" },
+        },
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      await loadDryRuns(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation dry-run create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationDryRun = async (dryRunId: string, action: "complete" | "fail" | "cancel") => {
+    if (!selectedOperationId || !dryRunId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "complete"
+          ? await commercialOperationsApi.completeDryRun(selectedOperationId, dryRunId, "Completed from Commercial Ops; no external action executed.", settings)
+          : action === "fail"
+            ? await commercialOperationsApi.failDryRun(selectedOperationId, dryRunId, "Failed from Commercial Ops; operator review required.", settings)
+            : await commercialOperationsApi.cancelDryRun(selectedOperationId, dryRunId, "Cancelled from Commercial Ops before execution.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadDryRuns(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation dry-run action unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -4838,7 +4975,17 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, 0);
   const planRows = selectedOperation && Array.isArray(selectedOperation.plan_outline) ? (selectedOperation.plan_outline as JsonRecord[]) : [];
   const approvals = approvalsState.data || [];
+  const approvedApprovals = approvals.filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
+  const dryRuns = dryRunsState.data || [];
   const links = linksState.data || [];
+
+  useEffect(() => {
+    const approved = (approvalsState.data || []).filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
+    if (dryRunApprovalId && approved.some((approval) => valueAt(approval, ["id"], "") === dryRunApprovalId)) {
+      return;
+    }
+    setDryRunApprovalId(approved[0] ? valueAt(approved[0], ["id"], "") : "");
+  }, [approvalsState.data, dryRunApprovalId]);
 
   return (
     <div className="page-stack">
@@ -4860,7 +5007,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -5101,6 +5248,127 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{copy.approvalsSelectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={copy.dryRunsTitle} description={copy.dryRunsDescription}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-dry-run-grid">
+              <label>
+                {copy.dryRunApprovalLabel}
+                <select value={dryRunApprovalId} onChange={(event) => setDryRunApprovalId(event.target.value)}>
+                  {approvedApprovals.length ? null : <option value="">{copy.dryRunRequiresApproval}</option>}
+                  {approvedApprovals.map((approval) => {
+                    const approvalId = valueAt(approval, ["id"], "");
+                    return (
+                      <option value={approvalId} key={approvalId}>
+                        {valueAt(approval, ["title"])} / {valueAt(approval, ["step_key"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.approvalStepLabel}
+                <select value={dryRunStepKey} onChange={(event) => setDryRunStepKey(event.target.value)}>
+                  {planRows.map((step) => {
+                    const stepKey = valueAt(step, ["step_key"], "");
+                    return (
+                      <option value={stepKey} key={stepKey}>
+                        {stepKey} / {valueAt(step, ["title"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={dryRunTitle} onChange={(event) => setDryRunTitle(event.target.value)} />
+              </label>
+              <label>
+                {copy.executionModeLabel}
+                <select value={executionMode} onChange={(event) => setExecutionMode(event.target.value as "metadata_only" | "dry_run")}>
+                  <option value="metadata_only">metadata_only</option>
+                  <option value="dry_run">dry_run</option>
+                </select>
+              </label>
+              <label>
+                {copy.executionTargetLabel}
+                <input value={executionTarget} onChange={(event) => setExecutionTarget(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {copy.inputSummaryLabel}
+                <textarea value={dryRunInputSummary} onChange={(event) => setDryRunInputSummary(event.target.value)} />
+              </label>
+              <label>
+                {copy.expectedOutputsLabel}
+                <textarea value={expectedOutputsDraft} onChange={(event) => setExpectedOutputsDraft(event.target.value)} />
+              </label>
+              <label>
+                {copy.readinessChecksLabel}
+                <textarea value={readinessChecksDraft} onChange={(event) => setReadinessChecksDraft(event.target.value)} />
+              </label>
+            </div>
+            <button
+              className="primary-button"
+              onClick={() => void createOperationDryRun()}
+              disabled={!dryRunTitle.trim() || !dryRunStepKey.trim() || !approvedApprovals.length || actionState.loading}
+            >
+              <PlayCircle size={15} />
+              {copy.createDryRunAction}
+            </button>
+            <LoadNotice state={dryRunsState} />
+            {dryRunsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {dryRunsState.updatedAt}</div> : null}
+            {dryRuns.length ? (
+              <div className="commercial-dry-run-list">
+                {dryRuns.map((dryRun) => {
+                  const dryRunId = valueAt(dryRun, ["id"], "");
+                  const dryRunStatus = valueAt(dryRun, ["dry_run_status"], "");
+                  return (
+                    <article className="commercial-dry-run-item" key={dryRunId}>
+                      <div>
+                        <strong>{valueAt(dryRun, ["title"])}</strong>
+                        <span>{valueAt(dryRun, ["step_key"])} / {valueAt(dryRun, ["execution_mode"])} / {valueAt(dryRun, ["execution_target"])}</span>
+                        <p>{valueAt(dryRun, ["input_summary"])}</p>
+                        <StatusPill value={dryRunStatus} />
+                      </div>
+                      <div className="commercial-dry-run-actions">
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationDryRun(dryRunId, "complete")}
+                          disabled={dryRunStatus !== "created" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {copy.completeDryRunAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationDryRun(dryRunId, "fail")}
+                          disabled={dryRunStatus !== "created" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {copy.failDryRunAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationDryRun(dryRunId, "cancel")}
+                          disabled={dryRunStatus !== "created" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {copy.cancelAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{copy.noDryRuns}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{copy.dryRunsSelectedHint}</div>
         )}
       </Panel>
 

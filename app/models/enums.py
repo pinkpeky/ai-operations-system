@@ -84,6 +84,15 @@ class CommercialOperationApprovalStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class CommercialOperationDryRunStatus(StrEnum):
+    """Commercial operation dry-run lifecycle status."""
+
+    CREATED = "created"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

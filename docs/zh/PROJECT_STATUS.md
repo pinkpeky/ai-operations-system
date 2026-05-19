@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-当前更新（2026-05-19）：Phase 57A-59C、Phase 60A-60G、Phase 61A 和 Phase 61B 已通过 PR #22-#42 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础、Overview 角色入口、Conversations 操作台、RAG Documents 知识库操作台、RAG 知识维护入口、Replay Center 工作流观测简化、RAG 真实联调指南、Commercial Ops 项目中心，以及商业运营证据/交接关联。当前下一分支是 `codex/phase-61c-commercial-operation-approvals`，范围是 Phase 61C 商业运营审批门禁：`commercial_operation_approvals`、`/api/v1/commercial-operations/{operation_id}/approvals`、Admin Dashboard 审批操作，以及针对单个运营计划步骤的发起审批、批准、驳回和取消决策。
+当前更新（2026-05-19）：Phase 57A-59C、Phase 60A-60G、Phase 61A、Phase 61B 和 Phase 61C 已通过 PR #22-#43 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转、工作流来源聚焦、前端语言基础、Overview 角色入口、Conversations 操作台、RAG Documents 知识库操作台、RAG 知识维护入口、Replay Center 工作流观测简化、RAG 真实联调指南、Commercial Ops 项目中心、商业运营证据/交接关联，以及商业运营审批门禁。当前下一分支是 `codex/phase-61d-commercial-operation-dry-runs`，范围是 Phase 61D 商业运营安全干运行：`commercial_operation_dry_runs`、`/api/v1/commercial-operations/{operation_id}/dry-runs`、Admin Dashboard 安全干运行操作，以及从已批准审批门禁创建、完成、失败或取消 metadata-only 干运行记录。
 
 
 ## Phase 28 OpenClaw Worker Adapter Foundation

@@ -10,8 +10,17 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.commercial_operation import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
-from app.models.enums import CommercialOperationApprovalStatus, CommercialOperationStatus
+from app.models.commercial_operation import (
+    CommercialOperation,
+    CommercialOperationApproval,
+    CommercialOperationDryRun,
+    CommercialOperationLink,
+)
+from app.models.enums import (
+    CommercialOperationApprovalStatus,
+    CommercialOperationDryRunStatus,
+    CommercialOperationStatus,
+)
 
 
 class CommercialOperationService:
@@ -281,6 +290,165 @@ class CommercialOperationService:
             reviewer_notes=reviewer_notes,
         )
 
+    async def create_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        approval_id: UUID,
+        step_key: str = "execution_dry_run",
+        title: str,
+        requested_by: str | None = None,
+        execution_mode: str = "metadata_only",
+        execution_target: str | None = None,
+        input_summary: str | None = None,
+        expected_outputs: list[str] | None = None,
+        readiness_checks: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationDryRun:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        approval = await self.require_approval(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+        )
+        if approval.approval_status != CommercialOperationApprovalStatus.APPROVED.value:
+            raise ValueError("Dry-run requires an approved commercial operation approval")
+        clean_step_key = self._clean_required_text(step_key, "step_key")
+        if not self._plan_step(operation, clean_step_key):
+            raise ValueError("step_key is not present in operation plan_outline")
+        clean_outputs = self._clean_list(expected_outputs)
+        clean_checks = self._clean_list(readiness_checks) or [
+            "approved human gate",
+            "metadata-only payload review",
+            "no external account action",
+            "operator result capture",
+        ]
+        dry_run = CommercialOperationDryRun(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            approval_id=approval_id,
+            step_key=clean_step_key,
+            title=self._clean_required_text(title, "title"),
+            dry_run_status=CommercialOperationDryRunStatus.CREATED.value,
+            execution_mode=execution_mode,
+            execution_target=execution_target.strip() if execution_target and execution_target.strip() else None,
+            input_summary=input_summary.strip() if input_summary and input_summary.strip() else None,
+            runbook=self._build_dry_run_runbook(
+                operation=operation,
+                approval=approval,
+                step_key=clean_step_key,
+                execution_mode=execution_mode,
+                execution_target=execution_target,
+                readiness_checks=clean_checks,
+            ),
+            expected_outputs=clean_outputs,
+            readiness_checks=clean_checks,
+            requested_by=requested_by,
+            dry_run_metadata=metadata or {},
+        )
+        self.session.add(dry_run)
+        await self.session.flush()
+        self._apply_dry_run_to_plan(operation, dry_run)
+        await self.session.commit()
+        await self.session.refresh(dry_run)
+        return dry_run
+
+    async def list_dry_runs(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationDryRun]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationDryRun).where(
+            CommercialOperationDryRun.workspace_id == workspace_id,
+            CommercialOperationDryRun.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationDryRun.dry_run_status == status)
+        result = await self.session.execute(statement.order_by(CommercialOperationDryRun.updated_at.desc()).limit(limit))
+        return list(result.scalars().all())
+
+    async def require_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        dry_run_id: UUID,
+    ) -> CommercialOperationDryRun:
+        result = await self.session.execute(
+            select(CommercialOperationDryRun).where(
+                CommercialOperationDryRun.workspace_id == workspace_id,
+                CommercialOperationDryRun.operation_id == operation_id,
+                CommercialOperationDryRun.id == dry_run_id,
+            )
+        )
+        dry_run = result.scalar_one_or_none()
+        if dry_run is None:
+            raise ValueError("Commercial operation dry-run not found in workspace")
+        return dry_run
+
+    async def complete_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        dry_run_id: UUID,
+        completed_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationDryRun:
+        return await self._decide_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+            status=CommercialOperationDryRunStatus.COMPLETED.value,
+            completed_by=completed_by,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        dry_run_id: UUID,
+        completed_by: str | None = None,
+        result_summary: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationDryRun:
+        return await self._decide_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+            status=CommercialOperationDryRunStatus.FAILED.value,
+            completed_by=completed_by,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        dry_run_id: UUID,
+        completed_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationDryRun:
+        return await self._decide_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+            status=CommercialOperationDryRunStatus.CANCELLED.value,
+            completed_by=completed_by,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
     async def create_link(
         self,
         *,
@@ -502,6 +670,110 @@ class CommercialOperationService:
                     updated["approval_decision_at"] = approval.rejected_at.isoformat()
                 elif approval.approved_at is not None:
                     updated["approval_decision_at"] = approval.approved_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    async def _decide_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        dry_run_id: UUID,
+        status: str,
+        completed_by: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationDryRun:
+        dry_run = await self.require_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+        )
+        if dry_run.dry_run_status != CommercialOperationDryRunStatus.CREATED.value:
+            raise ValueError("Only created dry-runs can be completed, failed, or cancelled")
+        now = datetime.now(UTC)
+        dry_run.dry_run_status = status
+        dry_run.completed_by = completed_by
+        dry_run.result_summary = result_summary.strip() if result_summary and result_summary.strip() else None
+        dry_run.failure_reason = failure_reason.strip() if failure_reason and failure_reason.strip() else None
+        if status == CommercialOperationDryRunStatus.COMPLETED.value:
+            dry_run.completed_at = now
+        elif status == CommercialOperationDryRunStatus.FAILED.value:
+            dry_run.failed_at = now
+        elif status == CommercialOperationDryRunStatus.CANCELLED.value:
+            dry_run.cancelled_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        self._apply_dry_run_to_plan(operation, dry_run)
+        await self.session.commit()
+        await self.session.refresh(dry_run)
+        return dry_run
+
+    def _build_dry_run_runbook(
+        self,
+        *,
+        operation: CommercialOperation,
+        approval: CommercialOperationApproval,
+        step_key: str,
+        execution_mode: str,
+        execution_target: str | None,
+        readiness_checks: list[str],
+    ) -> list[dict[str, Any]]:
+        target = execution_target.strip() if execution_target and execution_target.strip() else "operator-selected target"
+        return [
+            {
+                "step_key": "confirm_approval",
+                "title": "Confirm approved human gate",
+                "status": "planned",
+                "approval_id": str(approval.id),
+                "approval_step_key": approval.step_key,
+                "approval_status": approval.approval_status,
+            },
+            {
+                "step_key": "prepare_payload",
+                "title": "Prepare metadata-only execution payload",
+                "status": "planned",
+                "operation_id": str(operation.id),
+                "operation_title": operation.title,
+                "dry_run_step_key": step_key,
+                "execution_mode": execution_mode,
+                "execution_target": target,
+            },
+            {
+                "step_key": "readiness_checks",
+                "title": "Review readiness checks without external execution",
+                "status": "planned",
+                "checks": readiness_checks,
+            },
+            {
+                "step_key": "operator_result",
+                "title": "Record dry-run result for handoff",
+                "status": "planned",
+                "non_goals": ["no publish", "no real account control", "no OpenClaw action", "no ComfyUI job"],
+            },
+        ]
+
+    def _apply_dry_run_to_plan(
+        self,
+        operation: CommercialOperation,
+        dry_run: CommercialOperationDryRun,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == dry_run.step_key:
+                updated = dict(step)
+                updated["dry_run_id"] = str(dry_run.id)
+                updated["dry_run_status"] = dry_run.dry_run_status
+                updated["dry_run_execution_mode"] = dry_run.execution_mode
+                if dry_run.execution_target:
+                    updated["dry_run_execution_target"] = dry_run.execution_target
+                if dry_run.cancelled_at is not None:
+                    updated["dry_run_decision_at"] = dry_run.cancelled_at.isoformat()
+                elif dry_run.failed_at is not None:
+                    updated["dry_run_decision_at"] = dry_run.failed_at.isoformat()
+                elif dry_run.completed_at is not None:
+                    updated["dry_run_decision_at"] = dry_run.completed_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

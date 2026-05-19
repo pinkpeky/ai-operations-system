@@ -247,6 +247,44 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  dryRuns: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/dry-runs`, {}, settings),
+  createDryRun: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/dry-runs`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  completeDryRun: (operationId: string, dryRunId: string, resultSummary = "Completed from Commercial Ops.", settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/complete`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: resultSummary }),
+      },
+      settings,
+    ),
+  failDryRun: (operationId: string, dryRunId: string, failureReason = "Failed from Commercial Ops.", settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  cancelDryRun: (operationId: string, dryRunId: string, resultSummary = "Cancelled from Commercial Ops.", settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: resultSummary }),
+      },
+      settings,
+    ),
   links: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/links`, {}, settings),
   createLink: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

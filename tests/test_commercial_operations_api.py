@@ -12,12 +12,12 @@ from app.api.router import create_api_router
 from app.core.errors import AppError, app_error_handler
 from app.db.base import Base
 from app.db.postgres import get_session
-from app.models import CommercialOperation, CommercialOperationApproval, CommercialOperationLink
+from app.models import CommercialOperation, CommercialOperationApproval, CommercialOperationDryRun, CommercialOperationLink
 
 
 @pytest.mark.asyncio
 async def test_commercial_operations_api_flow() -> None:
-    _ = (CommercialOperation, CommercialOperationApproval, CommercialOperationLink)
+    _ = (CommercialOperation, CommercialOperationApproval, CommercialOperationDryRun, CommercialOperationLink)
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -153,6 +153,68 @@ async def test_commercial_operations_api_flow() -> None:
             assert human_review_step["approval_id"] == approval_id
             assert human_review_step["approval_status"] == "approved"
 
+            dry_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/dry-runs",
+                headers=headers,
+                json={
+                    "approval_id": approval_id,
+                    "step_key": "execution_dry_run",
+                    "title": "Execution dry-run preparation",
+                    "execution_mode": "metadata_only",
+                    "execution_target": "newsletter",
+                    "input_summary": "Prepare a safe dry-run payload for approved campaign execution.",
+                    "expected_outputs": ["payload preview", "operator handoff"],
+                    "readiness_checks": ["approval gate", "no external publish"],
+                    "metadata": {"dry_run": "operator"},
+                },
+            )
+            assert dry_run.status_code == 201
+            dry_run_body = dry_run.json()
+            dry_run_id = dry_run_body["id"]
+            assert dry_run_body["workspace_id"] == "workspace-commercial-api"
+            assert dry_run_body["approval_id"] == approval_id
+            assert dry_run_body["step_key"] == "execution_dry_run"
+            assert dry_run_body["dry_run_status"] == "created"
+            assert dry_run_body["execution_mode"] == "metadata_only"
+            assert dry_run_body["execution_target"] == "newsletter"
+            assert dry_run_body["runbook"][0]["approval_status"] == "approved"
+
+            dry_runs = await client.get(f"/api/v1/commercial-operations/{operation_id}/dry-runs", headers=headers)
+            assert dry_runs.status_code == 200
+            assert [item["id"] for item in dry_runs.json()["items"]] == [dry_run_id]
+
+            hidden_dry_runs = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/dry-runs",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_dry_runs.status_code == 404
+
+            completed_dry_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/complete",
+                headers=headers,
+                json={"result_summary": "Payload is ready for operator review; no external action was executed."},
+            )
+            assert completed_dry_run.status_code == 200
+            assert completed_dry_run.json()["dry_run_status"] == "completed"
+            assert completed_dry_run.json()["completed_by"] == "user-commercial-api"
+
+            fetched_after_dry_run = await client.get(f"/api/v1/commercial-operations/{operation_id}", headers=headers)
+            assert fetched_after_dry_run.status_code == 200
+            dry_run_step = [
+                step
+                for step in fetched_after_dry_run.json()["plan_outline"]
+                if step["step_key"] == "execution_dry_run"
+            ][0]
+            assert dry_run_step["dry_run_id"] == dry_run_id
+            assert dry_run_step["dry_run_status"] == "completed"
+
+            fail_after_complete = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/fail",
+                headers=headers,
+                json={"failure_reason": "Too late to fail."},
+            )
+            assert fail_after_complete.status_code == 400
+
             reject_after_approval = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/approvals/{approval_id}/reject",
                 headers=headers,
@@ -167,6 +229,17 @@ async def test_commercial_operations_api_flow() -> None:
             )
             assert cancelled.status_code == 200
             assert cancelled.json()["approval_status"] == "cancelled"
+
+            dry_run_after_cancelled_approval = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/dry-runs",
+                headers=headers,
+                json={
+                    "approval_id": approval_id,
+                    "step_key": "execution_dry_run",
+                    "title": "Blocked dry-run",
+                },
+            )
+            assert dry_run_after_cancelled_approval.status_code == 400
 
             invalid_approval = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/approvals",
