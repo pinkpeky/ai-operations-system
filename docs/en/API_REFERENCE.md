@@ -3731,7 +3731,7 @@ Boundary: links are manual references only. They do not execute linked tasks, pu
 
 ## Phase 61C: Commercial Operation Approval Gates
 
-Status: in progress.
+Status: completed.
 
 Phase 61C adds `commercial_operation_approvals` and `CommercialOperationApproval` records below each commercial operation. Operators can request approval for a specific `plan_outline` step, then approve, reject, or cancel that gate before later dry-run or execution phases.
 
@@ -3748,3 +3748,23 @@ Main fields: `operation_id`, `step_key`, `title`, `requested_action`, `approval_
 Supported `approval_status` values: `pending`, `approved`, `rejected`, and `cancelled`.
 
 Boundary: approvals are human review records and plan-step gates only. They do not execute linked tasks, publish content, run ComfyUI, run OpenClaw, control real accounts, or bypass approval.
+
+## Phase 61D: Commercial Operation Safe Dry-Runs
+
+Status: in progress.
+
+Phase 61D adds `commercial_operation_dry_runs` and `CommercialOperationDryRun` records below each commercial operation. Operators can create a metadata-only dry-run from an approved approval gate, review the generated runbook and readiness checks, then complete, fail, or cancel the dry-run for later handoff.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/dry-runs`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/complete`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/cancel`
+
+Main fields: `operation_id`, `approval_id`, `step_key`, `title`, `dry_run_status`, `execution_mode`, `execution_target`, `input_summary`, `runbook`, `expected_outputs`, `readiness_checks`, `result_summary`, `failure_reason`, `requested_by`, `completed_by`, and `metadata`.
+
+Supported `dry_run_status` values: `created`, `completed`, `failed`, and `cancelled`.
+
+Boundary: dry-runs are approved, metadata-only execution preparation records. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

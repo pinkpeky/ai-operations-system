@@ -3163,7 +3163,7 @@ API：
 
 ## Phase 61C: 商业运营审批门禁
 
-状态：进行中。
+状态：已完成。
 
 Phase 61C 在每个商业运营项目下新增 `commercial_operation_approvals` 与 `CommercialOperationApproval` 记录。操作人员可以针对某个 `plan_outline` 步骤发起审批，再批准、驳回或取消该门禁，供后续干运行或执行阶段接手。
 
@@ -3180,3 +3180,23 @@ API：
 支持的 `approval_status`：`pending`、`approved`、`rejected`、`cancelled`。
 
 边界：审批只是人工审阅记录和计划步骤门禁，不会执行被关联任务，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会控制真实账号，也不会绕过审批。
+
+## Phase 61D: 商业运营安全干运行
+
+状态：进行中。
+
+Phase 61D 在每个商业运营项目下新增 `commercial_operation_dry_runs` 与 `CommercialOperationDryRun` 记录。操作人员可以基于已批准的审批门禁创建 metadata-only 干运行，检查生成的 runbook、输入摘要、目标、预期输出和 readiness checks，再把干运行标记为完成、失败或取消，供后续交接。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/dry-runs`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/complete`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/dry-runs/{dry_run_id}/cancel`
+
+主要字段：`operation_id`、`approval_id`、`step_key`、`title`、`dry_run_status`、`execution_mode`、`execution_target`、`input_summary`、`runbook`、`expected_outputs`、`readiness_checks`、`result_summary`、`failure_reason`、`requested_by`、`completed_by`、`metadata`。
+
+支持的 `dry_run_status`：`created`、`completed`、`failed`、`cancelled`。
+
+边界：干运行只是已审批后的 metadata-only 执行准备记录，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。

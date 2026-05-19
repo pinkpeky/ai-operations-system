@@ -18,6 +18,10 @@ from app.schemas.commercial_operation import (
     CommercialOperationApprovalListResponse,
     CommercialOperationApprovalResponse,
     CommercialOperationCreateRequest,
+    CommercialOperationDryRunCreateRequest,
+    CommercialOperationDryRunDecisionRequest,
+    CommercialOperationDryRunListResponse,
+    CommercialOperationDryRunResponse,
     CommercialOperationLinkCreateRequest,
     CommercialOperationLinkListResponse,
     CommercialOperationLinkResponse,
@@ -292,6 +296,154 @@ async def cancel_commercial_operation_approval(
             extra={"operation_id": str(operation_id), "approval_id": str(approval_id)},
         )
         raise AppError("Commercial operation approval cancel failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/dry-runs", response_model=CommercialOperationDryRunResponse, status_code=201)
+async def create_commercial_operation_dry_run(
+    operation_id: UUID,
+    request: CommercialOperationDryRunCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDryRunResponse:
+    """Create a metadata-only dry-run record from an approved operation approval."""
+
+    try:
+        dry_run = await CommercialOperationService(session).create_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            requested_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation dry-run create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation dry-run create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/dry-runs", response_model=CommercialOperationDryRunListResponse)
+async def list_commercial_operation_dry_runs(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="created / completed / failed / cancelled"),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDryRunListResponse:
+    """List metadata-only dry-run records for a commercial operation."""
+
+    try:
+        dry_runs = await CommercialOperationService(session).list_dry_runs(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            limit=limit,
+        )
+        return CommercialOperationDryRunListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationDryRunResponse.from_model(dry_run) for dry_run in dry_runs],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation dry-run list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation dry-run list failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/dry-runs/{dry_run_id}/complete", response_model=CommercialOperationDryRunResponse)
+async def complete_commercial_operation_dry_run(
+    operation_id: UUID,
+    dry_run_id: UUID,
+    request: CommercialOperationDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDryRunResponse:
+    """Mark a commercial operation dry-run record as completed without external execution."""
+
+    try:
+        dry_run = await CommercialOperationService(session).complete_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+            completed_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation dry-run complete API failed",
+            extra={"operation_id": str(operation_id), "dry_run_id": str(dry_run_id)},
+        )
+        raise AppError("Commercial operation dry-run complete failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/dry-runs/{dry_run_id}/fail", response_model=CommercialOperationDryRunResponse)
+async def fail_commercial_operation_dry_run(
+    operation_id: UUID,
+    dry_run_id: UUID,
+    request: CommercialOperationDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDryRunResponse:
+    """Mark a commercial operation dry-run record as failed without retrying external actions."""
+
+    try:
+        dry_run = await CommercialOperationService(session).fail_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+            completed_by=context.user_id,
+            result_summary=request.result_summary,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation dry-run fail API failed",
+            extra={"operation_id": str(operation_id), "dry_run_id": str(dry_run_id)},
+        )
+        raise AppError("Commercial operation dry-run fail failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/dry-runs/{dry_run_id}/cancel", response_model=CommercialOperationDryRunResponse)
+async def cancel_commercial_operation_dry_run(
+    operation_id: UUID,
+    dry_run_id: UUID,
+    request: CommercialOperationDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDryRunResponse:
+    """Cancel a created commercial operation dry-run record."""
+
+    try:
+        dry_run = await CommercialOperationService(session).cancel_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            dry_run_id=dry_run_id,
+            completed_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation dry-run cancel API failed",
+            extra={"operation_id": str(operation_id), "dry_run_id": str(dry_run_id)},
+        )
+        raise AppError("Commercial operation dry-run cancel failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)

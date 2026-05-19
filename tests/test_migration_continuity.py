@@ -21,7 +21,26 @@ def test_migration_continuity_json_mode_passes() -> None:
     assert {"revision-ids-unique", "down-revisions-exist", "single-root", "single-head", "downgrade-functions"} <= names
 
 
-def test_migration_continuity_parses_phase_61c_head() -> None:
+def test_migration_continuity_parses_phase_61d_head() -> None:
+    previous = (ROOT / "alembic/versions/20260519_0037_phase61c_commercial_operation_approvals.py").read_text(encoding="utf-8")
+    assert "revision = \"0037_phase61c_op_approvals\"" in previous
+    assert "down_revision = \"0036_phase61b_commercial_links\"" in previous
+
+    text = (ROOT / "alembic/versions/20260519_0038_phase61d_commercial_operation_dry_runs.py").read_text(encoding="utf-8")
+    assert "revision = \"0038_phase61d_op_dry_runs\"" in text
+    assert "down_revision = \"0037_phase61c_op_approvals\"" in text
+
+
+def test_migration_revision_ids_fit_alembic_version_column() -> None:
+    for path in (ROOT / "alembic/versions").glob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            if line.startswith("revision = "):
+                revision = line.split("\"")[1]
+                assert len(revision) <= 32, f"{path.name} revision is too long for alembic_version.version_num"
+
+
+def test_migration_continuity_keeps_phase_61c_revision_short() -> None:
     text = (ROOT / "alembic/versions/20260519_0037_phase61c_commercial_operation_approvals.py").read_text(encoding="utf-8")
     assert "revision = \"0037_phase61c_op_approvals\"" in text
     assert "down_revision = \"0036_phase61b_commercial_links\"" in text

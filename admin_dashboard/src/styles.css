@@ -869,6 +869,13 @@ textarea {
   margin-bottom: 14px;
 }
 
+.commercial-dry-run-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .commercial-approval-grid {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.7fr) minmax(140px, 0.32fr);
@@ -877,6 +884,7 @@ textarea {
 }
 
 .commercial-approval-grid label,
+.commercial-dry-run-grid label,
 .commercial-link-grid label {
   display: grid;
   gap: 6px;
@@ -886,6 +894,12 @@ textarea {
 }
 
 .commercial-approval-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.commercial-dry-run-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
@@ -908,6 +922,17 @@ textarea {
   background: #fbfdfb;
 }
 
+.commercial-dry-run-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
 .commercial-link-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -920,7 +945,12 @@ textarea {
 }
 
 .commercial-approval-item strong,
+.commercial-dry-run-item strong,
 .commercial-approval-item span {
+  display: block;
+}
+
+.commercial-dry-run-item span {
   display: block;
 }
 
@@ -931,6 +961,7 @@ textarea {
 }
 
 .commercial-approval-item strong,
+.commercial-dry-run-item strong,
 .commercial-link-item strong {
   color: #17212b;
   font-size: 13px;
@@ -939,6 +970,8 @@ textarea {
 
 .commercial-approval-item span,
 .commercial-approval-item p,
+.commercial-dry-run-item span,
+.commercial-dry-run-item p,
 .commercial-link-item span,
 .commercial-link-item p {
   margin: 4px 0 0;
@@ -954,6 +987,13 @@ textarea {
 }
 
 .commercial-approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.commercial-dry-run-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1262,6 +1302,8 @@ textarea {
   .commercial-form-grid,
   .commercial-approval-grid,
   .commercial-approval-item,
+  .commercial-dry-run-grid,
+  .commercial-dry-run-item,
   .commercial-link-grid,
   .commercial-link-item,
   .rag-metrics-grid,
