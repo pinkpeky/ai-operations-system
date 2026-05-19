@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures and Phase 57A-58D Run Cockpit product slices.
 
-Current effective phase: Phase 58 Run Cockpit Output Library Context. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 58 Run Cockpit Closeout & Docs Reconciliation. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-58-output-library-context`. This completes Run Cockpit-to-Output Library artifact context handoff and does not reuse the reverted Phase 56 branch.
+The current fresh branch is `codex/phase-58-run-cockpit-closeout`. This reconciles Phase 58 status after PR #29 and does not reuse the reverted Phase 56 branch.
 
 ## Open PR List
 
@@ -34,6 +34,18 @@ The current fresh branch is `codex/phase-58-output-library-context`. This comple
 | #15 | Phase 54 Integration Branch and PR Chain Reconciliation | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Closed as superseded |
 | #16 | Phase 55 Mainline Integration Release Candidate Readiness | `codex/phase-55-mainline-integration-release-candidate` | Merged into PR #15 branch |
 | #17 | Phase 43-55 Combined Release Candidate | `codex/phase-54-integration-branch-pr-chain-reconciliation` | Merged to `main` |
+| #18 | CI Readiness Gates | `codex/phase-56-ci-readiness-gates` | Merged to main |
+| #19 | Required Checks & Branch Protection Readiness | `codex/phase-56-required-checks-docs` | Merged to main |
+| #20 | Release Readiness Report Artifacts | `codex/phase-56-report-artifacts` | Merged to main |
+| #21 | Scheduled Docker Smoke | `codex/phase-56-scheduled-docker-smoke` | Merged to main |
+| #22 | Run Cockpit Foundation | `codex/phase-57-run-cockpit-foundation` | Merged to main |
+| #23 | Run Cockpit Actions | `codex/phase-57-run-cockpit-actions` | Merged to main |
+| #24 | Run Cockpit Operator Controls | `codex/phase-57-run-cockpit-operator-controls` | Merged to main |
+| #25 | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-57-run-cockpit-closeout` | Merged to main |
+| #26 | Run Cockpit Deep Links | `codex/phase-58-run-cockpit-deep-links` | Merged to main |
+| #27 | Run Cockpit Refresh UX | `codex/phase-58-run-cockpit-refresh-ux` | Merged to main |
+| #28 | Run Cockpit Playbook Thread Context | `codex/phase-58-playbook-thread-context` | Merged to main |
+| #29 | Run Cockpit Output Library Context | `codex/phase-58-output-library-context` | Merged to main |
 
 ## Phase Timeline Table
 
@@ -106,7 +118,8 @@ The current fresh branch is `codex/phase-58-output-library-context`. This comple
 | 58A | Run Cockpit Deep Links | `codex/phase-58-run-cockpit-deep-links` | #26 | Merged to main | URL query state, selected thread/task/artifact handoff, and deep links from the cockpit into Conversations, Tasks, and Output Library. |
 | 58B | Run Cockpit Refresh UX | `codex/phase-58-run-cockpit-refresh-ux` | #27 | Merged to main | Auto-refresh visibility, countdown/status labels, refresh interval display, and stale-data preservation on cockpit load failures. |
 | 58C | Run Cockpit Playbook Thread Context | `codex/phase-58-playbook-thread-context` | #28 | Merged to main | Playbooks page thread context, run-history filtering, linked conversation navigation, and clear-context controls for Run Cockpit handoff. |
-| 58D | Run Cockpit Output Library Context | `codex/phase-58-output-library-context` | TBD | In progress | Output Library thread/task/artifact context, linked-run artifact filtering, linked conversation/task navigation, and clear-context controls. |
+| 58D | Run Cockpit Output Library Context | `codex/phase-58-output-library-context` | #29 | Merged to main | Output Library thread/task/artifact context, linked-run artifact filtering, linked conversation/task navigation, and clear-context controls. |
+| 58E | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-58-run-cockpit-closeout` | TBD | In progress | Phase 58 documentation closeout, current-state reconciliation, and guard checks that prevent completed Run Cockpit slices from staying marked active. |
 
 ## Runtime Evolution
 

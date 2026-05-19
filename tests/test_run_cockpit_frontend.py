@@ -58,8 +58,8 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "No output artifacts for linked run context." in text
 
 
-def test_run_cockpit_docs_track_output_library_context_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit output-library-context slice."""
+def test_run_cockpit_docs_track_closeout_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit closeout slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -71,7 +71,7 @@ def test_run_cockpit_docs_track_output_library_context_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-58-output-library-context" in text or "Run Cockpit Output Library Context" in text, path
+        assert "phase-58-run-cockpit-closeout" in text or "Run Cockpit Closeout" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -98,8 +98,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_output_library_context_slice() -> None:
-    """Phase 58D should be the active output-library-context slice."""
+def test_run_cockpit_phase_index_tracks_phase_58_closeout_slice() -> None:
+    """Phase 58D should be merged and Phase 58E should be the active closeout slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -130,5 +130,12 @@ def test_run_cockpit_phase_index_tracks_output_library_context_slice() -> None:
     assert "In progress" not in phase_lines["58C"]
 
     assert "58D" in phase_lines
+    assert "#29" in phase_lines["58D"]
     assert "phase-58-output-library-context" in phase_lines["58D"]
-    assert "In progress" in phase_lines["58D"]
+    assert "Merged to main" in phase_lines["58D"]
+    assert "TBD" not in phase_lines["58D"]
+    assert "In progress" not in phase_lines["58D"]
+
+    assert "58E" in phase_lines
+    assert "phase-58-run-cockpit-closeout" in phase_lines["58E"]
+    assert "In progress" in phase_lines["58E"]
