@@ -1622,7 +1622,15 @@ function ConversationsPage({ settings, targetThreadId }: { settings: AdminSettin
   );
 }
 
-function PlaybooksPage({ settings }: { settings: AdminSettings }) {
+function PlaybooksPage({
+  settings,
+  targetThreadId,
+  onNavigate,
+}: {
+  settings: AdminSettings;
+  targetThreadId?: string;
+  onNavigate: (page: PageKey, target?: DeepLinkTarget) => void;
+}) {
   const [playbooks, setPlaybooks] = useState<AsyncState<ConversationPlaybook[]>>(emptyState());
   const [runs, setRuns] = useState<AsyncState<ConversationPlaybookRun[]>>(emptyState());
 
@@ -1647,6 +1655,9 @@ function PlaybooksPage({ settings }: { settings: AdminSettings }) {
     void load();
   }, [load]);
 
+  const allRuns = runs.data ?? [];
+  const visibleRuns = targetThreadId ? allRuns.filter((run) => run.thread_id === targetThreadId) : allRuns;
+
   return (
     <div className="page-stack">
       <Panel
@@ -1667,11 +1678,30 @@ function PlaybooksPage({ settings }: { settings: AdminSettings }) {
           ]}
         />
       </Panel>
-      <Panel title="Playbook Runs" description="Step timeline is stored in output_payload.steps.">
+      <Panel
+        title="Playbook Runs"
+        description={targetThreadId ? "Filtered by Run Cockpit thread context. Step timeline is stored in output_payload.steps." : "Step timeline is stored in output_payload.steps."}
+        action={<RefreshButton onClick={load} />}
+      >
+        <div className="summary-strip">
+          <span>Thread context: {targetThreadId ?? "all runs"}</span>
+          <span>Visible runs: {visibleRuns.length}</span>
+          <span>Total runs: {allRuns.length}</span>
+        </div>
+        {targetThreadId ? (
+          <div className="conversation-actions">
+            <button className="ghost-button" onClick={() => onNavigate("conversations", { threadId: targetThreadId })}>
+              Open linked conversation
+            </button>
+            <button className="ghost-button" onClick={() => onNavigate("playbooks")}>
+              Show all runs
+            </button>
+          </div>
+        ) : null}
         <LoadNotice state={runs} />
         <Table
-          rows={(runs.data || []) as unknown as JsonRecord[]}
-          emptyLabel="No playbook runs."
+          rows={visibleRuns as unknown as JsonRecord[]}
+          emptyLabel={targetThreadId ? "No playbook runs for linked thread." : "No playbook runs."}
           columns={[
             { key: "id", label: "run_id" },
             { key: "status", label: "status" },
@@ -1680,6 +1710,7 @@ function PlaybooksPage({ settings }: { settings: AdminSettings }) {
             { key: "thread_id", label: "thread_id" },
           ]}
         />
+        <div className="last-updated">Last updated: {runs.updatedAt ?? "-"}</div>
       </Panel>
     </div>
   );
@@ -3168,8 +3199,8 @@ function App() {
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 58B</strong>
-          <span>Run cockpit refresh status, countdown, and stale-data handling. No production publishing flow.</span>
+          <strong>Phase 58C</strong>
+          <span>Run cockpit playbook thread context and filtered run handoff. No production publishing flow.</span>
         </div>
       </aside>
       <main>
@@ -3189,7 +3220,7 @@ function App() {
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} /> : null}
-          {activePage === "playbooks" ? <PlaybooksPage settings={settings} /> : null}
+          {activePage === "playbooks" ? <PlaybooksPage settings={settings} targetThreadId={deepLinkTarget.threadId} onNavigate={navigate} /> : null}
           {activePage === "output-library" ? <OutputLibraryPage settings={settings} targetArtifactId={deepLinkTarget.artifactId} /> : null}
           {activePage === "tasks" ? <TasksPage settings={settings} targetTaskRunId={deepLinkTarget.taskRunId} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}

@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-58-run-cockpit-refresh-ux
+codex/phase-58-playbook-thread-context
 ```
 
 ## Scope
@@ -55,6 +55,12 @@ The current refresh-UX slice adds:
 - Refresh interval and next-refresh countdown labels.
 - Stale-data preservation when a cockpit refresh fails after prior data loaded.
 
+The current playbook-context slice adds:
+
+- Playbooks page awareness of `thread_id` deep-link context.
+- Filtered Playbook Runs when opened from a selected Run Cockpit thread.
+- Controls to open the linked Conversation or clear the Playbooks thread context.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -69,6 +75,7 @@ An operator can open one screen and answer:
 - Where to continue deeper inspection in the existing specialist pages.
 - A shareable URL for the selected specialist page context after leaving the cockpit.
 - Whether cockpit data is idle, refreshing, or stale without losing the previous scan result.
+- A Playbooks page that stays scoped to the selected cockpit thread until the operator clears that context.
 
 ## Boundaries
 
@@ -79,9 +86,9 @@ An operator can open one screen and answer:
 - No new workflow execution semantics.
 - No real OpenClaw or social media execution.
 - No bulk action mode; every action is scoped to the selected run context.
-- Playbooks navigation can carry `thread_id` in the URL, but the Playbooks page does not auto-filter run history by that thread yet.
 - Deep links do not add authentication, permissions, or share-token semantics; they only restore local dashboard page context.
 - Auto refresh remains polling-based; no WebSocket or SSE stream is introduced.
+- Playbooks filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
 
 ## Acceptance
 
