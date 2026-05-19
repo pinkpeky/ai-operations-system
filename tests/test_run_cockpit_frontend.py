@@ -88,7 +88,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "运行驾驶舱" in text
     assert "中文" in text
     assert "English" in text
-    assert "RAG 文档操作台简洁化" in text
+    assert "RAG 知识库操作简洁化" in text
     assert "OverviewPersona" in text
     assert "overview-command-center" in text
     assert "overview-mode-switch" in text
@@ -102,11 +102,12 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "对话运行台" in text
     assert "rag-command-center" in text
     assert "rag-flow-grid" in text
+    assert "rag-operations-grid" in text
     assert "知识库操作台" in text
 
 
-def test_run_cockpit_docs_track_rag_documents_slice() -> None:
-    """Recovery docs should point to the active RAG documents simplification slice."""
+def test_run_cockpit_docs_track_rag_operations_slice() -> None:
+    """Recovery docs should point to the active RAG operations simplification slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -120,7 +121,7 @@ def test_run_cockpit_docs_track_rag_documents_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-60-rag-documents-simplification" in text or "RAG Documents" in text, path
+        assert "phase-60-rag-operations-ui" in text or "RAG Operations" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -147,8 +148,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_60_rag_documents_slice() -> None:
-    """Phase 60C should be merged and Phase 60D should be the active RAG documents slice."""
+def test_run_cockpit_phase_index_tracks_phase_60_rag_operations_slice() -> None:
+    """Phase 60D should be merged and Phase 60E should be the active RAG operations slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -248,6 +249,13 @@ def test_run_cockpit_phase_index_tracks_phase_60_rag_documents_slice() -> None:
     assert "In progress" not in phase_60_lines["60C"]
 
     assert "60D" in phase_60_lines
+    assert "#37" in phase_60_lines["60D"]
     assert "phase-60-rag-documents-simplification" in phase_60_lines["60D"]
-    assert "TBD" in phase_60_lines["60D"]
-    assert "In progress" in phase_60_lines["60D"]
+    assert "Merged to main" in phase_60_lines["60D"]
+    assert "TBD" not in phase_60_lines["60D"]
+    assert "In progress" not in phase_60_lines["60D"]
+
+    assert "60E" in phase_60_lines
+    assert "phase-60-rag-operations-ui" in phase_60_lines["60E"]
+    assert "TBD" in phase_60_lines["60E"]
+    assert "In progress" in phase_60_lines["60E"]

@@ -378,6 +378,12 @@ main {
   background: #0f766e;
 }
 
+.danger-button {
+  border-color: #d07b7b;
+  color: #9f2020;
+  background: #fff7f7;
+}
+
 .primary-button:disabled,
 .ghost-button:disabled {
   cursor: not-allowed;
@@ -804,6 +810,38 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.rag-operations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.rag-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rag-form-grid label,
+.rag-wide-label {
+  display: grid;
+  gap: 6px;
+  color: #5e6e7d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rag-wide-label {
+  margin-bottom: 12px;
+}
+
+.rag-wide-label textarea {
+  width: 100%;
+  min-height: 86px;
+}
+
 .rag-status-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -829,6 +867,33 @@ textarea {
 
 .rag-search-form input {
   width: 100%;
+}
+
+.rag-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.38fr);
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.rag-inline-section {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.rag-danger-section {
+  border-color: #f0c8c8;
+  background: #fffafa;
+}
+
+.rag-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .conversation-toolbar {
@@ -887,8 +952,12 @@ textarea {
   .metrics-grid,
   .json-grid,
   .rag-metrics-grid,
+  .rag-operations-grid,
   .rag-status-grid,
   .rag-search-form,
+  .rag-detail-grid,
+  .rag-detail-fields,
+  .rag-form-grid,
   .overview-action-grid,
   .split-page,
   .cockpit-grid,

@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60-rag-documents-simplification
+codex/phase-60-rag-operations-ui
 ```
 
 ## Scope
@@ -116,6 +116,14 @@ The current RAG Documents and simplification slice adds:
 - Operator summary cards for embedding provider, collections, documents, chunk count, and problem documents.
 - Inline hybrid search loading/error state so failed retrieval attempts are visible without opening browser dev tools.
 
+The current RAG operations and simplification slice adds:
+
+- File upload controls for `/files/upload`, including duplicate handling and chunk size/overlap options.
+- Text ingest and reingest controls for `/rag/ingest` and `/documents/reingest`.
+- Document detail and chunk inspection through `/documents/{document_id}`.
+- A guarded delete-by-source flow for `/documents/by-source/{source_id}` with typed `source_id` confirmation.
+- Retrieval debug controls for `/rag/debug` plus inline action result feedback for operators.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -139,6 +147,7 @@ An operator can open one screen and answer:
 - An Overview page that separates workstation operation from server maintenance and opens the most relevant dashboard pages directly.
 - A Conversations page that explains how to create, send, safely run, review approvals, and inspect event/artifact output.
 - A RAG / Documents page that lets a maintainer verify vector health, collection status, document indexing, and retrieval results from one concise screen.
+- A RAG / Documents page that lets a maintainer upload files, write text knowledge, inspect chunks, reingest sources, delete a confirmed source, and debug retrieval from the same concise screen.
 
 ## Boundaries
 
@@ -160,6 +169,7 @@ An operator can open one screen and answer:
 - The Phase 60B Overview slice is a frontend navigation and clarity layer only; it does not add permissions, new backend APIs, or new runtime execution behavior.
 - The Phase 60C Conversations slice is a frontend clarity layer only; it does not add streaming, WebSocket/SSE, new approvals semantics, or new execution behavior.
 - The Phase 60D RAG Documents slice is a frontend clarity layer only; it does not add new ingest/delete/reingest APIs, new retrieval semantics, or full document management.
+- The Phase 60E RAG operations slice is a frontend operation layer only; it does not add new parser support, OCR, PPTX/XLSX ingestion, auth or permission UI, new retrieval semantics, or backend lifecycle behavior.
 
 ## Acceptance
 
