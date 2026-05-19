@@ -66,15 +66,22 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "workflowRunId" in text
     assert "workflow_run_id" in text
     assert "linkedWorkflowRunId" in text
+    assert "linkedWorkflowCandidates" in text
+    assert "linkedWorkflowSource" in text
+    assert "linkedWorkflowFocusState" in text
     assert "Linked workflow" in text
+    assert "Workflow source" in text
+    assert "Workflow focus" in text
+    assert "Loading linked workflow details." in text
+    assert "No workflow context found on the selected task, selected thread playbook runs, or linked artifacts." in text
     assert "Open Workflows" in text
     assert "Open Replay Center" in text
     assert "targetWorkflowRunId" in text
     assert "Replay context: Run Cockpit handoff" in text
 
 
-def test_run_cockpit_docs_track_workflow_handoff_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit workflow-handoff slice."""
+def test_run_cockpit_docs_track_workflow_focus_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit workflow-focus slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -86,7 +93,7 @@ def test_run_cockpit_docs_track_workflow_handoff_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-59-run-cockpit-workflow-handoff" in text or "Run Cockpit Workflow" in text, path
+        assert "phase-59-run-cockpit-workflow-focus" in text or "Run Cockpit Workflow Focus" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -113,8 +120,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_59_workflow_handoff_slice() -> None:
-    """Phase 59A should be merged and Phase 59B should be the active workflow-handoff slice."""
+def test_run_cockpit_phase_index_tracks_phase_59_workflow_focus_slice() -> None:
+    """Phase 59B should be merged and Phase 59C should be the active workflow-focus slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -173,5 +180,12 @@ def test_run_cockpit_phase_index_tracks_phase_59_workflow_handoff_slice() -> Non
     assert "In progress" not in phase_59_lines["59A"]
 
     assert "59B" in phase_59_lines
+    assert "#32" in phase_59_lines["59B"]
     assert "phase-59-run-cockpit-workflow-handoff" in phase_59_lines["59B"]
-    assert "In progress" in phase_59_lines["59B"]
+    assert "Merged to main" in phase_59_lines["59B"]
+    assert "TBD" not in phase_59_lines["59B"]
+    assert "In progress" not in phase_59_lines["59B"]
+
+    assert "59C" in phase_59_lines
+    assert "phase-59-run-cockpit-workflow-focus" in phase_59_lines["59C"]
+    assert "In progress" in phase_59_lines["59C"]

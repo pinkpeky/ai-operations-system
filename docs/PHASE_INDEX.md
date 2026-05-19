@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures and Phase 57A-59A Run Cockpit product slices.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures and Phase 57A-59B Run Cockpit product slices.
 
-Current effective phase: Phase 59 Run Cockpit Workflow Handoff. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 59 Run Cockpit Workflow Focus. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-59-run-cockpit-workflow-handoff`. This carries workflow context into Workflows and Replay Center without reusing the reverted Phase 56 branch.
+The current fresh branch is `codex/phase-59-run-cockpit-workflow-focus`. This clarifies linked workflow provenance, focus state, and unavailable-state handling without reusing the reverted Phase 56 branch.
 
 ## Open PR List
 
@@ -48,6 +48,7 @@ The current fresh branch is `codex/phase-59-run-cockpit-workflow-handoff`. This 
 | #29 | Run Cockpit Output Library Context | `codex/phase-58-output-library-context` | Merged to main |
 | #30 | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-58-run-cockpit-closeout` | Merged to main |
 | #31 | Run Cockpit Search & Density | `codex/phase-59-run-cockpit-search-density` | Merged to main |
+| #32 | Run Cockpit Workflow Handoff | `codex/phase-59-run-cockpit-workflow-handoff` | Merged to main |
 
 ## Phase Timeline Table
 
@@ -123,7 +124,8 @@ The current fresh branch is `codex/phase-59-run-cockpit-workflow-handoff`. This 
 | 58D | Run Cockpit Output Library Context | `codex/phase-58-output-library-context` | #29 | Merged to main | Output Library thread/task/artifact context, linked-run artifact filtering, linked conversation/task navigation, and clear-context controls. |
 | 58E | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-58-run-cockpit-closeout` | #30 | Merged to main | Phase 58 documentation closeout, current-state reconciliation, and guard checks that prevent completed Run Cockpit slices from staying marked active. |
 | 59A | Run Cockpit Search & Density | `codex/phase-59-run-cockpit-search-density` | #31 | Merged to main | Run Cockpit search, filtered density counters, and operator scan ergonomics across threads, task runs, playbook runs, and output artifacts. |
-| 59B | Run Cockpit Workflow Handoff | `codex/phase-59-run-cockpit-workflow-handoff` | TBD | In progress | Workflow run context handoff from Run Cockpit into Workflows and Replay Center, linked workflow summary, and workflow deep-link restoration. |
+| 59B | Run Cockpit Workflow Handoff | `codex/phase-59-run-cockpit-workflow-handoff` | #32 | Merged to main | Workflow run context handoff from Run Cockpit into Workflows and Replay Center, linked workflow summary, and workflow deep-link restoration. |
+| 59C | Run Cockpit Workflow Focus | `codex/phase-59-run-cockpit-workflow-focus` | TBD | In progress | Workflow provenance, focus/loading/unavailable states, and linked source candidates for selected task, playbook, and artifact contexts. |
 
 ## Runtime Evolution
 

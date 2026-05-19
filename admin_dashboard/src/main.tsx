@@ -572,6 +572,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const [linkedWorkflow, setLinkedWorkflow] = useState<WorkflowRun | null>(null);
   const [linkedWorkflowSummary, setLinkedWorkflowSummary] = useState<JsonRecord | null>(null);
   const [linkedWorkflowError, setLinkedWorkflowError] = useState<string | null>(null);
+  const [linkedWorkflowLoading, setLinkedWorkflowLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState("idle");
   const [actionPreview, setActionPreview] = useState<JsonRecord | null>(null);
@@ -828,13 +829,66 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const linkedArtifacts = [...selectedThreadArtifacts, ...selectedTaskArtifacts].filter(
     (artifact, index, items) => items.findIndex((candidate) => candidate.id === artifact.id) === index,
   );
-  const selectedPlaybookWorkflowId =
-    selectedThreadPlaybookRuns
-      .map((run) => valueAt(run.output_payload, ["workflow_run_id"], ""))
-      .find((workflowId) => workflowId.length > 0) ?? null;
-  const linkedArtifactWorkflowId =
-    linkedArtifacts.map((artifact) => artifact.workflow_run_id).find((workflowId): workflowId is string => Boolean(workflowId)) ?? null;
-  const linkedWorkflowRunId: string | null = selectedTask?.workflow_run_id ?? selectedPlaybookWorkflowId ?? linkedArtifactWorkflowId ?? null;
+  const linkedWorkflowCandidates = [
+    ...(selectedTask?.workflow_run_id
+      ? [
+          {
+            workflowRunId: selectedTask.workflow_run_id,
+            sourceLabel: "selected task",
+            sourceType: "task_run",
+            sourceId: selectedTask.id,
+            status: selectedTask.status,
+            detail: selectedTask.task_type,
+          },
+        ]
+      : []),
+    ...selectedThreadPlaybookRuns
+      .map((run) => ({
+        workflowRunId: valueAt(run.output_payload, ["workflow_run_id"], ""),
+        sourceLabel: "thread playbook",
+        sourceType: "playbook_run",
+        sourceId: run.id,
+        status: run.status,
+        detail: run.playbook_id,
+      }))
+      .filter((candidate) => candidate.workflowRunId.length > 0),
+    ...linkedArtifacts.flatMap((artifact) =>
+      artifact.workflow_run_id
+        ? [
+            {
+              workflowRunId: artifact.workflow_run_id,
+              sourceLabel: "linked artifact",
+              sourceType: "output_artifact",
+              sourceId: artifact.id,
+              status: artifact.status,
+              detail: artifact.title,
+            },
+          ]
+        : [],
+    ),
+  ].filter(
+    (candidate, index, items) =>
+      items.findIndex(
+        (item) =>
+          item.workflowRunId === candidate.workflowRunId &&
+          item.sourceType === candidate.sourceType &&
+          item.sourceId === candidate.sourceId,
+      ) === index,
+  );
+  const linkedWorkflowSource = linkedWorkflowCandidates[0] ?? null;
+  const linkedWorkflowRunId: string | null = linkedWorkflowSource?.workflowRunId ?? null;
+  const linkedWorkflowUniqueCount = new Set(linkedWorkflowCandidates.map((candidate) => candidate.workflowRunId)).size;
+  const linkedWorkflowFocusState = !linkedWorkflowRunId
+    ? "no context"
+    : linkedWorkflowLoading
+      ? "loading"
+      : linkedWorkflowError
+        ? linkedWorkflow || linkedWorkflowSummary
+          ? "partial"
+          : "unavailable"
+        : linkedWorkflow || linkedWorkflowSummary
+          ? "ready"
+          : "pending";
   const visibleLinkedArtifacts = linkedArtifacts.filter((artifact) =>
     matchesSearch(
       cockpitQuery,
@@ -868,27 +922,45 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
       setLinkedWorkflow(null);
       setLinkedWorkflowSummary(null);
       setLinkedWorkflowError(null);
+      setLinkedWorkflowLoading(false);
       return;
     }
     const workflowRunId = linkedWorkflowRunId;
     let cancelled = false;
     async function loadLinkedWorkflow() {
       setLinkedWorkflowError(null);
+      setLinkedWorkflowLoading(true);
       try {
-        const [workflow, runtimeSummary] = await Promise.all([
-          workflowClient.getRun(workflowRunId, settings).catch(() => null),
-          workflowClient.getRuntimeSummary(workflowRunId, settings).catch(() => null),
+        const [workflowResult, runtimeSummaryResult] = await Promise.allSettled([
+          workflowClient.getRun(workflowRunId, settings),
+          workflowClient.getRuntimeSummary(workflowRunId, settings),
         ]);
         if (cancelled) {
           return;
         }
+        const workflow = workflowResult.status === "fulfilled" ? workflowResult.value : null;
+        const runtimeSummary = runtimeSummaryResult.status === "fulfilled" ? runtimeSummaryResult.value : null;
         setLinkedWorkflow(workflow);
         setLinkedWorkflowSummary(runtimeSummary?.summary ?? null);
+        if (workflowResult.status === "rejected" && runtimeSummaryResult.status === "rejected") {
+          const reason = workflowResult.reason ?? runtimeSummaryResult.reason;
+          setLinkedWorkflowError(reason instanceof Error ? reason.message : "Linked workflow detail unavailable");
+        } else if (workflowResult.status === "rejected") {
+          setLinkedWorkflowError("Workflow metadata unavailable; runtime summary loaded.");
+        } else if (runtimeSummaryResult.status === "rejected") {
+          setLinkedWorkflowError("Runtime summary unavailable; workflow metadata loaded.");
+        } else {
+          setLinkedWorkflowError(null);
+        }
       } catch (error) {
         if (!cancelled) {
           setLinkedWorkflow(null);
           setLinkedWorkflowSummary(null);
           setLinkedWorkflowError(error instanceof Error ? error.message : "Linked workflow unavailable");
+        }
+      } finally {
+        if (!cancelled) {
+          setLinkedWorkflowLoading(false);
         }
       }
     }
@@ -908,7 +980,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         <DataCard title="Playbook runs" value={data?.playbookRuns.length ?? "-"} detail={`${selectedThreadPlaybookRuns.length} on selected thread`} icon={<History size={20} />} />
         <DataCard title="Scheduler" value={data?.schedulerHealth?.status ?? "unavailable"} detail={`active: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
         <DataCard title="Search hits" value={queryMatchCount} detail={`${filteredThreads.length} threads / ${filteredTasks.length} tasks / ${filteredArtifacts.length} artifacts`} icon={<Search size={20} />} />
-        <DataCard title="Workflow" value={linkedWorkflow?.status ?? (linkedWorkflowRunId ? "linked" : "none")} detail={linkedWorkflow?.current_node_key ?? linkedWorkflowRunId ?? "no workflow context"} icon={<GitBranch size={20} />} />
+        <DataCard title="Workflow" value={linkedWorkflow?.status ?? (linkedWorkflowRunId ? linkedWorkflowFocusState : "none")} detail={linkedWorkflowSource ? `${linkedWorkflowSource.sourceLabel}: ${linkedWorkflowSource.sourceId}` : "no workflow context"} icon={<GitBranch size={20} />} />
       </section>
       <LoadNotice state={state} />
       <div className="summary-strip cockpit-action-strip">
@@ -924,6 +996,8 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         <span>Selected thread: {selectedThreadId ?? "-"}</span>
         <span>Selected task: {selectedTaskId ?? "-"}</span>
         <span>Linked workflow: {linkedWorkflowRunId ?? "-"}</span>
+        <span>Workflow source: {linkedWorkflowSource ? `${linkedWorkflowSource.sourceType}:${linkedWorkflowSource.sourceId}` : "-"}</span>
+        <span>Workflow focus: <StatusPill value={linkedWorkflowFocusState} /></span>
       </div>
       {detailError ? (
         <div className="notice notice-error">
@@ -1093,10 +1167,19 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
             <h3>Linked workflow</h3>
             <div className="summary-strip">
               <span>workflow_run_id: {linkedWorkflowRunId ?? "-"}</span>
+              <span>focus: <StatusPill value={linkedWorkflowFocusState} /></span>
               <span>status: <StatusPill value={linkedWorkflow?.status ?? "none"} /></span>
-              <span>source: {linkedWorkflow?.source_type ?? "-"}</span>
+              <span>source: {linkedWorkflowSource ? `${linkedWorkflowSource.sourceLabel} / ${linkedWorkflowSource.sourceType}` : "-"}</span>
+              <span>source_id: {linkedWorkflowSource?.sourceId ?? "-"}</span>
+              <span>candidates: {linkedWorkflowCandidates.length} source / {linkedWorkflowUniqueCount} run</span>
               <span>current_node: {linkedWorkflow?.current_node_key ?? "-"}</span>
             </div>
+            {linkedWorkflowLoading ? (
+              <div className="notice">
+                <RefreshCcw size={16} />
+                Loading linked workflow details.
+              </div>
+            ) : null}
             {linkedWorkflowError ? <div className="notice notice-error">{linkedWorkflowError}</div> : null}
             <div className="conversation-actions">
               <button className="ghost-button" onClick={() => onNavigate("workflows", linkedWorkflowRunId ? { workflowRunId: linkedWorkflowRunId } : undefined)} disabled={!linkedWorkflowRunId}>
@@ -1106,6 +1189,19 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
                 Open Replay Center
               </button>
             </div>
+            {linkedWorkflowCandidates.length ? (
+              <div className="timeline">
+                {linkedWorkflowCandidates.slice(0, 4).map((candidate) => (
+                  <div className="timeline-item" key={`${candidate.sourceType}:${candidate.sourceId}:${candidate.workflowRunId}`}>
+                    <span>{candidate.sourceLabel}</span>
+                    <p>{candidate.workflowRunId}</p>
+                    <small>{candidate.sourceType}: {candidate.sourceId} / {candidate.status} / {candidate.detail}</small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-chat">No workflow context found on the selected task, selected thread playbook runs, or linked artifacts.</div>
+            )}
             <JsonPreview value={linkedWorkflowSummary || linkedWorkflow || { status: "No workflow linked to the selected run context." }} />
           </section>
           <section className="cockpit-section">
