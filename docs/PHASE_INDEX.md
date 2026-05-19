@@ -10,9 +10,9 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 `main` is the active accepted baseline branch after Phase 56A-56D readiness closures.
 
-Current effective phase: Phase 58 Run Cockpit Refresh UX. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 58 Run Cockpit Playbook Context. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-58-run-cockpit-refresh-ux`. This improves Run Cockpit refresh visibility and stale-data handling and does not reuse the reverted Phase 56 branch.
+The current fresh branch is `codex/phase-58-playbook-thread-context`. This completes Run Cockpit-to-Playbooks thread context handoff and does not reuse the reverted Phase 56 branch.
 
 ## Open PR List
 
@@ -104,7 +104,8 @@ The current fresh branch is `codex/phase-58-run-cockpit-refresh-ux`. This improv
 | 57C | Run Cockpit Operator Controls | `codex/phase-57-run-cockpit-operator-controls` | #24 | Merged to main | Task view filters, optional auto refresh, and navigation from the cockpit to Conversations, Playbooks, Tasks, and Output Library. |
 | 57D | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-57-run-cockpit-closeout` | #25 | Merged to main | Phase 57 documentation closeout, current-state reconciliation, and checks that prevent merged run cockpit slices from staying marked as active. |
 | 58A | Run Cockpit Deep Links | `codex/phase-58-run-cockpit-deep-links` | #26 | Merged to main | URL query state, selected thread/task/artifact handoff, and deep links from the cockpit into Conversations, Tasks, and Output Library. |
-| 58B | Run Cockpit Refresh UX | `codex/phase-58-run-cockpit-refresh-ux` | TBD | In progress | Auto-refresh visibility, countdown/status labels, refresh interval display, and stale-data preservation on cockpit load failures. |
+| 58B | Run Cockpit Refresh UX | `codex/phase-58-run-cockpit-refresh-ux` | #27 | Merged to main | Auto-refresh visibility, countdown/status labels, refresh interval display, and stale-data preservation on cockpit load failures. |
+| 58C | Run Cockpit Playbook Thread Context | `codex/phase-58-playbook-thread-context` | TBD | In progress | Playbooks page thread context, run-history filtering, linked conversation navigation, and clear-context controls for Run Cockpit handoff. |
 
 ## Runtime Evolution
 
