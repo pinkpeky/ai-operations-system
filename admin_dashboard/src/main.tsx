@@ -247,7 +247,54 @@ type UiTextKey =
   | "noGeneratedArtifacts"
   | "eventsTitle"
   | "latestEventPayloadTitle"
-  | "resultMetadataTitle";
+  | "resultMetadataTitle"
+  | "ragConsoleTitle"
+  | "ragConsoleDescription"
+  | "ragOperatorSummary"
+  | "ragEmbeddingStep"
+  | "ragCollectionStep"
+  | "ragDocumentsStep"
+  | "ragSearchStep"
+  | "ragEmbeddingMetric"
+  | "ragCollectionsMetric"
+  | "ragDocumentsMetric"
+  | "ragChunksMetric"
+  | "ragProblemDocumentsMetric"
+  | "ragPanelTitle"
+  | "ragPanelDescription"
+  | "ragConnection"
+  | "ragProviderLabel"
+  | "ragModelLabel"
+  | "ragReachableLabel"
+  | "ragDimensionLabel"
+  | "ragSelectedCollection"
+  | "ragCollectionStatus"
+  | "ragCollectionPoints"
+  | "ragCollectionVectors"
+  | "ragDocumentListTitle"
+  | "ragNoDocuments"
+  | "ragSearchTitle"
+  | "ragSearchDescription"
+  | "ragCollectionPlaceholder"
+  | "ragSearchPlaceholder"
+  | "ragSearchAction"
+  | "ragSearchResultsTitle"
+  | "ragNoSearchResults"
+  | "ragRawHealthTitle"
+  | "ragRawCollectionsTitle"
+  | "ragDocumentIdColumn"
+  | "ragSourceIdColumn"
+  | "ragSourceNameColumn"
+  | "ragStatusColumn"
+  | "ragIngestStatusColumn"
+  | "ragChunkCountColumn"
+  | "ragCollectionColumn"
+  | "ragUpdatedAtColumn"
+  | "ragChunkIdColumn"
+  | "ragSimilarityColumn"
+  | "ragRerankColumn"
+  | "ragTextColumn"
+  | "ragMetadataColumn";
 
 interface AsyncState<T> {
   data: T | null;
@@ -326,8 +373,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60C",
-    boundaryBody: "对话运行台简洁化。创建、发送、安全运行和审批状态更清楚。",
+    boundaryTitle: "Phase 60D",
+    boundaryBody: "RAG 文档操作台简洁化。健康、集合、文档和检索入口更清楚。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -455,6 +502,53 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     eventsTitle: "事件",
     latestEventPayloadTitle: "最新事件数据",
     resultMetadataTitle: "运行元数据",
+    ragConsoleTitle: "知识库操作台",
+    ragConsoleDescription: "查看 embedding 健康、集合状态、文档索引和混合检索结果。",
+    ragOperatorSummary: "维护人员先确认向量服务健康，再看集合容量和失败文档；工作站人员直接用集合与问题做检索验证。",
+    ragEmbeddingStep: "健康：Embedding Provider 可用性",
+    ragCollectionStep: "集合：Qdrant collection 与向量数量",
+    ragDocumentsStep: "文档：索引状态、chunk 数和错误",
+    ragSearchStep: "检索：hybrid search 验证知识命中",
+    ragEmbeddingMetric: "Embedding",
+    ragCollectionsMetric: "集合",
+    ragDocumentsMetric: "文档",
+    ragChunksMetric: "Chunks",
+    ragProblemDocumentsMetric: "异常文档",
+    ragPanelTitle: "RAG / 文档",
+    ragPanelDescription: "知识库基础入口；不是完整文档管理控制台。",
+    ragConnection: "AI 服务",
+    ragProviderLabel: "Provider",
+    ragModelLabel: "模型",
+    ragReachableLabel: "可用",
+    ragDimensionLabel: "维度",
+    ragSelectedCollection: "当前集合",
+    ragCollectionStatus: "集合状态",
+    ragCollectionPoints: "Points",
+    ragCollectionVectors: "Vectors",
+    ragDocumentListTitle: "文档索引",
+    ragNoDocuments: "暂无文档。",
+    ragSearchTitle: "混合检索",
+    ragSearchDescription: "使用当前工作区、集合和问题验证知识库命中。",
+    ragCollectionPlaceholder: "collection_name",
+    ragSearchPlaceholder: "输入检索问题",
+    ragSearchAction: "检索",
+    ragSearchResultsTitle: "检索结果",
+    ragNoSearchResults: "还没有检索结果。",
+    ragRawHealthTitle: "Embedding 原始状态",
+    ragRawCollectionsTitle: "Collection 原始状态",
+    ragDocumentIdColumn: "文档 ID",
+    ragSourceIdColumn: "来源 ID",
+    ragSourceNameColumn: "来源名称",
+    ragStatusColumn: "状态",
+    ragIngestStatusColumn: "写入状态",
+    ragChunkCountColumn: "Chunk 数",
+    ragCollectionColumn: "集合",
+    ragUpdatedAtColumn: "更新时间",
+    ragChunkIdColumn: "Chunk ID",
+    ragSimilarityColumn: "相似度",
+    ragRerankColumn: "精排",
+    ragTextColumn: "文本",
+    ragMetadataColumn: "元数据",
   },
   "en-US": {
     brandSubtitle: "Operations Console",
@@ -462,8 +556,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60C",
-    boundaryBody: "Conversation console simplification: clearer create, send, safe run, and approval states.",
+    boundaryTitle: "Phase 60D",
+    boundaryBody: "RAG Documents simplification: clearer health, collections, documents, and retrieval entry points.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -591,6 +685,53 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     eventsTitle: "Events",
     latestEventPayloadTitle: "Latest Event Payload",
     resultMetadataTitle: "Result Metadata",
+    ragConsoleTitle: "Knowledge Console",
+    ragConsoleDescription: "Inspect embedding health, collection state, document indexing, and hybrid retrieval results.",
+    ragOperatorSummary: "Maintainers confirm vector service health, collection capacity, and failed documents; workstation users validate retrieval with a collection and query.",
+    ragEmbeddingStep: "Health: Embedding Provider availability",
+    ragCollectionStep: "Collections: Qdrant collection and vector counts",
+    ragDocumentsStep: "Documents: index status, chunk count, and errors",
+    ragSearchStep: "Retrieval: hybrid search verifies knowledge hits",
+    ragEmbeddingMetric: "Embedding",
+    ragCollectionsMetric: "Collections",
+    ragDocumentsMetric: "Documents",
+    ragChunksMetric: "Chunks",
+    ragProblemDocumentsMetric: "Problem docs",
+    ragPanelTitle: "RAG / Documents",
+    ragPanelDescription: "Basic knowledge-base entry point. This is not a full document management console.",
+    ragConnection: "AI Server",
+    ragProviderLabel: "Provider",
+    ragModelLabel: "Model",
+    ragReachableLabel: "Reachable",
+    ragDimensionLabel: "Dimension",
+    ragSelectedCollection: "Selected collection",
+    ragCollectionStatus: "Collection status",
+    ragCollectionPoints: "Points",
+    ragCollectionVectors: "Vectors",
+    ragDocumentListTitle: "Document index",
+    ragNoDocuments: "No documents.",
+    ragSearchTitle: "Hybrid search",
+    ragSearchDescription: "Use the active workspace, collection, and query to validate knowledge retrieval.",
+    ragCollectionPlaceholder: "collection_name",
+    ragSearchPlaceholder: "Search query",
+    ragSearchAction: "Search",
+    ragSearchResultsTitle: "Search results",
+    ragNoSearchResults: "No search results yet.",
+    ragRawHealthTitle: "Raw embedding state",
+    ragRawCollectionsTitle: "Raw collection state",
+    ragDocumentIdColumn: "document_id",
+    ragSourceIdColumn: "source_id",
+    ragSourceNameColumn: "source_name",
+    ragStatusColumn: "status",
+    ragIngestStatusColumn: "ingest_status",
+    ragChunkCountColumn: "chunk_count",
+    ragCollectionColumn: "collection_name",
+    ragUpdatedAtColumn: "updated_at",
+    ragChunkIdColumn: "chunk_id",
+    ragSimilarityColumn: "similarity",
+    ragRerankColumn: "rerank",
+    ragTextColumn: "text",
+    ragMetadataColumn: "metadata",
   },
 };
 
@@ -3911,11 +4052,12 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function RagDocumentsPage({ settings }: { settings: AdminSettings }) {
+function RagDocumentsPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
+  const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [query, setQuery] = useState("AI automation operations");
   const [collection, setCollection] = useState("ai_knowledge_base");
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
-  const [searchResults, setSearchResults] = useState<JsonRecord[]>([]);
+  const [searchState, setSearchState] = useState<AsyncState<JsonRecord[]>>(emptyState());
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -3937,64 +4079,152 @@ function RagDocumentsPage({ settings }: { settings: AdminSettings }) {
   }, [settings]);
 
   const runSearch = async () => {
-    const response = await ragApi.search(
-      {
-        query,
-        collection_name: collection,
-        search_mode: "hybrid",
-        dense_top_k: 20,
-        keyword_top_k: 20,
-        final_top_k: 5,
-      },
-      settings,
-    );
-    setSearchResults(toItems(response));
+    setSearchState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await ragApi.search(
+        {
+          query,
+          collection_name: collection,
+          search_mode: "hybrid",
+          dense_top_k: 20,
+          keyword_top_k: 20,
+          final_top_k: 5,
+        },
+        settings,
+      );
+      setSearchState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setSearchState({
+        data: null,
+        error: error instanceof Error ? error.message : "RAG search unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
   };
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const embeddingHealth = (state.data?.embeddingHealth as JsonRecord | null | undefined) ?? null;
+  const documents = toItems(state.data?.documents);
+  const collections = toItems(state.data?.collections);
+  const selectedCollection = collections.find((item) => String(item.collection_name ?? "") === collection) ?? collections[0] ?? null;
+  const totalChunks = documents.reduce((total, document) => {
+    const count = Number(document.chunk_count ?? 0);
+    return Number.isFinite(count) ? total + count : total;
+  }, 0);
+  const problemDocuments = documents.filter((document) => {
+    const status = String(document.status ?? document.ingest_status ?? "");
+    return isProblemStatus(status) || Boolean(document.error_message);
+  }).length;
+  const embeddingReachable = valueAt(embeddingHealth, ["reachable"], "unknown");
+  const embeddingWarning = /false|error|unknown|unavailable/i.test(embeddingReachable);
+
   return (
-    <Panel title="RAG / Documents" description="Basic knowledge-base entry point. This is not a full document management console." action={<RefreshButton onClick={load} />}>
-      <LoadNotice state={state} />
-      <div className="json-grid">
-        <JsonPreview value={state.data?.embeddingHealth} />
-        <JsonPreview value={state.data?.collections} />
+    <div className="page-stack">
+      <section className="rag-command-center">
+        <div>
+          <p className="section-eyebrow">{t("ragConnection")}: {settings.aiServerUrl}</p>
+          <h2>{t("ragConsoleTitle")}</h2>
+          <p>{t("ragConsoleDescription")}</p>
+          <p>{t("ragOperatorSummary")}</p>
+        </div>
+        <div className="rag-flow-grid">
+          <span>{t("ragEmbeddingStep")}</span>
+          <span>{t("ragCollectionStep")}</span>
+          <span>{t("ragDocumentsStep")}</span>
+          <span>{t("ragSearchStep")}</span>
+        </div>
+      </section>
+
+      <div className="metrics-grid rag-metrics-grid">
+        <DataCard
+          title={t("ragEmbeddingMetric")}
+          value={valueAt(embeddingHealth, ["provider"], "-")}
+          detail={`${t("ragReachableLabel")}: ${embeddingReachable}`}
+          icon={<Brain size={20} />}
+          warning={embeddingWarning}
+        />
+        <DataCard title={t("ragCollectionsMetric")} value={String(collections.length)} detail={t("ragSelectedCollection")} icon={<Database size={20} />} />
+        <DataCard title={t("ragDocumentsMetric")} value={String(documents.length)} detail={t("ragDocumentListTitle")} icon={<FileText size={20} />} />
+        <DataCard title={t("ragChunksMetric")} value={String(totalChunks)} detail={t("ragProblemDocumentsMetric") + `: ${problemDocuments}`} icon={<HardDrive size={20} />} warning={problemDocuments > 0} />
       </div>
-      <h3>Documents</h3>
-      <Table
-        rows={toItems(state.data?.documents)}
-        emptyLabel="No documents."
-        columns={[
-          { key: "id", label: "document_id" },
-          { key: "source_id", label: "source_id" },
-          { key: "source_name", label: "source_name" },
-          { key: "status", label: "status" },
-          { key: "chunk_count", label: "chunk_count" },
-          { key: "collection_name", label: "collection_name" },
-        ]}
-      />
-      <div className="search-row">
-        <input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="collection_name" />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search query" />
-        <button className="primary-button" onClick={() => void runSearch()}>
-          <Search size={15} />
-          Search
-        </button>
-      </div>
-      <Table
-        rows={searchResults}
-        emptyLabel="No search results yet."
-        columns={[
-          { key: "id", label: "chunk_id" },
-          { key: "similarity_score", label: "similarity" },
-          { key: "rerank_score", label: "rerank" },
-          { key: "text", label: "text" },
-          { key: "metadata", label: "metadata" },
-        ]}
-      />
-    </Panel>
+
+      <Panel title={t("ragPanelTitle")} description={t("ragPanelDescription")} action={<RefreshButton onClick={load} />}>
+        <LoadNotice state={state} />
+        <div className="rag-status-grid">
+          <Field label={t("ragProviderLabel")} value={valueAt(embeddingHealth, ["provider"], "-")} />
+          <Field label={t("ragModelLabel")} value={valueAt(embeddingHealth, ["model"], "-")} />
+          <Field label={t("ragReachableLabel")} value={<StatusPill value={embeddingReachable} />} />
+          <Field label={t("ragDimensionLabel")} value={valueAt(embeddingHealth, ["dimension"], "-")} />
+          <Field label={t("ragSelectedCollection")} value={collection} />
+          <Field label={t("ragCollectionStatus")} value={<StatusPill value={valueAt(selectedCollection, ["status"], "unknown")} />} />
+          <Field label={t("ragCollectionPoints")} value={valueAt(selectedCollection, ["points_count"], "0")} />
+          <Field label={t("ragCollectionVectors")} value={valueAt(selectedCollection, ["vectors_count"], "0")} />
+        </div>
+        {state.updatedAt ? <div className="last-updated">{t("lastUpdated")}: {state.updatedAt}</div> : null}
+
+        <h3>{t("ragDocumentListTitle")}</h3>
+        <Table
+          rows={documents}
+          emptyLabel={t("ragNoDocuments")}
+          columns={[
+            { key: "id", label: t("ragDocumentIdColumn") },
+            { key: "source_id", label: t("ragSourceIdColumn") },
+            { key: "source_name", label: t("ragSourceNameColumn") },
+            { key: "status", label: t("ragStatusColumn") },
+            { key: "ingest_status", label: t("ragIngestStatusColumn") },
+            { key: "chunk_count", label: t("ragChunkCountColumn") },
+            { key: "collection_name", label: t("ragCollectionColumn") },
+            { key: "updated_at", label: t("ragUpdatedAtColumn") },
+          ]}
+        />
+
+        <h3>{t("ragSearchTitle")}</h3>
+        <p className="foundation-note">{t("ragSearchDescription")}</p>
+        <div className="rag-search-form">
+          <label>
+            {t("ragCollectionColumn")}
+            <input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder={t("ragCollectionPlaceholder")} />
+          </label>
+          <label>
+            {t("searchQuery")}
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("ragSearchPlaceholder")} />
+          </label>
+          <button className="primary-button" onClick={() => void runSearch()} disabled={!collection.trim() || !query.trim() || searchState.loading}>
+            <Search size={15} />
+            {t("ragSearchAction")}
+          </button>
+        </div>
+        <LoadNotice state={searchState} />
+        {searchState.updatedAt ? <div className="last-updated">{t("lastUpdated")}: {searchState.updatedAt}</div> : null}
+        <h3>{t("ragSearchResultsTitle")}</h3>
+        <Table
+          rows={searchState.data || []}
+          emptyLabel={t("ragNoSearchResults")}
+          columns={[
+            { key: "id", label: t("ragChunkIdColumn") },
+            { key: "similarity_score", label: t("ragSimilarityColumn") },
+            { key: "rerank_score", label: t("ragRerankColumn") },
+            { key: "text", label: t("ragTextColumn") },
+            { key: "metadata", label: t("ragMetadataColumn") },
+          ]}
+        />
+
+        <div className="json-grid">
+          <div>
+            <h3>{t("ragRawHealthTitle")}</h3>
+            <JsonPreview value={embeddingHealth || { status: "unavailable" }} />
+          </div>
+          <div>
+            <h3>{t("ragRawCollectionsTitle")}</h3>
+            <JsonPreview value={state.data?.collections || { status: "unavailable" }} />
+          </div>
+        </div>
+      </Panel>
+    </div>
   );
 }
 
@@ -4195,7 +4425,7 @@ function App() {
           {activePage === "template-governance" ? <TemplateGovernancePage settings={settings} /> : null}
           {activePage === "openclaw" ? <OpenClawPage settings={settings} /> : null}
           {activePage === "audit-logs" ? <AuditLogsPage settings={settings} /> : null}
-          {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} /> : null}
+          {activePage === "rag-documents" ? <RagDocumentsPage settings={settings} language={language} /> : null}
           {activePage === "settings" ? <SettingsPage settings={settings} onSave={setSettings} /> : null}
         </div>
       </main>
