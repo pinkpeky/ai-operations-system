@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60-rag-operations-ui
+codex/phase-60-workflow-observability-simplification
 ```
 
 ## Scope
@@ -124,6 +124,14 @@ The current RAG operations and simplification slice adds:
 - A guarded delete-by-source flow for `/documents/by-source/{source_id}` with typed `source_id` confirmation.
 - Retrieval debug controls for `/rag/debug` plus inline action result feedback for operators.
 
+The current workflow observability and simplification slice adds:
+
+- A Replay Center command center that explains the select, summarize, diagnose, and replay workflow.
+- Localized workflow observability labels for Chinese-first operators and English fallback users.
+- Summary cards for selected run status, trace count, diagnostics, replay sessions, failures, retries, and problem diagnostics.
+- Trace filtering for all traces, attention items, approval waits, and replay events.
+- Clearer metadata-only replay boundaries so operators know replay records do not re-execute actions or bypass approvals.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -148,6 +156,7 @@ An operator can open one screen and answer:
 - A Conversations page that explains how to create, send, safely run, review approvals, and inspect event/artifact output.
 - A RAG / Documents page that lets a maintainer verify vector health, collection status, document indexing, and retrieval results from one concise screen.
 - A RAG / Documents page that lets a maintainer upload files, write text knowledge, inspect chunks, reingest sources, delete a confirmed source, and debug retrieval from the same concise screen.
+- A Replay Center page that lets an operator select a workflow run, scan attention metrics, filter traces, inspect diagnostics, and create a metadata-only replay record from one concise screen.
 
 ## Boundaries
 
@@ -170,6 +179,7 @@ An operator can open one screen and answer:
 - The Phase 60C Conversations slice is a frontend clarity layer only; it does not add streaming, WebSocket/SSE, new approvals semantics, or new execution behavior.
 - The Phase 60D RAG Documents slice is a frontend clarity layer only; it does not add new ingest/delete/reingest APIs, new retrieval semantics, or full document management.
 - The Phase 60E RAG operations slice is a frontend operation layer only; it does not add new parser support, OCR, PPTX/XLSX ingestion, auth or permission UI, new retrieval semantics, or backend lifecycle behavior.
+- The Phase 60F Workflow Observability slice is a frontend clarity layer only; it does not add OpenTelemetry, WebSocket/SSE streaming, deterministic replay, new workflow execution semantics, or action re-execution.
 
 ## Acceptance
 

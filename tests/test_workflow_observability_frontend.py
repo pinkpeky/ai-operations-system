@@ -13,6 +13,14 @@ def test_admin_dashboard_replay_center_ui_files() -> None:
     assert "Replay Center" in main
     assert "Execution Trace Timeline" in main
     assert "Diagnostics" in main
+    assert "workflow-observability-command-center" in main
+    assert "workflow-observability-flow-grid" in main
+    assert "workflow-observability-metrics" in main
+    assert "workflow-trace-toolbar" in main
+    assert "workflowObsConsoleTitle" in main
+    assert "workflowObsTraceViewAttention" in main
+    assert "工作流观测台" in main
+    assert "Workflow observability console" in main
     assert "createReplaySession" in client
     assert "/workflow-replay-sessions" in client
 

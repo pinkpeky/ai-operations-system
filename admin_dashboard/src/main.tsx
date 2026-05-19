@@ -159,6 +159,47 @@ type UiTextKey =
   | "conversationThreads"
   | "lastUpdated"
   | "workflowFocusSlice"
+  | "workflowObsConsoleTitle"
+  | "workflowObsConsoleDescription"
+  | "workflowObsOperatorSummary"
+  | "workflowObsSelectStep"
+  | "workflowObsSummaryStep"
+  | "workflowObsDiagnosticsStep"
+  | "workflowObsReplayStep"
+  | "workflowObsPanelTitle"
+  | "workflowObsPanelDescription"
+  | "workflowObsNoRuns"
+  | "workflowObsReplayContext"
+  | "workflowObsDetailTitle"
+  | "workflowObsCreateReplayAction"
+  | "workflowObsBoundaryNote"
+  | "workflowObsRuntimeSummaryTitle"
+  | "workflowObsAnalyticsTitle"
+  | "workflowObsFallbacksMetric"
+  | "workflowObsApprovalsMetric"
+  | "workflowObsReplaysMetric"
+  | "workflowObsTraceTimelineTitle"
+  | "workflowObsNodeInspectionTitle"
+  | "workflowObsDiagnosticsTitle"
+  | "workflowObsReplaySessionsTitle"
+  | "workflowObsSelectedRunMetric"
+  | "workflowObsTraceMetric"
+  | "workflowObsDiagnosticsMetric"
+  | "workflowObsReplayMetric"
+  | "workflowObsCurrentNode"
+  | "workflowObsFailures"
+  | "workflowObsProblems"
+  | "workflowObsMetadataOnly"
+  | "workflowObsTraceView"
+  | "workflowObsTraceViewAll"
+  | "workflowObsTraceViewAttention"
+  | "workflowObsTraceViewApproval"
+  | "workflowObsTraceViewReplay"
+  | "workflowObsRunIdColumn"
+  | "workflowObsSourceColumn"
+  | "workflowObsStatusColumn"
+  | "workflowObsNextColumn"
+  | "workflowObsUpdatedColumn"
   | "overviewModeLabel"
   | "workstationMode"
   | "serverMode"
@@ -406,8 +447,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60E",
-    boundaryBody: "RAG 知识库操作简洁化。上传、写入、重写、删除和调试入口更清楚。",
+    boundaryTitle: "Phase 60F",
+    boundaryBody: "工作流观测简洁化。回放中心会更清楚展示运行状态、异常、等待审批和回放入口。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -446,6 +487,47 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     conversationThreads: "对话列表",
     lastUpdated: "最后更新",
     workflowFocusSlice: "工作流来源与状态聚焦",
+    workflowObsConsoleTitle: "工作流观测台",
+    workflowObsConsoleDescription: "快速查看运行状态、执行轨迹、诊断、等待审批和回放记录。",
+    workflowObsOperatorSummary: "先选中一条 workflow_run，再看摘要指标；异常、fallback、审批等待和 replay 都会在这里集中显示。",
+    workflowObsSelectStep: "选择运行：定位 workflow_run",
+    workflowObsSummaryStep: "看摘要：状态、节点、轨迹数量",
+    workflowObsDiagnosticsStep: "查异常：失败、诊断、fallback",
+    workflowObsReplayStep: "回放：创建 metadata-only 记录",
+    workflowObsPanelTitle: "工作流观测",
+    workflowObsPanelDescription: "执行轨迹、节点检查、重试/fallback、诊断、运行摘要和回放中心。不是 OpenTelemetry，也不是确定性重放引擎。",
+    workflowObsNoRuns: "暂无可用于回放中心的工作流运行。",
+    workflowObsReplayContext: "回放上下文：来自 Run Cockpit 跳转",
+    workflowObsDetailTitle: "回放中心",
+    workflowObsCreateReplayAction: "创建回放记录",
+    workflowObsBoundaryNote: "回放记录是 metadata_only 或 dry_run，不会重新执行浏览器、OpenClaw 动作，也不会绕过审批。",
+    workflowObsRuntimeSummaryTitle: "运行摘要",
+    workflowObsAnalyticsTitle: "分析指标",
+    workflowObsFallbacksMetric: "Fallback",
+    workflowObsApprovalsMetric: "审批等待",
+    workflowObsReplaysMetric: "回放",
+    workflowObsTraceTimelineTitle: "执行轨迹",
+    workflowObsNodeInspectionTitle: "节点检查",
+    workflowObsDiagnosticsTitle: "诊断",
+    workflowObsReplaySessionsTitle: "回放记录",
+    workflowObsSelectedRunMetric: "当前运行",
+    workflowObsTraceMetric: "轨迹",
+    workflowObsDiagnosticsMetric: "诊断",
+    workflowObsReplayMetric: "回放记录",
+    workflowObsCurrentNode: "当前节点",
+    workflowObsFailures: "失败",
+    workflowObsProblems: "问题",
+    workflowObsMetadataOnly: "metadata-only",
+    workflowObsTraceView: "轨迹视图",
+    workflowObsTraceViewAll: "全部轨迹",
+    workflowObsTraceViewAttention: "只看需关注",
+    workflowObsTraceViewApproval: "审批等待",
+    workflowObsTraceViewReplay: "回放事件",
+    workflowObsRunIdColumn: "运行 ID",
+    workflowObsSourceColumn: "来源",
+    workflowObsStatusColumn: "状态",
+    workflowObsNextColumn: "下一节点",
+    workflowObsUpdatedColumn: "更新时间",
     overviewModeLabel: "首页视角",
     workstationMode: "工作站人员",
     serverMode: "服务器维护",
@@ -622,8 +704,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60E",
-    boundaryBody: "RAG operations simplification: clearer upload, ingest, reingest, delete, and debug entry points.",
+    boundaryTitle: "Phase 60F",
+    boundaryBody: "Workflow observability simplification: clearer run status, attention signals, approval waits, and replay entry points.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -662,6 +744,47 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     conversationThreads: "Conversation threads",
     lastUpdated: "Last updated",
     workflowFocusSlice: "Workflow focus slice",
+    workflowObsConsoleTitle: "Workflow observability console",
+    workflowObsConsoleDescription: "Scan run status, execution traces, diagnostics, approval waits, and replay records quickly.",
+    workflowObsOperatorSummary: "Select one workflow_run, then read the summary cards; failures, fallbacks, approval waits, and replay records stay visible here.",
+    workflowObsSelectStep: "Select: locate a workflow_run",
+    workflowObsSummaryStep: "Summarize: status, node, trace count",
+    workflowObsDiagnosticsStep: "Diagnose: failures, diagnostics, fallback",
+    workflowObsReplayStep: "Replay: create metadata-only record",
+    workflowObsPanelTitle: "Workflow Observability",
+    workflowObsPanelDescription: "Execution trace timeline, node inspection, retry/fallback visualization, diagnostics, runtime summary, and Replay Center. This is not OpenTelemetry and not deterministic replay.",
+    workflowObsNoRuns: "No workflow runs available for Replay Center.",
+    workflowObsReplayContext: "Replay context: Run Cockpit handoff",
+    workflowObsDetailTitle: "Replay Center",
+    workflowObsCreateReplayAction: "Create replay session",
+    workflowObsBoundaryNote: "Replay sessions are metadata_only or dry_run. They do not re-execute browser/OpenClaw actions or bypass approvals.",
+    workflowObsRuntimeSummaryTitle: "Runtime Summary",
+    workflowObsAnalyticsTitle: "Analytics",
+    workflowObsFallbacksMetric: "Fallbacks",
+    workflowObsApprovalsMetric: "Approvals",
+    workflowObsReplaysMetric: "Replays",
+    workflowObsTraceTimelineTitle: "Execution Trace Timeline",
+    workflowObsNodeInspectionTitle: "Node Inspection",
+    workflowObsDiagnosticsTitle: "Diagnostics",
+    workflowObsReplaySessionsTitle: "Replay Sessions",
+    workflowObsSelectedRunMetric: "Selected run",
+    workflowObsTraceMetric: "Traces",
+    workflowObsDiagnosticsMetric: "Diagnostics",
+    workflowObsReplayMetric: "Replay sessions",
+    workflowObsCurrentNode: "Current node",
+    workflowObsFailures: "Failures",
+    workflowObsProblems: "Problems",
+    workflowObsMetadataOnly: "metadata-only",
+    workflowObsTraceView: "Trace view",
+    workflowObsTraceViewAll: "All traces",
+    workflowObsTraceViewAttention: "Needs attention",
+    workflowObsTraceViewApproval: "Approval waits",
+    workflowObsTraceViewReplay: "Replay events",
+    workflowObsRunIdColumn: "workflow_run_id",
+    workflowObsSourceColumn: "source",
+    workflowObsStatusColumn: "status",
+    workflowObsNextColumn: "next",
+    workflowObsUpdatedColumn: "updated_at",
     overviewModeLabel: "Overview mode",
     workstationMode: "Workstation operator",
     serverMode: "Server maintainer",
@@ -3455,7 +3578,8 @@ function WorkflowsPage({ settings, targetWorkflowRunId }: { settings: AdminSetti
   );
 }
 
-function WorkflowObservabilityPage({ settings, targetWorkflowRunId }: { settings: AdminSettings; targetWorkflowRunId?: string }) {
+function WorkflowObservabilityPage({ settings, targetWorkflowRunId, language }: { settings: AdminSettings; targetWorkflowRunId?: string; language: UiLanguage }) {
+  const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
   const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
   const [traces, setTraces] = useState<WorkflowExecutionTrace[]>([]);
@@ -3464,6 +3588,7 @@ function WorkflowObservabilityPage({ settings, targetWorkflowRunId }: { settings
   const [summary, setSummary] = useState<JsonRecord | null>(null);
   const [replaySessions, setReplaySessions] = useState<WorkflowReplaySession[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [traceView, setTraceView] = useState<"all" | "attention" | "approval" | "replay">("all");
 
   const load = useCallback(async () => {
     setRuns((current) => ({ ...current, loading: true, error: null }));
@@ -3553,63 +3678,141 @@ function WorkflowObservabilityPage({ settings, targetWorkflowRunId }: { settings
     void loadObservability(selectedRun);
   }, [loadObservability, selectedRun]);
 
+  const traceFailureCount = traces.filter((trace) => isProblemStatus(trace.status) || /failed|error|timeout/i.test(trace.event_type)).length;
+  const fallbackTraceCount = traces.filter((trace) => trace.fallback_triggered || /fallback/i.test(trace.event_type)).length;
+  const retryTraceCount = traces.reduce((total, trace) => total + Number(trace.retry_count || 0), 0);
+  const approvalWaitCount = traces.filter((trace) => /approval/i.test(trace.event_type)).length;
+  const diagnosticProblemCount = diagnostics.filter((diagnostic) => /critical|error|warning|failed/i.test(diagnostic.severity)).length;
+  const selectedRunNeedsAttention = isProblemStatus(selectedRun?.status) || traceFailureCount > 0 || diagnosticProblemCount > 0;
+  const visibleTraces = traces.filter((trace) => {
+    if (traceView === "all") {
+      return true;
+    }
+    if (traceView === "approval") {
+      return /approval/i.test(trace.event_type);
+    }
+    if (traceView === "replay") {
+      return /replay/i.test(trace.event_type);
+    }
+    return isProblemStatus(trace.status) || /failed|error|timeout|fallback|retry/i.test(trace.event_type) || trace.fallback_triggered || Number(trace.retry_count || 0) > 0;
+  });
+
   return (
-    <div className="split-page">
-      <Panel
-        title="Workflow Observability"
-        description="Execution trace timeline, node inspection, retry/fallback visualization, diagnostics, runtime summary, and Replay Center. This is not OpenTelemetry and not deterministic replay."
-        action={<RefreshButton onClick={load} />}
-      >
-        <LoadNotice state={runs} />
-        {targetWorkflowRunId ? (
-          <div className="summary-strip">
-            <span>Replay context: Run Cockpit handoff</span>
-            <span>workflow_run_id: {targetWorkflowRunId}</span>
-          </div>
-        ) : null}
-        <Table
-          rows={(runs.data || []) as unknown as JsonRecord[]}
-          selectedId={selectedRun?.id ?? null}
-          onSelect={(row) => setSelectedRun(row as unknown as WorkflowRun)}
-          emptyLabel="No workflow runs available for Replay Center."
-          columns={[
-            { key: "id", label: "workflow_run_id" },
-            { key: "source_type", label: "source" },
-            { key: "status", label: "status" },
-            { key: "current_node_key", label: "current_node" },
-            { key: "planned_next_nodes", label: "next" },
-            { key: "updated_at", label: "updated_at" },
-          ]}
+    <div className="page-stack">
+      <section className="workflow-observability-command-center">
+        <div>
+          <p className="section-eyebrow">{settings.aiServerUrl}</p>
+          <h2>{t("workflowObsConsoleTitle")}</h2>
+          <p>{t("workflowObsConsoleDescription")}</p>
+          <p>{t("workflowObsOperatorSummary")}</p>
+        </div>
+        <div className="workflow-observability-flow-grid">
+          <span>{t("workflowObsSelectStep")}</span>
+          <span>{t("workflowObsSummaryStep")}</span>
+          <span>{t("workflowObsDiagnosticsStep")}</span>
+          <span>{t("workflowObsReplayStep")}</span>
+        </div>
+      </section>
+
+      <div className="metrics-grid workflow-observability-metrics">
+        <DataCard
+          title={t("workflowObsSelectedRunMetric")}
+          value={selectedRun?.status ? <StatusPill value={selectedRun.status} /> : "-"}
+          detail={`${t("workflowObsCurrentNode")}: ${selectedRun?.current_node_key ?? "-"}`}
+          icon={<Activity size={20} />}
+          warning={selectedRunNeedsAttention}
         />
-      </Panel>
-      <aside className="detail-panel">
-        <div className="detail-title">
-          <h2>Replay Center</h2>
-          <button className="primary-button" onClick={() => void createReplaySession()} disabled={!selectedRun}>
-            <History size={15} />
-            Create replay session
-          </button>
-        </div>
-        {actionError ? <div className="notice notice-error">{actionError}</div> : null}
-        <p className="foundation-note">Replay sessions are metadata_only or dry_run. They do not re-execute browser/OpenClaw actions or bypass approvals.</p>
-        <h3>Runtime Summary</h3>
-        <JsonPreview value={summary || { status: "select a workflow run" }} />
-        <h3>Analytics</h3>
-        <div className="metrics-grid compact">
-          <DataCard title="Fallbacks" value={String(analytics?.fallback_frequency ?? 0)} icon={<GitBranch size={20} />} />
-          <DataCard title="Approvals" value={String(analytics?.approval_wait_frequency ?? 0)} icon={<ShieldCheck size={20} />} />
-          <DataCard title="Replays" value={String(analytics?.replay_frequency ?? 0)} icon={<History size={20} />} />
-        </div>
-        <JsonPreview value={analytics || { status: "unavailable" }} />
-        <h3>Execution Trace Timeline</h3>
-        <Timeline rows={traces as unknown as JsonRecord[]} primary="event_type" secondary="node_key" />
-        <h3>Node Inspection</h3>
-        <JsonPreview value={(traces[0] as unknown as JsonRecord) || { status: "no traces" }} />
-        <h3>Diagnostics</h3>
-        <Timeline rows={diagnostics as unknown as JsonRecord[]} primary="diagnostic_type" secondary="summary" />
-        <h3>Replay Sessions</h3>
-        <Timeline rows={replaySessions as unknown as JsonRecord[]} primary="replay_mode" secondary="replay_status" />
-      </aside>
+        <DataCard
+          title={t("workflowObsTraceMetric")}
+          value={String(traces.length)}
+          detail={`${t("workflowObsFailures")}: ${traceFailureCount} / retry: ${retryTraceCount}`}
+          icon={<GitBranch size={20} />}
+          warning={traceFailureCount > 0 || retryTraceCount > 0}
+        />
+        <DataCard
+          title={t("workflowObsDiagnosticsMetric")}
+          value={String(diagnostics.length)}
+          detail={`${t("workflowObsProblems")}: ${diagnosticProblemCount}`}
+          icon={<AlertTriangle size={20} />}
+          warning={diagnosticProblemCount > 0}
+        />
+        <DataCard
+          title={t("workflowObsReplayMetric")}
+          value={String(replaySessions.length)}
+          detail={`${t("workflowObsMetadataOnly")}: ${replaySessions.filter((session) => session.replay_mode === "metadata_only").length}`}
+          icon={<History size={20} />}
+        />
+      </div>
+
+      <div className="split-page">
+        <Panel
+          title={t("workflowObsPanelTitle")}
+          description={t("workflowObsPanelDescription")}
+          action={<RefreshButton onClick={load} />}
+        >
+          <LoadNotice state={runs} />
+          {targetWorkflowRunId ? (
+            <div className="summary-strip">
+              <span>{t("workflowObsReplayContext")}</span>
+              <span>workflow_run_id: {targetWorkflowRunId}</span>
+            </div>
+          ) : null}
+          <Table
+            rows={(runs.data || []) as unknown as JsonRecord[]}
+            selectedId={selectedRun?.id ?? null}
+            onSelect={(row) => setSelectedRun(row as unknown as WorkflowRun)}
+            emptyLabel={t("workflowObsNoRuns")}
+            columns={[
+              { key: "id", label: t("workflowObsRunIdColumn") },
+              { key: "source_type", label: t("workflowObsSourceColumn") },
+              { key: "status", label: t("workflowObsStatusColumn") },
+              { key: "current_node_key", label: t("workflowObsCurrentNode") },
+              { key: "planned_next_nodes", label: t("workflowObsNextColumn") },
+              { key: "updated_at", label: t("workflowObsUpdatedColumn") },
+            ]}
+          />
+        </Panel>
+        <aside className="detail-panel">
+          <div className="detail-title">
+            <h2>{t("workflowObsDetailTitle")}</h2>
+            <button className="primary-button" onClick={() => void createReplaySession()} disabled={!selectedRun}>
+              <History size={15} />
+              {t("workflowObsCreateReplayAction")}
+            </button>
+          </div>
+          {actionError ? <div className="notice notice-error">{actionError}</div> : null}
+          <p className="foundation-note">{t("workflowObsBoundaryNote")}</p>
+          <h3>{t("workflowObsRuntimeSummaryTitle")}</h3>
+          <JsonPreview value={summary || { status: "select a workflow run" }} />
+          <h3>{t("workflowObsAnalyticsTitle")}</h3>
+          <div className="metrics-grid compact">
+            <DataCard title={t("workflowObsFallbacksMetric")} value={String(analytics?.fallback_frequency ?? fallbackTraceCount)} icon={<GitBranch size={20} />} warning={fallbackTraceCount > 0} />
+            <DataCard title={t("workflowObsApprovalsMetric")} value={String(analytics?.approval_wait_frequency ?? approvalWaitCount)} icon={<ShieldCheck size={20} />} warning={approvalWaitCount > 0} />
+            <DataCard title={t("workflowObsReplaysMetric")} value={String(analytics?.replay_frequency ?? replaySessions.length)} icon={<History size={20} />} />
+          </div>
+          <JsonPreview value={analytics || { status: "unavailable" }} />
+          <div className="workflow-trace-toolbar">
+            <h3>{t("workflowObsTraceTimelineTitle")}</h3>
+            <label>
+              {t("workflowObsTraceView")}
+              <select value={traceView} onChange={(event) => setTraceView(event.target.value as "all" | "attention" | "approval" | "replay")}>
+                <option value="all">{t("workflowObsTraceViewAll")}</option>
+                <option value="attention">{t("workflowObsTraceViewAttention")}</option>
+                <option value="approval">{t("workflowObsTraceViewApproval")}</option>
+                <option value="replay">{t("workflowObsTraceViewReplay")}</option>
+              </select>
+            </label>
+            <span>{visibleTraces.length}/{traces.length}</span>
+          </div>
+          <Timeline rows={visibleTraces as unknown as JsonRecord[]} primary="event_type" secondary="node_key" />
+          <h3>{t("workflowObsNodeInspectionTitle")}</h3>
+          <JsonPreview value={(visibleTraces[0] as unknown as JsonRecord) || (traces[0] as unknown as JsonRecord) || { status: "no traces" }} />
+          <h3>{t("workflowObsDiagnosticsTitle")}</h3>
+          <Timeline rows={diagnostics as unknown as JsonRecord[]} primary="diagnostic_type" secondary="summary" />
+          <h3>{t("workflowObsReplaySessionsTitle")}</h3>
+          <Timeline rows={replaySessions as unknown as JsonRecord[]} primary="replay_mode" secondary="replay_status" />
+        </aside>
+      </div>
     </div>
   );
 }
@@ -4824,7 +5027,7 @@ function App() {
           ) : null}
           {activePage === "tasks" ? <TasksPage settings={settings} targetTaskRunId={deepLinkTarget.taskRunId} /> : null}
           {activePage === "workflows" ? <WorkflowsPage settings={settings} targetWorkflowRunId={deepLinkTarget.workflowRunId} /> : null}
-          {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} targetWorkflowRunId={deepLinkTarget.workflowRunId} /> : null}
+          {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} targetWorkflowRunId={deepLinkTarget.workflowRunId} language={language} /> : null}
           {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
           {activePage === "workflow-templates" ? <WorkflowTemplatesPage settings={settings} /> : null}
           {activePage === "template-governance" ? <TemplateGovernancePage settings={settings} /> : null}
