@@ -28,10 +28,20 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Open Conversations" in text
     assert "Open Tasks" in text
     assert "Open Output Library" in text
+    assert "DeepLinkTarget" in text
+    assert "pageFromLocation" in text
+    assert "targetFromLocation" in text
+    assert "updateLocation" in text
+    assert "targetThreadId" in text
+    assert "targetTaskRunId" in text
+    assert "targetArtifactId" in text
+    assert "thread_id" in text
+    assert "task_run_id" in text
+    assert "artifact_id" in text
 
 
-def test_run_cockpit_docs_track_closeout_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit closeout slice."""
+def test_run_cockpit_docs_track_deep_link_slice() -> None:
+    """Recovery docs should point to the active Run Cockpit deep-link slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -43,7 +53,7 @@ def test_run_cockpit_docs_track_closeout_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-57-run-cockpit-closeout" in text or "Run Cockpit Closeout" in text, path
+        assert "phase-58-run-cockpit-deep-links" in text or "Run Cockpit Deep Links" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -63,5 +73,23 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57C"]
 
     assert "57D" in phase_lines
+    assert "#25" in phase_lines["57D"]
     assert "phase-57-run-cockpit-closeout" in phase_lines["57D"]
-    assert "In progress" in phase_lines["57D"]
+    assert "Merged to main" in phase_lines["57D"]
+    assert "TBD" not in phase_lines["57D"]
+    assert "In progress" not in phase_lines["57D"]
+
+
+def test_run_cockpit_phase_index_tracks_deep_link_slice() -> None:
+    """Phase 58A should be the active deep-link slice."""
+
+    text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    phase_lines = {
+        line.split("|")[1].strip(): line
+        for line in text.splitlines()
+        if line.startswith("| 58") and "Run Cockpit" in line
+    }
+
+    assert "58A" in phase_lines
+    assert "phase-58-run-cockpit-deep-links" in phase_lines["58A"]
+    assert "In progress" in phase_lines["58A"]

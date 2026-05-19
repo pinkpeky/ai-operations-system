@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-57-run-cockpit-closeout
+codex/phase-58-run-cockpit-deep-links
 ```
 
 ## Scope
@@ -43,6 +43,12 @@ The current closeout slice records Phase 57 status after PR #24:
 - Phase 57D reconciles status docs so the completed 57C branch is no longer listed as active.
 - A lightweight test guards the phase index against leaving merged run cockpit slices as `TBD` or `In progress`.
 
+The current deep-link slice adds:
+
+- URL query state for the active Admin Dashboard page.
+- Run Cockpit handoff links with `thread_id`, `task_run_id`, and `artifact_id`.
+- Specialist pages that open the linked Conversation, Task Run, or Output Artifact detail directly.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -55,6 +61,7 @@ An operator can open one screen and answer:
 - Whether the most common approval, task, or artifact action succeeded.
 - Which task runs need attention without leaving the cockpit.
 - Where to continue deeper inspection in the existing specialist pages.
+- A shareable URL for the selected specialist page context after leaving the cockpit.
 
 ## Boundaries
 
@@ -65,7 +72,8 @@ An operator can open one screen and answer:
 - No new workflow execution semantics.
 - No real OpenClaw or social media execution.
 - No bulk action mode; every action is scoped to the selected run context.
-- Navigation buttons switch pages only; they do not auto-select matching rows in the destination page yet.
+- Playbooks navigation can carry `thread_id` in the URL, but the Playbooks page does not auto-filter run history by that thread yet.
+- Deep links do not add authentication, permissions, or share-token semantics; they only restore local dashboard page context.
 
 ## Acceptance
 
