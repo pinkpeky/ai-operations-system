@@ -22,6 +22,7 @@ from app.models.collection_metadata import CollectionMetadata
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
+    CommercialOperationContentDraft,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
@@ -53,6 +54,7 @@ from app.models.enums import (
     BrowserWorkerStatus,
     CollectionMetadataStatus,
     CommercialOperationApprovalStatus,
+    CommercialOperationContentDraftStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationPriority,
     CommercialOperationLinkType,
@@ -184,6 +186,8 @@ __all__ = [
     "CommercialOperation",
     "CommercialOperationApproval",
     "CommercialOperationApprovalStatus",
+    "CommercialOperationContentDraft",
+    "CommercialOperationContentDraftStatus",
     "CommercialOperationDryRun",
     "CommercialOperationDryRunStatus",
     "CommercialOperationLink",

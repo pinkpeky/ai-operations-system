@@ -12,12 +12,24 @@ from app.api.router import create_api_router
 from app.core.errors import AppError, app_error_handler
 from app.db.base import Base
 from app.db.postgres import get_session
-from app.models import CommercialOperation, CommercialOperationApproval, CommercialOperationDryRun, CommercialOperationLink
+from app.models import (
+    CommercialOperation,
+    CommercialOperationApproval,
+    CommercialOperationContentDraft,
+    CommercialOperationDryRun,
+    CommercialOperationLink,
+)
 
 
 @pytest.mark.asyncio
 async def test_commercial_operations_api_flow() -> None:
-    _ = (CommercialOperation, CommercialOperationApproval, CommercialOperationDryRun, CommercialOperationLink)
+    _ = (
+        CommercialOperation,
+        CommercialOperationApproval,
+        CommercialOperationContentDraft,
+        CommercialOperationDryRun,
+        CommercialOperationLink,
+    )
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -104,6 +116,120 @@ async def test_commercial_operations_api_flow() -> None:
             listed = await client.get("/api/v1/commercial-operations?status=ready", headers=headers)
             assert listed.status_code == 200
             assert [item["id"] for item in listed.json()["items"]] == [operation_id]
+
+            content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts",
+                headers=headers,
+                json={
+                    "step_key": "content_production",
+                    "channel": "newsletter",
+                    "content_format": "email",
+                    "title": "Newsletter lead generation draft",
+                    "summary": "Introduce the offer and invite qualified leads to book a demo.",
+                    "call_to_action": "Book a demo",
+                    "source_materials": ["ai_knowledge_base"],
+                    "asset_requests": [{"title": "Hero visual placeholder", "type": "image"}],
+                    "metadata": {"phase": "61E"},
+                },
+            )
+            assert content_draft.status_code == 201
+            content_body = content_draft.json()
+            content_draft_id = content_body["id"]
+            assert content_body["workspace_id"] == "workspace-commercial-api"
+            assert content_body["operation_id"] == operation_id
+            assert content_body["step_key"] == "content_production"
+            assert content_body["channel"] == "newsletter"
+            assert content_body["content_format"] == "email"
+            assert content_body["draft_status"] == "draft"
+            assert content_body["created_by"] == "user-commercial-api"
+            assert "does not publish" in content_body["content_body"]
+            assert content_body["asset_requests"][0]["execution_boundary"] == "no ComfyUI job is created in this phase"
+
+            content_drafts = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts",
+                headers=headers,
+            )
+            assert content_drafts.status_code == 200
+            assert [item["id"] for item in content_drafts.json()["items"]] == [content_draft_id]
+
+            hidden_content_drafts = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_content_drafts.status_code == 404
+
+            patched_content_draft = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}",
+                headers=headers,
+                json={"content_body": "Reviewed draft body. Still not published.", "summary": "Reviewed draft."},
+            )
+            assert patched_content_draft.status_code == 200
+            assert patched_content_draft.json()["content_body"] == "Reviewed draft body. Still not published."
+            assert patched_content_draft.json()["updated_by"] == "user-commercial-api"
+
+            ready_content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for review."},
+            )
+            assert ready_content_draft.status_code == 200
+            assert ready_content_draft.json()["draft_status"] == "ready_for_review"
+
+            approved_content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as draft only."},
+            )
+            assert approved_content_draft.status_code == 200
+            assert approved_content_draft.json()["draft_status"] == "approved"
+            assert approved_content_draft.json()["approved_by"] == "user-commercial-api"
+
+            fetched_after_content_draft = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_content_draft.status_code == 200
+            content_step = [
+                step
+                for step in fetched_after_content_draft.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert content_step["content_draft_id"] == content_draft_id
+            assert content_step["content_draft_status"] == "approved"
+            assert content_step["content_draft_channel"] == "newsletter"
+
+            reject_after_approval_content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}/reject",
+                headers=headers,
+                json={"reviewer_notes": "Too late to reject."},
+            )
+            assert reject_after_approval_content_draft.status_code == 400
+
+            archived_content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}/archive",
+                headers=headers,
+                json={"reviewer_notes": "Archived after handoff."},
+            )
+            assert archived_content_draft.status_code == 200
+            assert archived_content_draft.json()["draft_status"] == "archived"
+
+            patch_archived_content_draft = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}",
+                headers=headers,
+                json={"summary": "Should not change."},
+            )
+            assert patch_archived_content_draft.status_code == 400
+
+            invalid_content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts",
+                headers=headers,
+                json={
+                    "step_key": "missing_step",
+                    "channel": "newsletter",
+                    "title": "Invalid content step",
+                },
+            )
+            assert invalid_content_draft.status_code == 400
 
             approval = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/approvals",

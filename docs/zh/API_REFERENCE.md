@@ -3183,7 +3183,7 @@ API：
 
 ## Phase 61D: 商业运营安全干运行
 
-状态：进行中。
+状态：已通过 PR #44 合并到 `main`。
 
 Phase 61D 在每个商业运营项目下新增 `commercial_operation_dry_runs` 与 `CommercialOperationDryRun` 记录。操作人员可以基于已批准的审批门禁创建 metadata-only 干运行，检查生成的 runbook、输入摘要、目标、预期输出和 readiness checks，再把干运行标记为完成、失败或取消，供后续交接。
 
@@ -3200,3 +3200,25 @@ API：
 支持的 `dry_run_status`：`created`、`completed`、`failed`、`cancelled`。
 
 边界：干运行只是已审批后的 metadata-only 执行准备记录，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
+
+## Phase 61E: 商业运营内容草稿
+
+状态：进行中。
+
+Phase 61E 在每个商业运营项目下新增 `commercial_operation_content_drafts` 与 `CommercialOperationContentDraft` 记录。操作人员可以针对计划步骤创建渠道内容草稿、编辑草稿、送审、批准、驳回或归档，供后续交接使用。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/content-drafts`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts`
+- `PATCH /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/archive`
+
+主要字段：`operation_id`、`step_key`、`channel`、`content_format`、`title`、`draft_status`、`audience_segment`、`content_body`、`summary`、`call_to_action`、`source_materials`、`asset_requests`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by`、`metadata`。
+
+支持的 `draft_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
+
+边界：内容草稿和素材需求只是审阅记录，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。

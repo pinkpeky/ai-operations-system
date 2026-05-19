@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
+    CommercialOperationContentDraft,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
@@ -21,6 +22,8 @@ CommercialOperationStatusLiteral = Literal["draft", "planning", "ready", "active
 CommercialOperationPriorityLiteral = Literal["low", "normal", "high"]
 CommercialOperationRiskLiteral = Literal["low", "medium", "high"]
 CommercialOperationApprovalStatusLiteral = Literal["pending", "approved", "rejected", "cancelled"]
+CommercialOperationContentDraftStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
+CommercialOperationContentFormatLiteral = Literal["copy", "email", "post", "script", "landing_page", "ad"]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -301,6 +304,108 @@ class CommercialOperationDryRunListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationDryRunResponse]
+
+
+class CommercialOperationContentDraftCreateRequest(BaseModel):
+    """Create a non-publishing content draft for a commercial operation channel."""
+
+    step_key: str = Field(default="content_production", min_length=1, max_length=128)
+    channel: str = Field(min_length=1, max_length=128)
+    content_format: CommercialOperationContentFormatLiteral = "copy"
+    title: str = Field(min_length=1, max_length=255)
+    audience_segment: str | None = None
+    content_body: str | None = None
+    summary: str | None = None
+    call_to_action: str | None = None
+    source_materials: list[str] = Field(default_factory=list)
+    asset_requests: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationContentDraftUpdateRequest(BaseModel):
+    """Patch a commercial operation content draft without publishing it."""
+
+    channel: str | None = Field(default=None, min_length=1, max_length=128)
+    content_format: CommercialOperationContentFormatLiteral | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    audience_segment: str | None = None
+    content_body: str | None = Field(default=None, min_length=1)
+    summary: str | None = None
+    call_to_action: str | None = None
+    source_materials: list[str] | None = None
+    asset_requests: list[dict[str, Any]] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationContentDraftDecisionRequest(BaseModel):
+    """Review or archive a commercial operation content draft."""
+
+    reviewer_notes: str | None = None
+
+
+class CommercialOperationContentDraftResponse(BaseModel):
+    """Commercial operation content draft response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    step_key: str
+    channel: str
+    content_format: str
+    title: str
+    draft_status: str
+    audience_segment: str | None
+    content_body: str
+    summary: str | None
+    call_to_action: str | None
+    source_materials: list[str]
+    asset_requests: list[dict[str, Any]]
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, draft: CommercialOperationContentDraft) -> "CommercialOperationContentDraftResponse":
+        return cls(
+            id=draft.id,
+            workspace_id=draft.workspace_id,
+            operation_id=draft.operation_id,
+            step_key=draft.step_key,
+            channel=draft.channel,
+            content_format=draft.content_format,
+            title=draft.title,
+            draft_status=draft.draft_status,
+            audience_segment=draft.audience_segment,
+            content_body=draft.content_body,
+            summary=draft.summary,
+            call_to_action=draft.call_to_action,
+            source_materials=draft.source_materials,
+            asset_requests=draft.asset_requests,
+            reviewer_notes=draft.reviewer_notes,
+            created_by=draft.created_by,
+            updated_by=draft.updated_by,
+            approved_by=draft.approved_by,
+            approved_at=draft.approved_at,
+            rejected_at=draft.rejected_at,
+            archived_at=draft.archived_at,
+            metadata=draft.content_metadata,
+            created_at=draft.created_at,
+            updated_at=draft.updated_at,
+        )
+
+
+class CommercialOperationContentDraftListResponse(BaseModel):
+    """Commercial operation content draft list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationContentDraftResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):
