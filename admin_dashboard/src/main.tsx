@@ -107,6 +107,7 @@ interface DeepLinkTarget {
   threadId?: string;
   taskRunId?: string;
   artifactId?: string;
+  workflowRunId?: string;
 }
 
 interface AsyncState<T> {
@@ -137,7 +138,7 @@ const pages: PageDefinition[] = [
 ];
 
 const pageKeys = new Set<PageKey>(pages.map((page) => page.key));
-const deepLinkParamKeys = ["thread_id", "task_run_id", "artifact_id"];
+const deepLinkParamKeys = ["thread_id", "task_run_id", "artifact_id", "workflow_run_id"];
 
 function pageFromLocation(): PageKey {
   const page = new URLSearchParams(window.location.search).get("page");
@@ -150,6 +151,7 @@ function targetFromLocation(): DeepLinkTarget {
     threadId: params.get("thread_id") ?? undefined,
     taskRunId: params.get("task_run_id") ?? undefined,
     artifactId: params.get("artifact_id") ?? undefined,
+    workflowRunId: params.get("workflow_run_id") ?? undefined,
   };
 }
 
@@ -160,6 +162,7 @@ function updateLocation(page: PageKey, target: DeepLinkTarget = {}) {
   if (target.threadId) params.set("thread_id", target.threadId);
   if (target.taskRunId) params.set("task_run_id", target.taskRunId);
   if (target.artifactId) params.set("artifact_id", target.artifactId);
+  if (target.workflowRunId) params.set("workflow_run_id", target.workflowRunId);
   const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
   window.history.pushState({}, "", nextUrl);
 }
@@ -566,6 +569,9 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const [taskEvents, setTaskEvents] = useState<TaskRunEvent[]>([]);
   const [taskDiagnostics, setTaskDiagnostics] = useState<TaskRunDiagnostics | null>(null);
   const [taskArtifacts, setTaskArtifacts] = useState<OutputArtifact[]>([]);
+  const [linkedWorkflow, setLinkedWorkflow] = useState<WorkflowRun | null>(null);
+  const [linkedWorkflowSummary, setLinkedWorkflowSummary] = useState<JsonRecord | null>(null);
+  const [linkedWorkflowError, setLinkedWorkflowError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState("idle");
   const [actionPreview, setActionPreview] = useState<JsonRecord | null>(null);
@@ -822,6 +828,13 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
   const linkedArtifacts = [...selectedThreadArtifacts, ...selectedTaskArtifacts].filter(
     (artifact, index, items) => items.findIndex((candidate) => candidate.id === artifact.id) === index,
   );
+  const selectedPlaybookWorkflowId =
+    selectedThreadPlaybookRuns
+      .map((run) => valueAt(run.output_payload, ["workflow_run_id"], ""))
+      .find((workflowId) => workflowId.length > 0) ?? null;
+  const linkedArtifactWorkflowId =
+    linkedArtifacts.map((artifact) => artifact.workflow_run_id).find((workflowId): workflowId is string => Boolean(workflowId)) ?? null;
+  const linkedWorkflowRunId: string | null = selectedTask?.workflow_run_id ?? selectedPlaybookWorkflowId ?? linkedArtifactWorkflowId ?? null;
   const visibleLinkedArtifacts = linkedArtifacts.filter((artifact) =>
     matchesSearch(
       cockpitQuery,
@@ -850,6 +863,41 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
       : null;
   const refreshState = state.loading ? "refreshing" : state.error ? "stale data" : "idle";
 
+  useEffect(() => {
+    if (!linkedWorkflowRunId) {
+      setLinkedWorkflow(null);
+      setLinkedWorkflowSummary(null);
+      setLinkedWorkflowError(null);
+      return;
+    }
+    const workflowRunId = linkedWorkflowRunId;
+    let cancelled = false;
+    async function loadLinkedWorkflow() {
+      setLinkedWorkflowError(null);
+      try {
+        const [workflow, runtimeSummary] = await Promise.all([
+          workflowClient.getRun(workflowRunId, settings).catch(() => null),
+          workflowClient.getRuntimeSummary(workflowRunId, settings).catch(() => null),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setLinkedWorkflow(workflow);
+        setLinkedWorkflowSummary(runtimeSummary?.summary ?? null);
+      } catch (error) {
+        if (!cancelled) {
+          setLinkedWorkflow(null);
+          setLinkedWorkflowSummary(null);
+          setLinkedWorkflowError(error instanceof Error ? error.message : "Linked workflow unavailable");
+        }
+      }
+    }
+    void loadLinkedWorkflow();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedWorkflowRunId, settings]);
+
   return (
     <div className="page-stack">
       <section className="metrics-grid">
@@ -860,6 +908,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         <DataCard title="Playbook runs" value={data?.playbookRuns.length ?? "-"} detail={`${selectedThreadPlaybookRuns.length} on selected thread`} icon={<History size={20} />} />
         <DataCard title="Scheduler" value={data?.schedulerHealth?.status ?? "unavailable"} detail={`active: ${data?.schedulerHealth?.active_task_count ?? 0}`} icon={<Gauge size={20} />} />
         <DataCard title="Search hits" value={queryMatchCount} detail={`${filteredThreads.length} threads / ${filteredTasks.length} tasks / ${filteredArtifacts.length} artifacts`} icon={<Search size={20} />} />
+        <DataCard title="Workflow" value={linkedWorkflow?.status ?? (linkedWorkflowRunId ? "linked" : "none")} detail={linkedWorkflow?.current_node_key ?? linkedWorkflowRunId ?? "no workflow context"} icon={<GitBranch size={20} />} />
       </section>
       <LoadNotice state={state} />
       <div className="summary-strip cockpit-action-strip">
@@ -874,6 +923,7 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
         <span>Next refresh: {nextRefreshSeconds === null ? "-" : `${nextRefreshSeconds}s`}</span>
         <span>Selected thread: {selectedThreadId ?? "-"}</span>
         <span>Selected task: {selectedTaskId ?? "-"}</span>
+        <span>Linked workflow: {linkedWorkflowRunId ?? "-"}</span>
       </div>
       {detailError ? (
         <div className="notice notice-error">
@@ -1038,6 +1088,25 @@ function RunCockpitPage({ settings, onNavigate }: { settings: AdminSettings; onN
             <div className="empty-chat">{latestTaskEvent ? `${latestTaskEvent.event_type}: ${latestTaskEvent.message ?? latestTaskEvent.status ?? "-"}` : "No task events for selected task."}</div>
             <h3>Diagnostics</h3>
             <JsonPreview value={taskDiagnostics || { status: "select a task run" }} />
+          </section>
+          <section className="cockpit-section">
+            <h3>Linked workflow</h3>
+            <div className="summary-strip">
+              <span>workflow_run_id: {linkedWorkflowRunId ?? "-"}</span>
+              <span>status: <StatusPill value={linkedWorkflow?.status ?? "none"} /></span>
+              <span>source: {linkedWorkflow?.source_type ?? "-"}</span>
+              <span>current_node: {linkedWorkflow?.current_node_key ?? "-"}</span>
+            </div>
+            {linkedWorkflowError ? <div className="notice notice-error">{linkedWorkflowError}</div> : null}
+            <div className="conversation-actions">
+              <button className="ghost-button" onClick={() => onNavigate("workflows", linkedWorkflowRunId ? { workflowRunId: linkedWorkflowRunId } : undefined)} disabled={!linkedWorkflowRunId}>
+                Open Workflows
+              </button>
+              <button className="ghost-button" onClick={() => onNavigate("workflow-observability", linkedWorkflowRunId ? { workflowRunId: linkedWorkflowRunId } : undefined)} disabled={!linkedWorkflowRunId}>
+                Open Replay Center
+              </button>
+            </div>
+            <JsonPreview value={linkedWorkflowSummary || linkedWorkflow || { status: "No workflow linked to the selected run context." }} />
           </section>
           <section className="cockpit-section">
             <h3>Linked artifacts</h3>
@@ -2261,7 +2330,7 @@ function TasksPage({ settings, targetTaskRunId }: { settings: AdminSettings; tar
   );
 }
 
-function WorkflowsPage({ settings }: { settings: AdminSettings }) {
+function WorkflowsPage({ settings, targetWorkflowRunId }: { settings: AdminSettings; targetWorkflowRunId?: string }) {
   const [status, setStatus] = useState("running");
   const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
   const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
@@ -2289,38 +2358,41 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
     }
   }, [settings, status]);
 
-  const loadWorkflow = async (row: WorkflowRun) => {
-    setSelectedRun(row);
-    setActionError(null);
-    try {
-      const [stepList, checkpointList, memoryList, artifactList] = await Promise.all([
-        workflowClient.listSteps(row.id, settings),
-        workflowClient.listCheckpoints(row.id, settings),
-        workflowClient.listMemorySnapshots(row.id, settings),
-        outputArtifactClient.listArtifacts(settings, { workflowRunId: row.id }),
-      ]);
-      const [plannerResult, graphResult] = await Promise.all([
-        workflowClient.getPlanner(row.id, settings).catch(() => null),
-        workflowClient.getRunGraph(row.id, settings).catch(() => null),
-      ]);
-      setSteps(stepList.items ?? []);
-      setCheckpoints(checkpointList.items ?? []);
-      setMemories(memoryList.items ?? []);
-      setLinkedArtifacts(artifactList.items ?? []);
-      setPlanner(plannerResult);
-      setRunGraph(graphResult);
-      setReplay(null);
-    } catch (error) {
-      setSteps([]);
-      setCheckpoints([]);
-      setMemories([]);
-      setLinkedArtifacts([]);
-      setPlanner(null);
-      setRunGraph(null);
-      setReplay(null);
-      setActionError(error instanceof Error ? error.message : "Workflow detail unavailable");
-    }
-  };
+  const loadWorkflow = useCallback(
+    async (row: WorkflowRun) => {
+      setSelectedRun(row);
+      setActionError(null);
+      try {
+        const [stepList, checkpointList, memoryList, artifactList] = await Promise.all([
+          workflowClient.listSteps(row.id, settings),
+          workflowClient.listCheckpoints(row.id, settings),
+          workflowClient.listMemorySnapshots(row.id, settings),
+          outputArtifactClient.listArtifacts(settings, { workflowRunId: row.id }),
+        ]);
+        const [plannerResult, graphResult] = await Promise.all([
+          workflowClient.getPlanner(row.id, settings).catch(() => null),
+          workflowClient.getRunGraph(row.id, settings).catch(() => null),
+        ]);
+        setSteps(stepList.items ?? []);
+        setCheckpoints(checkpointList.items ?? []);
+        setMemories(memoryList.items ?? []);
+        setLinkedArtifacts(artifactList.items ?? []);
+        setPlanner(plannerResult);
+        setRunGraph(graphResult);
+        setReplay(null);
+      } catch (error) {
+        setSteps([]);
+        setCheckpoints([]);
+        setMemories([]);
+        setLinkedArtifacts([]);
+        setPlanner(null);
+        setRunGraph(null);
+        setReplay(null);
+        setActionError(error instanceof Error ? error.message : "Workflow detail unavailable");
+      }
+    },
+    [settings],
+  );
 
   const mutateWorkflow = async (action: "pause" | "resume" | "checkpoint" | "replay") => {
     if (!selectedRun) {
@@ -2354,6 +2426,23 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!targetWorkflowRunId || selectedRun?.id === targetWorkflowRunId) {
+      return;
+    }
+    const listedRun = runs.data?.find((run) => run.id === targetWorkflowRunId);
+    if (listedRun) {
+      void loadWorkflow(listedRun);
+      return;
+    }
+    void workflowClient
+      .getRun(targetWorkflowRunId, settings)
+      .then(loadWorkflow)
+      .catch((error) => {
+        setActionError(error instanceof Error ? error.message : "Linked workflow run unavailable");
+      });
+  }, [loadWorkflow, runs.data, selectedRun?.id, settings, targetWorkflowRunId]);
+
   return (
     <div className="split-page">
       <Panel
@@ -2373,6 +2462,12 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
         }
       >
         <LoadNotice state={runs} />
+        {targetWorkflowRunId ? (
+          <div className="summary-strip">
+            <span>Workflow context: Run Cockpit handoff</span>
+            <span>workflow_run_id: {targetWorkflowRunId}</span>
+          </div>
+        ) : null}
         <Table
           rows={(runs.data || []) as unknown as JsonRecord[]}
           selectedId={selectedRun?.id ?? null}
@@ -2452,7 +2547,7 @@ function WorkflowsPage({ settings }: { settings: AdminSettings }) {
   );
 }
 
-function WorkflowObservabilityPage({ settings }: { settings: AdminSettings }) {
+function WorkflowObservabilityPage({ settings, targetWorkflowRunId }: { settings: AdminSettings; targetWorkflowRunId?: string }) {
   const [runs, setRuns] = useState<AsyncState<WorkflowRun[]>>(emptyState());
   const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
   const [traces, setTraces] = useState<WorkflowExecutionTrace[]>([]);
@@ -2530,6 +2625,23 @@ function WorkflowObservabilityPage({ settings }: { settings: AdminSettings }) {
   }, [load]);
 
   useEffect(() => {
+    if (!targetWorkflowRunId || selectedRun?.id === targetWorkflowRunId) {
+      return;
+    }
+    const listedRun = runs.data?.find((run) => run.id === targetWorkflowRunId);
+    if (listedRun) {
+      setSelectedRun(listedRun);
+      return;
+    }
+    void workflowClient
+      .getRun(targetWorkflowRunId, settings)
+      .then(setSelectedRun)
+      .catch((error) => {
+        setActionError(error instanceof Error ? error.message : "Linked workflow observability unavailable");
+      });
+  }, [runs.data, selectedRun?.id, settings, targetWorkflowRunId]);
+
+  useEffect(() => {
     void loadObservability(selectedRun);
   }, [loadObservability, selectedRun]);
 
@@ -2541,6 +2653,12 @@ function WorkflowObservabilityPage({ settings }: { settings: AdminSettings }) {
         action={<RefreshButton onClick={load} />}
       >
         <LoadNotice state={runs} />
+        {targetWorkflowRunId ? (
+          <div className="summary-strip">
+            <span>Replay context: Run Cockpit handoff</span>
+            <span>workflow_run_id: {targetWorkflowRunId}</span>
+          </div>
+        ) : null}
         <Table
           rows={(runs.data || []) as unknown as JsonRecord[]}
           selectedId={selectedRun?.id ?? null}
@@ -3356,8 +3474,8 @@ function App() {
           ))}
         </nav>
         <div className="boundary-box">
-          <strong>Phase 59A</strong>
-          <span>Run cockpit search, filtered density, and operator scan ergonomics. No production publishing flow.</span>
+          <strong>Phase 59B</strong>
+          <span>Run cockpit workflow handoff and Replay Center context. No production publishing flow.</span>
         </div>
       </aside>
       <main>
@@ -3388,8 +3506,8 @@ function App() {
             />
           ) : null}
           {activePage === "tasks" ? <TasksPage settings={settings} targetTaskRunId={deepLinkTarget.taskRunId} /> : null}
-          {activePage === "workflows" ? <WorkflowsPage settings={settings} /> : null}
-          {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} /> : null}
+          {activePage === "workflows" ? <WorkflowsPage settings={settings} targetWorkflowRunId={deepLinkTarget.workflowRunId} /> : null}
+          {activePage === "workflow-observability" ? <WorkflowObservabilityPage settings={settings} targetWorkflowRunId={deepLinkTarget.workflowRunId} /> : null}
           {activePage === "workflow-graphs" ? <WorkflowGraphsPage settings={settings} /> : null}
           {activePage === "workflow-templates" ? <WorkflowTemplatesPage settings={settings} /> : null}
           {activePage === "template-governance" ? <TemplateGovernancePage settings={settings} /> : null}

@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-59-run-cockpit-search-density
+codex/phase-59-run-cockpit-workflow-handoff
 ```
 
 ## Scope
@@ -79,6 +79,12 @@ The current search-density slice adds:
 - Filtered density counters for visible threads, visible tasks, search hits, and matching artifacts.
 - Linked artifact display that respects the current cockpit search while preserving selected run context.
 
+The current workflow-handoff slice adds:
+
+- `workflow_run_id` deep-link state for Workflows and Replay Center.
+- Linked workflow summary in Run Cockpit when the selected task, playbook run, or artifact has workflow context.
+- Navigation from Run Cockpit to Workflows or Replay Center with the linked workflow selected.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -96,6 +102,7 @@ An operator can open one screen and answer:
 - A Playbooks page that stays scoped to the selected cockpit thread until the operator clears that context.
 - An Output Library page that stays scoped to the selected cockpit thread/task/artifact until the operator clears that context.
 - A Run Cockpit search layer for scanning large local result sets without leaving the cockpit.
+- A workflow handoff path from Run Cockpit into Workflows and Replay Center for deeper runtime inspection.
 
 ## Boundaries
 
@@ -111,6 +118,7 @@ An operator can open one screen and answer:
 - Playbooks filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
 - Output Library context filtering is local to the Admin Dashboard list; it does not add new backend query semantics.
 - Run Cockpit search is local to the Admin Dashboard list; it does not add new backend query semantics.
+- Workflow handoff does not add new workflow execution semantics, replay semantics, or backend query semantics.
 
 ## Acceptance
 
