@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-58-run-cockpit-closeout`
+`codex/phase-59-run-cockpit-search-density`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D and Phase 58A-58D have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, and Output Library context handoff.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D and Phase 58A-58E have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, and Phase 58 closeout.
 
-Current effective phase: Phase 58 Run Cockpit Closeout & Docs Reconciliation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 59 Run Cockpit Search & Density. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. The current step is Run Cockpit documentation closeout after PR #29 merged the Output Library context handoff.
+Readiness and PR cleanup are complete. The current step is normal product development on Run Cockpit operator search and scan density after PR #30 merged Phase 58 closeout.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-58-run-cockpit-closeout`. Its scope is reconciling Phase 58 status after PR #29, marking 58D as merged, and keeping recovery docs pointed at the active closeout slice instead of a completed feature branch. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-59-run-cockpit-search-density`. Its scope is adding Run Cockpit search, filtered density counters, and scan ergonomics across threads, task runs, playbook runs, and output artifacts without adding backend query semantics. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -48,8 +48,9 @@ The next active branch is `codex/phase-58-run-cockpit-closeout`. Its scope is re
 | #27 | Run Cockpit Refresh UX | `codex/phase-58-run-cockpit-refresh-ux` | Merged to `main` |
 | #28 | Run Cockpit Playbook Thread Context | `codex/phase-58-playbook-thread-context` | Merged to `main` |
 | #29 | Run Cockpit Output Library Context | `codex/phase-58-output-library-context` | Merged to `main` |
+| #30 | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-58-run-cockpit-closeout` | Merged to `main` |
 
-The active pull request for Phase 58E is not opened yet at the time of this update.
+The active pull request for Phase 59A is not opened yet at the time of this update.
 
 ## Current Architecture State
 
@@ -68,7 +69,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D and Phase 58A-58D are present on `main` through PR #22-#29.
+- Phase 57A-57D and Phase 58A-58E are present on `main` through PR #22-#30.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -110,8 +111,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish Phase 58E Run Cockpit Closeout & Docs Reconciliation on `codex/phase-58-run-cockpit-closeout`.
-2. Verify docs runtime checks and the focused run cockpit frontend guard.
+1. Finish Phase 59A Run Cockpit Search & Density on `codex/phase-59-run-cockpit-search-density`.
+2. Verify Admin Dashboard typecheck/build, docs runtime checks, and the focused run cockpit frontend guard.
 3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
-5. After closeout, start the next normal product slice from fresh `main`, most likely focused on cockpit data density, search/filter ergonomics, or workflow/run observability integration.
+5. After this slice, continue toward Workflow/Run Observability integration in the cockpit.
