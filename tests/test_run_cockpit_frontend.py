@@ -88,11 +88,19 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "运行驾驶舱" in text
     assert "中文" in text
     assert "English" in text
-    assert "中英切换与简洁化基础" in text
+    assert "首页角色入口与简洁化基础" in text
+    assert "OverviewPersona" in text
+    assert "overview-command-center" in text
+    assert "overview-mode-switch" in text
+    assert "overview-action-grid" in text
+    assert "工作站人员" in text
+    assert "服务器维护" in text
+    assert "工作站运行入口" in text
+    assert "服务器维护入口" in text
 
 
-def test_run_cockpit_docs_track_frontend_i18n_slice() -> None:
-    """Recovery docs should point to the active frontend i18n slice."""
+def test_run_cockpit_docs_track_overview_persona_slice() -> None:
+    """Recovery docs should point to the active overview persona slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -106,7 +114,7 @@ def test_run_cockpit_docs_track_frontend_i18n_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-60-frontend-i18n-foundation" in text or "Frontend Language" in text, path
+        assert "phase-60-overview-persona-simplification" in text or "Overview Persona" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -133,8 +141,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_59_closeout_and_phase_60_active_slice() -> None:
-    """Phase 59C should be merged and Phase 60A should be the active frontend i18n slice."""
+def test_run_cockpit_phase_index_tracks_phase_60_overview_persona_slice() -> None:
+    """Phase 60A should be merged and Phase 60B should be the active overview persona slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -209,10 +217,17 @@ def test_run_cockpit_phase_index_tracks_phase_59_closeout_and_phase_60_active_sl
     phase_60_lines = {
         line.split("|")[1].strip(): line
         for line in text.splitlines()
-        if line.startswith("| 60") and "Frontend" in line
+        if line.startswith("| 60")
     }
 
     assert "60A" in phase_60_lines
+    assert "#34" in phase_60_lines["60A"]
     assert "phase-60-frontend-i18n-foundation" in phase_60_lines["60A"]
-    assert "TBD" in phase_60_lines["60A"]
-    assert "In progress" in phase_60_lines["60A"]
+    assert "Merged to main" in phase_60_lines["60A"]
+    assert "TBD" not in phase_60_lines["60A"]
+    assert "In progress" not in phase_60_lines["60A"]
+
+    assert "60B" in phase_60_lines
+    assert "phase-60-overview-persona-simplification" in phase_60_lines["60B"]
+    assert "TBD" in phase_60_lines["60B"]
+    assert "In progress" in phase_60_lines["60B"]

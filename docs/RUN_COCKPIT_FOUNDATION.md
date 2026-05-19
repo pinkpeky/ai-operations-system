@@ -7,7 +7,7 @@ This document records the Phase 57 return to normal product development after th
 ## Branch
 
 ```text
-codex/phase-60-frontend-i18n-foundation
+codex/phase-60-overview-persona-simplification
 ```
 
 ## Scope
@@ -97,6 +97,12 @@ The current frontend language and simplification slice adds:
 - Localized dashboard shell, navigation, topbar status, and Run Cockpit operator scan labels.
 - A small i18n foundation for later full-interface simplification without changing runtime APIs or execution semantics.
 
+The current overview persona and simplification slice adds:
+
+- A Chinese-first Overview role switch for workstation operators and server maintainers.
+- Role-specific entry cards for Run Cockpit, Conversations, Playbooks, Output Library, Workers, Browser Runtime, Tasks, and Settings.
+- Localized overview metric labels and concise system snapshot labels while preserving the existing raw JSON diagnostics.
+
 ## User Outcome
 
 An operator can open one screen and answer:
@@ -117,6 +123,7 @@ An operator can open one screen and answer:
 - A workflow handoff path from Run Cockpit into Workflows and Replay Center for deeper runtime inspection.
 - Workflow focus context that explains which selected runtime object supplied the linked workflow and whether detail loading is ready or unavailable.
 - A Chinese-first dashboard shell with an English switch so workstation operators and server maintainers can orient themselves quickly.
+- An Overview page that separates workstation operation from server maintenance and opens the most relevant dashboard pages directly.
 
 ## Boundaries
 
@@ -135,6 +142,7 @@ An operator can open one screen and answer:
 - Workflow handoff does not add new workflow execution semantics, replay semantics, or backend query semantics.
 - Workflow focus is a frontend provenance and state layer; it does not change workflow selection, replay, or execution behavior on the server.
 - The Phase 60A language slice is a frontend foundation only; it does not provide full translation coverage, RBAC, workflow execution changes, or production publishing.
+- The Phase 60B Overview slice is a frontend navigation and clarity layer only; it does not add permissions, new backend APIs, or new runtime execution behavior.
 
 ## Acceptance
 

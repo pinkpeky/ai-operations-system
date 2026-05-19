@@ -111,6 +111,7 @@ interface DeepLinkTarget {
 }
 
 type UiLanguage = "zh-CN" | "en-US";
+type OverviewPersona = "workstation" | "server";
 
 type UiTextKey =
   | "brandSubtitle"
@@ -157,7 +158,52 @@ type UiTextKey =
   | "allTasksOption"
   | "conversationThreads"
   | "lastUpdated"
-  | "workflowFocusSlice";
+  | "workflowFocusSlice"
+  | "overviewModeLabel"
+  | "workstationMode"
+  | "serverMode"
+  | "overviewWorkstationTitle"
+  | "overviewServerTitle"
+  | "overviewWorkstationDescription"
+  | "overviewServerDescription"
+  | "primaryActions"
+  | "apiHealth"
+  | "workersMetric"
+  | "online"
+  | "offline"
+  | "browserSessions"
+  | "runtimeSessions"
+  | "conversationsMetric"
+  | "foundationThreads"
+  | "taskRunsMetric"
+  | "queued"
+  | "running"
+  | "failed"
+  | "retrying"
+  | "schedulerMetric"
+  | "activeCount"
+  | "recoveredCount"
+  | "openclawMetric"
+  | "mockAdapterOnly"
+  | "operatorOpenCockpit"
+  | "operatorOpenCockpitDetail"
+  | "operatorConversations"
+  | "operatorConversationsDetail"
+  | "operatorOutputLibrary"
+  | "operatorOutputLibraryDetail"
+  | "operatorPlaybooks"
+  | "operatorPlaybooksDetail"
+  | "maintainerWorkers"
+  | "maintainerWorkersDetail"
+  | "maintainerBrowserRuntime"
+  | "maintainerBrowserRuntimeDetail"
+  | "maintainerTasks"
+  | "maintainerTasksDetail"
+  | "maintainerSettings"
+  | "maintainerSettingsDetail"
+  | "openPage"
+  | "recentSystemSnapshot"
+  | "recentSystemSnapshotDescription";
 
 interface AsyncState<T> {
   data: T | null;
@@ -236,8 +282,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 60A",
-    boundaryBody: "中英切换与简洁化基础。默认中文，保留英文切换。",
+    boundaryTitle: "Phase 60B",
+    boundaryBody: "首页角色入口与简洁化基础。工作站和服务器维护视角可切换。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -276,6 +322,51 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     conversationThreads: "对话列表",
     lastUpdated: "最后更新",
     workflowFocusSlice: "工作流来源与状态聚焦",
+    overviewModeLabel: "首页视角",
+    workstationMode: "工作站人员",
+    serverMode: "服务器维护",
+    overviewWorkstationTitle: "工作站运行入口",
+    overviewServerTitle: "服务器维护入口",
+    overviewWorkstationDescription: "先看运行驾驶舱，再进入对话、剧本和产物。",
+    overviewServerDescription: "先看 Worker、浏览器运行时、任务队列和连接配置。",
+    primaryActions: "常用入口",
+    apiHealth: "API 健康",
+    workersMetric: "Worker",
+    online: "在线",
+    offline: "离线",
+    browserSessions: "浏览器会话",
+    runtimeSessions: "运行时会话",
+    conversationsMetric: "对话",
+    foundationThreads: "基础线程",
+    taskRunsMetric: "任务运行",
+    queued: "排队",
+    running: "运行中",
+    failed: "失败",
+    retrying: "重试中",
+    schedulerMetric: "调度器",
+    activeCount: "活跃",
+    recoveredCount: "已恢复",
+    openclawMetric: "OpenClaw",
+    mockAdapterOnly: "当前为 mock 适配",
+    operatorOpenCockpit: "查看运行驾驶舱",
+    operatorOpenCockpitDetail: "集中查看运行、审批、任务和工作流来源。",
+    operatorConversations: "继续对话",
+    operatorConversationsDetail: "查看对话消息、事件和待审批内容。",
+    operatorOutputLibrary: "查看产物库",
+    operatorOutputLibraryDetail: "检查运行产物并导出结果。",
+    operatorPlaybooks: "查看剧本",
+    operatorPlaybooksDetail: "检查剧本运行和线程上下文。",
+    maintainerWorkers: "检查 Worker",
+    maintainerWorkersDetail: "确认工作站在线、心跳和容量。",
+    maintainerBrowserRuntime: "检查浏览器运行时",
+    maintainerBrowserRuntimeDetail: "查看远程浏览器会话和快照状态。",
+    maintainerTasks: "检查任务队列",
+    maintainerTasksDetail: "查看失败、重试、恢复和调度状态。",
+    maintainerSettings: "检查连接配置",
+    maintainerSettingsDetail: "核对服务器地址、工作区和刷新间隔。",
+    openPage: "打开",
+    recentSystemSnapshot: "系统快照",
+    recentSystemSnapshotDescription: "局部接口失败会直接显示，首页仍可继续使用。",
   },
   "en-US": {
     brandSubtitle: "Operations Console",
@@ -283,8 +374,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 60A",
-    boundaryBody: "Frontend language switch and simplification foundation. Chinese by default with English available.",
+    boundaryTitle: "Phase 60B",
+    boundaryBody: "Overview persona entry and simplification foundation for workstation and server maintenance modes.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -323,6 +414,51 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     conversationThreads: "Conversation threads",
     lastUpdated: "Last updated",
     workflowFocusSlice: "Workflow focus slice",
+    overviewModeLabel: "Overview mode",
+    workstationMode: "Workstation operator",
+    serverMode: "Server maintainer",
+    overviewWorkstationTitle: "Workstation Run Entry",
+    overviewServerTitle: "Server Maintenance Entry",
+    overviewWorkstationDescription: "Start with Run Cockpit, then continue into conversations, playbooks, and output artifacts.",
+    overviewServerDescription: "Start with workers, browser runtime, task queues, and connection settings.",
+    primaryActions: "Primary actions",
+    apiHealth: "API health",
+    workersMetric: "Workers",
+    online: "online",
+    offline: "offline",
+    browserSessions: "Browser sessions",
+    runtimeSessions: "runtime sessions",
+    conversationsMetric: "Conversations",
+    foundationThreads: "foundation threads",
+    taskRunsMetric: "Task runs",
+    queued: "queued",
+    running: "running",
+    failed: "failed",
+    retrying: "retrying",
+    schedulerMetric: "Scheduler",
+    activeCount: "active",
+    recoveredCount: "recovered",
+    openclawMetric: "OpenClaw",
+    mockAdapterOnly: "mock adapter only",
+    operatorOpenCockpit: "Open Run Cockpit",
+    operatorOpenCockpitDetail: "Scan runs, approvals, tasks, and workflow provenance in one place.",
+    operatorConversations: "Continue conversations",
+    operatorConversationsDetail: "Review messages, events, and pending approvals.",
+    operatorOutputLibrary: "Open Output Library",
+    operatorOutputLibraryDetail: "Inspect run artifacts and export results.",
+    operatorPlaybooks: "Open Playbooks",
+    operatorPlaybooksDetail: "Review playbook runs and thread context.",
+    maintainerWorkers: "Check Workers",
+    maintainerWorkersDetail: "Confirm workstation online state, heartbeat, and capacity.",
+    maintainerBrowserRuntime: "Check Browser Runtime",
+    maintainerBrowserRuntimeDetail: "Inspect remote browser sessions and snapshot state.",
+    maintainerTasks: "Check Task Queue",
+    maintainerTasksDetail: "Review failures, retries, recovery, and scheduler state.",
+    maintainerSettings: "Check Settings",
+    maintainerSettingsDetail: "Confirm server URL, workspace, and refresh interval.",
+    openPage: "Open",
+    recentSystemSnapshot: "System Snapshot",
+    recentSystemSnapshotDescription: "Partial API failures are shown inline so the dashboard remains usable.",
   },
 };
 
@@ -613,8 +749,18 @@ function renderCell(value: unknown): React.ReactNode {
   return <span>{String(value ?? "-")}</span>;
 }
 
-function OverviewPage({ settings }: { settings: AdminSettings }) {
+function OverviewPage({
+  settings,
+  language,
+  onNavigate,
+}: {
+  settings: AdminSettings;
+  language: UiLanguage;
+  onNavigate: (page: PageKey, target?: DeepLinkTarget) => void;
+}) {
+  const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [persona, setPersona] = useState<OverviewPersona>("workstation");
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -655,40 +801,85 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
   const schedulerHealth = (state.data?.schedulerHealth as JsonRecord | undefined) || null;
   const health = (state.data?.health as JsonRecord | undefined) || null;
   const openclaw = (state.data?.openclawHealth as JsonRecord | undefined) || null;
+  const overviewActions: { page: PageKey; title: string; detail: string }[] =
+    persona === "workstation"
+      ? [
+          { page: "run-cockpit", title: t("operatorOpenCockpit"), detail: t("operatorOpenCockpitDetail") },
+          { page: "conversations", title: t("operatorConversations"), detail: t("operatorConversationsDetail") },
+          { page: "playbooks", title: t("operatorPlaybooks"), detail: t("operatorPlaybooksDetail") },
+          { page: "output-library", title: t("operatorOutputLibrary"), detail: t("operatorOutputLibraryDetail") },
+        ]
+      : [
+          { page: "workers", title: t("maintainerWorkers"), detail: t("maintainerWorkersDetail") },
+          { page: "browser-runtime", title: t("maintainerBrowserRuntime"), detail: t("maintainerBrowserRuntimeDetail") },
+          { page: "tasks", title: t("maintainerTasks"), detail: t("maintainerTasksDetail") },
+          { page: "settings", title: t("maintainerSettings"), detail: t("maintainerSettingsDetail") },
+        ];
 
   return (
     <div className="page-stack">
+      <section className="overview-command-center">
+        <div>
+          <p className="section-eyebrow">{t("overviewModeLabel")}</p>
+          <h2>{persona === "workstation" ? t("overviewWorkstationTitle") : t("overviewServerTitle")}</h2>
+          <p>{persona === "workstation" ? t("overviewWorkstationDescription") : t("overviewServerDescription")}</p>
+        </div>
+        <div className="overview-mode-switch" role="group" aria-label={t("overviewModeLabel")}>
+          <button className={persona === "workstation" ? "active" : ""} onClick={() => setPersona("workstation")}>
+            {t("workstationMode")}
+          </button>
+          <button className={persona === "server" ? "active" : ""} onClick={() => setPersona("server")}>
+            {t("serverMode")}
+          </button>
+        </div>
+      </section>
+      <Panel title={t("primaryActions")}>
+        <div className="overview-action-grid">
+          {overviewActions.map((action) => (
+            <article className="overview-action-card" key={action.page}>
+              <div>
+                <h3>{action.title}</h3>
+                <p>{action.detail}</p>
+              </div>
+              <button className="ghost-button" onClick={() => onNavigate(action.page)}>
+                <PlayCircle size={15} />
+                {t("openPage")}
+              </button>
+            </article>
+          ))}
+        </div>
+      </Panel>
       <section className="metrics-grid">
-        <DataCard title="API health" value={valueAt(health, ["status", "reachable", "success"])} icon={<Gauge size={20} />} />
+        <DataCard title={t("apiHealth")} value={valueAt(health, ["status", "reachable", "success"])} icon={<Gauge size={20} />} />
         <DataCard
-          title="Workers"
-          value={`${valueAt(workerSummary, ["online_count"], "0")} online`}
-          detail={`${valueAt(workerSummary, ["offline_count"], "0")} offline`}
+          title={t("workersMetric")}
+          value={`${valueAt(workerSummary, ["online_count"], "0")} ${t("online")}`}
+          detail={`${valueAt(workerSummary, ["offline_count"], "0")} ${t("offline")}`}
           icon={<Server size={20} />}
         />
-        <DataCard title="Browser sessions" value={sessionsCount} detail="runtime sessions" icon={<MonitorCheck size={20} />} />
-        <DataCard title="Conversations" value={conversationCount} detail="foundation threads" icon={<MessageSquareText size={20} />} />
+        <DataCard title={t("browserSessions")} value={sessionsCount} detail={t("runtimeSessions")} icon={<MonitorCheck size={20} />} />
+        <DataCard title={t("conversationsMetric")} value={conversationCount} detail={t("foundationThreads")} icon={<MessageSquareText size={20} />} />
         <DataCard
-          title="Task runs"
-          value={`${taskRunCounts.queued ?? 0} queued / ${taskRunCounts.running ?? 0} running`}
-          detail={`${taskRunCounts.failed ?? 0} failed / ${taskRunCounts.retrying ?? 0} retrying`}
+          title={t("taskRunsMetric")}
+          value={`${taskRunCounts.queued ?? 0} ${t("queued")} / ${taskRunCounts.running ?? 0} ${t("running")}`}
+          detail={`${taskRunCounts.failed ?? 0} ${t("failed")} / ${taskRunCounts.retrying ?? 0} ${t("retrying")}`}
           icon={<ClipboardList size={20} />}
         />
         <DataCard
-          title="Scheduler"
+          title={t("schedulerMetric")}
           value={valueAt(schedulerHealth, ["status"], "unavailable")}
-          detail={`${valueAt(schedulerHealth, ["active_task_count"], "0")} active / ${valueAt(schedulerHealth, ["recovered_task_count"], "0")} recovered`}
+          detail={`${valueAt(schedulerHealth, ["active_task_count"], "0")} ${t("activeCount")} / ${valueAt(schedulerHealth, ["recovered_task_count"], "0")} ${t("recoveredCount")}`}
           icon={<Gauge size={20} />}
         />
         <DataCard
-          title="OpenClaw"
+          title={t("openclawMetric")}
           value={valueAt(openclaw, ["provider"], "unavailable")}
-          detail="mock adapter only"
+          detail={t("mockAdapterOnly")}
           icon={<Bot size={20} />}
         />
       </section>
       <LoadNotice state={state} />
-      <Panel title="Recent System Snapshot" description="Partial API failures are shown inline so the dashboard remains usable.">
+      <Panel title={t("recentSystemSnapshot")} description={t("recentSystemSnapshotDescription")}>
         <div className="json-grid">
           <JsonPreview value={state.data?.health} />
           <JsonPreview value={state.data?.taskSummary} />
@@ -697,7 +888,7 @@ function OverviewPage({ settings }: { settings: AdminSettings }) {
           <JsonPreview value={state.data?.workerSummary} />
           <JsonPreview value={state.data?.openclawHealth} />
         </div>
-        <div className="last-updated">Last updated: {state.updatedAt ?? "-"}</div>
+        <div className="last-updated">{t("lastUpdated")}: {state.updatedAt ?? "-"}</div>
       </Panel>
     </div>
   );
@@ -3820,7 +4011,7 @@ function App() {
           </div>
         </header>
         <div className="content">
-          {activePage === "overview" ? <OverviewPage settings={settings} /> : null}
+          {activePage === "overview" ? <OverviewPage settings={settings} language={language} onNavigate={navigate} /> : null}
           {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} language={language} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}

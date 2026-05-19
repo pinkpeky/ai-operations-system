@@ -164,6 +164,98 @@ main {
   gap: 18px;
 }
 
+.overview-command-center {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.overview-command-center h2 {
+  margin: 0;
+  color: #17212b;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.overview-command-center p {
+  margin: 6px 0 0;
+  max-width: 720px;
+  color: #607080;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.section-eyebrow {
+  margin: 0 0 6px !important;
+  color: #0f766e !important;
+  font-size: 12px !important;
+  font-weight: 800;
+}
+
+.overview-mode-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  gap: 4px;
+  min-width: 248px;
+  padding: 4px;
+  border: 1px solid #d4dee6;
+  border-radius: 8px;
+  background: #f6f8fa;
+}
+
+.overview-mode-switch button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  color: #526575;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.overview-mode-switch button.active {
+  color: #17212b;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 35, 52, 0.12);
+}
+
+.overview-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.overview-action-card {
+  display: grid;
+  align-content: space-between;
+  gap: 16px;
+  min-height: 156px;
+  padding: 14px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.overview-action-card h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.overview-action-card p {
+  margin: 7px 0 0;
+  color: #627282;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -678,10 +770,19 @@ textarea {
 
   .metrics-grid,
   .json-grid,
+  .overview-action-grid,
   .split-page,
   .cockpit-grid,
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .overview-command-center {
+    display: grid;
+  }
+
+  .overview-mode-switch {
+    width: 100%;
   }
 
   .detail-panel {
