@@ -807,6 +807,33 @@ textarea {
   line-height: 1.45;
 }
 
+.rag-live-loop {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d8e6df;
+  border-radius: 8px;
+  background: #f7fbf8;
+  color: #2f5143;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rag-live-loop strong {
+  color: #1d3b30;
+  font-weight: 800;
+}
+
+.rag-live-loop span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eaf4ee;
+  font-weight: 750;
+}
+
 .rag-metrics-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
