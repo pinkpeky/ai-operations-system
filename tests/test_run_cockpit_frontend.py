@@ -78,10 +78,21 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
     assert "Open Replay Center" in text
     assert "targetWorkflowRunId" in text
     assert "Replay context: Run Cockpit handoff" in text
+    assert "UiLanguage" in text
+    assert "languageStorageKey" in text
+    assert "pageLabels" in text
+    assert "uiText" in text
+    assert "readUiLanguage" in text
+    assert "writeUiLanguage" in text
+    assert "language-switch" in text
+    assert "运行驾驶舱" in text
+    assert "中文" in text
+    assert "English" in text
+    assert "中英切换与简洁化基础" in text
 
 
-def test_run_cockpit_docs_track_workflow_focus_slice() -> None:
-    """Recovery docs should point to the active Run Cockpit workflow-focus slice."""
+def test_run_cockpit_docs_track_frontend_i18n_slice() -> None:
+    """Recovery docs should point to the active frontend i18n slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -89,11 +100,13 @@ def test_run_cockpit_docs_track_workflow_focus_slice() -> None:
         ROOT / "docs/PROJECT_STATUS.md",
         ROOT / "docs/PROJECT_OVERVIEW.md",
         ROOT / "docs/PHASE_INDEX.md",
+        ROOT / "docs/en/PROJECT_STATUS.md",
+        ROOT / "docs/zh/PROJECT_STATUS.md",
     ]
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-59-run-cockpit-workflow-focus" in text or "Run Cockpit Workflow Focus" in text, path
+        assert "phase-60-frontend-i18n-foundation" in text or "Frontend Language" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -120,8 +133,8 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
     assert "In progress" not in phase_lines["57D"]
 
 
-def test_run_cockpit_phase_index_tracks_phase_59_workflow_focus_slice() -> None:
-    """Phase 59B should be merged and Phase 59C should be the active workflow-focus slice."""
+def test_run_cockpit_phase_index_tracks_phase_59_closeout_and_phase_60_active_slice() -> None:
+    """Phase 59C should be merged and Phase 60A should be the active frontend i18n slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -187,5 +200,19 @@ def test_run_cockpit_phase_index_tracks_phase_59_workflow_focus_slice() -> None:
     assert "In progress" not in phase_59_lines["59B"]
 
     assert "59C" in phase_59_lines
+    assert "#33" in phase_59_lines["59C"]
     assert "phase-59-run-cockpit-workflow-focus" in phase_59_lines["59C"]
-    assert "In progress" in phase_59_lines["59C"]
+    assert "Merged to main" in phase_59_lines["59C"]
+    assert "TBD" not in phase_59_lines["59C"]
+    assert "In progress" not in phase_59_lines["59C"]
+
+    phase_60_lines = {
+        line.split("|")[1].strip(): line
+        for line in text.splitlines()
+        if line.startswith("| 60") and "Frontend" in line
+    }
+
+    assert "60A" in phase_60_lines
+    assert "phase-60-frontend-i18n-foundation" in phase_60_lines["60A"]
+    assert "TBD" in phase_60_lines["60A"]
+    assert "In progress" in phase_60_lines["60A"]

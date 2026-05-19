@@ -4,6 +4,8 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
+当前更新（2026-05-19）：Phase 57A-59C 已通过 PR #22-#33 合并到 `main`，覆盖 Run Cockpit 基础、操作按钮、运行筛选、深链、刷新体验、Playbooks / Output Library 上下文、搜索密度、工作流跳转和工作流来源聚焦。当前下一分支是 `codex/phase-60-frontend-i18n-foundation`，范围是 Admin Dashboard 中英切换、默认中文外壳/导航、英文回退，以及更清晰的 Run Cockpit 操作员标签。
+
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
 

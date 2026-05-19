@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-59-run-cockpit-workflow-focus`
+`codex/phase-60-frontend-i18n-foundation`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, and Phase 59A-59B have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, and workflow handoff into Workflows and Replay Center.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, and Phase 59A-59C have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, and workflow focus/provenance.
 
-Current effective phase: Phase 59 Run Cockpit Workflow Focus. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 60 Frontend Language & Simplicity Foundation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. The current step is normal product development on Run Cockpit workflow focus after PR #32 merged workflow handoff.
+Readiness and PR cleanup are complete. The current step is normal product development on frontend language and dashboard simplification after PR #33 merged Run Cockpit workflow focus.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-59-run-cockpit-workflow-focus`. Its scope is clarifying linked workflow provenance in Run Cockpit, surfacing focus/loading/unavailable states, and showing which selected task, playbook run, or artifact supplied the current `workflow_run_id`. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-60-frontend-i18n-foundation`. Its scope is adding an Admin Dashboard language switch, Chinese default shell and navigation labels, English fallback labels, localized Run Cockpit operator labels, and a simple foundation for later full-interface simplification. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -51,8 +51,9 @@ The next active branch is `codex/phase-59-run-cockpit-workflow-focus`. Its scope
 | #30 | Run Cockpit Closeout & Docs Reconciliation | `codex/phase-58-run-cockpit-closeout` | Merged to `main` |
 | #31 | Run Cockpit Search & Density | `codex/phase-59-run-cockpit-search-density` | Merged to `main` |
 | #32 | Run Cockpit Workflow Handoff | `codex/phase-59-run-cockpit-workflow-handoff` | Merged to `main` |
+| #33 | Run Cockpit Workflow Focus | `codex/phase-59-run-cockpit-workflow-focus` | Merged to `main` |
 
-The active pull request for Phase 59C is not opened yet at the time of this update.
+The active pull request for Phase 60A is not opened yet at the time of this update.
 
 ## Current Architecture State
 
@@ -71,7 +72,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D, Phase 58A-58E, and Phase 59A-59B are present on `main` through PR #22-#32.
+- Phase 57A-57D, Phase 58A-58E, and Phase 59A-59C are present on `main` through PR #22-#33.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -113,7 +114,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish Phase 59C Run Cockpit Workflow Focus on `codex/phase-59-run-cockpit-workflow-focus`.
+1. Finish Phase 60A Frontend Language & Simplicity Foundation on `codex/phase-60-frontend-i18n-foundation`.
 2. Verify Admin Dashboard typecheck/build, docs runtime checks, and the focused run cockpit frontend guard.
 3. Open a PR, wait for PR Quality Gates, and merge only after remote checks pass.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
