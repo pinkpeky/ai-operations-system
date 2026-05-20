@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61o-commercial-rag-content-drafts
+codex/phase-61p-commercial-rag-asset-briefs
 ```
 
 ## What This Phase Adds
@@ -52,6 +52,7 @@ codex/phase-61o-commercial-rag-content-drafts
 - API route group: `/api/v1/commercial-operations/{operation_id}/content-drafts`.
 - RAG content draft route: `/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/asset-requests`.
+- RAG asset request route: `/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/deliverables`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
@@ -196,6 +197,8 @@ Content drafts do not publish content, call OpenClaw, run ComfyUI jobs, control 
 
 Phase 61F treats asset requests as first-class, reviewable records. A request can be created from a plan step and optionally linked to a content draft, edited, marked ready for review, approved, rejected, prepared for future ComfyUI handoff, failed during preparation, or archived. Creating or deciding an asset request writes the latest request state back to the matching `plan_outline` step so operators can see whether a channel needs visual, video, design, or supporting content assets.
 
+Phase 61P adds controlled RAG asset brief generation. Operators can call `/asset-requests/generate-rag` with a plan step, optional content draft, channel, asset type, query, collection, and search mode. The route searches the existing RAG index, reranks results, records retrieved chunks as source materials, captures search metadata, builds readiness checks, and creates a draft asset request record that still requires human review before approval or preparation.
+
 Asset requests do not start ComfyUI, publish assets, run OpenClaw, control Browser Worker actions, or contact external accounts. The `handoff_payload` is intentionally metadata-only and carries the later ComfyUI shape, source materials, checks, and safety boundary.
 
 ## Deliverables
@@ -256,7 +259,7 @@ Optimization decisions are still metadata-only. They do not auto-optimize conten
 6. Regenerate the plan when the goal or constraints change.
 7. Move the operation to ready, active, or paused when the human operating process changes.
 8. Create content drafts for the relevant channels manually or from existing RAG search, edit them, send them for review, approve/reject them, and archive obsolete drafts.
-9. Create asset requests for images, videos, covers, design files, or supporting assets; approve, prepare, fail, or archive them without starting generation.
+9. Create asset requests for images, videos, covers, design files, or supporting assets manually or from existing RAG search; approve, prepare, fail, or archive them without starting generation.
 10. Package approved drafts and approved/prepared asset requests into deliverables, then approve, package, fail, or archive the handoff package.
 11. Create execution requests from packaged deliverables, then send them for review, approve/reject them, prepare/cancel/fail them, or archive them without external execution.
 12. Create execution runs from prepared execution requests, then start/succeed/fail/retry/cancel/archive them as metadata-only operating records.
@@ -300,6 +303,7 @@ POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/reje
 POST /api/v1/commercial-operations/{operation_id}/content-drafts/{draft_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/asset-requests
 POST /api/v1/commercial-operations/{operation_id}/asset-requests
+POST /api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag
 PATCH /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}
 POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/ready
 POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/approve
@@ -373,7 +377,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation.
 
 It does not publish to social platforms.
 
@@ -381,7 +385,7 @@ It does not execute OpenClaw actions.
 
 It does not run ComfyUI jobs.
 
-It does not ingest knowledge files from evidence snapshots or content draft generation, and generated snapshots or content drafts do not bypass review.
+It does not ingest knowledge files from evidence snapshots, content draft generation, or asset brief generation, and generated snapshots, content drafts, or asset briefs do not bypass review.
 
 It does not control real accounts.
 
@@ -395,8 +399,8 @@ The plan outline may mention future execution surfaces such as OpenClaw, ComfyUI
 
 Recommended follow-up slices:
 
-1. Extend RAG-generated content and evidence review ergonomics after the draft-only paths are stable.
-2. Add guarded ComfyUI job adapter stubs only after asset request approvals, preparation, deliverable packaging, evidence snapshots, execution request handoff, and execution run recovery are stable.
+1. Extend RAG-generated content, evidence, and asset brief review ergonomics after the draft-only paths are stable.
+2. Add guarded ComfyUI job adapter stubs only after RAG-generated asset requests, manual asset request approvals, preparation, deliverable packaging, evidence snapshots, execution request handoff, and execution run recovery are stable.
 3. Add guarded OpenClaw/browser worker adapters only after execution requests and execution runs can enforce explicit approval, evidence snapshot, checklist, and target checks.
 4. Add monitored analytics adapter stubs that can populate monitoring observations after explicit approval.
 5. Add final business-result reporting once real execution and monitored analytics data exist.

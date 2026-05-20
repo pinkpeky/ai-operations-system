@@ -3912,7 +3912,7 @@ Boundary: results are operator-observed review records only. They do not ingest 
 
 ## Phase 61K: Commercial Operation Monitoring Observations
 
-Status: in progress.
+Status: merged.
 
 Phase 61K adds `commercial_operation_monitoring_observations` and `CommercialOperationMonitoringObservation` records below each commercial operation. Operators can create a monitoring observation from an approved commercial result, update it while draft or rejected, mark it ready for review, approve it, reject it, or archive it.
 
@@ -4009,3 +4009,19 @@ Request fields: `step_key`, `channel`, `content_format`, `title`, `audience_segm
 Generated metadata fields include `generation_mode=rag_content_draft`, `collection_name`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `rag_result_count`, `dense_candidate_count`, `keyword_candidate_count`, `merged_candidate_count`, and `forbidden_actions`.
 
 Boundary: RAG content draft generation searches existing knowledge only. It does not upload or ingest new knowledge files, auto-approve content, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.
+
+## Phase 61P: Commercial Operation RAG Asset Brief Generation
+
+Status: in progress.
+
+Phase 61P adds a controlled generation route that searches an existing RAG collection and creates a draft commercial operation asset request brief from retrieved chunks and optional linked content draft context. Generated requests include source materials, readiness checks, search metadata, a review boundary, and explicit forbidden actions. They still require human review before approval and cannot start ComfyUI or execute.
+
+API:
+
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`
+
+Request fields: `step_key`, `content_draft_id`, `channel`, `asset_type`, `title`, `purpose`, `dimensions`, `style_constraints`, `query`, `knowledge_collection`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `readiness_checks`, `negative_prompt`, and `metadata`.
+
+Generated metadata fields include `generation_mode=rag_asset_brief`, `collection_name`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `rag_result_count`, `dense_candidate_count`, `keyword_candidate_count`, `merged_candidate_count`, `content_draft_id`, and `forbidden_actions`.
+
+Boundary: RAG asset brief generation searches existing knowledge only. It does not upload or ingest new knowledge files, auto-approve assets, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.

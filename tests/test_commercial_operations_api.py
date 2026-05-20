@@ -370,6 +370,67 @@ async def test_commercial_operations_api_flow() -> None:
             assert asset_step["asset_request_status"] == "prepared"
             assert asset_step["asset_request_type"] == "image"
 
+            async with session_factory() as db_session:
+                asset_rag_document = Document(
+                    workspace_id="workspace-commercial-api",
+                    user_id="user-commercial-api",
+                    source_id="commercial-asset-source",
+                    source_name="Commercial asset playbook",
+                    source_type="text",
+                    collection_name="ai_knowledge_base",
+                    chunk_count=1,
+                    document_metadata={"phase": "61P"},
+                )
+                db_session.add(asset_rag_document)
+                await db_session.flush()
+                db_session.add(
+                    DocumentChunk(
+                        document_id=asset_rag_document.id,
+                        collection_name="ai_knowledge_base",
+                        chunk_index=0,
+                        text=(
+                            "Visual trust asset brief: show buyer education, product workflow clarity, "
+                            "and manual review boundary for the channel."
+                        ),
+                        qdrant_point_id="commercial-asset-rag-chunk-1",
+                        chunk_metadata={"section": "asset_brief"},
+                    )
+                )
+                await db_session.commit()
+                asset_rag_document_id = str(asset_rag_document.id)
+
+            generated_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag",
+                headers=headers,
+                json={
+                    "step_key": "content_production",
+                    "content_draft_id": content_draft_id,
+                    "channel": "newsletter",
+                    "asset_type": "image",
+                    "title": "Generated RAG hero asset request",
+                    "query": "visual trust asset brief",
+                    "knowledge_collection": "ai_knowledge_base",
+                    "search_mode": "keyword",
+                    "final_top_k": 3,
+                    "dimensions": "1200x628",
+                    "metadata": {"phase": "61P"},
+                },
+            )
+            assert generated_asset_request.status_code == 201
+            generated_asset_body = generated_asset_request.json()
+            assert generated_asset_body["request_status"] == "draft"
+            assert generated_asset_body["content_draft_id"] == content_draft_id
+            assert "Source evidence" in generated_asset_body["generation_prompt"]
+            assert "no ComfyUI job" in generated_asset_body["generation_prompt"]
+            assert f"document:{asset_rag_document_id}" in generated_asset_body["source_materials"]
+            assert "source:commercial-asset-source" in generated_asset_body["source_materials"]
+            assert "no ComfyUI job was created" in generated_asset_body["readiness_checks"]
+            assert generated_asset_body["handoff_payload"]["execution_boundary"] == "no ComfyUI job is created in this phase"
+            assert generated_asset_body["metadata"]["generation_mode"] == "rag_asset_brief"
+            assert generated_asset_body["metadata"]["search_mode"] == "keyword"
+            assert generated_asset_body["metadata"]["rag_result_count"] == 1
+            assert "no automatic approval" in generated_asset_body["metadata"]["forbidden_actions"]
+
             deliverable = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/deliverables",
                 headers=headers,

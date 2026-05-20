@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation optimization slice."""
+    """Recovery docs should point to the active commercial operation RAG asset slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61o-commercial-rag-content-drafts" in text or "Commercial Operation RAG Content Draft Generation" in text, path
-        assert "/content-drafts/generate-rag" in text or "RAG content" in text, path
+        assert "phase-61p-commercial-rag-asset-briefs" in text or "Commercial Operation RAG Asset Brief Generation" in text, path
+        assert "/asset-requests/generate-rag" in text or "RAG asset" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61N should be merged and Phase 61O should be the active RAG content slice."""
+    """Phase 61A-61O should be merged and Phase 61P should be the active RAG asset slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -410,6 +410,15 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "phase-61o-commercial-rag-content-drafts" in phase_61_lines["61O"]
     assert "Commercial Operation RAG Content Draft Generation" in phase_61_lines["61O"]
     assert "#55" in phase_61_lines["61O"]
-    assert "Draft PR" in phase_61_lines["61O"]
+    assert "Merged to main" in phase_61_lines["61O"]
+    assert "Draft PR" not in phase_61_lines["61O"]
     assert "TBD" not in phase_61_lines["61O"]
     assert "In progress" not in phase_61_lines["61O"]
+
+    assert "61P" in phase_61_lines
+    assert "phase-61p-commercial-rag-asset-briefs" in phase_61_lines["61P"]
+    assert "Commercial Operation RAG Asset Brief Generation" in phase_61_lines["61P"]
+    assert "#56" in phase_61_lines["61P"]
+    assert "Draft PR" in phase_61_lines["61P"]
+    assert "TBD" not in phase_61_lines["61P"]
+    assert "In progress" not in phase_61_lines["61P"]

@@ -361,6 +361,15 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  generateAssetRequest: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/generate-rag`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
   updateAssetRequest: (operationId: string, assetRequestId: string, payload: JsonRecord, settings?: AdminSettings) =>
     requestJson<JsonRecord>(
       `/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}`,
