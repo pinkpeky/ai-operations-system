@@ -16,6 +16,7 @@ from app.models.enums import (
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIAdapterConfigStatus,
     CommercialOperationComfyUIHandoffStatus,
+    CommercialOperationComfyUIJobRequestStatus,
     CommercialOperationComfyUIPreflightStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
@@ -602,6 +603,98 @@ class CommercialOperationComfyUIAdapterConfig(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Adapter config metadata",
+    )
+
+
+class CommercialOperationComfyUIJobRequest(IdTimestampMixin, Base):
+    """Metadata-only ComfyUI job request assembled from checked preflight."""
+
+    __tablename__ = "commercial_operation_comfyui_job_requests"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    preflight_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_preflights.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Checked ComfyUI preflight ID",
+    )
+    handoff_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_handoffs.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Approved or prepared ComfyUI handoff ID",
+    )
+    adapter_config_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_adapter_configs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked maintained ComfyUI adapter config ID",
+    )
+    asset_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_asset_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Source asset request ID snapshot",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="ComfyUI job request title")
+    job_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationComfyUIJobRequestStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / queued / failed / cancelled / archived",
+    )
+    priority: Mapped[str] = mapped_column(String(32), default="normal", index=True, nullable=False, comment="Job priority")
+    target_url: Mapped[str | None] = mapped_column(String(512), nullable=True, comment="Future ComfyUI endpoint URL")
+    queue_name: Mapped[str | None] = mapped_column(String(128), nullable=True, comment="Future ComfyUI queue name")
+    workflow_name: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="ComfyUI workflow name")
+    connection_mode: Mapped[str] = mapped_column(
+        String(32),
+        default="metadata_only",
+        index=True,
+        nullable=False,
+        comment="metadata_only / future_guarded_adapter",
+    )
+    prompt_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Prompt payload snapshot")
+    workflow_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Workflow payload snapshot")
+    runtime_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Metadata-only runtime payload")
+    safety_checks: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Safety checks")
+    output_expectations: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected future outputs")
+    recovery_plan: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Failure recovery guidance")
+    job_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing ComfyUI job request payload",
+    )
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Queue preparation result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Failure or blocker reason")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    requested_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Requester user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    queued_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Queueing user ID")
+    cancelled_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Canceller user ID")
+    archived_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Archiver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Queued at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Cancelled at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    job_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="ComfyUI job request metadata",
     )
 
 

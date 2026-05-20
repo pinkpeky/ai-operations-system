@@ -31,6 +31,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61Q",
         "Phase 61R",
         "Phase 61S",
+        "Phase 61T",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -40,6 +41,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "commercial_operation_comfyui_handoffs",
         "commercial_operation_comfyui_preflights",
         "commercial_operation_comfyui_adapter_configs",
+        "commercial_operation_comfyui_job_requests",
         "commercial_operation_deliverables",
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
@@ -56,6 +58,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationComfyUIHandoff",
         "CommercialOperationComfyUIPreflight",
         "CommercialOperationComfyUIAdapterConfig",
+        "CommercialOperationComfyUIJobRequest",
         "CommercialOperationDeliverable",
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
@@ -74,6 +77,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/comfyui-handoffs",
         "/api/v1/commercial-operations/{operation_id}/comfyui-preflights",
         "/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs",
+        "/api/v1/commercial-operations/{operation_id}/comfyui-job-requests",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -92,6 +96,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Handoff",
         "ComfyUI Preflight",
         "ComfyUI Adapter Config",
+        "ComfyUI Job Requests",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -109,7 +114,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61s_commercial_operation_comfyui_adapter_configs() -> None:
+def test_recovery_docs_point_to_phase_61t_commercial_operation_comfyui_job_requests() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -122,6 +127,6 @@ def test_recovery_docs_point_to_phase_61s_commercial_operation_comfyui_adapter_c
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61S" in text or "61S" in text, relative
+        assert "Phase 61T" in text or "61T" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "/comfyui-adapter-configs" in text or "ComfyUI adapter config" in text, relative
+        assert "/comfyui-job-requests" in text or "ComfyUI job request" in text, relative

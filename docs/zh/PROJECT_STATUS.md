@@ -2,7 +2,7 @@
 
 ## Branch Status
 
-当前更新（2026-05-20）：PR #57 是 Phase 61Q ComfyUI 交接记录草稿，PR #58 是 Phase 61R ComfyUI 预检草稿。当前下一分支是 `codex/phase-61s-commercial-comfyui-adapter-configs`，范围是 Phase 61S 商业运营 ComfyUI 适配器配置：`/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`、Admin Dashboard ComfyUI 适配器配置操作、endpoint/queue/workflow 白名单/model inventory/runtime limits/secret reference 本地校验，以及预检选择 ready 配置。该阶段只保存元数据配置记录，不会请求 ComfyUI、不会提交队列、不会保存密钥值、不会生成媒体、不会发布、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+当前更新（2026-05-20）：PR #57 是 Phase 61Q ComfyUI 交接记录草稿，PR #58 是 Phase 61R ComfyUI 预检草稿，PR #59 是 Phase 61S ComfyUI 适配器配置草稿。当前开发分支是 `codex/phase-61t-commercial-comfyui-job-requests`，范围是 Phase 61T 商业运营 ComfyUI 作业请求：`commercial_operation_comfyui_job_requests`、`/api/v1/commercial-operations/{operation_id}/comfyui-job-requests`、Admin Dashboard ComfyUI job request 操作面板、从 checked preflight 生成可审查的未来队列 payload、安全检查、输出预期、生命周期决策和恢复指引。该阶段只保存 metadata-only 记录，不会请求 ComfyUI、不会上传文件、不会提交队列、不会保存密钥值、不会生成媒体、不会发布、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
 
 当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61P 已通过 PR #22-#56 合并到 `main`。当前下一分支是 `codex/phase-61q-commercial-comfyui-handoffs`，范围是 Phase 61Q 商业运营 ComfyUI 交接记录：`/api/v1/commercial-operations/{operation_id}/comfyui-handoffs`、Admin Dashboard ComfyUI 交接操作、prompt/workflow payload、准备检查和人工生命周期决策。该阶段只保存元数据交接记录，不会提交 ComfyUI 任务、不会生成媒体、不会自动发布、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
 
@@ -845,3 +845,6 @@ Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; serv
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
 
 The canonical project recovery state is: `main` is the Phase 55 stable baseline after PR #17 and post-merge stabilization, PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`, PR #1 and PR #15 are closed as superseded, and Phase 56 remains reverted and inactive. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.
+## 当前更新（2026-05-20）
+
+PR #57 是 Phase 61Q ComfyUI handoff 草稿，PR #58 是 Phase 61R ComfyUI preflight 草稿，PR #59 是 Phase 61S ComfyUI adapter config 草稿。当前开发分支是 `codex/phase-61t-commercial-comfyui-job-requests`，范围是 Phase 61T 商业运营 ComfyUI 作业请求：`commercial_operation_comfyui_job_requests`、`/api/v1/commercial-operations/{operation_id}/comfyui-job-requests`、Admin Dashboard ComfyUI job request 操作面板、从 checked preflight 生成可审查的未来队列 payload、安全检查、输出预期、生命周期决策和恢复指引。该阶段仍然只保存 metadata-only 记录，不会请求 ComfyUI、不会上传文件、不会提交队列、不会生成媒体、不会发布、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。

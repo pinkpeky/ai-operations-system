@@ -20,7 +20,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61S" in text
+    assert "Phase 61T" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -28,6 +28,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "ComfyUI handoffs" in text
     assert "ComfyUI preflights" in text
     assert "ComfyUI adapter configs" in text
+    assert "ComfyUI job requests" in text
     assert "Deliverables" in text
     assert "Evidence snapshots" in text
     assert "Execution requests" in text
@@ -92,6 +93,16 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.validateComfyuiAdapterConfig" in text
     assert "commercialOperationsApi.failComfyuiAdapterConfig" in text
     assert "commercialOperationsApi.archiveComfyuiAdapterConfig" in text
+    assert "commercialOperationsApi.comfyuiJobRequests" in text
+    assert "commercialOperationsApi.createComfyuiJobRequest" in text
+    assert "commercialOperationsApi.updateComfyuiJobRequest" in text
+    assert "commercialOperationsApi.readyComfyuiJobRequest" in text
+    assert "commercialOperationsApi.approveComfyuiJobRequest" in text
+    assert "commercialOperationsApi.rejectComfyuiJobRequest" in text
+    assert "commercialOperationsApi.queueComfyuiJobRequest" in text
+    assert "commercialOperationsApi.failComfyuiJobRequest" in text
+    assert "commercialOperationsApi.cancelComfyuiJobRequest" in text
+    assert "commercialOperationsApi.archiveComfyuiJobRequest" in text
     assert "commercialOperationsApi.deliverables" in text
     assert "commercialOperationsApi.createDeliverable" in text
     assert "commercialOperationsApi.updateDeliverable" in text
@@ -208,6 +219,16 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}/validate" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights/${encodeURIComponent(preflightId)}/job-requests" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/queue" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready" in text

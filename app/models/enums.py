@@ -147,6 +147,19 @@ class CommercialOperationComfyUIAdapterConfigStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationComfyUIJobRequestStatus(StrEnum):
+    """Commercial operation ComfyUI job request lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    QUEUED = "queued"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    ARCHIVED = "archived"
+
+
 class CommercialOperationDeliverableStatus(StrEnum):
     """Commercial operation deliverable lifecycle status."""
 
