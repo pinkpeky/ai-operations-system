@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61h-commercial-operation-execution-requests
+codex/phase-61i-commercial-operation-execution-runs
 ```
 
 ## What This Phase Adds
@@ -26,6 +26,7 @@ codex/phase-61h-commercial-operation-execution-requests
 - Database table: `commercial_operation_asset_requests`.
 - Database table: `commercial_operation_deliverables`.
 - Database table: `commercial_operation_execution_requests`.
+- Database table: `commercial_operation_execution_runs`.
 - ORM model: `CommercialOperation`.
 - ORM model: `CommercialOperationLink`.
 - ORM model: `CommercialOperationApproval`.
@@ -34,6 +35,7 @@ codex/phase-61h-commercial-operation-execution-requests
 - ORM model: `CommercialOperationAssetRequest`.
 - ORM model: `CommercialOperationDeliverable`.
 - ORM model: `CommercialOperationExecutionRequest`.
+- ORM model: `CommercialOperationExecutionRun`.
 - Service layer: `CommercialOperationService`.
 - API route group: `/api/v1/commercial-operations`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/links`.
@@ -43,6 +45,7 @@ codex/phase-61h-commercial-operation-execution-requests
 - API route group: `/api/v1/commercial-operations/{operation_id}/asset-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/deliverables`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-requests`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
 - Admin Dashboard page: `?page=commercial-operations`.
 - API client: `commercialOperationsApi`.
 - Migration: `0035_phase61a_commercial_ops`.
@@ -53,6 +56,7 @@ codex/phase-61h-commercial-operation-execution-requests
 - Migration: `0040_phase61f_asset_requests`.
 - Migration: `0041_phase61g_deliverables`.
 - Migration: `0042_phase61h_exec_requests`.
+- Migration: `0043_phase61i_exec_runs`.
 
 Each commercial operation stores:
 
@@ -113,6 +117,13 @@ Each commercial operation execution request stores:
 - requester, updater, approver, preparer, canceller, decision timestamps, failure timestamp, cancellation timestamp, and archive timestamp;
 - `request_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, `cancelled`, or `archived`.
 
+Each commercial operation execution run stores:
+
+- workspace, operation, prepared execution request, packaged deliverable, linked Output Library artifact, and plan-step context;
+- channel, execution type, execution mode, target platform/account, title, input payload, runbook snapshot, readiness checks, expected outputs, runtime payload, result payload, recovery plan, operator notes, and metadata;
+- queuer, starter, completer, canceller, lifecycle timestamps, retry count, and maximum retries;
+- `run_status`: `queued`, `running`, `succeeded`, `failed`, `retrying`, `cancelled`, or `archived`.
+
 ## Evidence and Handoff Links
 
 Phase 61B treats these links as operator-readable evidence and handoff context. They are deliberately lightweight references so later phases can build approval-backed plan steps, content artifacts, RAG snapshots, safe dry-runs, monitoring, and result reports on top of a durable project record.
@@ -153,6 +164,12 @@ Phase 61H treats execution requests as first-class, reviewable records created f
 
 Execution requests are still metadata-only. They do not publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, or bypass approval. The `handoff_payload` records the future runtime shape, `future_guarded_runtime_adapter`, and the forbidden actions list so workstation operators and server maintainers can see exactly what has and has not happened.
 
+## Execution Runs
+
+Phase 61I treats execution runs as first-class audit and recovery records created from prepared execution requests. A run can be created, edited while queued or retrying, started, marked succeeded, marked failed, retried when the retry limit allows it, cancelled, or archived. Creating or deciding a run writes the latest run state back to the matching `plan_outline` step.
+
+Execution runs are still metadata-only. They do not publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, or bypass approval. The `runtime_payload` records the future guarded runtime shape and the forbidden actions list; the `recovery_plan` records retry availability and operator recovery steps.
+
 ## Operator Flow
 
 1. Open Admin Dashboard and select Commercial Ops / 商业运营.
@@ -166,11 +183,12 @@ Execution requests are still metadata-only. They do not publish content, execute
 9. Create asset requests for images, videos, covers, design files, or supporting assets; approve, prepare, fail, or archive them without starting generation.
 10. Package approved drafts and approved/prepared asset requests into deliverables, then approve, package, fail, or archive the handoff package.
 11. Create execution requests from packaged deliverables, then send them for review, approve/reject them, prepare/cancel/fail them, or archive them without external execution.
-12. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
-13. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
-14. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, deliverable, execution request, dry-run record, or external material.
+12. Create execution runs from prepared execution requests, then start/succeed/fail/retry/cancel/archive them as metadata-only operating records.
+13. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
+14. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
+15. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, deliverable, execution request, execution run, dry-run record, or external material.
 
-The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, deliverables, execution requests, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
+The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, deliverables, execution requests, execution runs, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
 
 ## Maintainer Flow
 
@@ -227,6 +245,15 @@ POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_
 POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/fail
 POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/cancel
 POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/archive
+GET /api/v1/commercial-operations/{operation_id}/execution-runs
+POST /api/v1/commercial-operations/{operation_id}/execution-runs
+PATCH /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}
+POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/start
+POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/succeed
+POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/fail
+POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/retry
+POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/cancel
+POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/links
 POST /api/v1/commercial-operations/{operation_id}/links
 DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}
@@ -236,7 +263,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation.
 
 It does not publish to social platforms.
 
@@ -257,8 +284,8 @@ The plan outline may mention future execution surfaces such as OpenClaw, ComfyUI
 Recommended follow-up slices:
 
 1. Attach RAG evidence snapshots to the deliverable package and plan outline.
-2. Attach approval-gate evidence and operator checklists to execution requests.
-3. Add a guarded ComfyUI job adapter after asset request approvals, preparation, deliverable packaging, and execution request handoff are stable.
-4. Add guarded OpenClaw/browser worker adapters only after execution requests can enforce explicit approval and target checks.
+2. Attach approval-gate evidence and operator checklists to execution requests and execution runs.
+3. Add guarded ComfyUI job adapter stubs only after asset request approvals, preparation, deliverable packaging, execution request handoff, and execution run recovery are stable.
+4. Add guarded OpenClaw/browser worker adapters only after execution requests and execution runs can enforce explicit approval and target checks.
 5. Add monitoring metrics and failure-recovery records.
 6. Add final business-result reporting once execution and monitoring data exist.

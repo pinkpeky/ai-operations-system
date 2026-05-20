@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-61h-commercial-operation-execution-requests`
+`codex/phase-61i-commercial-operation-execution-runs`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61G have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, and commercial operation deliverables.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61H have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, commercial operation deliverables, and commercial operation execution requests.
 
-Current effective phase: Phase 61H Commercial Operation Execution Requests. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 61I Commercial Operation Execution Runs. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. The current step is normal product development on commercial operation execution requests after PR #47 merged the deliverables slice.
+Readiness and PR cleanup are complete. PR #48 merged Phase 61H execution requests. The current step is normal product development on commercial operation execution runs.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-61h-commercial-operation-execution-requests`. Its scope is adding `commercial_operation_execution_requests`, `/api/v1/commercial-operations/{operation_id}/execution-requests`, and an Admin Dashboard Execution requests panel for creating, editing, sending for review, approving, rejecting, preparing, failing, cancelling, and archiving metadata-only execution handoff requests from packaged deliverables. It still creates traceable records only; it does not auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-61i-commercial-operation-execution-runs`. Its scope is adding `commercial_operation_execution_runs`, `/api/v1/commercial-operations/{operation_id}/execution-runs`, and an Admin Dashboard Execution runs panel for creating, editing, starting, succeeding, failing, retrying, cancelling, and archiving metadata-only execution run records from prepared execution requests. It still creates traceable records only; it does not auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -66,9 +66,10 @@ The next active branch is `codex/phase-61h-commercial-operation-execution-reques
 | #45 | Phase 61E Commercial Operation Content Drafts | `codex/phase-61e-commercial-operation-content-drafts` | Merged to `main` |
 | #46 | Phase 61F Commercial Operation Asset Requests | `codex/phase-61f-commercial-operation-asset-requests` | Merged to `main` |
 | #47 | Phase 61G Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | Merged to `main` |
-| #48 | Phase 61H Commercial Operation Execution Requests | `codex/phase-61h-commercial-operation-execution-requests` | Draft PR |
+| #48 | Phase 61H Commercial Operation Execution Requests | `codex/phase-61h-commercial-operation-execution-requests` | Merged to `main` |
+| #49 | Phase 61I Commercial Operation Execution Runs | `codex/phase-61i-commercial-operation-execution-runs` | Draft PR |
 
-The active Phase 61H pull request is opened as a draft from `codex/phase-61h-commercial-operation-execution-requests`. PR #47 was merged to `main`; Phase 61H is the current review slice.
+PR #48 was merged to `main`; Phase 61I is the current development slice and will open as PR #49 from `codex/phase-61i-commercial-operation-execution-runs`.
 
 ## Current Architecture State
 
@@ -90,12 +91,13 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Phase 61F adds first-class asset requests so images, videos, covers, design files, and supporting assets can be reviewed and prepared before any ComfyUI execution exists.
 - Phase 61G adds deliverables so approved drafts and approved/prepared assets can be packaged into Output Library handoff artifacts before any publishing or external execution exists.
 - Phase 61H adds execution requests so packaged deliverables can become metadata-only, approval-backed future runtime handoffs before any publishing or external execution exists.
+- Phase 61I adds execution runs so prepared execution requests can have queued/running/succeeded/failed/retrying/cancelled/archived audit and recovery records before any publishing or external execution exists.
 
 ## Current Deployment State
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61G are present on `main` through PR #22-#47.
+- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61H are present on `main` through PR #22-#48.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -137,8 +139,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Wait for the Phase 61H execution requests PR Quality Gates and inspect any failing remote check.
-2. Mark the Phase 61H PR ready for review after remote checks are green.
-3. Merge the Phase 61H PR only after remote checks pass.
+1. Finish the Phase 61I execution runs backend/API/frontend/docs slice.
+2. Run backend, frontend, docs, migration, and browser verification gates.
+3. Open PR #49 as a draft from `codex/phase-61i-commercial-operation-execution-runs`.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
 5. After this slice, continue toward approval evidence snapshots, guarded ComfyUI/OpenClaw adapters, monitoring metrics, failure recovery, and commercial result reporting.

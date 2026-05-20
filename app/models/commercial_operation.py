@@ -18,6 +18,7 @@ from app.models.enums import (
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationExecutionRequestStatus,
+    CommercialOperationExecutionRunStatus,
     CommercialOperationLinkType,
     CommercialOperationPriority,
     CommercialOperationRiskLevel,
@@ -487,4 +488,83 @@ class CommercialOperationExecutionRequest(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Execution request metadata",
+    )
+
+
+class CommercialOperationExecutionRun(IdTimestampMixin, Base):
+    """Metadata-only execution run monitor record for a prepared execution request."""
+
+    __tablename__ = "commercial_operation_execution_runs"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    execution_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Prepared execution request ID",
+    )
+    deliverable_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_deliverables.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Packaged commercial deliverable ID",
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked Output Library artifact ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    execution_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False, comment="Execution type snapshot")
+    execution_mode: Mapped[str] = mapped_column(String(32), index=True, nullable=False, comment="Execution mode snapshot")
+    execution_target: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Future target runtime or account",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Execution run title")
+    run_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationExecutionRunStatus.QUEUED.value,
+        index=True,
+        nullable=False,
+        comment="queued / running / succeeded / failed / retrying / cancelled / archived",
+    )
+    input_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Run input payload snapshot")
+    runbook_snapshot: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Runbook snapshot")
+    readiness_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Readiness checks snapshot")
+    expected_outputs: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected monitored outputs")
+    runtime_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Metadata-only runtime payload")
+    result_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Operator result payload")
+    recovery_plan: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Failure recovery guidance")
+    retry_count: Mapped[int] = mapped_column(default=0, nullable=False, comment="Retry count")
+    max_retries: Mapped[int] = mapped_column(default=0, nullable=False, comment="Maximum operator retries")
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Run result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Run failure reason")
+    operator_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Operator notes")
+    queued_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Queueing user ID")
+    started_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Starter user ID")
+    completed_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Completer user ID")
+    cancelled_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Canceller user ID")
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Queued at")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Started at")
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Completed at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Cancelled at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    run_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Execution run metadata",
     )

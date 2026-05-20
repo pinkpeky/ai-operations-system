@@ -607,6 +607,110 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  executionRuns: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/execution-runs`, {}, settings),
+  createExecutionRun: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateExecutionRun: (operationId: string, executionRunId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  startExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    operatorNotes = "Started from Commercial Ops; no external runtime was called.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/start`,
+      {
+        method: "POST",
+        body: JSON.stringify({ operator_notes: operatorNotes }),
+      },
+      settings,
+    ),
+  succeedExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    resultSummary = "Succeeded from Commercial Ops metadata run.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/succeed`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: resultSummary }),
+      },
+      settings,
+    ),
+  failExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    failureReason = "Failed from Commercial Ops metadata run; operator review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  retryExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    operatorNotes = "Retry requested from Commercial Ops after human review.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/retry`,
+      {
+        method: "POST",
+        body: JSON.stringify({ operator_notes: operatorNotes }),
+      },
+      settings,
+    ),
+  cancelExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    operatorNotes = "Cancelled from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ operator_notes: operatorNotes }),
+      },
+      settings,
+    ),
+  archiveExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    operatorNotes = "Archived from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ operator_notes: operatorNotes }),
+      },
+      settings,
+    ),
   links: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/links`, {}, settings),
   createLink: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

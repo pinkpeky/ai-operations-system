@@ -140,6 +140,18 @@ class CommercialOperationExecutionRequestStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationExecutionRunStatus(StrEnum):
+    """Commercial operation execution run lifecycle status."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    RETRYING = "retrying"
+    CANCELLED = "cancelled"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

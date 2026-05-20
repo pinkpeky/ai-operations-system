@@ -3817,7 +3817,7 @@ Boundary: asset requests and handoff payloads are review records only. They do n
 
 ## Phase 61G: Commercial Operation Deliverables
 
-Status: in progress.
+Status: completed on `main` in PR #47.
 
 Phase 61G adds `commercial_operation_deliverables` and `CommercialOperationDeliverable` records below each commercial operation. Operators can package an approved content draft together with approved or prepared asset requests, update the package, mark it ready for review, approve it, reject it, package it into the Output Library, fail it during packaging, or archive it.
 
@@ -3841,7 +3841,7 @@ Boundary: deliverables and package payloads are review and handoff records only.
 
 ## Phase 61H: Commercial Operation Execution Requests
 
-Status: in progress.
+Status: completed on `main` in PR #48.
 
 Phase 61H adds `commercial_operation_execution_requests` and `CommercialOperationExecutionRequest` records below each commercial operation. Operators can create a metadata-only execution handoff request from a packaged deliverable, update it, mark it ready for review, approve it, reject it, prepare it for a future guarded runtime adapter, fail it before handoff, cancel it before preparation, or archive it.
 
@@ -3863,3 +3863,27 @@ Main fields: `operation_id`, `deliverable_id`, `output_artifact_id`, `step_key`,
 Supported `request_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, `cancelled`, and `archived`.
 
 Boundary: execution requests and handoff payloads are review and future-runtime handoff records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61I: Commercial Operation Execution Runs
+
+Status: in progress.
+
+Phase 61I adds `commercial_operation_execution_runs` and `CommercialOperationExecutionRun` records below each commercial operation. Operators can create a metadata-only execution run from a prepared execution request, update it while queued or retrying, start it, mark it succeeded, mark it failed, retry it within the retry limit, cancel it, or archive it.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/execution-runs`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/start`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/succeed`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/retry`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/archive`
+
+Main fields: `operation_id`, `execution_request_id`, `deliverable_id`, `output_artifact_id`, `step_key`, `channel`, `execution_type`, `execution_mode`, `execution_target`, `title`, `run_status`, `input_payload`, `runbook_snapshot`, `readiness_checks`, `expected_outputs`, `runtime_payload`, `result_payload`, `recovery_plan`, `retry_count`, `max_retries`, `result_summary`, `failure_reason`, `operator_notes`, `queued_by`, `started_by`, `completed_by`, `cancelled_by`, and `metadata`.
+
+Supported `run_status` values: `queued`, `running`, `succeeded`, `failed`, `retrying`, `cancelled`, and `archived`.
+
+Boundary: execution runs and runtime payloads are audit and recovery records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

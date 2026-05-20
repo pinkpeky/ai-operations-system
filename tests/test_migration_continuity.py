@@ -21,7 +21,7 @@ def test_migration_continuity_json_mode_passes() -> None:
     assert {"revision-ids-unique", "down-revisions-exist", "single-root", "single-head", "downgrade-functions"} <= names
 
 
-def test_migration_continuity_parses_phase_61h_head() -> None:
+def test_migration_continuity_parses_phase_61i_head() -> None:
     previous = (ROOT / "alembic/versions/20260519_0037_phase61c_commercial_operation_approvals.py").read_text(encoding="utf-8")
     assert "revision = \"0037_phase61c_op_approvals\"" in previous
     assert "down_revision = \"0036_phase61b_commercial_links\"" in previous
@@ -47,6 +47,12 @@ def test_migration_continuity_parses_phase_61h_head() -> None:
     ).read_text(encoding="utf-8")
     assert "revision = \"0042_phase61h_exec_requests\"" in phase_61h
     assert "down_revision = \"0041_phase61g_deliverables\"" in phase_61h
+
+    phase_61i = (
+        ROOT / "alembic/versions/20260520_0043_phase61i_commercial_operation_execution_runs.py"
+    ).read_text(encoding="utf-8")
+    assert "revision = \"0043_phase61i_exec_runs\"" in phase_61i
+    assert "down_revision = \"0042_phase61h_exec_requests\"" in phase_61i
 
 
 def test_migration_revision_ids_fit_alembic_version_column() -> None:

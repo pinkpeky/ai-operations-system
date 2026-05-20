@@ -4,7 +4,8 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61G 已通过 PR #22-#47 合并到 `main`。当前下一分支是 `codex/phase-61h-commercial-operation-execution-requests`，范围是 Phase 61H 商业运营执行请求：`commercial_operation_execution_requests`、`/api/v1/commercial-operations/{operation_id}/execution-requests`、Admin Dashboard 执行请求操作，以及执行请求的创建、编辑、送审、批准、驳回、准备、失败、取消或归档。该阶段仍不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号，也不会绕过审批。
+当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61H 已通过 PR #22-#48 合并到 `main`。当前下一分支是 `codex/phase-61i-commercial-operation-execution-runs`，范围是 Phase 61I 商业运营执行运行记录：`commercial_operation_execution_runs`、`/api/v1/commercial-operations/{operation_id}/execution-runs`、Admin Dashboard 执行运行操作，以及执行运行的创建、编辑、启动、成功、失败、重试、取消或归档。该阶段仍不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号，也不会绕过审批。
+
 
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
