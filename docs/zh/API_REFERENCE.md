@@ -3339,3 +3339,25 @@ API：
 支持的 `result_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
 
 边界：结果记录只是人工观察和复盘记录；不会接入平台分析，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。
+
+## Phase 61K: 商业运营监控观察记录
+
+状态：进行中。
+
+Phase 61K 在每个商业运营项目下新增 `commercial_operation_monitoring_observations` 与 `CommercialOperationMonitoringObservation` 记录。操作人员可以从已批准的商业结果创建监控观察，再进行编辑、送审、批准、驳回或归档。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/monitoring-observations`
+- `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations`
+- `PATCH /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/archive`
+
+主要字段：`operation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`observation_type`、`title`、`observation_status`、`observation_window_start`、`observation_window_end`、`metric_snapshots`、`qualitative_signals`、`evidence_links`、`anomaly_flags`、`recommended_actions`、`observation_payload`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
+
+支持的 `observation_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
+
+边界：监控观察记录只是人工观察和复核记录；不会接入平台分析，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。

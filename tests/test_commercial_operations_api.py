@@ -693,6 +693,120 @@ async def test_commercial_operations_api_flow() -> None:
             assert commercial_result_step["commercial_result_status"] == "approved"
             assert commercial_result_step["commercial_result_type"] == "operator_report"
 
+            monitoring_observation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations",
+                headers=headers,
+                json={
+                    "result_id": commercial_result_id,
+                    "title": "Newsletter monitoring observation",
+                    "observation_type": "manual_snapshot",
+                    "metric_snapshots": [{"name": "reply_signal", "value": "1"}],
+                    "qualitative_signals": ["operator observed reply"],
+                    "evidence_links": [{"title": "Platform note", "target_id": "note-1"}],
+                    "anomaly_flags": ["no automated analytics"],
+                    "recommended_actions": ["prepare next audience segment"],
+                    "metadata": {"phase": "61K"},
+                },
+            )
+            assert monitoring_observation.status_code == 201
+            monitoring_observation_body = monitoring_observation.json()
+            monitoring_observation_id = monitoring_observation_body["id"]
+            assert monitoring_observation_body["workspace_id"] == "workspace-commercial-api"
+            assert monitoring_observation_body["operation_id"] == operation_id
+            assert monitoring_observation_body["result_id"] == commercial_result_id
+            assert monitoring_observation_body["execution_run_id"] == execution_run_id
+            assert monitoring_observation_body["execution_request_id"] == execution_request_id
+            assert monitoring_observation_body["deliverable_id"] == deliverable_id
+            assert monitoring_observation_body["output_artifact_id"] == output_artifact_id
+            assert monitoring_observation_body["observation_status"] == "draft"
+            assert monitoring_observation_body["created_by"] == "user-commercial-api"
+            assert monitoring_observation_body["metric_snapshots"][0]["attribution_boundary"] == (
+                "operator-reported; no platform analytics ingestion"
+            )
+            assert monitoring_observation_body["evidence_links"][0]["evidence_boundary"] == (
+                "reference only; not fetched or verified automatically"
+            )
+            assert "does not ingest platform analytics automatically" in monitoring_observation_body["observation_payload"]["non_goals"]
+
+            monitoring_observations = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations",
+                headers=headers,
+            )
+            assert monitoring_observations.status_code == 200
+            assert [item["id"] for item in monitoring_observations.json()["items"]] == [monitoring_observation_id]
+
+            hidden_monitoring_observations = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_monitoring_observations.status_code == 404
+
+            patched_monitoring_observation = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}",
+                headers=headers,
+                json={
+                    "metric_snapshots": [{"name": "reply_signal", "value": "2"}],
+                    "recommended_actions": ["prepare next iteration"],
+                },
+            )
+            assert patched_monitoring_observation.status_code == 200
+            assert patched_monitoring_observation.json()["updated_by"] == "user-commercial-api"
+            assert patched_monitoring_observation.json()["metric_snapshots"][0]["value"] == "2"
+
+            ready_monitoring_observation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for monitoring review."},
+            )
+            assert ready_monitoring_observation.status_code == 200
+            assert ready_monitoring_observation.json()["observation_status"] == "ready_for_review"
+
+            approved_monitoring_observation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as observed monitoring only."},
+            )
+            assert approved_monitoring_observation.status_code == 200
+            assert approved_monitoring_observation.json()["observation_status"] == "approved"
+            assert approved_monitoring_observation.json()["approved_by"] == "user-commercial-api"
+            assert approved_monitoring_observation.json()["observation_payload"]["observation_status"] == "approved"
+
+            fetched_after_monitoring_observation = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_monitoring_observation.status_code == 200
+            monitoring_step = [
+                step
+                for step in fetched_after_monitoring_observation.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert monitoring_step["monitoring_observation_id"] == monitoring_observation_id
+            assert monitoring_step["monitoring_observation_status"] == "approved"
+            assert monitoring_step["monitoring_observation_type"] == "manual_snapshot"
+
+            reject_approved_monitoring_observation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}/reject",
+                headers=headers,
+                json={"reviewer_notes": "Too late to reject."},
+            )
+            assert reject_approved_monitoring_observation.status_code == 400
+
+            archived_monitoring_observation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}/archive",
+                headers=headers,
+                json={"reviewer_notes": "Archived after approval."},
+            )
+            assert archived_monitoring_observation.status_code == 200
+            assert archived_monitoring_observation.json()["observation_status"] == "archived"
+
+            patch_archived_monitoring_observation = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}",
+                headers=headers,
+                json={"title": "Should not change."},
+            )
+            assert patch_archived_monitoring_observation.status_code == 400
+
             reject_approved_commercial_result = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/results/{commercial_result_id}/reject",
                 headers=headers,

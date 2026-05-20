@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, Phase 61C Commercial Operation Approval Gates, Phase 61D Commercial Operation Safe Dry-Runs, Phase 61E Commercial Operation Content Drafts, Phase 61F Commercial Operation Asset Requests, Phase 61G Commercial Operation Deliverables, Phase 61H Commercial Operation Execution Requests, and Phase 61I Commercial Operation Execution Runs.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, Phase 61C Commercial Operation Approval Gates, Phase 61D Commercial Operation Safe Dry-Runs, Phase 61E Commercial Operation Content Drafts, Phase 61F Commercial Operation Asset Requests, Phase 61G Commercial Operation Deliverables, Phase 61H Commercial Operation Execution Requests, Phase 61I Commercial Operation Execution Runs, and Phase 61J Commercial Operation Results.
 
-Current effective phase: Phase 61J Commercial Operation Results. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 61K Commercial Operation Monitoring Observations. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-61j-commercial-operation-results`. It follows merged PR #49 and adds commercial operation result records: `commercial_operation_results`, result create/list/update/ready/approve/reject/archive APIs, and a bilingual Admin Dashboard surface for operator-observed result reports without platform analytics ingestion, ROI attribution, publishing, or external execution.
+The current fresh branch is `codex/phase-61k-commercial-monitoring-observations`. It follows merged PR #50 and adds commercial operation monitoring observation records: `commercial_operation_monitoring_observations`, monitoring observation create/list/update/ready/approve/reject/archive APIs, and a bilingual Admin Dashboard surface for operator-observed monitoring snapshots without platform analytics ingestion, ROI attribution, publishing, or external execution.
 
 ## Open PR List
 
@@ -66,7 +66,8 @@ The current fresh branch is `codex/phase-61j-commercial-operation-results`. It f
 | #47 | Phase 61G Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | Merged to main |
 | #48 | Phase 61H Commercial Operation Execution Requests | `codex/phase-61h-commercial-operation-execution-requests` | Merged to main |
 | #49 | Phase 61I Commercial Operation Execution Runs | `codex/phase-61i-commercial-operation-execution-runs` | Merged to main |
-| #50 | Phase 61J Commercial Operation Results | `codex/phase-61j-commercial-operation-results` | Draft PR |
+| #50 | Phase 61J Commercial Operation Results | `codex/phase-61j-commercial-operation-results` | Merged to main |
+| #51 | Phase 61K Commercial Operation Monitoring Observations | `codex/phase-61k-commercial-monitoring-observations` | Draft PR |
 
 ## Phase Timeline Table
 
@@ -160,7 +161,8 @@ The current fresh branch is `codex/phase-61j-commercial-operation-results`. It f
 | 61G | Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | #47 | Merged to main | `commercial_operation_deliverables`, deliverable create/list/update/ready/approve/reject/package/fail/archive APIs, linked Output Library artifacts with `source_type=commercial_operation`, Admin Dashboard Deliverables panel, and plan-step deliverable state written back to `plan_outline` without publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
 | 61H | Commercial Operation Execution Requests | `codex/phase-61h-commercial-operation-execution-requests` | #48 | Merged to main | `commercial_operation_execution_requests`, execution-request create/list/update/ready/approve/reject/prepare/fail/cancel/archive APIs, Admin Dashboard Execution requests panel, and plan-step execution request state written back to `plan_outline` without publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
 | 61I | Commercial Operation Execution Runs | `codex/phase-61i-commercial-operation-execution-runs` | #49 | Merged to main | `commercial_operation_execution_runs`, execution-run create/list/update/start/succeed/fail/retry/cancel/archive APIs, Admin Dashboard Execution runs panel, and plan-step execution run state written back to `plan_outline` without publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
-| 61J | Commercial Operation Results | `codex/phase-61j-commercial-operation-results` | #50 | Draft PR | `commercial_operation_results`, result create/list/update/ready/approve/reject/archive APIs, Admin Dashboard Results panel, and plan-step result state written back to `plan_outline` without platform analytics ingestion, ROI attribution, publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
+| 61J | Commercial Operation Results | `codex/phase-61j-commercial-operation-results` | #50 | Merged to main | `commercial_operation_results`, result create/list/update/ready/approve/reject/archive APIs, Admin Dashboard Results panel, and plan-step result state written back to `plan_outline` without platform analytics ingestion, ROI attribution, publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
+| 61K | Commercial Operation Monitoring Observations | `codex/phase-61k-commercial-monitoring-observations` | #51 | Draft PR | `commercial_operation_monitoring_observations`, monitoring observation create/list/update/ready/approve/reject/archive APIs, Admin Dashboard Monitoring observations panel, and plan-step monitoring state written back to `plan_outline` without platform analytics ingestion, ROI attribution, publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
 
 ## Runtime Evolution
 

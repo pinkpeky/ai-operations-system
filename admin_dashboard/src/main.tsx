@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61J",
+    boundaryTitle: "Phase 61K",
     boundaryBody: "商业运营执行运行记录。把目标、计划、知识、内容、素材、审批、交付、执行请求、执行运行和恢复记录串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,7 +726,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61J",
+    boundaryTitle: "Phase 61K",
     boundaryBody: "Commercial operation results: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, result review, and follow-up context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
@@ -4386,7 +4386,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61J",
+    phaseLabel: "Phase 61K",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、执行请求、执行运行记录和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4464,11 +4464,11 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61J",
+    phaseLabel: "Phase 61K",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
-    summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, execution requests, execution run records, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
-    flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Results"],
+    summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
+    flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
     total: "Operations",
     active: "In motion",
     attention: "High risk/review",
@@ -4891,6 +4891,54 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresRun: "Finish, fail, or cancel one execution run first.",
           noResults: "No commercial results yet.",
         };
+  const monitoringCopy =
+    language === "zh-CN"
+      ? {
+          title: "监控观察",
+          description: "从已批准的商业结果创建可复核的效果观察快照。这里记录人工观察到的指标、证据、异常和建议动作，不自动接入平台分析，也不宣称 ROI 归因。",
+          resultLabel: "已批准结果",
+          typeLabel: "观察类型",
+          windowStartLabel: "观察开始",
+          windowEndLabel: "观察结束",
+          metricsLabel: "指标快照",
+          signalsLabel: "定性信号",
+          evidenceLabel: "证据链接",
+          anomaliesLabel: "异常标记",
+          actionsLabel: "建议动作",
+          createAction: "创建观察",
+          saveAction: "保存观察",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并批准至少一个商业结果，再创建监控观察。",
+          requiresResult: "需要先批准一个商业结果。",
+          noObservations: "暂无监控观察记录。",
+        }
+      : {
+          title: "Monitoring observations",
+          description: "Create reviewable effect-monitoring snapshots from approved commercial results. This stores operator-observed metrics, evidence, anomalies, and recommended actions only; it does not ingest platform analytics or claim ROI attribution.",
+          resultLabel: "Approved result",
+          typeLabel: "Observation type",
+          windowStartLabel: "Window start",
+          windowEndLabel: "Window end",
+          metricsLabel: "Metric snapshots",
+          signalsLabel: "Qualitative signals",
+          evidenceLabel: "Evidence links",
+          anomaliesLabel: "Anomaly flags",
+          actionsLabel: "Recommended actions",
+          createAction: "Create observation",
+          saveAction: "Save observation",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and approve at least one commercial result first.",
+          requiresResult: "Approve one commercial result first.",
+          noObservations: "No monitoring observations yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -4901,6 +4949,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRunsState, setExecutionRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [resultsState, setResultsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [monitoringState, setMonitoringState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4985,6 +5034,17 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [resultSignalsDraft, setResultSignalsDraft] = useState("operator reviewed, needs next iteration");
   const [resultEvidenceDraft, setResultEvidenceDraft] = useState("execution run payload, operator screenshot");
   const [resultFollowUpsDraft, setResultFollowUpsDraft] = useState("review next audience segment, update content proof points");
+  const [monitoringResultId, setMonitoringResultId] = useState("");
+  const [selectedObservationId, setSelectedObservationId] = useState("");
+  const [monitoringTitle, setMonitoringTitle] = useState(language === "zh-CN" ? "效果监控观察" : "Effect monitoring observation");
+  const [monitoringType, setMonitoringType] = useState("manual_snapshot");
+  const [monitoringWindowStart, setMonitoringWindowStart] = useState("");
+  const [monitoringWindowEnd, setMonitoringWindowEnd] = useState("");
+  const [monitoringMetricsDraft, setMonitoringMetricsDraft] = useState("qualified_leads=0\nengagement_signal=manual");
+  const [monitoringSignalsDraft, setMonitoringSignalsDraft] = useState("manual review completed, watch next iteration");
+  const [monitoringEvidenceDraft, setMonitoringEvidenceDraft] = useState("operator screenshot, platform note");
+  const [monitoringAnomaliesDraft, setMonitoringAnomaliesDraft] = useState("no automated analytics ingestion");
+  const [monitoringActionsDraft, setMonitoringActionsDraft] = useState("review next content angle, confirm handoff owner");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -5218,6 +5278,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadMonitoringObservations = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setMonitoringState(emptyState());
+        return;
+      }
+      setMonitoringState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.monitoringObservations(operationId, settings);
+        setMonitoringState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setMonitoringState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation monitoring observations API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
@@ -5228,6 +5310,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadExecutionRequests(selectedOperationId);
       void loadExecutionRuns(selectedOperationId);
       void loadResults(selectedOperationId);
+      void loadMonitoringObservations(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
@@ -5239,8 +5322,9 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setExecutionRequestsState(emptyState());
     setExecutionRunsState(emptyState());
     setResultsState(emptyState());
+    setMonitoringState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadResults, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -6025,6 +6109,132 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editMonitoringObservation = (observation: JsonRecord) => {
+    const observationId = valueAt(observation, ["id"], "");
+    if (!observationId) {
+      return;
+    }
+    setSelectedObservationId(observationId);
+    setMonitoringResultId(valueAt(observation, ["result_id"], monitoringResultId));
+    setMonitoringTitle(valueAt(observation, ["title"], monitoringTitle));
+    setMonitoringType(valueAt(observation, ["observation_type"], monitoringType));
+    setMonitoringWindowStart(valueAt(observation, ["observation_window_start"], ""));
+    setMonitoringWindowEnd(valueAt(observation, ["observation_window_end"], ""));
+    setMonitoringMetricsDraft(metricDraftText(observation.metric_snapshots));
+    setMonitoringSignalsDraft(draftListText(observation.qualitative_signals));
+    setMonitoringEvidenceDraft(draftListText(observation.evidence_links));
+    setMonitoringAnomaliesDraft(draftListText(observation.anomaly_flags));
+    setMonitoringActionsDraft(draftListText(observation.recommended_actions));
+  };
+
+  const monitoringObservationPayload = (): JsonRecord => ({
+    result_id: monitoringResultId,
+    observation_type: monitoringType.trim() || "manual_snapshot",
+    title: monitoringTitle.trim(),
+    observation_window_start: monitoringWindowStart.trim() || undefined,
+    observation_window_end: monitoringWindowEnd.trim() || undefined,
+    metric_snapshots: metricDraftList(monitoringMetricsDraft),
+    qualitative_signals: splitDraftList(monitoringSignalsDraft),
+    evidence_links: splitDraftList(monitoringEvidenceDraft).map((item) => ({
+      title: item,
+      type: "monitoring_evidence",
+    })),
+    anomaly_flags: splitDraftList(monitoringAnomaliesDraft),
+    recommended_actions: splitDraftList(monitoringActionsDraft),
+    observation_payload: {
+      source: "admin_dashboard",
+      boundary: "metadata-only; no platform analytics ingestion and no ROI attribution claim",
+    },
+    metadata: { source: "admin_dashboard", phase: "61K" },
+  });
+
+  const createMonitoringObservation = async () => {
+    if (!selectedOperationId || !monitoringResultId) {
+      setActionState({
+        data: null,
+        error: monitoringCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createMonitoringObservation(
+        selectedOperationId,
+        monitoringObservationPayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedObservationId(valueAt(created, ["id"], ""));
+      await loadMonitoringObservations(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation monitoring observation create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateMonitoringObservation = async () => {
+    if (!selectedOperationId || !selectedObservationId) {
+      return;
+    }
+    const { result_id: _resultId, ...payload } = monitoringObservationPayload();
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateMonitoringObservation(
+        selectedOperationId,
+        selectedObservationId,
+        payload,
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadMonitoringObservations(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation monitoring observation update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateMonitoringObservation = async (
+    observationId: string,
+    action: "ready" | "approve" | "reject" | "archive",
+  ) => {
+    if (!selectedOperationId || !observationId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyMonitoringObservation(selectedOperationId, observationId, "Ready for monitoring observation review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveMonitoringObservation(selectedOperationId, observationId, "Approved as operator-observed monitoring snapshot; no ROI attribution claim.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectMonitoringObservation(selectedOperationId, observationId, "Rejected from Commercial Ops; revise evidence, anomalies, or metric snapshots.", settings)
+              : await commercialOperationsApi.archiveMonitoringObservation(selectedOperationId, observationId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadMonitoringObservations(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation monitoring observation action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const createOperationDryRun = async () => {
     if (!selectedOperationId) {
       setActionState({
@@ -6217,9 +6427,11 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const executionRequests = executionRequestsState.data || [];
   const executionRuns = executionRunsState.data || [];
   const results = resultsState.data || [];
+  const monitoringObservations = monitoringState.data || [];
   const packagedDeliverables = deliverables.filter((deliverable) => valueAt(deliverable, ["deliverable_status"], "") === "packaged");
   const preparedExecutionRequests = executionRequests.filter((executionRequest) => valueAt(executionRequest, ["request_status"], "") === "prepared");
   const terminalExecutionRuns = executionRuns.filter((executionRun) => ["succeeded", "failed", "cancelled"].includes(valueAt(executionRun, ["run_status"], "")));
+  const approvedResults = results.filter((result) => valueAt(result, ["result_status"], "") === "approved");
   const approvedContentDrafts = contentDrafts.filter((draft) => valueAt(draft, ["draft_status"], "") === "approved");
   const eligibleDeliverableAssets = assetRequests.filter((assetRequest) => {
     const status = valueAt(assetRequest, ["request_status"], "");
@@ -6277,6 +6489,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   }, [terminalExecutionRuns, resultRunId, selectedResultId]);
 
+  useEffect(() => {
+    if (monitoringResultId && approvedResults.some((result) => valueAt(result, ["id"], "") === monitoringResultId)) {
+      return;
+    }
+    const nextResult = approvedResults[0];
+    const nextResultId = nextResult ? valueAt(nextResult, ["id"], "") : "";
+    setMonitoringResultId(nextResultId);
+    if (nextResult && !selectedObservationId) {
+      setMonitoringTitle(`${valueAt(nextResult, ["title"], "Commercial result")} observation`);
+    }
+  }, [approvedResults, monitoringResultId, selectedObservationId]);
+
   return (
     <div className="page-stack">
       <section className="commercial-command-center">
@@ -6297,7 +6521,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -7373,6 +7597,146 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{resultCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={monitoringCopy.title} description={monitoringCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-observation-grid">
+              <label>
+                {monitoringCopy.resultLabel}
+                <select value={monitoringResultId} onChange={(event) => setMonitoringResultId(event.target.value)}>
+                  {approvedResults.length ? null : <option value="">-</option>}
+                  {approvedResults.map((result) => {
+                    const resultId = valueAt(result, ["id"], "");
+                    return (
+                      <option value={resultId} key={resultId}>
+                        {valueAt(result, ["title"])} / {valueAt(result, ["result_status"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={monitoringTitle} onChange={(event) => setMonitoringTitle(event.target.value)} />
+              </label>
+              <label>
+                {monitoringCopy.typeLabel}
+                <input value={monitoringType} onChange={(event) => setMonitoringType(event.target.value)} />
+              </label>
+              <label>
+                {monitoringCopy.windowStartLabel}
+                <input value={monitoringWindowStart} onChange={(event) => setMonitoringWindowStart(event.target.value)} placeholder="2026-05-20T09:00:00Z" />
+              </label>
+              <label>
+                {monitoringCopy.windowEndLabel}
+                <input value={monitoringWindowEnd} onChange={(event) => setMonitoringWindowEnd(event.target.value)} placeholder="2026-05-20T10:00:00Z" />
+              </label>
+              <label className="commercial-wide-label">
+                {monitoringCopy.metricsLabel}
+                <textarea value={monitoringMetricsDraft} onChange={(event) => setMonitoringMetricsDraft(event.target.value)} />
+              </label>
+              <label>
+                {monitoringCopy.signalsLabel}
+                <textarea value={monitoringSignalsDraft} onChange={(event) => setMonitoringSignalsDraft(event.target.value)} />
+              </label>
+              <label>
+                {monitoringCopy.evidenceLabel}
+                <textarea value={monitoringEvidenceDraft} onChange={(event) => setMonitoringEvidenceDraft(event.target.value)} />
+              </label>
+              <label>
+                {monitoringCopy.anomaliesLabel}
+                <textarea value={monitoringAnomaliesDraft} onChange={(event) => setMonitoringAnomaliesDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {monitoringCopy.actionsLabel}
+                <textarea value={monitoringActionsDraft} onChange={(event) => setMonitoringActionsDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createMonitoringObservation()}
+                disabled={!monitoringResultId || !monitoringTitle.trim() || actionState.loading}
+              >
+                <Activity size={15} />
+                {monitoringCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateMonitoringObservation()}
+                disabled={!selectedObservationId || !monitoringTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {monitoringCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={monitoringState} />
+            {monitoringState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {monitoringState.updatedAt}</div> : null}
+            {monitoringObservations.length ? (
+              <div className="commercial-observation-list">
+                {monitoringObservations.map((observation) => {
+                  const observationId = valueAt(observation, ["id"], "");
+                  const observationStatus = valueAt(observation, ["observation_status"], "");
+                  return (
+                    <article className="commercial-observation-item" key={observationId}>
+                      <div>
+                        <strong>{valueAt(observation, ["title"])}</strong>
+                        <span>{valueAt(observation, ["channel"])} / {valueAt(observation, ["observation_type"])}</span>
+                        <p>{shortJson(observation.metric_snapshots, 90)}</p>
+                        <p>{shortJson(observation.anomaly_flags, 90)}</p>
+                        <StatusPill value={observationStatus} />
+                      </div>
+                      <div className="commercial-observation-actions">
+                        <button className="ghost-button" onClick={() => editMonitoringObservation(observation)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {monitoringCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateMonitoringObservation(observationId, "ready")}
+                          disabled={!["draft", "rejected"].includes(observationStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {monitoringCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateMonitoringObservation(observationId, "approve")}
+                          disabled={observationStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {monitoringCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateMonitoringObservation(observationId, "reject")}
+                          disabled={observationStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {monitoringCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateMonitoringObservation(observationId, "archive")}
+                          disabled={observationStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {monitoringCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{approvedResults.length ? monitoringCopy.noObservations : monitoringCopy.requiresResult}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{monitoringCopy.selectedHint}</div>
         )}
       </Panel>
 
