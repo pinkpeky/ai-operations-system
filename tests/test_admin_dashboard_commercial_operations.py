@@ -20,11 +20,12 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61F" in text
+    assert "Phase 61G" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
     assert "Asset requests" in text
+    assert "Deliverables" in text
     assert "证据与交接" in text
     assert "Evidence and handoff" in text
     assert "不会自动发布" in text
@@ -59,6 +60,15 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.prepareAssetRequest" in text
     assert "commercialOperationsApi.failAssetRequest" in text
     assert "commercialOperationsApi.archiveAssetRequest" in text
+    assert "commercialOperationsApi.deliverables" in text
+    assert "commercialOperationsApi.createDeliverable" in text
+    assert "commercialOperationsApi.updateDeliverable" in text
+    assert "commercialOperationsApi.readyDeliverable" in text
+    assert "commercialOperationsApi.approveDeliverable" in text
+    assert "commercialOperationsApi.rejectDeliverable" in text
+    assert "commercialOperationsApi.packageDeliverable" in text
+    assert "commercialOperationsApi.failDeliverable" in text
+    assert "commercialOperationsApi.archiveDeliverable" in text
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
@@ -93,6 +103,14 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/prepare" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/package" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
@@ -126,6 +144,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-asset-list",
         ".commercial-asset-item",
         ".commercial-asset-actions",
+        ".commercial-deliverable-grid",
+        ".commercial-deliverable-list",
+        ".commercial-deliverable-item",
+        ".commercial-deliverable-actions",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",

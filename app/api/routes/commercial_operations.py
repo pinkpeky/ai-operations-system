@@ -28,6 +28,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationContentDraftResponse,
     CommercialOperationContentDraftUpdateRequest,
     CommercialOperationCreateRequest,
+    CommercialOperationDeliverableCreateRequest,
+    CommercialOperationDeliverableDecisionRequest,
+    CommercialOperationDeliverableListResponse,
+    CommercialOperationDeliverableResponse,
+    CommercialOperationDeliverableUpdateRequest,
     CommercialOperationDryRunCreateRequest,
     CommercialOperationDryRunDecisionRequest,
     CommercialOperationDryRunListResponse,
@@ -936,6 +941,279 @@ async def archive_commercial_operation_asset_request(
             extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
         )
         raise AppError("Commercial operation asset request archive failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)
+async def create_commercial_operation_deliverable(
+    operation_id: UUID,
+    request: CommercialOperationDeliverableCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Create a reviewable deliverable and Output Library artifact without publishing."""
+
+    try:
+        deliverable = await CommercialOperationService(session).create_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            created_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation deliverable create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation deliverable create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableListResponse)
+async def list_commercial_operation_deliverables(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / packaged / failed / archived"),
+    content_draft_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableListResponse:
+    """List commercial deliverables for an operation."""
+
+    try:
+        deliverables = await CommercialOperationService(session).list_deliverables(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            content_draft_id=content_draft_id,
+            limit=limit,
+        )
+        return CommercialOperationDeliverableListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationDeliverableResponse.from_model(deliverable) for deliverable in deliverables],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation deliverable list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation deliverable list failed", status_code=500) from exc
+
+
+@router.patch("/{operation_id}/deliverables/{deliverable_id}", response_model=CommercialOperationDeliverableResponse)
+async def update_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Patch a commercial deliverable and refresh its Output Library artifact."""
+
+    try:
+        deliverable = await CommercialOperationService(session).update_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable update API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable update failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables/{deliverable_id}/ready", response_model=CommercialOperationDeliverableResponse)
+async def ready_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Mark a commercial deliverable ready for review."""
+
+    try:
+        deliverable = await CommercialOperationService(session).mark_deliverable_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable ready API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable ready failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables/{deliverable_id}/approve", response_model=CommercialOperationDeliverableResponse)
+async def approve_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Approve a ready commercial deliverable without publishing it."""
+
+    try:
+        deliverable = await CommercialOperationService(session).approve_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable approve API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable approve failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables/{deliverable_id}/reject", response_model=CommercialOperationDeliverableResponse)
+async def reject_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Reject a ready commercial deliverable without publishing it."""
+
+    try:
+        deliverable = await CommercialOperationService(session).reject_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable reject API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable reject failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables/{deliverable_id}/package", response_model=CommercialOperationDeliverableResponse)
+async def package_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Package an approved deliverable for operator handoff without external execution."""
+
+    try:
+        deliverable = await CommercialOperationService(session).package_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            packaged_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable package API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable package failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables/{deliverable_id}/fail", response_model=CommercialOperationDeliverableResponse)
+async def fail_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Mark an approved deliverable failed during packaging."""
+
+    try:
+        deliverable = await CommercialOperationService(session).fail_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable fail API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable fail failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/deliverables/{deliverable_id}/archive", response_model=CommercialOperationDeliverableResponse)
+async def archive_commercial_operation_deliverable(
+    operation_id: UUID,
+    deliverable_id: UUID,
+    request: CommercialOperationDeliverableDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationDeliverableResponse:
+    """Archive a commercial deliverable without deleting its artifact trail."""
+
+    try:
+        deliverable = await CommercialOperationService(session).archive_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationDeliverableResponse.from_model(deliverable)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation deliverable archive API failed",
+            extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
+        )
+        raise AppError("Commercial operation deliverable archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)

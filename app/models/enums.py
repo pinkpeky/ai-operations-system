@@ -115,6 +115,18 @@ class CommercialOperationAssetRequestStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationDeliverableStatus(StrEnum):
+    """Commercial operation deliverable lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PACKAGED = "packaged"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 
@@ -264,6 +276,7 @@ class OutputArtifactSourceType(StrEnum):
     RAG = "rag"
     CONTENT_AGENT = "content_agent"
     PLANNING = "planning"
+    COMMERCIAL_OPERATION = "commercial_operation"
     OPENCLAW_MOCK = "openclaw_mock"
 
 
