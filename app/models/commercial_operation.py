@@ -20,6 +20,7 @@ from app.models.enums import (
     CommercialOperationExecutionRequestStatus,
     CommercialOperationExecutionRunStatus,
     CommercialOperationLinkType,
+    CommercialOperationMonitoringObservationStatus,
     CommercialOperationPriority,
     CommercialOperationResultStatus,
     CommercialOperationRiskLevel,
@@ -670,4 +671,125 @@ class CommercialOperationResult(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Result report metadata",
+    )
+
+
+class CommercialOperationMonitoringObservation(IdTimestampMixin, Base):
+    """Operator-reviewed monitoring observation for an approved commercial result."""
+
+    __tablename__ = "commercial_operation_monitoring_observations"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    result_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_results.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Approved commercial result ID",
+    )
+    execution_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_runs.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Terminal execution run ID snapshot",
+    )
+    execution_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Execution request ID snapshot",
+    )
+    deliverable_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_deliverables.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Packaged commercial deliverable ID",
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked Output Library artifact ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    observation_type: Mapped[str] = mapped_column(
+        String(64),
+        default="manual_snapshot",
+        index=True,
+        nullable=False,
+        comment="manual_snapshot / platform_note / customer_signal / anomaly_review / follow_up_review",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Monitoring observation title")
+    observation_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationMonitoringObservationStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / archived",
+    )
+    observation_window_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Observation window start",
+    )
+    observation_window_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Observation window end",
+    )
+    metric_snapshots: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Operator-observed metric snapshots",
+    )
+    qualitative_signals: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Qualitative monitoring signals",
+    )
+    evidence_links: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Monitoring evidence links",
+    )
+    anomaly_flags: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Operator-flagged anomalies",
+    )
+    recommended_actions: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Recommended follow-up actions",
+    )
+    observation_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Observation payload and boundaries",
+    )
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    observation_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Monitoring observation metadata",
     )

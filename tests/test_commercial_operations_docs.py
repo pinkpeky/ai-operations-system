@@ -22,6 +22,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61H",
         "Phase 61I",
         "Phase 61J",
+        "Phase 61K",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -32,6 +33,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
         "commercial_operation_results",
+        "commercial_operation_monitoring_observations",
         "CommercialOperationService",
         "CommercialOperationLink",
         "CommercialOperationApproval",
@@ -42,6 +44,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
         "CommercialOperationResult",
+        "CommercialOperationMonitoringObservation",
         "/api/v1/commercial-operations",
         "/api/v1/commercial-operations/{operation_id}/links",
         "/api/v1/commercial-operations/{operation_id}/approvals",
@@ -52,6 +55,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
         "/api/v1/commercial-operations/{operation_id}/results",
+        "/api/v1/commercial-operations/{operation_id}/monitoring-observations",
         "Admin Dashboard",
         "Evidence",
         "handoff",
@@ -63,6 +67,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Execution Request",
         "Execution Run",
         "Result",
+        "Monitoring Observation",
         "Output Library",
         "source_type=commercial_operation",
         "does not publish",
@@ -73,7 +78,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61j_commercial_operation_results() -> None:
+def test_recovery_docs_point_to_phase_61k_commercial_operation_monitoring_observations() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -86,6 +91,6 @@ def test_recovery_docs_point_to_phase_61j_commercial_operation_results() -> None
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61J" in text or "61J" in text, relative
+        assert "Phase 61K" in text or "61K" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "commercial_operation_results" in text or "/results" in text, relative
+        assert "commercial_operation_monitoring_observations" in text or "/monitoring-observations" in text, relative

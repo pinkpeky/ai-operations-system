@@ -20,6 +20,7 @@ from app.models.commercial_operation import (
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
+    CommercialOperationMonitoringObservation,
     CommercialOperationResult,
 )
 from app.models.enums import (
@@ -30,6 +31,7 @@ from app.models.enums import (
     CommercialOperationDryRunStatus,
     CommercialOperationExecutionRequestStatus,
     CommercialOperationExecutionRunStatus,
+    CommercialOperationMonitoringObservationStatus,
     CommercialOperationResultStatus,
     CommercialOperationStatus,
     OutputArtifactSourceType,
@@ -2210,6 +2212,248 @@ class CommercialOperationService:
             reviewer_notes=reviewer_notes,
         )
 
+    async def create_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        observation_type: str = "manual_snapshot",
+        title: str | None = None,
+        observation_window_start: datetime | None = None,
+        observation_window_end: datetime | None = None,
+        metric_snapshots: list[dict[str, Any]] | None = None,
+        qualitative_signals: list[str] | None = None,
+        evidence_links: list[dict[str, Any]] | None = None,
+        anomaly_flags: list[str] | None = None,
+        recommended_actions: list[str] | None = None,
+        observation_payload: dict[str, Any] | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationMonitoringObservation:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        result = await self.require_result(workspace_id=workspace_id, operation_id=operation_id, result_id=result_id)
+        if result.result_status != CommercialOperationResultStatus.APPROVED.value:
+            raise ValueError("Only approved commercial results can create monitoring observations")
+        self._validate_date_range(start_at=observation_window_start, end_at=observation_window_end)
+
+        clean_title = title.strip() if title and title.strip() else f"Monitoring: {result.title}"
+        observation = CommercialOperationMonitoringObservation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=result.id,
+            execution_run_id=result.execution_run_id,
+            execution_request_id=result.execution_request_id,
+            deliverable_id=result.deliverable_id,
+            output_artifact_id=result.output_artifact_id,
+            step_key=result.step_key,
+            channel=result.channel,
+            observation_type=self._clean_required_text(observation_type, "observation_type")[:64],
+            title=clean_title[:255],
+            observation_status=CommercialOperationMonitoringObservationStatus.DRAFT.value,
+            observation_window_start=observation_window_start,
+            observation_window_end=observation_window_end,
+            metric_snapshots=self._clean_result_metrics(metric_snapshots),
+            qualitative_signals=self._clean_list(qualitative_signals),
+            evidence_links=self._clean_result_evidence_links(evidence_links),
+            anomaly_flags=self._clean_list(anomaly_flags),
+            recommended_actions=self._clean_list(recommended_actions),
+            observation_payload={},
+            created_by=created_by,
+            observation_metadata=metadata or {},
+        )
+        self.session.add(observation)
+        await self.session.flush()
+        observation.observation_payload = {
+            **self._build_monitoring_observation_payload(
+                operation=operation,
+                result=result,
+                observation=observation,
+            ),
+            **(observation_payload or {}),
+        }
+        self._apply_monitoring_observation_to_plan(operation, observation)
+        await self.session.commit()
+        await self.session.refresh(observation)
+        return observation
+
+    async def list_monitoring_observations(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        result_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationMonitoringObservation]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationMonitoringObservation).where(
+            CommercialOperationMonitoringObservation.workspace_id == workspace_id,
+            CommercialOperationMonitoringObservation.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationMonitoringObservation.observation_status == status)
+        if result_id is not None:
+            statement = statement.where(CommercialOperationMonitoringObservation.result_id == result_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationMonitoringObservation.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+    ) -> CommercialOperationMonitoringObservation:
+        result = await self.session.execute(
+            select(CommercialOperationMonitoringObservation).where(
+                CommercialOperationMonitoringObservation.workspace_id == workspace_id,
+                CommercialOperationMonitoringObservation.operation_id == operation_id,
+                CommercialOperationMonitoringObservation.id == observation_id,
+            )
+        )
+        observation = result.scalar_one_or_none()
+        if observation is None:
+            raise ValueError("Commercial operation monitoring observation not found in workspace")
+        return observation
+
+    async def update_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationMonitoringObservation:
+        observation = await self.require_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+        )
+        if observation.observation_status not in {
+            CommercialOperationMonitoringObservationStatus.DRAFT.value,
+            CommercialOperationMonitoringObservationStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected monitoring observations can be updated")
+        if "observation_type" in patch and patch["observation_type"] is not None:
+            observation.observation_type = self._clean_required_text(patch["observation_type"], "observation_type")[:64]
+        if "title" in patch and patch["title"] is not None:
+            observation.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "observation_window_start" in patch:
+            observation.observation_window_start = patch["observation_window_start"]
+        if "observation_window_end" in patch:
+            observation.observation_window_end = patch["observation_window_end"]
+        self._validate_date_range(
+            start_at=observation.observation_window_start,
+            end_at=observation.observation_window_end,
+        )
+        if "metric_snapshots" in patch and patch["metric_snapshots"] is not None:
+            observation.metric_snapshots = self._clean_result_metrics(patch["metric_snapshots"])
+        if "qualitative_signals" in patch and patch["qualitative_signals"] is not None:
+            observation.qualitative_signals = self._clean_list(patch["qualitative_signals"])
+        if "evidence_links" in patch and patch["evidence_links"] is not None:
+            observation.evidence_links = self._clean_result_evidence_links(patch["evidence_links"])
+        if "anomaly_flags" in patch and patch["anomaly_flags"] is not None:
+            observation.anomaly_flags = self._clean_list(patch["anomaly_flags"])
+        if "recommended_actions" in patch and patch["recommended_actions"] is not None:
+            observation.recommended_actions = self._clean_list(patch["recommended_actions"])
+        if "observation_payload" in patch and patch["observation_payload"] is not None:
+            observation.observation_payload = patch["observation_payload"] or {}
+        if "metadata" in patch and patch["metadata"] is not None:
+            observation.observation_metadata = patch["metadata"] or {}
+        observation.updated_by = updated_by
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        result = await self.require_result(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=observation.result_id,
+        )
+        if not observation.observation_payload:
+            observation.observation_payload = self._build_monitoring_observation_payload(
+                operation=operation,
+                result=result,
+                observation=observation,
+            )
+        self._apply_monitoring_observation_to_plan(operation, observation)
+        await self.session.commit()
+        await self.session.refresh(observation)
+        return observation
+
+    async def mark_monitoring_observation_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationMonitoringObservation:
+        return await self._decide_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+            status=CommercialOperationMonitoringObservationStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def approve_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationMonitoringObservation:
+        return await self._decide_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+            status=CommercialOperationMonitoringObservationStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def reject_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationMonitoringObservation:
+        return await self._decide_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+            status=CommercialOperationMonitoringObservationStatus.REJECTED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def archive_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationMonitoringObservation:
+        return await self._decide_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+            status=CommercialOperationMonitoringObservationStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
     async def create_link(
         self,
         *,
@@ -2973,6 +3217,75 @@ class CommercialOperationService:
         await self.session.refresh(result)
         return result
 
+    async def _decide_monitoring_observation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+    ) -> CommercialOperationMonitoringObservation:
+        observation = await self.require_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+        )
+        if observation.observation_status == CommercialOperationMonitoringObservationStatus.ARCHIVED.value:
+            raise ValueError("Archived monitoring observations cannot be changed")
+        if status == CommercialOperationMonitoringObservationStatus.READY_FOR_REVIEW.value and observation.observation_status not in {
+            CommercialOperationMonitoringObservationStatus.DRAFT.value,
+            CommercialOperationMonitoringObservationStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected monitoring observations can be marked ready")
+        if status in {
+            CommercialOperationMonitoringObservationStatus.APPROVED.value,
+            CommercialOperationMonitoringObservationStatus.REJECTED.value,
+        } and observation.observation_status != CommercialOperationMonitoringObservationStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready monitoring observations can be approved or rejected")
+
+        now = datetime.now(UTC)
+        observation.observation_status = status
+        observation.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        observation.updated_by = actor_user_id
+        if status == CommercialOperationMonitoringObservationStatus.APPROVED.value:
+            observation.approved_by = actor_user_id
+            observation.approved_at = now
+            observation.rejected_at = None
+            observation.archived_at = None
+        elif status == CommercialOperationMonitoringObservationStatus.REJECTED.value:
+            observation.rejected_at = now
+            observation.approved_by = None
+            observation.approved_at = None
+            observation.archived_at = None
+        elif status == CommercialOperationMonitoringObservationStatus.READY_FOR_REVIEW.value:
+            observation.approved_by = None
+            observation.approved_at = None
+            observation.rejected_at = None
+            observation.archived_at = None
+        elif status == CommercialOperationMonitoringObservationStatus.ARCHIVED.value:
+            observation.archived_at = now
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        result = await self.require_result(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=observation.result_id,
+        )
+        observation.observation_payload = {
+            **(observation.observation_payload or {}),
+            **self._build_monitoring_observation_payload(
+                operation=operation,
+                result=result,
+                observation=observation,
+            ),
+        }
+        self._apply_monitoring_observation_to_plan(operation, observation)
+        await self.session.commit()
+        await self.session.refresh(observation)
+        return observation
+
     async def _decide_content_draft(
         self,
         *,
@@ -3408,6 +3721,37 @@ class CommercialOperationService:
             ],
         }
 
+    def _build_monitoring_observation_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        result: CommercialOperationResult,
+        observation: CommercialOperationMonitoringObservation,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "result_id": str(result.id),
+            "result_status": result.result_status,
+            "observation_id": str(observation.id) if observation.id else None,
+            "observation_status": observation.observation_status,
+            "observation_type": observation.observation_type,
+            "channel": observation.channel,
+            "metric_snapshot_count": len(observation.metric_snapshots or []),
+            "qualitative_signal_count": len(observation.qualitative_signals or []),
+            "anomaly_count": len(observation.anomaly_flags or []),
+            "operator_next_steps": [
+                "review metric snapshots and evidence with the operation owner",
+                "compare monitoring signals against approved result expectations",
+                "decide whether to iterate content, assets, target audience, or execution handoff",
+            ],
+            "non_goals": [
+                "does not ingest platform analytics automatically",
+                "does not claim ROI attribution",
+                "does not publish, control accounts, or call external runtimes",
+            ],
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -3513,6 +3857,30 @@ class CommercialOperationService:
                     updated["commercial_result_decision_at"] = result.approved_at.isoformat()
                 elif result.rejected_at is not None:
                     updated["commercial_result_decision_at"] = result.rejected_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_monitoring_observation_to_plan(
+        self,
+        operation: CommercialOperation,
+        observation: CommercialOperationMonitoringObservation,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == observation.step_key:
+                updated = dict(step)
+                updated["monitoring_observation_id"] = str(observation.id)
+                updated["monitoring_observation_status"] = observation.observation_status
+                updated["monitoring_observation_type"] = observation.observation_type
+                updated["monitoring_observation_channel"] = observation.channel
+                if observation.archived_at is not None:
+                    updated["monitoring_observation_decision_at"] = observation.archived_at.isoformat()
+                elif observation.approved_at is not None:
+                    updated["monitoring_observation_decision_at"] = observation.approved_at.isoformat()
+                elif observation.rejected_at is not None:
+                    updated["monitoring_observation_decision_at"] = observation.rejected_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

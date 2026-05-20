@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61j-commercial-operation-results" in text or "Commercial Operation Results" in text, path
-        assert "commercial_operation_results" in text or "/results" in text, path
+        assert "phase-61k-commercial-monitoring-observations" in text or "Commercial Operation Monitoring Observations" in text, path
+        assert "commercial_operation_monitoring_observations" in text or "/monitoring-observations" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61I should be merged and Phase 61J should be the active result slice."""
+    """Phase 61A-61J should be merged and Phase 61K should be the active monitoring slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -368,6 +368,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "phase-61j-commercial-operation-results" in phase_61_lines["61J"]
     assert "Commercial Operation Results" in phase_61_lines["61J"]
     assert "#50" in phase_61_lines["61J"]
-    assert "Draft PR" in phase_61_lines["61J"]
+    assert "Merged to main" in phase_61_lines["61J"]
     assert "TBD" not in phase_61_lines["61J"]
     assert "In progress" not in phase_61_lines["61J"]
+
+    assert "61K" in phase_61_lines
+    assert "phase-61k-commercial-monitoring-observations" in phase_61_lines["61K"]
+    assert "Commercial Operation Monitoring Observations" in phase_61_lines["61K"]
+    assert "#51" in phase_61_lines["61K"]
+    assert "Draft PR" in phase_61_lines["61K"]
+    assert "TBD" not in phase_61_lines["61K"]
+    assert "In progress" not in phase_61_lines["61K"]

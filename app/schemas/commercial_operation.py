@@ -19,6 +19,7 @@ from app.models.commercial_operation import (
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
+    CommercialOperationMonitoringObservation,
     CommercialOperationResult,
 )
 
@@ -87,6 +88,13 @@ CommercialOperationExecutionRunStatusLiteral = Literal[
     "archived",
 ]
 CommercialOperationResultStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
+CommercialOperationMonitoringObservationStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "archived",
+]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -1067,6 +1075,127 @@ class CommercialOperationResultListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationResultResponse]
+
+
+class CommercialOperationMonitoringObservationCreateRequest(BaseModel):
+    """Create an operator-reviewed monitoring observation from an approved commercial result."""
+
+    result_id: UUID
+    observation_type: str = Field(default="manual_snapshot", min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    observation_window_start: datetime | None = None
+    observation_window_end: datetime | None = None
+    metric_snapshots: list[dict[str, Any]] = Field(default_factory=list)
+    qualitative_signals: list[str] = Field(default_factory=list)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    anomaly_flags: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    observation_payload: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMonitoringObservationUpdateRequest(BaseModel):
+    """Patch a draft or rejected commercial monitoring observation."""
+
+    observation_type: str | None = Field(default=None, min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    observation_window_start: datetime | None = None
+    observation_window_end: datetime | None = None
+    metric_snapshots: list[dict[str, Any]] | None = None
+    qualitative_signals: list[str] | None = None
+    evidence_links: list[dict[str, Any]] | None = None
+    anomaly_flags: list[str] | None = None
+    recommended_actions: list[str] | None = None
+    observation_payload: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationMonitoringObservationDecisionRequest(BaseModel):
+    """Send, approve, reject, or archive a commercial monitoring observation."""
+
+    reviewer_notes: str | None = None
+
+
+class CommercialOperationMonitoringObservationResponse(BaseModel):
+    """Commercial operation monitoring observation response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    result_id: UUID
+    execution_run_id: UUID
+    execution_request_id: UUID
+    deliverable_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    observation_type: str
+    title: str
+    observation_status: str
+    observation_window_start: datetime | None
+    observation_window_end: datetime | None
+    metric_snapshots: list[dict[str, Any]]
+    qualitative_signals: list[str]
+    evidence_links: list[dict[str, Any]]
+    anomaly_flags: list[str]
+    recommended_actions: list[str]
+    observation_payload: dict[str, Any]
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        observation: CommercialOperationMonitoringObservation,
+    ) -> "CommercialOperationMonitoringObservationResponse":
+        return cls(
+            id=observation.id,
+            workspace_id=observation.workspace_id,
+            operation_id=observation.operation_id,
+            result_id=observation.result_id,
+            execution_run_id=observation.execution_run_id,
+            execution_request_id=observation.execution_request_id,
+            deliverable_id=observation.deliverable_id,
+            output_artifact_id=observation.output_artifact_id,
+            step_key=observation.step_key,
+            channel=observation.channel,
+            observation_type=observation.observation_type,
+            title=observation.title,
+            observation_status=observation.observation_status,
+            observation_window_start=observation.observation_window_start,
+            observation_window_end=observation.observation_window_end,
+            metric_snapshots=observation.metric_snapshots,
+            qualitative_signals=observation.qualitative_signals,
+            evidence_links=observation.evidence_links,
+            anomaly_flags=observation.anomaly_flags,
+            recommended_actions=observation.recommended_actions,
+            observation_payload=observation.observation_payload,
+            reviewer_notes=observation.reviewer_notes,
+            created_by=observation.created_by,
+            updated_by=observation.updated_by,
+            approved_by=observation.approved_by,
+            approved_at=observation.approved_at,
+            rejected_at=observation.rejected_at,
+            archived_at=observation.archived_at,
+            metadata=observation.observation_metadata,
+            created_at=observation.created_at,
+            updated_at=observation.updated_at,
+        )
+
+
+class CommercialOperationMonitoringObservationListResponse(BaseModel):
+    """Commercial operation monitoring observation list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationMonitoringObservationResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

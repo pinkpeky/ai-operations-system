@@ -918,6 +918,13 @@ textarea {
   margin-bottom: 14px;
 }
 
+.commercial-observation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .commercial-approval-grid {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.7fr) minmax(140px, 0.32fr);
@@ -933,6 +940,7 @@ textarea {
 .commercial-execution-grid label,
 .commercial-execution-run-grid label,
 .commercial-result-grid label,
+.commercial-observation-grid label,
 .commercial-link-grid label {
   display: grid;
   gap: 6px;
@@ -984,6 +992,12 @@ textarea {
 }
 
 .commercial-result-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.commercial-observation-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
@@ -1083,6 +1097,17 @@ textarea {
   background: #fbfcfd;
 }
 
+.commercial-observation-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
 .commercial-link-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1102,6 +1127,7 @@ textarea {
 .commercial-execution-item strong,
 .commercial-execution-run-item strong,
 .commercial-result-item strong,
+.commercial-observation-item strong,
 .commercial-approval-item span {
   display: block;
 }
@@ -1113,6 +1139,10 @@ textarea {
 .commercial-execution-item span,
 .commercial-execution-run-item span,
 .commercial-result-item span {
+  display: block;
+}
+
+.commercial-observation-item span {
   display: block;
 }
 
@@ -1130,6 +1160,7 @@ textarea {
 .commercial-execution-item strong,
 .commercial-execution-run-item strong,
 .commercial-result-item strong,
+.commercial-observation-item strong,
 .commercial-link-item strong {
   color: #17212b;
   font-size: 13px;
@@ -1152,6 +1183,8 @@ textarea {
 .commercial-execution-run-item p,
 .commercial-result-item span,
 .commercial-result-item p,
+.commercial-observation-item span,
+.commercial-observation-item p,
 .commercial-link-item span,
 .commercial-link-item p {
   margin: 4px 0 0;
@@ -1216,6 +1249,13 @@ textarea {
 }
 
 .commercial-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.commercial-observation-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1538,6 +1578,8 @@ textarea {
   .commercial-execution-run-item,
   .commercial-result-grid,
   .commercial-result-item,
+  .commercial-observation-grid,
+  .commercial-observation-item,
   .commercial-link-grid,
   .commercial-link-item,
   .rag-metrics-grid,
