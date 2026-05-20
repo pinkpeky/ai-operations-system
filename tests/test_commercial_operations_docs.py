@@ -21,6 +21,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61G",
         "Phase 61H",
         "Phase 61I",
+        "Phase 61J",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -30,6 +31,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "commercial_operation_deliverables",
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
+        "commercial_operation_results",
         "CommercialOperationService",
         "CommercialOperationLink",
         "CommercialOperationApproval",
@@ -39,6 +41,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationDeliverable",
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
+        "CommercialOperationResult",
         "/api/v1/commercial-operations",
         "/api/v1/commercial-operations/{operation_id}/links",
         "/api/v1/commercial-operations/{operation_id}/approvals",
@@ -48,6 +51,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
+        "/api/v1/commercial-operations/{operation_id}/results",
         "Admin Dashboard",
         "Evidence",
         "handoff",
@@ -58,6 +62,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Deliverable",
         "Execution Request",
         "Execution Run",
+        "Result",
         "Output Library",
         "source_type=commercial_operation",
         "does not publish",
@@ -68,7 +73,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61i_commercial_operation_execution_runs() -> None:
+def test_recovery_docs_point_to_phase_61j_commercial_operation_results() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -81,6 +86,6 @@ def test_recovery_docs_point_to_phase_61i_commercial_operation_execution_runs() 
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61I" in text or "61I" in text, relative
+        assert "Phase 61J" in text or "61J" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "commercial_operation_execution_runs" in text or "/execution-runs" in text, relative
+        assert "commercial_operation_results" in text or "/results" in text, relative

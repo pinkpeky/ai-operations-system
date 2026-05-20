@@ -21,6 +21,7 @@ from app.models.enums import (
     CommercialOperationExecutionRunStatus,
     CommercialOperationLinkType,
     CommercialOperationPriority,
+    CommercialOperationResultStatus,
     CommercialOperationRiskLevel,
     CommercialOperationStatus,
 )
@@ -567,4 +568,106 @@ class CommercialOperationExecutionRun(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Execution run metadata",
+    )
+
+
+class CommercialOperationResult(IdTimestampMixin, Base):
+    """Operator-reviewed commercial result record for a terminal execution run."""
+
+    __tablename__ = "commercial_operation_results"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    execution_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_runs.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Terminal execution run ID",
+    )
+    execution_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Execution request ID snapshot",
+    )
+    deliverable_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_deliverables.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Packaged commercial deliverable ID",
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked Output Library artifact ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    result_type: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        default="operator_report",
+        nullable=False,
+        comment="Result record type",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Result report title")
+    result_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationResultStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / archived",
+    )
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Operator result summary")
+    outcome_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Observed commercial outcome")
+    observed_metrics: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Operator-observed metric snapshots",
+    )
+    commercial_signals: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Qualitative commercial signals",
+    )
+    evidence_links: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Result evidence links",
+    )
+    follow_up_actions: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Follow-up actions",
+    )
+    result_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Result payload")
+    recommendation_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing recommendation payload",
+    )
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    result_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Result report metadata",
     )

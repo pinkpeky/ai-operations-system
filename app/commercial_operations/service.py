@@ -20,6 +20,7 @@ from app.models.commercial_operation import (
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
+    CommercialOperationResult,
 )
 from app.models.enums import (
     CommercialOperationApprovalStatus,
@@ -29,6 +30,7 @@ from app.models.enums import (
     CommercialOperationDryRunStatus,
     CommercialOperationExecutionRequestStatus,
     CommercialOperationExecutionRunStatus,
+    CommercialOperationResultStatus,
     CommercialOperationStatus,
     OutputArtifactSourceType,
     OutputArtifactStage,
@@ -1968,6 +1970,246 @@ class CommercialOperationService:
             result_payload=None,
         )
 
+    async def create_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        result_type: str = "operator_report",
+        title: str | None = None,
+        summary: str | None = None,
+        outcome_summary: str | None = None,
+        observed_metrics: list[dict[str, Any]] | None = None,
+        commercial_signals: list[str] | None = None,
+        evidence_links: list[dict[str, Any]] | None = None,
+        follow_up_actions: list[str] | None = None,
+        result_payload: dict[str, Any] | None = None,
+        recommendation_payload: dict[str, Any] | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationResult:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        run = await self.require_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+        )
+        if run.run_status not in {
+            CommercialOperationExecutionRunStatus.SUCCEEDED.value,
+            CommercialOperationExecutionRunStatus.FAILED.value,
+            CommercialOperationExecutionRunStatus.CANCELLED.value,
+        }:
+            raise ValueError("Only terminal execution runs can create result records")
+
+        clean_title = title.strip() if title and title.strip() else f"Result: {run.title}"
+        result = CommercialOperationResult(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=run.id,
+            execution_request_id=run.execution_request_id,
+            deliverable_id=run.deliverable_id,
+            output_artifact_id=run.output_artifact_id,
+            step_key=run.step_key,
+            channel=run.channel,
+            result_type=self._clean_required_text(result_type, "result_type")[:64],
+            title=clean_title[:255],
+            result_status=CommercialOperationResultStatus.DRAFT.value,
+            summary=summary.strip() if summary and summary.strip() else None,
+            outcome_summary=outcome_summary.strip() if outcome_summary and outcome_summary.strip() else None,
+            observed_metrics=self._clean_result_metrics(observed_metrics),
+            commercial_signals=self._clean_list(commercial_signals),
+            evidence_links=self._clean_result_evidence_links(evidence_links),
+            follow_up_actions=self._clean_list(follow_up_actions),
+            result_payload=result_payload or {},
+            recommendation_payload={},
+            created_by=created_by,
+            result_metadata=metadata or {},
+        )
+        self.session.add(result)
+        await self.session.flush()
+        result.recommendation_payload = {
+            **self._build_result_recommendation_payload(
+                operation=operation,
+                execution_run=run,
+                result=result,
+            ),
+            **(recommendation_payload or {}),
+        }
+        self._apply_result_to_plan(operation, result)
+        await self.session.commit()
+        await self.session.refresh(result)
+        return result
+
+    async def list_results(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        execution_run_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationResult]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationResult).where(
+            CommercialOperationResult.workspace_id == workspace_id,
+            CommercialOperationResult.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationResult.result_status == status)
+        if execution_run_id is not None:
+            statement = statement.where(CommercialOperationResult.execution_run_id == execution_run_id)
+        result = await self.session.execute(statement.order_by(CommercialOperationResult.updated_at.desc()).limit(limit))
+        return list(result.scalars().all())
+
+    async def require_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+    ) -> CommercialOperationResult:
+        result = await self.session.execute(
+            select(CommercialOperationResult).where(
+                CommercialOperationResult.workspace_id == workspace_id,
+                CommercialOperationResult.operation_id == operation_id,
+                CommercialOperationResult.id == result_id,
+            )
+        )
+        commercial_result = result.scalar_one_or_none()
+        if commercial_result is None:
+            raise ValueError("Commercial operation result not found in workspace")
+        return commercial_result
+
+    async def update_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationResult:
+        result = await self.require_result(workspace_id=workspace_id, operation_id=operation_id, result_id=result_id)
+        if result.result_status not in {
+            CommercialOperationResultStatus.DRAFT.value,
+            CommercialOperationResultStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected result records can be updated")
+        if "result_type" in patch and patch["result_type"] is not None:
+            result.result_type = self._clean_required_text(patch["result_type"], "result_type")[:64]
+        if "title" in patch and patch["title"] is not None:
+            result.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "summary" in patch:
+            value = patch["summary"]
+            result.summary = value.strip() if isinstance(value, str) and value.strip() else None
+        if "outcome_summary" in patch:
+            value = patch["outcome_summary"]
+            result.outcome_summary = value.strip() if isinstance(value, str) and value.strip() else None
+        if "observed_metrics" in patch and patch["observed_metrics"] is not None:
+            result.observed_metrics = self._clean_result_metrics(patch["observed_metrics"])
+        if "commercial_signals" in patch and patch["commercial_signals"] is not None:
+            result.commercial_signals = self._clean_list(patch["commercial_signals"])
+        if "evidence_links" in patch and patch["evidence_links"] is not None:
+            result.evidence_links = self._clean_result_evidence_links(patch["evidence_links"])
+        if "follow_up_actions" in patch and patch["follow_up_actions"] is not None:
+            result.follow_up_actions = self._clean_list(patch["follow_up_actions"])
+        if "result_payload" in patch and patch["result_payload"] is not None:
+            result.result_payload = patch["result_payload"] or {}
+        if "recommendation_payload" in patch and patch["recommendation_payload"] is not None:
+            result.recommendation_payload = patch["recommendation_payload"] or {}
+        if "metadata" in patch and patch["metadata"] is not None:
+            result.result_metadata = patch["metadata"] or {}
+        result.updated_by = updated_by
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        run = await self.require_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=result.execution_run_id,
+        )
+        if not result.recommendation_payload:
+            result.recommendation_payload = self._build_result_recommendation_payload(
+                operation=operation,
+                execution_run=run,
+                result=result,
+            )
+        self._apply_result_to_plan(operation, result)
+        await self.session.commit()
+        await self.session.refresh(result)
+        return result
+
+    async def mark_result_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationResult:
+        return await self._decide_result(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=result_id,
+            status=CommercialOperationResultStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def approve_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationResult:
+        return await self._decide_result(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=result_id,
+            status=CommercialOperationResultStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def reject_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationResult:
+        return await self._decide_result(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=result_id,
+            status=CommercialOperationResultStatus.REJECTED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def archive_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationResult:
+        return await self._decide_result(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            result_id=result_id,
+            status=CommercialOperationResultStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
     async def create_link(
         self,
         *,
@@ -2132,6 +2374,36 @@ class CommercialOperationService:
             cleaned["execution_boundary"] = "metadata-only; no external runtime call"
             steps.append(cleaned)
         return steps
+
+    def _clean_result_metrics(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        metrics: list[dict[str, Any]] = []
+        for item in values or []:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or item.get("metric") or item.get("key") or "").strip()
+            if not name:
+                continue
+            cleaned = dict(item)
+            cleaned["name"] = name
+            cleaned.setdefault("source", "operator_observed")
+            cleaned["attribution_boundary"] = "operator-reported; no platform analytics ingestion"
+            metrics.append(cleaned)
+        return metrics
+
+    def _clean_result_evidence_links(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        links: list[dict[str, Any]] = []
+        for item in values or []:
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title") or item.get("url") or item.get("target_id") or item.get("name") or "").strip()
+            if not title:
+                continue
+            cleaned = dict(item)
+            cleaned["title"] = title
+            cleaned.setdefault("type", "operator_evidence")
+            cleaned["evidence_boundary"] = "reference only; not fetched or verified automatically"
+            links.append(cleaned)
+        return links
 
     def _clean_required_text(self, value: str, field_name: str) -> str:
         cleaned = value.strip()
@@ -2639,6 +2911,68 @@ class CommercialOperationService:
         await self.session.refresh(run)
         return run
 
+    async def _decide_result(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        result_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+    ) -> CommercialOperationResult:
+        result = await self.require_result(workspace_id=workspace_id, operation_id=operation_id, result_id=result_id)
+        if result.result_status == CommercialOperationResultStatus.ARCHIVED.value:
+            raise ValueError("Archived result records cannot be changed")
+        if status == CommercialOperationResultStatus.READY_FOR_REVIEW.value and result.result_status not in {
+            CommercialOperationResultStatus.DRAFT.value,
+            CommercialOperationResultStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected result records can be marked ready")
+        if status in {
+            CommercialOperationResultStatus.APPROVED.value,
+            CommercialOperationResultStatus.REJECTED.value,
+        } and result.result_status != CommercialOperationResultStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready result records can be approved or rejected")
+
+        now = datetime.now(UTC)
+        result.result_status = status
+        result.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        result.updated_by = actor_user_id
+        if status == CommercialOperationResultStatus.APPROVED.value:
+            result.approved_by = actor_user_id
+            result.approved_at = now
+            result.rejected_at = None
+            result.archived_at = None
+        elif status == CommercialOperationResultStatus.REJECTED.value:
+            result.rejected_at = now
+            result.approved_by = None
+            result.approved_at = None
+            result.archived_at = None
+        elif status == CommercialOperationResultStatus.READY_FOR_REVIEW.value:
+            result.approved_by = None
+            result.approved_at = None
+            result.rejected_at = None
+            result.archived_at = None
+        elif status == CommercialOperationResultStatus.ARCHIVED.value:
+            result.archived_at = now
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        run = await self.require_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=result.execution_run_id,
+        )
+        result.recommendation_payload = self._build_result_recommendation_payload(
+            operation=operation,
+            execution_run=run,
+            result=result,
+        )
+        self._apply_result_to_plan(operation, result)
+        await self.session.commit()
+        await self.session.refresh(result)
+        return result
+
     async def _decide_content_draft(
         self,
         *,
@@ -3044,6 +3378,36 @@ class CommercialOperationService:
             ],
         }
 
+    def _build_result_recommendation_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        execution_run: CommercialOperationExecutionRun,
+        result: CommercialOperationResult,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "execution_run_id": str(execution_run.id),
+            "execution_run_status": execution_run.run_status,
+            "result_id": str(result.id) if result.id else None,
+            "result_status": result.result_status,
+            "result_type": result.result_type,
+            "channel": result.channel,
+            "observed_metric_count": len(result.observed_metrics or []),
+            "commercial_signal_count": len(result.commercial_signals or []),
+            "operator_next_steps": [
+                "review linked evidence and observed metrics",
+                "compare outcome against the original success metrics",
+                "decide whether to iterate content, assets, targeting, or the execution handoff",
+            ],
+            "non_goals": [
+                "does not ingest platform analytics automatically",
+                "does not claim ROI attribution",
+                "does not publish, control accounts, or call external runtimes",
+            ],
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -3125,6 +3489,30 @@ class CommercialOperationService:
                     updated["execution_run_decision_at"] = execution_run.started_at.isoformat()
                 elif execution_run.queued_at is not None:
                     updated["execution_run_decision_at"] = execution_run.queued_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_result_to_plan(
+        self,
+        operation: CommercialOperation,
+        result: CommercialOperationResult,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == result.step_key:
+                updated = dict(step)
+                updated["commercial_result_id"] = str(result.id)
+                updated["commercial_result_status"] = result.result_status
+                updated["commercial_result_type"] = result.result_type
+                updated["commercial_result_channel"] = result.channel
+                if result.archived_at is not None:
+                    updated["commercial_result_decision_at"] = result.archived_at.isoformat()
+                elif result.approved_at is not None:
+                    updated["commercial_result_decision_at"] = result.approved_at.isoformat()
+                elif result.rejected_at is not None:
+                    updated["commercial_result_decision_at"] = result.rejected_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

@@ -3887,3 +3887,25 @@ Main fields: `operation_id`, `execution_request_id`, `deliverable_id`, `output_a
 Supported `run_status` values: `queued`, `running`, `succeeded`, `failed`, `retrying`, `cancelled`, and `archived`.
 
 Boundary: execution runs and runtime payloads are audit and recovery records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61J: Commercial Operation Results
+
+Status: in progress.
+
+Phase 61J adds `commercial_operation_results` and `CommercialOperationResult` records below each commercial operation. Operators can create a result from a terminal execution run, update it while draft or rejected, mark it ready for review, approve it, reject it, or archive it.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/results`
+- `POST /api/v1/commercial-operations/{operation_id}/results`
+- `PATCH /api/v1/commercial-operations/{operation_id}/results/{result_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/archive`
+
+Main fields: `operation_id`, `execution_run_id`, `execution_request_id`, `deliverable_id`, `output_artifact_id`, `step_key`, `channel`, `result_type`, `title`, `result_status`, `summary`, `outcome_summary`, `observed_metrics`, `commercial_signals`, `evidence_links`, `follow_up_actions`, `result_payload`, `recommendation_payload`, `reviewer_notes`, `created_by`, `updated_by`, `approved_by`, and `metadata`.
+
+Supported `result_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
+
+Boundary: results are operator-observed review records only. They do not ingest platform analytics, claim ROI attribution, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

@@ -152,6 +152,16 @@ class CommercialOperationExecutionRunStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationResultStatus(StrEnum):
+    """Commercial operation result report lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

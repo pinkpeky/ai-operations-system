@@ -2,6 +2,8 @@
 
 ## Branch Status
 
+当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61I 已通过 PR #22-#49 合并到 `main`。当前下一分支是 `codex/phase-61j-commercial-operation-results`，范围是 Phase 61J 商业运营结果记录：`commercial_operation_results`、`/api/v1/commercial-operations/{operation_id}/results`、Admin Dashboard 结果操作，以及从终态执行运行创建、编辑、送审、批准、驳回或归档人工观察到的指标、证据、结果和后续动作。该阶段仍不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
 当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61H 已通过 PR #22-#48 合并到 `main`。当前下一分支是 `codex/phase-61i-commercial-operation-execution-runs`，范围是 Phase 61I 商业运营执行运行记录：`commercial_operation_execution_runs`、`/api/v1/commercial-operations/{operation_id}/execution-runs`、Admin Dashboard 执行运行操作，以及执行运行的创建、编辑、启动、成功、失败、重试、取消或归档。该阶段仍不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号，也不会绕过审批。
