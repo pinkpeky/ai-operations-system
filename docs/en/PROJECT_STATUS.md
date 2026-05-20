@@ -4,7 +4,7 @@
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 
-Current update (2026-05-20): Phase 57A-59C, Phase 60A-60G, and Phase 61A-61P have landed on `main` through PR #22-#56. PR #57 is the draft Phase 61Q ComfyUI handoff slice. The active next branch is `codex/phase-61r-commercial-comfyui-preflight`, scoped to Phase 61R Commercial Operation ComfyUI Preflights: `/api/v1/commercial-operations/{operation_id}/comfyui-preflights`, Admin Dashboard ComfyUI preflight controls, endpoint/queue/model/workflow readiness checks, and guarded adapter config normalization for approved/prepared handoffs before any real ComfyUI connection or generation.
+Current update (2026-05-20): Phase 57A-59C, Phase 60A-60G, and Phase 61A-61P have landed on `main` through PR #22-#56. PR #57 is the draft Phase 61Q ComfyUI handoff slice and PR #58 is the draft Phase 61R ComfyUI preflight slice. The active next branch is `codex/phase-61s-commercial-comfyui-adapter-configs`, scoped to Phase 61S Commercial Operation ComfyUI Adapter Configs: `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`, Admin Dashboard ComfyUI adapter config controls, endpoint/queue/workflow allowlist/model inventory/runtime-limit/secret-reference validation, and optional preflight config selection before any real ComfyUI connection or generation.
 
 
 ## Phase 36: Server Admin Dashboard Foundation

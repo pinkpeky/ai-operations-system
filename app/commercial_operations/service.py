@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
+    CommercialOperationComfyUIAdapterConfig,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
@@ -30,6 +31,7 @@ from app.models.commercial_operation import (
 from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
+    CommercialOperationComfyUIAdapterConfigStatus,
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIPreflightStatus,
     CommercialOperationContentDraftStatus,
@@ -1367,6 +1369,7 @@ class CommercialOperationService:
         workspace_id: str,
         operation_id: UUID,
         handoff_id: UUID,
+        adapter_config_id: UUID | None = None,
         title: str | None = None,
         target_url: str | None = None,
         queue_name: str | None = None,
@@ -1388,17 +1391,50 @@ class CommercialOperationService:
             CommercialOperationComfyUIHandoffStatus.PREPARED.value,
         }:
             raise ValueError("ComfyUI preflights require an approved or prepared handoff")
+        adapter_source = None
+        if adapter_config_id is not None:
+            adapter_source = await self.require_comfyui_adapter_config(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                config_id=adapter_config_id,
+            )
+            if adapter_source.config_status == CommercialOperationComfyUIAdapterConfigStatus.ARCHIVED.value:
+                raise ValueError("Archived ComfyUI adapter configs cannot be used by preflights")
         clean_workflow_name = (
             workflow_name.strip()
             if workflow_name is not None and workflow_name.strip()
+            else adapter_source.default_workflow_name
+            if adapter_source and adapter_source.default_workflow_name
             else handoff.workflow_name
         )[:128]
-        clean_target_url = target_url.strip()[:512] if target_url and target_url.strip() else None
-        clean_queue_name = queue_name.strip()[:128] if queue_name and queue_name.strip() else None
-        clean_model_refs = self._clean_list(model_refs or [])
+        clean_target_url = (
+            target_url.strip()[:512]
+            if target_url and target_url.strip()
+            else adapter_source.target_url
+            if adapter_source
+            else None
+        )
+        clean_queue_name = (
+            queue_name.strip()[:128]
+            if queue_name and queue_name.strip()
+            else adapter_source.queue_name
+            if adapter_source
+            else None
+        )
+        clean_model_refs = self._clean_list(
+            model_refs if model_refs else self._adapter_config_model_refs(adapter_source) if adapter_source else []
+        )
+        base_adapter_config = (
+            adapter_source.config_payload.copy()
+            if adapter_source and isinstance(adapter_source.config_payload, dict)
+            else {}
+        )
         clean_adapter_config = adapter_config if isinstance(adapter_config, dict) else {}
         clean_adapter_config = {
+            **base_adapter_config,
             **clean_adapter_config,
+            "adapter_config_id": str(adapter_source.id) if adapter_source else None,
+            "adapter_config_status": adapter_source.config_status if adapter_source else None,
             "adapter": "future_guarded_comfyui_adapter",
             "execution_mode": "metadata_only",
             "network_probe": "disabled",
@@ -1418,6 +1454,7 @@ class CommercialOperationService:
             workspace_id=workspace_id,
             operation_id=operation_id,
             handoff_id=handoff.id,
+            adapter_config_id=adapter_source.id if adapter_source else None,
             asset_request_id=handoff.asset_request_id,
             step_key=handoff.step_key,
             title=(
@@ -1515,6 +1552,38 @@ class CommercialOperationService:
             operation_id=operation_id,
             handoff_id=preflight.handoff_id,
         )
+        if "adapter_config_id" in patch:
+            adapter_config_id = patch["adapter_config_id"]
+            if adapter_config_id is None:
+                preflight.adapter_config_id = None
+            else:
+                if isinstance(adapter_config_id, str):
+                    adapter_config_id = UUID(adapter_config_id)
+                adapter_source = await self.require_comfyui_adapter_config(
+                    workspace_id=workspace_id,
+                    operation_id=operation_id,
+                    config_id=adapter_config_id,
+                )
+                if adapter_source.config_status == CommercialOperationComfyUIAdapterConfigStatus.ARCHIVED.value:
+                    raise ValueError("Archived ComfyUI adapter configs cannot be used by preflights")
+                preflight.adapter_config_id = adapter_source.id
+                preflight.target_url = adapter_source.target_url
+                preflight.queue_name = adapter_source.queue_name
+                if adapter_source.default_workflow_name:
+                    preflight.workflow_name = adapter_source.default_workflow_name
+                refs = self._adapter_config_model_refs(adapter_source)
+                if refs:
+                    preflight.model_refs = refs
+                source_payload = adapter_source.config_payload if isinstance(adapter_source.config_payload, dict) else {}
+                preflight.adapter_config = {
+                    **source_payload,
+                    "adapter_config_id": str(adapter_source.id),
+                    "adapter_config_status": adapter_source.config_status,
+                    "adapter": "future_guarded_comfyui_adapter",
+                    "execution_mode": "metadata_only",
+                    "network_probe": "disabled",
+                    "queue_submission": "disabled",
+                }
         scalar_fields = {"title", "target_url", "queue_name", "workflow_name", "result_summary", "failure_reason"}
         required_text_fields = {"title", "workflow_name"}
         for field in scalar_fields:
@@ -1535,6 +1604,7 @@ class CommercialOperationService:
         if "adapter_config" in patch:
             adapter_config = patch["adapter_config"] if isinstance(patch["adapter_config"], dict) else {}
             preflight.adapter_config = {
+                **(preflight.adapter_config if isinstance(preflight.adapter_config, dict) else {}),
                 **adapter_config,
                 "adapter": "future_guarded_comfyui_adapter",
                 "execution_mode": "metadata_only",
@@ -1660,6 +1730,249 @@ class CommercialOperationService:
         await self.session.commit()
         await self.session.refresh(preflight)
         return preflight
+
+    async def create_comfyui_adapter_config(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        title: str = "ComfyUI guarded adapter config",
+        target_url: str | None = None,
+        auth_mode: str = "none",
+        secret_ref: str | None = None,
+        queue_name: str | None = None,
+        default_workflow_name: str | None = None,
+        allowed_workflows: list[str] | None = None,
+        model_inventory: list[dict[str, Any]] | None = None,
+        runtime_limits: dict[str, Any] | None = None,
+        maintenance_notes: str | None = None,
+        validation_checks: list[dict[str, Any]] | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        clean_allowed_workflows = self._clean_list(allowed_workflows)
+        clean_default_workflow = (
+            default_workflow_name.strip()[:128] if default_workflow_name and default_workflow_name.strip() else None
+        )
+        if clean_default_workflow and clean_default_workflow not in clean_allowed_workflows:
+            clean_allowed_workflows.insert(0, clean_default_workflow)
+        elif not clean_default_workflow and clean_allowed_workflows:
+            clean_default_workflow = clean_allowed_workflows[0]
+        config = CommercialOperationComfyUIAdapterConfig(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            title=self._clean_required_text(title, "title")[:255],
+            target_url=target_url.strip()[:512] if target_url and target_url.strip() else None,
+            auth_mode=self._clean_comfyui_auth_mode(auth_mode),
+            secret_ref=secret_ref.strip()[:255] if secret_ref and secret_ref.strip() else None,
+            queue_name=queue_name.strip()[:128] if queue_name and queue_name.strip() else None,
+            default_workflow_name=clean_default_workflow,
+            allowed_workflows=clean_allowed_workflows,
+            model_inventory=self._clean_comfyui_model_inventory(model_inventory),
+            runtime_limits=self._normalize_comfyui_adapter_runtime_limits(runtime_limits),
+            maintenance_notes=maintenance_notes.strip() if maintenance_notes and maintenance_notes.strip() else None,
+            validation_checks=self._clean_check_items(validation_checks),
+            created_by=created_by,
+            updated_by=created_by,
+            config_metadata=metadata or {},
+        )
+        self._refresh_comfyui_adapter_config_state(
+            operation=operation,
+            config=config,
+            actor_user_id=created_by,
+        )
+        self.session.add(config)
+        await self.session.flush()
+        config.config_payload = self._build_comfyui_adapter_config_payload(operation=operation, config=config)
+        self._apply_comfyui_adapter_config_to_plan(operation, config)
+        await self.session.commit()
+        await self.session.refresh(config)
+        return config
+
+    async def list_comfyui_adapter_configs(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIAdapterConfig]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIAdapterConfig).where(
+            CommercialOperationComfyUIAdapterConfig.workspace_id == workspace_id,
+            CommercialOperationComfyUIAdapterConfig.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIAdapterConfig.config_status == status)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIAdapterConfig.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_adapter_config(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        config_id: UUID,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIAdapterConfig).where(
+                CommercialOperationComfyUIAdapterConfig.workspace_id == workspace_id,
+                CommercialOperationComfyUIAdapterConfig.operation_id == operation_id,
+                CommercialOperationComfyUIAdapterConfig.id == config_id,
+            )
+        )
+        config = result.scalar_one_or_none()
+        if config is None:
+            raise ValueError("Commercial operation ComfyUI adapter config not found in workspace")
+        return config
+
+    async def update_comfyui_adapter_config(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        config_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        config = await self.require_comfyui_adapter_config(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+        )
+        if config.config_status == CommercialOperationComfyUIAdapterConfigStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI adapter configs cannot be updated")
+        scalar_fields = {
+            "title",
+            "target_url",
+            "auth_mode",
+            "secret_ref",
+            "queue_name",
+            "default_workflow_name",
+            "maintenance_notes",
+        }
+        for field in scalar_fields:
+            if field not in patch:
+                continue
+            value = patch[field]
+            if isinstance(value, str):
+                value = value.strip()
+                if field == "title" and not value:
+                    raise ValueError("title is required")
+                value = value or None
+            if field == "title" and value is None:
+                raise ValueError("title is required")
+            if field == "auth_mode":
+                value = self._clean_comfyui_auth_mode(value or "none")
+            setattr(config, field, value)
+        if "allowed_workflows" in patch:
+            config.allowed_workflows = self._clean_list(patch["allowed_workflows"])
+        if "model_inventory" in patch:
+            config.model_inventory = self._clean_comfyui_model_inventory(patch["model_inventory"])
+        if "runtime_limits" in patch:
+            config.runtime_limits = self._normalize_comfyui_adapter_runtime_limits(patch["runtime_limits"])
+        if "validation_checks" in patch:
+            config.validation_checks = self._clean_check_items(patch["validation_checks"])
+        if "metadata" in patch:
+            config.config_metadata = patch["metadata"] or {}
+        if config.default_workflow_name and config.default_workflow_name not in config.allowed_workflows:
+            config.allowed_workflows = [config.default_workflow_name, *config.allowed_workflows]
+        elif not config.default_workflow_name and config.allowed_workflows:
+            config.default_workflow_name = config.allowed_workflows[0]
+        config.updated_by = updated_by
+        self._refresh_comfyui_adapter_config_state(
+            operation=operation,
+            config=config,
+            actor_user_id=updated_by,
+        )
+        await self.session.commit()
+        await self.session.refresh(config)
+        return config
+
+    async def validate_comfyui_adapter_config(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        config_id: UUID,
+        validated_by: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        config = await self.require_comfyui_adapter_config(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+        )
+        if config.config_status == CommercialOperationComfyUIAdapterConfigStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI adapter configs cannot be validated")
+        self._refresh_comfyui_adapter_config_state(
+            operation=operation,
+            config=config,
+            actor_user_id=validated_by,
+        )
+        await self.session.commit()
+        await self.session.refresh(config)
+        return config
+
+    async def fail_comfyui_adapter_config(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        config_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        config = await self.require_comfyui_adapter_config(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+        )
+        if config.config_status == CommercialOperationComfyUIAdapterConfigStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI adapter configs cannot be failed")
+        config.config_status = CommercialOperationComfyUIAdapterConfigStatus.FAILED.value
+        config.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else "ComfyUI adapter config marked failed by operator"
+        )
+        config.result_summary = None
+        config.updated_by = updated_by
+        config.failed_at = datetime.now(UTC)
+        config.config_payload = self._build_comfyui_adapter_config_payload(operation=operation, config=config)
+        self._apply_comfyui_adapter_config_to_plan(operation, config)
+        await self.session.commit()
+        await self.session.refresh(config)
+        return config
+
+    async def archive_comfyui_adapter_config(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        config_id: UUID,
+        archived_by: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        config = await self.require_comfyui_adapter_config(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+        )
+        config.config_status = CommercialOperationComfyUIAdapterConfigStatus.ARCHIVED.value
+        config.archived_by = archived_by
+        config.updated_by = archived_by
+        config.archived_at = datetime.now(UTC)
+        config.config_payload = self._build_comfyui_adapter_config_payload(operation=operation, config=config)
+        self._apply_comfyui_adapter_config_to_plan(operation, config)
+        await self.session.commit()
+        await self.session.refresh(config)
+        return config
 
     async def create_deliverable(
         self,
@@ -5052,6 +5365,15 @@ class CommercialOperationService:
                 "source": "system",
             },
             {
+                "key": "adapter_config_ready",
+                "label": "Maintained adapter config is ready or not required",
+                "status": not adapter_config.get("adapter_config_id")
+                or adapter_config.get("adapter_config_status") == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "Linked adapter configs must be locally validated as ready before future handoff execution.",
+                "source": "system",
+            },
+            {
                 "key": "handoff_approved_or_prepared",
                 "label": "Handoff is approved or prepared",
                 "status": handoff.handoff_status
@@ -5162,6 +5484,7 @@ class CommercialOperationService:
             "operation_id": str(operation.id),
             "operation_title": operation.title,
             "handoff_id": str(handoff.id),
+            "adapter_config_id": str(preflight.adapter_config_id) if preflight.adapter_config_id else None,
             "asset_request_id": str(handoff.asset_request_id),
             "step_key": handoff.step_key,
             "handoff_status": handoff.handoff_status,
@@ -5185,6 +5508,239 @@ class CommercialOperationService:
                 "no publishing",
                 "no account control",
                 "no OpenClaw or browser worker execution",
+                "no approval bypass",
+            ],
+        }
+
+    def _clean_comfyui_auth_mode(self, auth_mode: Any) -> str:
+        value = str(auth_mode or "none").strip().lower()
+        if value not in {"none", "token_ref", "basic_ref", "custom_ref"}:
+            return "none"
+        return value
+
+    def _clean_comfyui_model_inventory(self, model_inventory: Any) -> list[dict[str, Any]]:
+        if not isinstance(model_inventory, list):
+            return []
+        cleaned: list[dict[str, Any]] = []
+        for index, item in enumerate(model_inventory, start=1):
+            if isinstance(item, dict):
+                name = str(item.get("name") or item.get("model_ref") or item.get("ref") or "").strip()[:128]
+                model_type = str(item.get("type") or item.get("model_type") or "checkpoint").strip()[:64]
+                version = str(item.get("version") or "").strip()[:128]
+                storage_ref = str(item.get("storage_ref") or item.get("path_ref") or "").strip()[:255]
+                status = str(item.get("status") or "available").strip()[:32]
+                notes = str(item.get("notes") or "").strip()
+            else:
+                name = str(item).strip()[:128]
+                model_type = "checkpoint"
+                version = ""
+                storage_ref = ""
+                status = "available"
+                notes = ""
+            if not name:
+                name = f"model_{index}"
+            cleaned.append(
+                {
+                    "name": name,
+                    "type": model_type or "checkpoint",
+                    "version": version or None,
+                    "storage_ref": storage_ref or None,
+                    "status": status or "available",
+                    "notes": notes or None,
+                }
+            )
+        return cleaned
+
+    def _normalize_comfyui_adapter_runtime_limits(self, runtime_limits: Any) -> dict[str, Any]:
+        limits = runtime_limits.copy() if isinstance(runtime_limits, dict) else {}
+        max_concurrency = limits.get("max_concurrency", 1)
+        timeout_seconds = limits.get("timeout_seconds", 120)
+        try:
+            max_concurrency = max(1, min(int(max_concurrency), 8))
+        except (TypeError, ValueError):
+            max_concurrency = 1
+        try:
+            timeout_seconds = max(30, min(int(timeout_seconds), 3600))
+        except (TypeError, ValueError):
+            timeout_seconds = 120
+        limits.update(
+            {
+                "execution_mode": "metadata_only",
+                "network_probe": False,
+                "queue_submission": False,
+                "submit_jobs": False,
+                "external_calls": "disabled",
+                "max_concurrency": max_concurrency,
+                "timeout_seconds": timeout_seconds,
+            }
+        )
+        return limits
+
+    def _adapter_config_model_refs(self, config: CommercialOperationComfyUIAdapterConfig | None) -> list[str]:
+        if config is None:
+            return []
+        refs: list[str] = []
+        for item in config.model_inventory or []:
+            if isinstance(item, dict):
+                name = str(item.get("name") or item.get("model_ref") or "").strip()
+            else:
+                name = str(item).strip()
+            if name:
+                refs.append(name)
+        return self._clean_list(refs)
+
+    def _evaluate_comfyui_adapter_config(
+        self,
+        *,
+        config: CommercialOperationComfyUIAdapterConfig,
+    ) -> tuple[list[dict[str, Any]], str, str, str | None]:
+        endpoint_ready = bool(config.target_url and config.target_url.lower().startswith(("http://", "https://")))
+        runtime_limits = self._normalize_comfyui_adapter_runtime_limits(config.runtime_limits)
+        config.runtime_limits = runtime_limits
+        allowed_workflows = self._clean_list(config.allowed_workflows)
+        default_workflow = config.default_workflow_name or (allowed_workflows[0] if allowed_workflows else None)
+        if default_workflow and default_workflow not in allowed_workflows:
+            allowed_workflows.insert(0, default_workflow)
+        config.allowed_workflows = allowed_workflows
+        config.default_workflow_name = default_workflow
+        generated_checks = [
+            {
+                "key": "target_endpoint_configured",
+                "label": "ComfyUI endpoint is configured",
+                "status": endpoint_ready,
+                "severity": "blocker",
+                "message": "Endpoint must be a maintained http(s) URL before the guarded adapter can be enabled.",
+                "source": "system",
+            },
+            {
+                "key": "metadata_only_boundary",
+                "label": "Metadata-only boundary is active",
+                "status": runtime_limits.get("execution_mode") == "metadata_only"
+                and runtime_limits.get("network_probe") is False
+                and runtime_limits.get("queue_submission") is False
+                and runtime_limits.get("submit_jobs") is False,
+                "severity": "blocker",
+                "message": "Adapter configs can only validate metadata; network probes and queue submission stay disabled.",
+                "source": "system",
+            },
+            {
+                "key": "queue_configured",
+                "label": "Queue name is configured",
+                "status": bool(config.queue_name),
+                "severity": "blocker",
+                "message": "A future queue name is required for maintainers to understand routing.",
+                "source": "system",
+            },
+            {
+                "key": "default_workflow_configured",
+                "label": "Default workflow is configured",
+                "status": bool(default_workflow),
+                "severity": "blocker",
+                "message": "A default workflow name is required for a simple workstation handoff.",
+                "source": "system",
+            },
+            {
+                "key": "default_workflow_allowed",
+                "label": "Default workflow is in the allowed list",
+                "status": bool(default_workflow and default_workflow in allowed_workflows),
+                "severity": "blocker",
+                "message": "The default workflow must be explicitly listed as allowed.",
+                "source": "system",
+            },
+            {
+                "key": "auth_reference_configured",
+                "label": "Auth mode uses a secret reference only",
+                "status": config.auth_mode == "none" or bool(config.secret_ref),
+                "severity": "blocker",
+                "message": "Non-none auth modes must store only a secret reference, never the secret value.",
+                "source": "system",
+            },
+            {
+                "key": "model_inventory_documented",
+                "label": "Model inventory is documented",
+                "status": bool(config.model_inventory),
+                "severity": "warning",
+                "message": "Model inventory improves maintenance, but missing inventory does not enable execution.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(config.validation_checks):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return (
+                merged_checks,
+                CommercialOperationComfyUIAdapterConfigStatus.BLOCKED.value,
+                "ComfyUI adapter config is blocked; maintainer action is required.",
+                labels,
+            )
+        return (
+            merged_checks,
+            CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+            "ComfyUI adapter config validated as metadata-only; no external call occurred.",
+            None,
+        )
+
+    def _refresh_comfyui_adapter_config_state(
+        self,
+        *,
+        operation: CommercialOperation,
+        config: CommercialOperationComfyUIAdapterConfig,
+        actor_user_id: str | None,
+    ) -> CommercialOperationComfyUIAdapterConfig:
+        config.auth_mode = self._clean_comfyui_auth_mode(config.auth_mode)
+        checks, status, result_summary, failure_reason = self._evaluate_comfyui_adapter_config(config=config)
+        config.config_status = status
+        config.validation_checks = checks
+        config.result_summary = result_summary
+        config.failure_reason = failure_reason
+        config.validated_by = actor_user_id
+        config.updated_by = actor_user_id
+        config.validated_at = datetime.now(UTC)
+        config.failed_at = None
+        config.config_payload = self._build_comfyui_adapter_config_payload(operation=operation, config=config)
+        self._apply_comfyui_adapter_config_to_plan(operation, config)
+        return config
+
+    def _build_comfyui_adapter_config_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        config: CommercialOperationComfyUIAdapterConfig,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "adapter_config_id": str(config.id) if config.id else None,
+            "config_status": config.config_status,
+            "title": config.title,
+            "target_url": config.target_url,
+            "auth_mode": config.auth_mode,
+            "secret_ref": config.secret_ref,
+            "queue_name": config.queue_name,
+            "default_workflow_name": config.default_workflow_name,
+            "allowed_workflows": config.allowed_workflows,
+            "model_inventory": config.model_inventory,
+            "runtime_limits": config.runtime_limits,
+            "validation_checks": config.validation_checks,
+            "maintenance_notes": config.maintenance_notes,
+            "execution_boundary": "metadata-only ComfyUI adapter config; no ComfyUI API call or queue submission occurs",
+            "next_runtime": "future_guarded_comfyui_adapter",
+            "forbidden_actions": [
+                "no ComfyUI HTTP request",
+                "no ComfyUI queue submission",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no secret value storage",
                 "no approval bypass",
             ],
         }
@@ -5978,6 +6534,31 @@ class CommercialOperationService:
                     updated["comfyui_preflight_checked_at"] = preflight.failed_at.isoformat()
                 elif preflight.archived_at is not None:
                     updated["comfyui_preflight_checked_at"] = preflight.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_adapter_config_to_plan(
+        self,
+        operation: CommercialOperation,
+        config: CommercialOperationComfyUIAdapterConfig,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == "content_production":
+                updated = dict(step)
+                updated["comfyui_adapter_config_id"] = str(config.id) if config.id else None
+                updated["comfyui_adapter_config_status"] = config.config_status
+                updated["comfyui_adapter_config_target_url"] = config.target_url
+                updated["comfyui_adapter_config_queue_name"] = config.queue_name
+                updated["comfyui_adapter_config_default_workflow"] = config.default_workflow_name
+                if config.validated_at is not None:
+                    updated["comfyui_adapter_config_validated_at"] = config.validated_at.isoformat()
+                elif config.failed_at is not None:
+                    updated["comfyui_adapter_config_validated_at"] = config.failed_at.isoformat()
+                elif config.archived_at is not None:
+                    updated["comfyui_adapter_config_validated_at"] = config.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

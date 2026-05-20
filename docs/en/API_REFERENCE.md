@@ -4070,3 +4070,18 @@ Main fields: `operation_id`, `handoff_id`, `asset_request_id`, `step_key`, `titl
 Supported `preflight_status` values: `draft`, `checked`, `blocked`, `failed`, and `archived`.
 
 Boundary: ComfyUI preflights are metadata records only. They do not call ComfyUI health, prompt, history, upload, or queue endpoints, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.
+
+## Phase 61S: Commercial Operation ComfyUI Adapter Configs
+
+Phase 61S adds `commercial_operation_comfyui_adapter_configs` and `CommercialOperationComfyUIAdapterConfig` records below each commercial operation. Server maintainers can create metadata-only adapter configs, edit them, rerun local validation, fail them, or archive them. These records document the future guarded ComfyUI adapter endpoint, queue, workflow allowlist, model inventory, runtime limits, maintenance notes, and secret references without storing secret values or calling ComfyUI.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/validate`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/archive`
+
+Boundary: ComfyUI adapter configs are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Ready configs can be selected by ComfyUI preflights to prefill endpoint, queue, workflow, model references, and guarded adapter metadata.

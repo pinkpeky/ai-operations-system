@@ -27,6 +27,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationAssetRequestListResponse,
     CommercialOperationAssetRequestResponse,
     CommercialOperationAssetRequestUpdateRequest,
+    CommercialOperationComfyUIAdapterConfigCreateRequest,
+    CommercialOperationComfyUIAdapterConfigDecisionRequest,
+    CommercialOperationComfyUIAdapterConfigListResponse,
+    CommercialOperationComfyUIAdapterConfigResponse,
+    CommercialOperationComfyUIAdapterConfigUpdateRequest,
     CommercialOperationComfyUIHandoffCreateRequest,
     CommercialOperationComfyUIHandoffDecisionRequest,
     CommercialOperationComfyUIHandoffListResponse,
@@ -1986,6 +1991,200 @@ async def archive_commercial_operation_comfyui_preflight(
             extra={"operation_id": str(operation_id), "preflight_id": str(preflight_id)},
         )
         raise AppError("Commercial operation ComfyUI preflight archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-configs",
+    response_model=CommercialOperationComfyUIAdapterConfigResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_adapter_config(
+    operation_id: UUID,
+    request: CommercialOperationComfyUIAdapterConfigCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterConfigResponse:
+    """Create a metadata-only ComfyUI adapter config for server maintainers."""
+
+    try:
+        config = await CommercialOperationService(session).create_comfyui_adapter_config(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            created_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIAdapterConfigResponse.from_model(config)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI adapter config create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI adapter config create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-adapter-configs", response_model=CommercialOperationComfyUIAdapterConfigListResponse)
+async def list_commercial_operation_comfyui_adapter_configs(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready / blocked / failed / archived"),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterConfigListResponse:
+    """List metadata-only ComfyUI adapter configs for a commercial operation."""
+
+    try:
+        configs = await CommercialOperationService(session).list_comfyui_adapter_configs(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIAdapterConfigListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIAdapterConfigResponse.from_model(config) for config in configs],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI adapter config list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI adapter config list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-adapter-configs/{config_id}",
+    response_model=CommercialOperationComfyUIAdapterConfigResponse,
+)
+async def update_commercial_operation_comfyui_adapter_config(
+    operation_id: UUID,
+    config_id: UUID,
+    request: CommercialOperationComfyUIAdapterConfigUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterConfigResponse:
+    """Patch a ComfyUI adapter config and rerun metadata-only validation."""
+
+    try:
+        config = await CommercialOperationService(session).update_comfyui_adapter_config(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIAdapterConfigResponse.from_model(config)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter config update API failed",
+            extra={"operation_id": str(operation_id), "config_id": str(config_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter config update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-configs/{config_id}/validate",
+    response_model=CommercialOperationComfyUIAdapterConfigResponse,
+)
+async def validate_commercial_operation_comfyui_adapter_config(
+    operation_id: UUID,
+    config_id: UUID,
+    request: CommercialOperationComfyUIAdapterConfigDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterConfigResponse:
+    """Re-run local ComfyUI adapter config validation without calling ComfyUI."""
+
+    _ = request
+    try:
+        config = await CommercialOperationService(session).validate_comfyui_adapter_config(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+            validated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIAdapterConfigResponse.from_model(config)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter config validate API failed",
+            extra={"operation_id": str(operation_id), "config_id": str(config_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter config validate failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-configs/{config_id}/fail",
+    response_model=CommercialOperationComfyUIAdapterConfigResponse,
+)
+async def fail_commercial_operation_comfyui_adapter_config(
+    operation_id: UUID,
+    config_id: UUID,
+    request: CommercialOperationComfyUIAdapterConfigDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterConfigResponse:
+    """Mark a ComfyUI adapter config failed without external execution."""
+
+    try:
+        config = await CommercialOperationService(session).fail_comfyui_adapter_config(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIAdapterConfigResponse.from_model(config)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter config fail API failed",
+            extra={"operation_id": str(operation_id), "config_id": str(config_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter config fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-configs/{config_id}/archive",
+    response_model=CommercialOperationComfyUIAdapterConfigResponse,
+)
+async def archive_commercial_operation_comfyui_adapter_config(
+    operation_id: UUID,
+    config_id: UUID,
+    request: CommercialOperationComfyUIAdapterConfigDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterConfigResponse:
+    """Archive a ComfyUI adapter config without deleting its audit trail."""
+
+    _ = request
+    try:
+        config = await CommercialOperationService(session).archive_comfyui_adapter_config(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            config_id=config_id,
+            archived_by=context.user_id,
+        )
+        return CommercialOperationComfyUIAdapterConfigResponse.from_model(config)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter config archive API failed",
+            extra={"operation_id": str(operation_id), "config_id": str(config_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter config archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)
