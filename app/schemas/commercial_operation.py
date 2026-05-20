@@ -19,6 +19,7 @@ from app.models.commercial_operation import (
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
+    CommercialOperationResult,
 )
 
 
@@ -85,6 +86,7 @@ CommercialOperationExecutionRunStatusLiteral = Literal[
     "cancelled",
     "archived",
 ]
+CommercialOperationResultStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -949,6 +951,122 @@ class CommercialOperationExecutionRunListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationExecutionRunResponse]
+
+
+class CommercialOperationResultCreateRequest(BaseModel):
+    """Create an operator-reviewed commercial result record from a terminal execution run."""
+
+    execution_run_id: UUID
+    result_type: str = Field(default="operator_report", min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    summary: str | None = None
+    outcome_summary: str | None = None
+    observed_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    commercial_signals: list[str] = Field(default_factory=list)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    follow_up_actions: list[str] = Field(default_factory=list)
+    result_payload: dict[str, Any] = Field(default_factory=dict)
+    recommendation_payload: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationResultUpdateRequest(BaseModel):
+    """Patch a draft or rejected commercial result record."""
+
+    result_type: str | None = Field(default=None, min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    summary: str | None = None
+    outcome_summary: str | None = None
+    observed_metrics: list[dict[str, Any]] | None = None
+    commercial_signals: list[str] | None = None
+    evidence_links: list[dict[str, Any]] | None = None
+    follow_up_actions: list[str] | None = None
+    result_payload: dict[str, Any] | None = None
+    recommendation_payload: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationResultDecisionRequest(BaseModel):
+    """Send, approve, reject, or archive a commercial result record."""
+
+    reviewer_notes: str | None = None
+
+
+class CommercialOperationResultResponse(BaseModel):
+    """Commercial operation result response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    execution_run_id: UUID
+    execution_request_id: UUID
+    deliverable_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    result_type: str
+    title: str
+    result_status: str
+    summary: str | None
+    outcome_summary: str | None
+    observed_metrics: list[dict[str, Any]]
+    commercial_signals: list[str]
+    evidence_links: list[dict[str, Any]]
+    follow_up_actions: list[str]
+    result_payload: dict[str, Any]
+    recommendation_payload: dict[str, Any]
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, result: CommercialOperationResult) -> "CommercialOperationResultResponse":
+        return cls(
+            id=result.id,
+            workspace_id=result.workspace_id,
+            operation_id=result.operation_id,
+            execution_run_id=result.execution_run_id,
+            execution_request_id=result.execution_request_id,
+            deliverable_id=result.deliverable_id,
+            output_artifact_id=result.output_artifact_id,
+            step_key=result.step_key,
+            channel=result.channel,
+            result_type=result.result_type,
+            title=result.title,
+            result_status=result.result_status,
+            summary=result.summary,
+            outcome_summary=result.outcome_summary,
+            observed_metrics=result.observed_metrics,
+            commercial_signals=result.commercial_signals,
+            evidence_links=result.evidence_links,
+            follow_up_actions=result.follow_up_actions,
+            result_payload=result.result_payload,
+            recommendation_payload=result.recommendation_payload,
+            reviewer_notes=result.reviewer_notes,
+            created_by=result.created_by,
+            updated_by=result.updated_by,
+            approved_by=result.approved_by,
+            approved_at=result.approved_at,
+            rejected_at=result.rejected_at,
+            archived_at=result.archived_at,
+            metadata=result.result_metadata,
+            created_at=result.created_at,
+            updated_at=result.updated_at,
+        )
+
+
+class CommercialOperationResultListResponse(BaseModel):
+    """Commercial operation result list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationResultResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

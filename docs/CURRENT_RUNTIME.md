@@ -26,7 +26,9 @@ Phase 61H adds `commercial_operation_execution_requests` and `/api/v1/commercial
 
 Phase 61I adds `commercial_operation_execution_runs` and `/api/v1/commercial-operations/{operation_id}/execution-runs` so operators can create, start, complete, fail, retry, cancel, or archive metadata-only run audit and recovery records from prepared execution requests. Execution run decisions are reflected back into `plan_outline` metadata for operator visibility.
 
-Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, or bypass approval. Phase 61H execution requests and Phase 61I execution runs are metadata-only records; the next runtime step remains a future guarded runtime adapter.
+Phase 61J adds `commercial_operation_results` and `/api/v1/commercial-operations/{operation_id}/results` so operators can create, edit, send for review, approve, reject, or archive operator-observed result records from terminal execution runs. Result decisions are reflected back into `plan_outline` metadata for operator visibility.
+
+Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, and Phase 61J results are metadata-only records; the next runtime step remains a future guarded runtime adapter and later monitored analytics adapter.
 
 ## Provider Defaults
 

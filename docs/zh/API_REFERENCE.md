@@ -3318,3 +3318,24 @@ API：
 支持的 `run_status`：`queued`、`running`、`succeeded`、`failed`、`retrying`、`cancelled`、`archived`。
 
 边界：执行运行记录和 runtime payload 只是审计与恢复记录。它不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。
+## Phase 61J: 商业运营结果记录
+
+状态：进行中。
+
+Phase 61J 在每个商业运营项目下新增 `commercial_operation_results` 与 `CommercialOperationResult` 记录。操作人员可以从已成功、失败或取消的终态执行运行创建结果记录，再进行编辑、送审、批准、驳回或归档。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/results`
+- `POST /api/v1/commercial-operations/{operation_id}/results`
+- `PATCH /api/v1/commercial-operations/{operation_id}/results/{result_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/results/{result_id}/archive`
+
+主要字段：`operation_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`result_type`、`title`、`result_status`、`summary`、`outcome_summary`、`observed_metrics`、`commercial_signals`、`evidence_links`、`follow_up_actions`、`result_payload`、`recommendation_payload`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
+
+支持的 `result_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
+
+边界：结果记录只是人工观察和复盘记录；不会接入平台分析，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。

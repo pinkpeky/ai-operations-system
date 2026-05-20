@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61I",
+    boundaryTitle: "Phase 61J",
     boundaryBody: "商业运营执行运行记录。把目标、计划、知识、内容、素材、审批、交付、执行请求、执行运行和恢复记录串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61I",
-    boundaryBody: "Commercial operation execution runs: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, and recovery context.",
+    boundaryTitle: "Phase 61J",
+    boundaryBody: "Commercial operation results: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, result review, and follow-up context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4386,11 +4386,11 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61I",
+    phaseLabel: "Phase 61J",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、执行请求、执行运行记录和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
-    flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "监控恢复"],
+    flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "结果复盘"],
     total: "项目",
     active: "进行中",
     attention: "高风险/需审",
@@ -4464,11 +4464,11 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61I",
+    phaseLabel: "Phase 61J",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, execution requests, execution run records, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
-    flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
+    flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Results"],
     total: "Operations",
     active: "In motion",
     attention: "High risk/review",
@@ -4566,6 +4566,38 @@ function draftListText(value: unknown): string {
       .join(", ");
   }
   return typeof value === "string" ? value : "";
+}
+
+function metricDraftList(value: string): JsonRecord[] {
+  return splitDraftList(value).map((item) => {
+    const separatorIndex = item.indexOf("=");
+    const name = (separatorIndex >= 0 ? item.slice(0, separatorIndex) : item).trim();
+    const metricValue = separatorIndex >= 0 ? item.slice(separatorIndex + 1).trim() : "";
+    return {
+      name,
+      value: metricValue || undefined,
+      source: "operator_observed",
+    };
+  });
+}
+
+function metricDraftText(value: unknown): string {
+  if (!Array.isArray(value)) {
+    return "";
+  }
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return "";
+      }
+      const record = item as JsonRecord;
+      const name = valueAt(record, ["name", "metric", "key"], "");
+      const metricValue = valueAt(record, ["value"], "");
+      return metricValue ? `${name}=${metricValue}` : name;
+    })
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 function parseJsonRecordDraft(value: string): JsonRecord {
@@ -4813,6 +4845,52 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresRequest: "Prepare one execution request first.",
           noRuns: "No execution runs yet.",
         };
+  const resultCopy =
+    language === "zh-CN"
+      ? {
+          title: "商业结果",
+          description: "从已结束的执行运行创建可复盘、可审批的商业结果记录。这里只记录人工观察到的指标、证据和后续动作，不自动抓取平台数据，也不宣称 ROI 归因。",
+          runLabel: "已结束运行",
+          typeLabel: "结果类型",
+          summaryLabel: "结果摘要",
+          outcomeLabel: "商业观察",
+          metricsLabel: "观察指标",
+          signalsLabel: "商业信号",
+          evidenceLabel: "证据链接",
+          followUpsLabel: "后续动作",
+          createAction: "创建结果",
+          saveAction: "保存结果",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并让至少一个执行运行进入成功、失败或取消状态。",
+          requiresRun: "需要先完成、失败或取消一个执行运行。",
+          noResults: "暂无商业结果记录。",
+        }
+      : {
+          title: "Results",
+          description: "Create reviewable commercial result records from terminal execution runs. This stores operator-observed metrics, evidence, and follow-up actions only; it does not ingest platform analytics or claim ROI attribution.",
+          runLabel: "Terminal run",
+          typeLabel: "Result type",
+          summaryLabel: "Result summary",
+          outcomeLabel: "Commercial observation",
+          metricsLabel: "Observed metrics",
+          signalsLabel: "Commercial signals",
+          evidenceLabel: "Evidence links",
+          followUpsLabel: "Follow-up actions",
+          createAction: "Create result",
+          saveAction: "Save result",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and finish, fail, or cancel at least one execution run first.",
+          requiresRun: "Finish, fail, or cancel one execution run first.",
+          noResults: "No commercial results yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -4822,6 +4900,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRunsState, setExecutionRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [resultsState, setResultsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4896,6 +4975,16 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [executionRunInputPayloadDraft, setExecutionRunInputPayloadDraft] = useState('{"source":"admin_dashboard"}');
   const [executionRunMaxRetries, setExecutionRunMaxRetries] = useState("1");
   const [executionRunOperatorNotes, setExecutionRunOperatorNotes] = useState(language === "zh-CN" ? "人工确认后运行，不调用外部平台。" : "Run after human review; no external platform call.");
+  const [resultRunId, setResultRunId] = useState("");
+  const [selectedResultId, setSelectedResultId] = useState("");
+  const [resultTitle, setResultTitle] = useState(language === "zh-CN" ? "商业结果复盘" : "Commercial result review");
+  const [resultType, setResultType] = useState("operator_report");
+  const [resultSummary, setResultSummary] = useState(language === "zh-CN" ? "记录人工确认的执行结果与证据。" : "Record operator-confirmed execution result and evidence.");
+  const [resultOutcomeSummary, setResultOutcomeSummary] = useState(language === "zh-CN" ? "尚未接入平台分析，仅记录观察结果。" : "Platform analytics are not ingested; this is an observed result only.");
+  const [resultMetricsDraft, setResultMetricsDraft] = useState("qualified_leads=0\nreview_pass_rate=manual");
+  const [resultSignalsDraft, setResultSignalsDraft] = useState("operator reviewed, needs next iteration");
+  const [resultEvidenceDraft, setResultEvidenceDraft] = useState("execution run payload, operator screenshot");
+  const [resultFollowUpsDraft, setResultFollowUpsDraft] = useState("review next audience segment, update content proof points");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -5107,6 +5196,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadResults = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setResultsState(emptyState());
+        return;
+      }
+      setResultsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.results(operationId, settings);
+        setResultsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setResultsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation results API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
@@ -5116,6 +5227,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadDeliverables(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
       void loadExecutionRuns(selectedOperationId);
+      void loadResults(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
@@ -5126,8 +5238,9 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setDeliverablesState(emptyState());
     setExecutionRequestsState(emptyState());
     setExecutionRunsState(emptyState());
+    setResultsState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadResults, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -5799,6 +5912,119 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editOperationResult = (result: JsonRecord) => {
+    const resultId = valueAt(result, ["id"], "");
+    if (!resultId) {
+      return;
+    }
+    setSelectedResultId(resultId);
+    setResultRunId(valueAt(result, ["execution_run_id"], resultRunId));
+    setResultTitle(valueAt(result, ["title"], resultTitle));
+    setResultType(valueAt(result, ["result_type"], resultType));
+    setResultSummary(valueAt(result, ["summary"], ""));
+    setResultOutcomeSummary(valueAt(result, ["outcome_summary"], ""));
+    setResultMetricsDraft(metricDraftText(result.observed_metrics));
+    setResultSignalsDraft(draftListText(result.commercial_signals));
+    setResultEvidenceDraft(draftListText(result.evidence_links));
+    setResultFollowUpsDraft(draftListText(result.follow_up_actions));
+  };
+
+  const resultPayload = (): JsonRecord => ({
+    execution_run_id: resultRunId,
+    result_type: resultType.trim() || "operator_report",
+    title: resultTitle.trim(),
+    summary: resultSummary.trim() || undefined,
+    outcome_summary: resultOutcomeSummary.trim() || undefined,
+    observed_metrics: metricDraftList(resultMetricsDraft),
+    commercial_signals: splitDraftList(resultSignalsDraft),
+    evidence_links: splitDraftList(resultEvidenceDraft).map((item) => ({
+      title: item,
+      type: "operator_evidence",
+    })),
+    follow_up_actions: splitDraftList(resultFollowUpsDraft),
+    result_payload: { source: "admin_dashboard" },
+    recommendation_payload: {
+      source: "admin_dashboard",
+      boundary: "metadata-only; no platform analytics ingestion and no ROI attribution claim",
+    },
+    metadata: { source: "admin_dashboard", phase: "61J" },
+  });
+
+  const createOperationResult = async () => {
+    if (!selectedOperationId || !resultRunId) {
+      setActionState({
+        data: null,
+        error: resultCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createResult(selectedOperationId, resultPayload(), settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedResultId(valueAt(created, ["id"], ""));
+      await loadResults(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation result create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOperationResult = async () => {
+    if (!selectedOperationId || !selectedResultId) {
+      return;
+    }
+    const { execution_run_id: _executionRunId, ...payload } = resultPayload();
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateResult(selectedOperationId, selectedResultId, payload, settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadResults(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation result update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationResult = async (resultId: string, action: "ready" | "approve" | "reject" | "archive") => {
+    if (!selectedOperationId || !resultId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyResult(selectedOperationId, resultId, "Ready for result review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveResult(selectedOperationId, resultId, "Approved as operator-observed result; no ROI attribution claim.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectResult(selectedOperationId, resultId, "Rejected from Commercial Ops; revise evidence or metrics.", settings)
+              : await commercialOperationsApi.archiveResult(selectedOperationId, resultId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadResults(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation result action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const createOperationDryRun = async () => {
     if (!selectedOperationId) {
       setActionState({
@@ -5990,8 +6216,10 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const deliverables = deliverablesState.data || [];
   const executionRequests = executionRequestsState.data || [];
   const executionRuns = executionRunsState.data || [];
+  const results = resultsState.data || [];
   const packagedDeliverables = deliverables.filter((deliverable) => valueAt(deliverable, ["deliverable_status"], "") === "packaged");
   const preparedExecutionRequests = executionRequests.filter((executionRequest) => valueAt(executionRequest, ["request_status"], "") === "prepared");
+  const terminalExecutionRuns = executionRuns.filter((executionRun) => ["succeeded", "failed", "cancelled"].includes(valueAt(executionRun, ["run_status"], "")));
   const approvedContentDrafts = contentDrafts.filter((draft) => valueAt(draft, ["draft_status"], "") === "approved");
   const eligibleDeliverableAssets = assetRequests.filter((assetRequest) => {
     const status = valueAt(assetRequest, ["request_status"], "");
@@ -6037,6 +6265,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   }, [preparedExecutionRequests, executionRunRequestId, selectedExecutionRunId, executionRunTarget]);
 
+  useEffect(() => {
+    if (resultRunId && terminalExecutionRuns.some((run) => valueAt(run, ["id"], "") === resultRunId)) {
+      return;
+    }
+    const nextRun = terminalExecutionRuns[0];
+    const nextRunId = nextRun ? valueAt(nextRun, ["id"], "") : "";
+    setResultRunId(nextRunId);
+    if (nextRun && !selectedResultId) {
+      setResultTitle(`${valueAt(nextRun, ["title"], "Execution run")} result`);
+    }
+  }, [terminalExecutionRuns, resultRunId, selectedResultId]);
+
   return (
     <div className="page-stack">
       <section className="commercial-command-center">
@@ -6057,7 +6297,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -6997,6 +7237,142 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{executionRunCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={resultCopy.title} description={resultCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-result-grid">
+              <label>
+                {resultCopy.runLabel}
+                <select value={resultRunId} onChange={(event) => setResultRunId(event.target.value)}>
+                  {terminalExecutionRuns.length ? null : <option value="">-</option>}
+                  {terminalExecutionRuns.map((executionRun) => {
+                    const executionRunId = valueAt(executionRun, ["id"], "");
+                    return (
+                      <option value={executionRunId} key={executionRunId}>
+                        {valueAt(executionRun, ["title"])} / {valueAt(executionRun, ["run_status"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={resultTitle} onChange={(event) => setResultTitle(event.target.value)} />
+              </label>
+              <label>
+                {resultCopy.typeLabel}
+                <input value={resultType} onChange={(event) => setResultType(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {resultCopy.summaryLabel}
+                <textarea value={resultSummary} onChange={(event) => setResultSummary(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {resultCopy.outcomeLabel}
+                <textarea value={resultOutcomeSummary} onChange={(event) => setResultOutcomeSummary(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {resultCopy.metricsLabel}
+                <textarea value={resultMetricsDraft} onChange={(event) => setResultMetricsDraft(event.target.value)} />
+              </label>
+              <label>
+                {resultCopy.signalsLabel}
+                <textarea value={resultSignalsDraft} onChange={(event) => setResultSignalsDraft(event.target.value)} />
+              </label>
+              <label>
+                {resultCopy.evidenceLabel}
+                <textarea value={resultEvidenceDraft} onChange={(event) => setResultEvidenceDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {resultCopy.followUpsLabel}
+                <textarea value={resultFollowUpsDraft} onChange={(event) => setResultFollowUpsDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOperationResult()}
+                disabled={!resultRunId || !resultTitle.trim() || actionState.loading}
+              >
+                <FileText size={15} />
+                {resultCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOperationResult()}
+                disabled={!selectedResultId || !resultTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {resultCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={resultsState} />
+            {resultsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {resultsState.updatedAt}</div> : null}
+            {results.length ? (
+              <div className="commercial-result-list">
+                {results.map((result) => {
+                  const resultId = valueAt(result, ["id"], "");
+                  const resultStatus = valueAt(result, ["result_status"], "");
+                  return (
+                    <article className="commercial-result-item" key={resultId}>
+                      <div>
+                        <strong>{valueAt(result, ["title"])}</strong>
+                        <span>{valueAt(result, ["channel"])} / {valueAt(result, ["result_type"])}</span>
+                        <p>{valueAt(result, ["summary"], "-")}</p>
+                        <p>{shortJson(result.observed_metrics, 90)}</p>
+                        <StatusPill value={resultStatus} />
+                      </div>
+                      <div className="commercial-result-actions">
+                        <button className="ghost-button" onClick={() => editOperationResult(result)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {resultCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationResult(resultId, "ready")}
+                          disabled={!["draft", "rejected"].includes(resultStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {resultCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationResult(resultId, "approve")}
+                          disabled={resultStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {resultCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationResult(resultId, "reject")}
+                          disabled={resultStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {resultCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationResult(resultId, "archive")}
+                          disabled={resultStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {resultCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{terminalExecutionRuns.length ? resultCopy.noResults : resultCopy.requiresRun}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{resultCopy.selectedHint}</div>
         )}
       </Panel>
 
