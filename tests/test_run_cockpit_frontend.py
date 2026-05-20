@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation ComfyUI handoff slice."""
+    """Recovery docs should point to the active commercial operation ComfyUI preflight slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61q-commercial-comfyui-handoffs" in text or "Commercial Operation ComfyUI Handoffs" in text, path
-        assert "/comfyui-handoffs" in text or "ComfyUI handoff" in text, path
+        assert "phase-61r-commercial-comfyui-preflight" in text or "Commercial Operation ComfyUI Preflights" in text, path
+        assert "/comfyui-preflights" in text or "ComfyUI preflight" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 61Q should be the active ComfyUI handoff slice."""
+    """Phase 61A-61P should be merged and Phase 61R should be the active ComfyUI preflight slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -431,3 +431,11 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_61_lines["61Q"]
     assert "TBD" not in phase_61_lines["61Q"]
     assert "In progress" not in phase_61_lines["61Q"]
+
+    assert "61R" in phase_61_lines
+    assert "phase-61r-commercial-comfyui-preflight" in phase_61_lines["61R"]
+    assert "Commercial Operation ComfyUI Preflights" in phase_61_lines["61R"]
+    assert "#58" in phase_61_lines["61R"]
+    assert "Draft PR" in phase_61_lines["61R"]
+    assert "TBD" not in phase_61_lines["61R"]
+    assert "In progress" not in phase_61_lines["61R"]

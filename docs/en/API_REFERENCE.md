@@ -4049,3 +4049,24 @@ Main fields: `operation_id`, `asset_request_id`, `content_draft_id`, `step_key`,
 Supported `handoff_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, and `archived`.
 
 Boundary: ComfyUI handoffs are operator-reviewed metadata records only. They do not submit ComfyUI jobs, generate images or videos, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.
+
+## Phase 61R: Commercial Operation ComfyUI Preflights
+
+Status: in progress.
+
+Phase 61R adds `commercial_operation_comfyui_preflights` and `CommercialOperationComfyUIPreflight` records below each commercial operation. Operators and server maintainers can create metadata-only readiness checks from approved or prepared ComfyUI handoffs, edit them, rerun local evaluation, fail them, or archive them. These records prepare a future guarded adapter but do not call ComfyUI endpoints or submit queue jobs.
+
+APIs:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/preflights`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-preflights`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/check`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/archive`
+
+Main fields: `operation_id`, `handoff_id`, `asset_request_id`, `step_key`, `title`, `preflight_status`, `target_url`, `connection_mode`, `queue_name`, `workflow_name`, `model_refs`, `adapter_config`, `check_items`, `preflight_payload`, `result_summary`, `failure_reason`, `checked_by`, `updated_by`, `archived_by`, and `metadata`.
+
+Supported `preflight_status` values: `draft`, `checked`, `blocked`, `failed`, and `archived`.
+
+Boundary: ComfyUI preflights are metadata records only. They do not call ComfyUI health, prompt, history, upload, or queue endpoints, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.

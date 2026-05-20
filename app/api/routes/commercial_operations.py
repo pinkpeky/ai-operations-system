@@ -32,6 +32,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIHandoffListResponse,
     CommercialOperationComfyUIHandoffResponse,
     CommercialOperationComfyUIHandoffUpdateRequest,
+    CommercialOperationComfyUIPreflightCreateRequest,
+    CommercialOperationComfyUIPreflightDecisionRequest,
+    CommercialOperationComfyUIPreflightListResponse,
+    CommercialOperationComfyUIPreflightResponse,
+    CommercialOperationComfyUIPreflightUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
     CommercialOperationContentDraftGenerateRequest,
@@ -1792,6 +1797,195 @@ async def archive_commercial_operation_comfyui_handoff(
             extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
         )
         raise AppError("Commercial operation ComfyUI handoff archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-handoffs/{handoff_id}/preflights",
+    response_model=CommercialOperationComfyUIPreflightResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_preflight(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIPreflightCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIPreflightResponse:
+    """Create a metadata-only ComfyUI adapter readiness preflight for a handoff."""
+
+    try:
+        preflight = await CommercialOperationService(session).create_comfyui_preflight(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            checked_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIPreflightResponse.from_model(preflight)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI preflight create API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI preflight create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-preflights", response_model=CommercialOperationComfyUIPreflightListResponse)
+async def list_commercial_operation_comfyui_preflights(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / checked / blocked / failed / archived"),
+    handoff_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIPreflightListResponse:
+    """List metadata-only ComfyUI preflights for a commercial operation."""
+
+    try:
+        preflights = await CommercialOperationService(session).list_comfyui_preflights(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            handoff_id=handoff_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIPreflightListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIPreflightResponse.from_model(preflight) for preflight in preflights],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI preflight list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI preflight list failed", status_code=500) from exc
+
+
+@router.patch("/{operation_id}/comfyui-preflights/{preflight_id}", response_model=CommercialOperationComfyUIPreflightResponse)
+async def update_commercial_operation_comfyui_preflight(
+    operation_id: UUID,
+    preflight_id: UUID,
+    request: CommercialOperationComfyUIPreflightUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIPreflightResponse:
+    """Patch a ComfyUI preflight and rerun metadata-only readiness evaluation."""
+
+    try:
+        preflight = await CommercialOperationService(session).update_comfyui_preflight(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIPreflightResponse.from_model(preflight)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI preflight update API failed",
+            extra={"operation_id": str(operation_id), "preflight_id": str(preflight_id)},
+        )
+        raise AppError("Commercial operation ComfyUI preflight update failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-preflights/{preflight_id}/check", response_model=CommercialOperationComfyUIPreflightResponse)
+async def check_commercial_operation_comfyui_preflight(
+    operation_id: UUID,
+    preflight_id: UUID,
+    request: CommercialOperationComfyUIPreflightDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIPreflightResponse:
+    """Re-run local ComfyUI preflight evaluation without calling ComfyUI."""
+
+    _ = request
+    try:
+        preflight = await CommercialOperationService(session).check_comfyui_preflight(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+            checked_by=context.user_id,
+        )
+        return CommercialOperationComfyUIPreflightResponse.from_model(preflight)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI preflight check API failed",
+            extra={"operation_id": str(operation_id), "preflight_id": str(preflight_id)},
+        )
+        raise AppError("Commercial operation ComfyUI preflight check failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-preflights/{preflight_id}/fail", response_model=CommercialOperationComfyUIPreflightResponse)
+async def fail_commercial_operation_comfyui_preflight(
+    operation_id: UUID,
+    preflight_id: UUID,
+    request: CommercialOperationComfyUIPreflightDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIPreflightResponse:
+    """Mark a ComfyUI preflight failed without external execution."""
+
+    try:
+        preflight = await CommercialOperationService(session).fail_comfyui_preflight(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIPreflightResponse.from_model(preflight)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI preflight fail API failed",
+            extra={"operation_id": str(operation_id), "preflight_id": str(preflight_id)},
+        )
+        raise AppError("Commercial operation ComfyUI preflight fail failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-preflights/{preflight_id}/archive", response_model=CommercialOperationComfyUIPreflightResponse)
+async def archive_commercial_operation_comfyui_preflight(
+    operation_id: UUID,
+    preflight_id: UUID,
+    request: CommercialOperationComfyUIPreflightDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIPreflightResponse:
+    """Archive a ComfyUI preflight without deleting its audit trail."""
+
+    _ = request
+    try:
+        preflight = await CommercialOperationService(session).archive_comfyui_preflight(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+            archived_by=context.user_id,
+        )
+        return CommercialOperationComfyUIPreflightResponse.from_model(preflight)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI preflight archive API failed",
+            extra={"operation_id": str(operation_id), "preflight_id": str(preflight_id)},
+        )
+        raise AppError("Commercial operation ComfyUI preflight archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

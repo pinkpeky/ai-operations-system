@@ -15,6 +15,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIHandoff,
+    CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -30,6 +31,7 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIHandoffStatus,
+    CommercialOperationComfyUIPreflightStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
@@ -1358,6 +1360,306 @@ class CommercialOperationService:
             result_summary=None,
             failure_reason=None,
         )
+
+    async def create_comfyui_preflight(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        title: str | None = None,
+        target_url: str | None = None,
+        queue_name: str | None = None,
+        workflow_name: str | None = None,
+        model_refs: list[str] | None = None,
+        adapter_config: dict[str, Any] | None = None,
+        check_items: list[dict[str, Any]] | None = None,
+        checked_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIPreflight:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+        )
+        if handoff.handoff_status not in {
+            CommercialOperationComfyUIHandoffStatus.APPROVED.value,
+            CommercialOperationComfyUIHandoffStatus.PREPARED.value,
+        }:
+            raise ValueError("ComfyUI preflights require an approved or prepared handoff")
+        clean_workflow_name = (
+            workflow_name.strip()
+            if workflow_name is not None and workflow_name.strip()
+            else handoff.workflow_name
+        )[:128]
+        clean_target_url = target_url.strip()[:512] if target_url and target_url.strip() else None
+        clean_queue_name = queue_name.strip()[:128] if queue_name and queue_name.strip() else None
+        clean_model_refs = self._clean_list(model_refs or [])
+        clean_adapter_config = adapter_config if isinstance(adapter_config, dict) else {}
+        clean_adapter_config = {
+            **clean_adapter_config,
+            "adapter": "future_guarded_comfyui_adapter",
+            "execution_mode": "metadata_only",
+            "network_probe": "disabled",
+            "queue_submission": "disabled",
+        }
+        clean_check_items = self._clean_check_items(check_items)
+        evaluated_checks, status, result_summary, failure_reason = self._evaluate_comfyui_preflight(
+            handoff=handoff,
+            target_url=clean_target_url,
+            queue_name=clean_queue_name,
+            workflow_name=clean_workflow_name,
+            model_refs=clean_model_refs,
+            adapter_config=clean_adapter_config,
+            check_items=clean_check_items,
+        )
+        preflight = CommercialOperationComfyUIPreflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff.id,
+            asset_request_id=handoff.asset_request_id,
+            step_key=handoff.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI preflight: {handoff.title}"
+            )[:255],
+            preflight_status=status,
+            target_url=clean_target_url,
+            connection_mode="metadata_only",
+            queue_name=clean_queue_name,
+            workflow_name=clean_workflow_name,
+            model_refs=clean_model_refs,
+            adapter_config=clean_adapter_config,
+            check_items=evaluated_checks,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            checked_by=checked_by,
+            updated_by=checked_by,
+            checked_at=datetime.now(UTC),
+            preflight_metadata=metadata or {},
+        )
+        preflight.preflight_payload = self._build_comfyui_preflight_payload(
+            operation=operation,
+            handoff=handoff,
+            preflight=preflight,
+        )
+        self.session.add(preflight)
+        await self.session.flush()
+        self._apply_comfyui_preflight_to_plan(operation, preflight)
+        await self.session.commit()
+        await self.session.refresh(preflight)
+        return preflight
+
+    async def list_comfyui_preflights(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        handoff_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIPreflight]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIPreflight).where(
+            CommercialOperationComfyUIPreflight.workspace_id == workspace_id,
+            CommercialOperationComfyUIPreflight.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIPreflight.preflight_status == status)
+        if handoff_id is not None:
+            statement = statement.where(CommercialOperationComfyUIPreflight.handoff_id == handoff_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIPreflight.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_preflight(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        preflight_id: UUID,
+    ) -> CommercialOperationComfyUIPreflight:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIPreflight).where(
+                CommercialOperationComfyUIPreflight.workspace_id == workspace_id,
+                CommercialOperationComfyUIPreflight.operation_id == operation_id,
+                CommercialOperationComfyUIPreflight.id == preflight_id,
+            )
+        )
+        preflight = result.scalar_one_or_none()
+        if preflight is None:
+            raise ValueError("Commercial operation ComfyUI preflight not found in workspace")
+        return preflight
+
+    async def update_comfyui_preflight(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        preflight_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIPreflight:
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+        )
+        if preflight.preflight_status == CommercialOperationComfyUIPreflightStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI preflights cannot be updated")
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=preflight.handoff_id,
+        )
+        scalar_fields = {"title", "target_url", "queue_name", "workflow_name", "result_summary", "failure_reason"}
+        required_text_fields = {"title", "workflow_name"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                    value = value or None
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                setattr(preflight, field, value)
+        if "model_refs" in patch:
+            preflight.model_refs = self._clean_list(patch["model_refs"])
+        if "adapter_config" in patch:
+            adapter_config = patch["adapter_config"] if isinstance(patch["adapter_config"], dict) else {}
+            preflight.adapter_config = {
+                **adapter_config,
+                "adapter": "future_guarded_comfyui_adapter",
+                "execution_mode": "metadata_only",
+                "network_probe": "disabled",
+                "queue_submission": "disabled",
+            }
+        if "check_items" in patch:
+            preflight.check_items = self._clean_check_items(patch["check_items"])
+        if "metadata" in patch:
+            preflight.preflight_metadata = patch["metadata"] or {}
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        preflight = self._refresh_comfyui_preflight_state(
+            operation=operation,
+            handoff=handoff,
+            preflight=preflight,
+            actor_user_id=updated_by,
+        )
+        await self.session.commit()
+        await self.session.refresh(preflight)
+        return preflight
+
+    async def check_comfyui_preflight(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        preflight_id: UUID,
+        checked_by: str | None = None,
+    ) -> CommercialOperationComfyUIPreflight:
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+        )
+        if preflight.preflight_status == CommercialOperationComfyUIPreflightStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI preflights cannot be checked")
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=preflight.handoff_id,
+        )
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        preflight = self._refresh_comfyui_preflight_state(
+            operation=operation,
+            handoff=handoff,
+            preflight=preflight,
+            actor_user_id=checked_by,
+        )
+        await self.session.commit()
+        await self.session.refresh(preflight)
+        return preflight
+
+    async def fail_comfyui_preflight(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        preflight_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIPreflight:
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+        )
+        if preflight.preflight_status == CommercialOperationComfyUIPreflightStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI preflights cannot be failed")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=preflight.handoff_id,
+        )
+        preflight.preflight_status = CommercialOperationComfyUIPreflightStatus.FAILED.value
+        preflight.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else "ComfyUI preflight marked failed by operator"
+        )
+        preflight.result_summary = None
+        preflight.updated_by = updated_by
+        preflight.failed_at = datetime.now(UTC)
+        preflight.preflight_payload = self._build_comfyui_preflight_payload(
+            operation=operation,
+            handoff=handoff,
+            preflight=preflight,
+        )
+        self._apply_comfyui_preflight_to_plan(operation, preflight)
+        await self.session.commit()
+        await self.session.refresh(preflight)
+        return preflight
+
+    async def archive_comfyui_preflight(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        preflight_id: UUID,
+        archived_by: str | None = None,
+    ) -> CommercialOperationComfyUIPreflight:
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+        )
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=preflight.handoff_id,
+        )
+        preflight.preflight_status = CommercialOperationComfyUIPreflightStatus.ARCHIVED.value
+        preflight.archived_by = archived_by
+        preflight.updated_by = archived_by
+        preflight.archived_at = datetime.now(UTC)
+        preflight.preflight_payload = self._build_comfyui_preflight_payload(
+            operation=operation,
+            handoff=handoff,
+            preflight=preflight,
+        )
+        self._apply_comfyui_preflight_to_plan(operation, preflight)
+        await self.session.commit()
+        await self.session.refresh(preflight)
+        return preflight
 
     async def create_deliverable(
         self,
@@ -4682,6 +4984,211 @@ class CommercialOperationService:
             ],
         }
 
+    def _clean_check_items(self, check_items: Any) -> list[dict[str, Any]]:
+        if not isinstance(check_items, list):
+            return []
+        cleaned: list[dict[str, Any]] = []
+        for index, item in enumerate(check_items, start=1):
+            if isinstance(item, dict):
+                key = str(item.get("key") or f"operator_check_{index}").strip()[:128]
+                label = str(item.get("label") or key).strip()[:255]
+                status_value = item.get("status", item.get("passed", False))
+                severity = str(item.get("severity") or ("info" if bool(status_value) else "blocker")).strip()[:32]
+                message = str(item.get("message") or "").strip()
+                source = str(item.get("source") or "operator").strip()[:64]
+            else:
+                key = f"operator_check_{index}"
+                label = str(item).strip()[:255]
+                status_value = bool(label)
+                severity = "info" if status_value else "blocker"
+                message = label
+                source = "operator"
+            if not key:
+                key = f"operator_check_{index}"
+            if not label:
+                label = key
+            cleaned.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "status": bool(status_value),
+                    "severity": severity or "info",
+                    "message": message,
+                    "source": source or "operator",
+                }
+            )
+        return cleaned
+
+    def _evaluate_comfyui_preflight(
+        self,
+        *,
+        handoff: CommercialOperationComfyUIHandoff,
+        target_url: str | None,
+        queue_name: str | None,
+        workflow_name: str,
+        model_refs: list[str],
+        adapter_config: dict[str, Any],
+        check_items: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], str, str, str | None]:
+        endpoint_ready = bool(target_url and target_url.lower().startswith(("http://", "https://")))
+        workflow_payload = handoff.workflow_payload if isinstance(handoff.workflow_payload, dict) else {}
+        generated_checks = [
+            {
+                "key": "target_endpoint_configured",
+                "label": "ComfyUI endpoint is configured",
+                "status": endpoint_ready,
+                "severity": "blocker",
+                "message": "Endpoint must be a configured http(s) URL before a guarded adapter can be enabled.",
+                "source": "system",
+            },
+            {
+                "key": "metadata_only_boundary",
+                "label": "Metadata-only boundary is active",
+                "status": adapter_config.get("execution_mode") == "metadata_only"
+                and adapter_config.get("network_probe") == "disabled"
+                and adapter_config.get("queue_submission") == "disabled",
+                "severity": "blocker",
+                "message": "Preflight records configuration only; no network probe or queue submission is allowed.",
+                "source": "system",
+            },
+            {
+                "key": "handoff_approved_or_prepared",
+                "label": "Handoff is approved or prepared",
+                "status": handoff.handoff_status
+                in {
+                    CommercialOperationComfyUIHandoffStatus.APPROVED.value,
+                    CommercialOperationComfyUIHandoffStatus.PREPARED.value,
+                },
+                "severity": "blocker",
+                "message": "Only approved or prepared handoffs can move toward adapter readiness.",
+                "source": "system",
+            },
+            {
+                "key": "workflow_payload_present",
+                "label": "Workflow payload is present",
+                "status": bool(workflow_name and workflow_payload),
+                "severity": "blocker",
+                "message": "Workflow name and payload must be reviewable before future execution.",
+                "source": "system",
+            },
+            {
+                "key": "queue_configured",
+                "label": "Queue name is configured",
+                "status": bool(queue_name),
+                "severity": "blocker",
+                "message": "A future queue name is required for server maintainers to understand routing.",
+                "source": "system",
+            },
+            {
+                "key": "model_refs_documented",
+                "label": "Model/checkpoint references are documented",
+                "status": bool(model_refs),
+                "severity": "warning",
+                "message": "Model references help maintenance, but missing references do not enable execution.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(check_items):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            status = CommercialOperationComfyUIPreflightStatus.BLOCKED.value
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, status, "ComfyUI preflight is blocked; operator action is required.", labels
+        return (
+            merged_checks,
+            CommercialOperationComfyUIPreflightStatus.CHECKED.value,
+            "ComfyUI preflight checked as metadata-only configuration; no external call occurred.",
+            None,
+        )
+
+    def _refresh_comfyui_preflight_state(
+        self,
+        *,
+        operation: CommercialOperation,
+        handoff: CommercialOperationComfyUIHandoff,
+        preflight: CommercialOperationComfyUIPreflight,
+        actor_user_id: str | None,
+    ) -> CommercialOperationComfyUIPreflight:
+        adapter_config = preflight.adapter_config if isinstance(preflight.adapter_config, dict) else {}
+        preflight.adapter_config = {
+            **adapter_config,
+            "adapter": "future_guarded_comfyui_adapter",
+            "execution_mode": "metadata_only",
+            "network_probe": "disabled",
+            "queue_submission": "disabled",
+        }
+        checks, status, result_summary, failure_reason = self._evaluate_comfyui_preflight(
+            handoff=handoff,
+            target_url=preflight.target_url,
+            queue_name=preflight.queue_name,
+            workflow_name=preflight.workflow_name,
+            model_refs=preflight.model_refs,
+            adapter_config=preflight.adapter_config,
+            check_items=preflight.check_items,
+        )
+        preflight.preflight_status = status
+        preflight.connection_mode = "metadata_only"
+        preflight.check_items = checks
+        preflight.result_summary = result_summary
+        preflight.failure_reason = failure_reason
+        preflight.checked_by = actor_user_id
+        preflight.updated_by = actor_user_id
+        preflight.checked_at = datetime.now(UTC)
+        preflight.failed_at = None
+        preflight.preflight_payload = self._build_comfyui_preflight_payload(
+            operation=operation,
+            handoff=handoff,
+            preflight=preflight,
+        )
+        self._apply_comfyui_preflight_to_plan(operation, preflight)
+        return preflight
+
+    def _build_comfyui_preflight_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        handoff: CommercialOperationComfyUIHandoff,
+        preflight: CommercialOperationComfyUIPreflight,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "handoff_id": str(handoff.id),
+            "asset_request_id": str(handoff.asset_request_id),
+            "step_key": handoff.step_key,
+            "handoff_status": handoff.handoff_status,
+            "preflight_status": preflight.preflight_status,
+            "title": preflight.title,
+            "target_url": preflight.target_url,
+            "connection_mode": "metadata_only",
+            "queue_name": preflight.queue_name,
+            "workflow_name": preflight.workflow_name,
+            "model_refs": preflight.model_refs,
+            "adapter_config": preflight.adapter_config,
+            "check_items": preflight.check_items,
+            "result_summary": preflight.result_summary,
+            "failure_reason": preflight.failure_reason,
+            "execution_boundary": "metadata-only ComfyUI preflight; no ComfyUI API call or queue submission occurs",
+            "next_runtime": "future_guarded_comfyui_adapter",
+            "forbidden_actions": [
+                "no ComfyUI HTTP request",
+                "no ComfyUI queue submission",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no OpenClaw or browser worker execution",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -5446,6 +5953,31 @@ class CommercialOperationService:
                     updated["comfyui_handoff_decision_at"] = handoff.failed_at.isoformat()
                 elif handoff.archived_at is not None:
                     updated["comfyui_handoff_decision_at"] = handoff.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_preflight_to_plan(
+        self,
+        operation: CommercialOperation,
+        preflight: CommercialOperationComfyUIPreflight,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == preflight.step_key:
+                updated = dict(step)
+                updated["comfyui_preflight_id"] = str(preflight.id)
+                updated["comfyui_preflight_status"] = preflight.preflight_status
+                updated["comfyui_preflight_handoff_id"] = str(preflight.handoff_id)
+                updated["comfyui_preflight_target_url"] = preflight.target_url
+                updated["comfyui_preflight_queue_name"] = preflight.queue_name
+                if preflight.checked_at is not None:
+                    updated["comfyui_preflight_checked_at"] = preflight.checked_at.isoformat()
+                elif preflight.failed_at is not None:
+                    updated["comfyui_preflight_checked_at"] = preflight.failed_at.isoformat()
+                elif preflight.archived_at is not None:
+                    updated["comfyui_preflight_checked_at"] = preflight.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

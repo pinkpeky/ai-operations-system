@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIHandoff,
+    CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -53,6 +54,7 @@ CommercialOperationComfyUIHandoffStatusLiteral = Literal[
     "failed",
     "archived",
 ]
+CommercialOperationComfyUIPreflightStatusLiteral = Literal["draft", "checked", "blocked", "failed", "archived"]
 CommercialOperationDeliverableStatusLiteral = Literal[
     "draft",
     "ready_for_review",
@@ -797,6 +799,111 @@ class CommercialOperationComfyUIHandoffListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIHandoffResponse]
+
+
+class CommercialOperationComfyUIPreflightCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI adapter readiness preflight."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    target_url: str | None = Field(default=None, max_length=512)
+    queue_name: str | None = Field(default=None, max_length=128)
+    workflow_name: str | None = Field(default=None, max_length=128)
+    model_refs: list[str] = Field(default_factory=list)
+    adapter_config: dict[str, Any] = Field(default_factory=dict)
+    check_items: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIPreflightUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI preflight and rerun local readiness evaluation."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    target_url: str | None = Field(default=None, max_length=512)
+    queue_name: str | None = Field(default=None, max_length=128)
+    workflow_name: str | None = Field(default=None, max_length=128)
+    model_refs: list[str] | None = None
+    adapter_config: dict[str, Any] | None = None
+    check_items: list[dict[str, Any]] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIPreflightDecisionRequest(BaseModel):
+    """Check, fail, or archive a metadata-only ComfyUI preflight."""
+
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIPreflightResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI preflight response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    handoff_id: UUID
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    preflight_status: str
+    target_url: str | None
+    connection_mode: str
+    queue_name: str | None
+    workflow_name: str
+    model_refs: list[str]
+    adapter_config: dict[str, Any]
+    check_items: list[dict[str, Any]]
+    preflight_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    checked_by: str | None
+    updated_by: str | None
+    archived_by: str | None
+    checked_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, preflight: CommercialOperationComfyUIPreflight) -> "CommercialOperationComfyUIPreflightResponse":
+        return cls(
+            id=preflight.id,
+            workspace_id=preflight.workspace_id,
+            operation_id=preflight.operation_id,
+            handoff_id=preflight.handoff_id,
+            asset_request_id=preflight.asset_request_id,
+            step_key=preflight.step_key,
+            title=preflight.title,
+            preflight_status=preflight.preflight_status,
+            target_url=preflight.target_url,
+            connection_mode=preflight.connection_mode,
+            queue_name=preflight.queue_name,
+            workflow_name=preflight.workflow_name,
+            model_refs=preflight.model_refs,
+            adapter_config=preflight.adapter_config,
+            check_items=preflight.check_items,
+            preflight_payload=preflight.preflight_payload,
+            result_summary=preflight.result_summary,
+            failure_reason=preflight.failure_reason,
+            checked_by=preflight.checked_by,
+            updated_by=preflight.updated_by,
+            archived_by=preflight.archived_by,
+            checked_at=preflight.checked_at,
+            failed_at=preflight.failed_at,
+            archived_at=preflight.archived_at,
+            metadata=preflight.preflight_metadata,
+            created_at=preflight.created_at,
+            updated_at=preflight.updated_at,
+        )
+
+
+class CommercialOperationComfyUIPreflightListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI preflight list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIPreflightResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):
