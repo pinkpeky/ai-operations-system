@@ -218,6 +218,66 @@ async def test_commercial_operations_api_flow() -> None:
             assert content_step["content_draft_status"] == "approved"
             assert content_step["content_draft_channel"] == "newsletter"
 
+            async with session_factory() as db_session:
+                content_rag_document = Document(
+                    workspace_id="workspace-commercial-api",
+                    user_id="user-commercial-api",
+                    source_id="commercial-content-source",
+                    source_name="Commercial content playbook",
+                    source_type="text",
+                    collection_name="ai_knowledge_base",
+                    chunk_count=1,
+                    document_metadata={"phase": "61O"},
+                )
+                db_session.add(content_rag_document)
+                await db_session.flush()
+                db_session.add(
+                    DocumentChunk(
+                        document_id=content_rag_document.id,
+                        collection_name="ai_knowledge_base",
+                        chunk_index=0,
+                        text=(
+                            "Buyer education content draft: emphasize audience pain, helpful next step, "
+                            "manual approval boundary, and operator review before any publishing."
+                        ),
+                        qdrant_point_id="commercial-content-rag-chunk-1",
+                        chunk_metadata={"section": "content_draft"},
+                    )
+                )
+                await db_session.commit()
+                content_rag_document_id = str(content_rag_document.id)
+
+            generated_content_draft = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag",
+                headers=headers,
+                json={
+                    "step_key": "content_production",
+                    "channel": "newsletter",
+                    "content_format": "email",
+                    "title": "Generated RAG newsletter draft",
+                    "query": "buyer education content draft",
+                    "knowledge_collection": "ai_knowledge_base",
+                    "search_mode": "keyword",
+                    "final_top_k": 3,
+                    "call_to_action": "Book a demo",
+                    "asset_requests": [{"title": "Generated proof visual", "type": "asset_placeholder"}],
+                    "metadata": {"phase": "61O"},
+                },
+            )
+            assert generated_content_draft.status_code == 201
+            generated_content_body = generated_content_draft.json()
+            assert generated_content_body["draft_status"] == "draft"
+            assert generated_content_body["title"] == "Generated RAG newsletter draft"
+            assert "RAG evidence used" in generated_content_body["content_body"]
+            assert "no publishing" in generated_content_body["content_body"]
+            assert f"document:{content_rag_document_id}" in generated_content_body["source_materials"]
+            assert "source:commercial-content-source" in generated_content_body["source_materials"]
+            assert generated_content_body["asset_requests"][0]["execution_boundary"] == "no ComfyUI job is created in this phase"
+            assert generated_content_body["metadata"]["generation_mode"] == "rag_content_draft"
+            assert generated_content_body["metadata"]["search_mode"] == "keyword"
+            assert generated_content_body["metadata"]["rag_result_count"] == 1
+            assert "no automatic approval" in generated_content_body["metadata"]["forbidden_actions"]
+
             asset_request = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/asset-requests",
                 headers=headers,

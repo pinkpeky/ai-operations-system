@@ -410,6 +410,27 @@ class CommercialOperationContentDraftCreateRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class CommercialOperationContentDraftGenerateRequest(BaseModel):
+    """Generate a non-publishing content draft from existing RAG search results."""
+
+    step_key: str = Field(default="content_production", min_length=1, max_length=128)
+    channel: str = Field(min_length=1, max_length=128)
+    content_format: CommercialOperationContentFormatLiteral = "copy"
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    audience_segment: str | None = None
+    query: str | None = Field(default=None, min_length=1)
+    knowledge_collection: str | None = Field(default=None, min_length=1, max_length=128)
+    source_id: str | None = Field(default=None, min_length=1, max_length=255)
+    search_mode: SearchMode | None = None
+    dense_top_k: int | None = Field(default=None, ge=1, le=100)
+    keyword_top_k: int | None = Field(default=None, ge=1, le=100)
+    final_top_k: int | None = Field(default=None, ge=1, le=50)
+    summary: str | None = None
+    call_to_action: str | None = None
+    asset_requests: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class CommercialOperationContentDraftUpdateRequest(BaseModel):
     """Patch a commercial operation content draft without publishing it."""
 

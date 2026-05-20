@@ -315,6 +315,8 @@ main {
 
 .panel,
 .detail-panel {
+  min-width: 0;
+  max-width: 100%;
   padding: 18px;
   border: 1px solid #dde6ec;
   border-radius: 8px;
@@ -1695,6 +1697,11 @@ textarea {
   }
 
   .overview-mode-switch {
+    width: 100%;
+  }
+
+  .commercial-action-row .primary-button,
+  .commercial-action-row .ghost-button {
     width: 100%;
   }
 

@@ -36,7 +36,9 @@ Phase 61M adds `commercial_operation_evidence_snapshots` and `/api/v1/commercial
 
 Phase 61N adds `/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag` so operators can create a draft evidence snapshot from existing RAG search results. The generated draft records retrieved chunks, source document IDs, collection/query/search metadata, and explicit forbidden actions.
 
-Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, upload knowledge through evidence snapshots, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, Phase 61L optimization decisions, Phase 61M evidence snapshots, and Phase 61N generated RAG evidence snapshots are guarded records; the next runtime step remains a future guarded runtime adapter and later monitored analytics adapter.
+Phase 61O adds `/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag` so operators can create a draft content record from existing RAG search results. The generated draft records retrieved chunk source materials, collection/query/search metadata, and explicit forbidden actions.
+
+Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, upload knowledge through generated evidence snapshots or content drafts, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, Phase 61L optimization decisions, Phase 61M evidence snapshots, Phase 61N generated RAG evidence snapshots, and Phase 61O generated RAG content drafts are guarded records; the next runtime step remains a future guarded runtime adapter and later monitored analytics adapter.
 
 ## Provider Defaults
 

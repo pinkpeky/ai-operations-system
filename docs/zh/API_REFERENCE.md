@@ -3273,7 +3273,7 @@ API：
 
 ## Phase 61H: 商业运营执行请求
 
-状态：进行中。
+状态：已完成。
 
 Phase 61H 在每个商业运营项目下新增 `commercial_operation_execution_requests` 与 `CommercialOperationExecutionRequest` 记录。操作人员可以从已打包交付物创建 metadata-only 执行交接请求，再进行编辑、送审、批准、驳回、准备给未来受控运行适配器、记录交接前失败、准备前取消或归档。
 
@@ -3411,6 +3411,22 @@ API：
 生成载荷包含：`generation_mode=rag_search_snapshot`、`collection_name`、`query`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`result_count`、`dense_candidate_count`、`keyword_candidate_count`、`merged_candidate_count` 和 `forbidden_actions`。
 
 边界：RAG 证据生成只检索已有知识，不上传或摄取新知识文件，不自动批准证据，不发布内容，不运行 ComfyUI/OpenClaw/Browser Worker，不控制真实账号，不接入平台分析，不宣称 ROI 归因，也不绕过审批。
+
+## Phase 61O: 商业运营 RAG 内容草稿生成
+
+状态：进行中。
+
+Phase 61O 新增一个受控生成接口：系统只检索已有 RAG 知识集合，并把命中的 chunk、来源材料、检索参数和禁止动作写入一个草稿内容记录。生成后的内容草稿仍必须由人工审阅，不能自动批准，也不能直接发布或执行。
+
+API：
+
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag`
+
+请求字段：`step_key`、`channel`、`content_format`、`title`、`audience_segment`、`query`、`knowledge_collection`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`summary`、`call_to_action`、`asset_requests` 和 `metadata`。
+
+生成 metadata 包含：`generation_mode=rag_content_draft`、`collection_name`、`query`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`rag_result_count`、`dense_candidate_count`、`keyword_candidate_count`、`merged_candidate_count` 和 `forbidden_actions`。
+
+边界：RAG 内容草稿生成只检索已有知识，不上传或摄取新知识文件，不自动批准内容，不发布内容，不运行 ComfyUI/OpenClaw/Browser Worker，不控制真实账号，不接入平台分析，不宣称 ROI 归因，也不绕过审批。
 
 主要字段：`operation_id`、`observation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`decision_type`、`title`、`decision_status`、`priority`、`rationale`、`objective_updates`、`content_actions`、`asset_actions`、`audience_actions`、`execution_actions`、`risk_controls`、`decision_payload`、`next_review_at`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
 

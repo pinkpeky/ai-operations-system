@@ -28,6 +28,7 @@ from app.schemas.commercial_operation import (
     CommercialOperationAssetRequestUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
+    CommercialOperationContentDraftGenerateRequest,
     CommercialOperationContentDraftListResponse,
     CommercialOperationContentDraftResponse,
     CommercialOperationContentDraftUpdateRequest,
@@ -110,6 +111,28 @@ def _rag_generation_query(
     return " ".join(piece.strip() for piece in pieces if piece and piece.strip())[:1000]
 
 
+def _rag_operation_query(
+    *,
+    operation_title: str,
+    operation_objective: str,
+    target_audience: str | None,
+    channels: list[str] | None,
+    success_metrics: list[str] | None,
+    requested_query: str | None,
+) -> str:
+    clean_query = _clean_optional_text(requested_query)
+    if clean_query:
+        return clean_query
+    pieces = [
+        operation_title,
+        operation_objective,
+        target_audience or "",
+        " ".join(channels or []),
+        " ".join(success_metrics or []),
+    ]
+    return " ".join(piece.strip() for piece in pieces if piece and piece.strip())[:1000]
+
+
 def _rag_evidence_item(chunk: Any) -> dict[str, Any]:
     metadata = dict(getattr(chunk, "metadata", {}) or {})
     score = (
@@ -130,6 +153,79 @@ def _rag_evidence_item(chunk: Any) -> dict[str, Any]:
         "metadata": metadata,
         "evidence_boundary": "retrieved from existing RAG index; not auto-approved or externally executed",
     }
+
+
+def _rag_source_materials(*, collection_name: str, evidence_items: list[dict[str, Any]]) -> list[str]:
+    seen: set[str] = set()
+    materials: list[str] = []
+    candidates: list[str] = [f"rag:{collection_name}"]
+    for item in evidence_items:
+        document_id = item.get("document_id")
+        source_id = item.get("source_id")
+        if isinstance(document_id, str) and document_id:
+            candidates.append(f"document:{document_id}")
+        if isinstance(source_id, str) and source_id:
+            candidates.append(f"source:{source_id}")
+    for candidate in candidates:
+        if candidate not in seen:
+            seen.add(candidate)
+            materials.append(candidate)
+    return materials
+
+
+def _rag_content_draft_body(
+    *,
+    operation_title: str,
+    operation_objective: str,
+    target_audience: str | None,
+    channel: str,
+    content_format: str,
+    query: str,
+    evidence_items: list[dict[str, Any]],
+    call_to_action: str | None,
+) -> str:
+    audience = target_audience or "target audience"
+    evidence_lines = [
+        (
+            f"- {str(item.get('text_excerpt') or '').strip()[:240]} "
+            f"(document: {item.get('document_id') or 'unknown'}, source: {item.get('source_id') or 'unknown'})"
+        )
+        for item in evidence_items
+        if str(item.get("text_excerpt") or "").strip()
+    ]
+    if not evidence_lines:
+        evidence_lines = [
+            "- No retrieved RAG chunks; revise the query or attach source material before review."
+        ]
+    proof_points = [
+        str(item.get("text_excerpt") or "").strip()[:160]
+        for item in evidence_items[:3]
+        if str(item.get("text_excerpt") or "").strip()
+    ]
+    proof_sentence = " ".join(proof_points) if proof_points else "Evidence still needs operator review before use."
+    return "\n".join(
+        [
+            f"Channel: {channel}",
+            f"Format: {content_format}",
+            f"Operation: {operation_title}",
+            f"Audience: {audience}",
+            f"Objective: {operation_objective}",
+            f"RAG query: {query}",
+            "",
+            "RAG evidence used:",
+            *evidence_lines,
+            "",
+            "Draft:",
+            f"Opening: Address {audience} with the operation goal: {operation_objective}",
+            f"Proof points: {proof_sentence}",
+            f"Call to action: {call_to_action or 'Confirm the next step with the operator.'}",
+            "",
+            (
+                "Review boundary: draft only; no publishing, account control, ComfyUI, OpenClaw, "
+                "or browser worker action was executed."
+            ),
+        ]
+    )
 
 
 def _unique_document_ids(evidence_items: list[dict[str, Any]]) -> list[str]:
@@ -605,6 +701,128 @@ async def list_commercial_operation_content_drafts(
     except Exception as exc:
         logger.exception("Commercial operation content draft list API failed", extra={"operation_id": str(operation_id)})
         raise AppError("Commercial operation content draft list failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/content-drafts/generate-rag",
+    response_model=CommercialOperationContentDraftResponse,
+    status_code=201,
+)
+async def generate_commercial_operation_content_draft_from_rag(
+    operation_id: UUID,
+    request: CommercialOperationContentDraftGenerateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationContentDraftResponse:
+    """Generate a draft content record from existing RAG search results."""
+
+    try:
+        service = CommercialOperationService(session)
+        operation = await service.require_operation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+        )
+        settings = get_settings()
+        search_mode = request.search_mode or settings.default_search_mode
+        if search_mode not in {"dense", "keyword", "hybrid"}:
+            raise ValueError("search_mode must be dense, keyword, or hybrid")
+        dense_top_k = request.dense_top_k or settings.dense_top_k
+        keyword_top_k = request.keyword_top_k or settings.keyword_top_k
+        final_top_k = request.final_top_k or settings.final_top_k
+        query = _rag_operation_query(
+            operation_title=operation.title,
+            operation_objective=operation.objective,
+            target_audience=operation.target_audience,
+            channels=operation.channels,
+            success_metrics=operation.success_metrics,
+            requested_query=request.query,
+        )
+        pipeline = create_hybrid_search_pipeline(
+            settings=settings,
+            session=session,
+            collection_name=_clean_optional_text(request.knowledge_collection) or operation.knowledge_collection,
+        )
+        bundle = await pipeline.search(
+            query=query,
+            search_mode=search_mode,  # type: ignore[arg-type]
+            dense_top_k=dense_top_k,
+            keyword_top_k=keyword_top_k,
+            source_id=_clean_optional_text(request.source_id),
+            workspace_id=context.workspace_id,
+        )
+        reranked = await RerankerClient(settings=settings).rerank(
+            query=query,
+            chunks=bundle.merged_results,
+            top_n=final_top_k,
+        )
+        retrieved_chunks = [build_retrieved_chunk_from_reranked(result) for result in reranked]
+        evidence_items = [_rag_evidence_item(chunk) for chunk in retrieved_chunks]
+        collection_name = pipeline.vector_store.collection_name
+        source_materials = _rag_source_materials(collection_name=collection_name, evidence_items=evidence_items)
+        summary = _clean_optional_text(request.summary) or (
+            f"Generated from {len(evidence_items)} existing RAG chunk(s) for query: {query}"
+            if evidence_items
+            else f"RAG search returned no chunks for query: {query}"
+        )
+        draft = await service.create_content_draft(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            step_key=request.step_key,
+            channel=request.channel,
+            content_format=request.content_format,
+            title=_clean_optional_text(request.title) or f"RAG content draft: {operation.title}",
+            audience_segment=request.audience_segment or operation.target_audience,
+            content_body=_rag_content_draft_body(
+                operation_title=operation.title,
+                operation_objective=operation.objective,
+                target_audience=request.audience_segment or operation.target_audience,
+                channel=request.channel,
+                content_format=request.content_format,
+                query=query,
+                evidence_items=evidence_items,
+                call_to_action=request.call_to_action,
+            ),
+            summary=summary,
+            call_to_action=request.call_to_action,
+            source_materials=source_materials,
+            asset_requests=request.asset_requests,
+            created_by=context.user_id,
+            metadata={
+                **request.metadata,
+                "source": "commercial_operations_rag_content_generation",
+                "phase": "61O",
+                "generation_mode": "rag_content_draft",
+                "query": query,
+                "collection_name": collection_name,
+                "source_id": _clean_optional_text(request.source_id),
+                "search_mode": search_mode,
+                "dense_top_k": dense_top_k,
+                "keyword_top_k": keyword_top_k,
+                "final_top_k": final_top_k,
+                "rag_result_count": len(evidence_items),
+                "dense_candidate_count": len(bundle.dense_results),
+                "keyword_candidate_count": len(bundle.keyword_results),
+                "merged_candidate_count": len(bundle.merged_results),
+                "forbidden_actions": [
+                    "no knowledge ingestion",
+                    "no automatic approval",
+                    "no publishing",
+                    "no account control",
+                    "no ComfyUI, OpenClaw, or browser worker execution",
+                ],
+            },
+        )
+        return CommercialOperationContentDraftResponse.from_model(draft)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation RAG content draft generate API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation RAG content draft generate failed", status_code=500) from exc
 
 
 @router.patch("/{operation_id}/content-drafts/{draft_id}", response_model=CommercialOperationContentDraftResponse)

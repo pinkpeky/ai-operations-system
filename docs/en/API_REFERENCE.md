@@ -3890,7 +3890,7 @@ Boundary: execution runs and runtime payloads are audit and recovery records onl
 
 ## Phase 61J: Commercial Operation Results
 
-Status: in progress.
+Status: completed.
 
 Phase 61J adds `commercial_operation_results` and `CommercialOperationResult` records below each commercial operation. Operators can create a result from a terminal execution run, update it while draft or rejected, mark it ready for review, approve it, reject it, or archive it.
 
@@ -3993,3 +3993,19 @@ Request fields: `deliverable_id`, `title`, `knowledge_collection`, `query`, `sou
 Generated payload fields include `generation_mode=rag_search_snapshot`, `collection_name`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `result_count`, `dense_candidate_count`, `keyword_candidate_count`, `merged_candidate_count`, and `forbidden_actions`.
 
 Boundary: RAG evidence generation searches existing knowledge only. It does not upload or ingest new knowledge files, auto-approve evidence, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.
+
+## Phase 61O: Commercial Operation RAG Content Draft Generation
+
+Status: in progress.
+
+Phase 61O adds a controlled generation route that searches an existing RAG collection and creates a draft commercial operation content record from retrieved chunks. Generated drafts include source materials, search metadata, a review boundary, and explicit forbidden actions. They still require human review before approval and cannot publish or execute.
+
+API:
+
+- `POST /api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag`
+
+Request fields: `step_key`, `channel`, `content_format`, `title`, `audience_segment`, `query`, `knowledge_collection`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `summary`, `call_to_action`, `asset_requests`, and `metadata`.
+
+Generated metadata fields include `generation_mode=rag_content_draft`, `collection_name`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `rag_result_count`, `dense_candidate_count`, `keyword_candidate_count`, `merged_candidate_count`, and `forbidden_actions`.
+
+Boundary: RAG content draft generation searches existing knowledge only. It does not upload or ingest new knowledge files, auto-approve content, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.
