@@ -3695,7 +3695,7 @@ Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; serv
 
 ## Phase 61A: Commercial Operations Foundation
 
-Status: in progress.
+Status: merged to main.
 
 Phase 61A adds a workspace-scoped commercial operation project center. It exposes `commercial_operations`, `CommercialOperationService`, and the Admin Dashboard Commercial Ops page for turning one business objective into a durable record and reviewable plan outline.
 
@@ -3838,3 +3838,28 @@ Main fields: `operation_id`, `content_draft_id`, `output_artifact_id`, `asset_re
 Supported `deliverable_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `packaged`, `failed`, and `archived`.
 
 Boundary: deliverables and package payloads are review and handoff records only. They create linked Output Library artifacts with `source_type=commercial_operation`, but they do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61H: Commercial Operation Execution Requests
+
+Status: in progress.
+
+Phase 61H adds `commercial_operation_execution_requests` and `CommercialOperationExecutionRequest` records below each commercial operation. Operators can create a metadata-only execution handoff request from a packaged deliverable, update it, mark it ready for review, approve it, reject it, prepare it for a future guarded runtime adapter, fail it before handoff, cancel it before preparation, or archive it.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/execution-requests`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests`
+- `PATCH /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/prepare`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/archive`
+
+Main fields: `operation_id`, `deliverable_id`, `output_artifact_id`, `step_key`, `channel`, `execution_type`, `execution_mode`, `title`, `request_status`, `execution_target`, `input_summary`, `runbook`, `readiness_checks`, `expected_outputs`, `handoff_payload`, `result_summary`, `failure_reason`, `reviewer_notes`, `requested_by`, `updated_by`, `approved_by`, `prepared_by`, `cancelled_by`, and `metadata`.
+
+Supported `request_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, `cancelled`, and `archived`.
+
+Boundary: execution requests and handoff payloads are review and future-runtime handoff records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

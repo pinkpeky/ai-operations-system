@@ -3249,7 +3249,7 @@ API：
 
 ## Phase 61G: 商业运营交付物
 
-状态：进行中。
+状态：已合并到 main。
 
 Phase 61G 在每个商业运营项目下新增 `commercial_operation_deliverables` 与 `CommercialOperationDeliverable` 记录。操作人员可以把已批准的内容草稿与已批准或已准备的素材请求打包成商业交付物，再进行编辑、送审、批准、驳回、打包进 Output Library、记录打包失败或归档。
 
@@ -3270,3 +3270,28 @@ API：
 支持的 `deliverable_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`packaged`、`failed`、`archived`。
 
 边界：交付物和打包 payload 只是审阅与交接记录。它会创建 `source_type=commercial_operation` 的 Output Library 产物，但不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
+
+## Phase 61H: 商业运营执行请求
+
+状态：进行中。
+
+Phase 61H 在每个商业运营项目下新增 `commercial_operation_execution_requests` 与 `CommercialOperationExecutionRequest` 记录。操作人员可以从已打包交付物创建 metadata-only 执行交接请求，再进行编辑、送审、批准、驳回、准备给未来受控运行适配器、记录交接前失败、准备前取消或归档。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/execution-requests`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests`
+- `PATCH /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/prepare`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/archive`
+
+主要字段：`operation_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`execution_type`、`execution_mode`、`title`、`request_status`、`execution_target`、`input_summary`、`runbook`、`readiness_checks`、`expected_outputs`、`handoff_payload`、`result_summary`、`failure_reason`、`reviewer_notes`、`requested_by`、`updated_by`、`approved_by`、`prepared_by`、`cancelled_by` 和 `metadata`。
+
+支持的 `request_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`prepared`、`failed`、`cancelled`、`archived`。
+
+边界：执行请求和 handoff payload 只是审阅与未来运行交接记录。它不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。

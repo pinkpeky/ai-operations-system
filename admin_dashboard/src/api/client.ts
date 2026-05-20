@@ -489,6 +489,124 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  executionRequests: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/execution-requests`, {}, settings),
+  createExecutionRequest: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateExecutionRequest: (operationId: string, executionRequestId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes = "Ready for review from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes = "Approved as metadata-only execution request from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  rejectExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes = "Rejected from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  prepareExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    resultSummary = "Prepared for future guarded runtime adapter from Commercial Ops; no execution occurred.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/prepare`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: resultSummary }),
+      },
+      settings,
+    ),
+  failExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    failureReason = "Failed from Commercial Ops; no external execution occurred.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  cancelExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes = "Cancelled from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  archiveExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes = "Archived from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
   links: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/links`, {}, settings),
   createLink: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

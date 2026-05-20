@@ -127,6 +127,19 @@ class CommercialOperationDeliverableStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationExecutionRequestStatus(StrEnum):
+    """Commercial operation execution request lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PREPARED = "prepared"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

@@ -20,12 +20,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61G" in text
+    assert "Phase 61H" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
     assert "Asset requests" in text
     assert "Deliverables" in text
+    assert "Execution requests" in text
     assert "证据与交接" in text
     assert "Evidence and handoff" in text
     assert "不会自动发布" in text
@@ -69,6 +70,16 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.packageDeliverable" in text
     assert "commercialOperationsApi.failDeliverable" in text
     assert "commercialOperationsApi.archiveDeliverable" in text
+    assert "commercialOperationsApi.executionRequests" in text
+    assert "commercialOperationsApi.createExecutionRequest" in text
+    assert "commercialOperationsApi.updateExecutionRequest" in text
+    assert "commercialOperationsApi.readyExecutionRequest" in text
+    assert "commercialOperationsApi.approveExecutionRequest" in text
+    assert "commercialOperationsApi.rejectExecutionRequest" in text
+    assert "commercialOperationsApi.prepareExecutionRequest" in text
+    assert "commercialOperationsApi.failExecutionRequest" in text
+    assert "commercialOperationsApi.cancelExecutionRequest" in text
+    assert "commercialOperationsApi.archiveExecutionRequest" in text
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
@@ -111,6 +122,15 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/package" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/prepare" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
@@ -148,6 +168,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-deliverable-list",
         ".commercial-deliverable-item",
         ".commercial-deliverable-actions",
+        ".commercial-execution-grid",
+        ".commercial-execution-list",
+        ".commercial-execution-item",
+        ".commercial-execution-actions",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",
