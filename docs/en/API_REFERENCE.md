@@ -3953,3 +3953,27 @@ Main fields: `operation_id`, `observation_id`, `result_id`, `execution_run_id`, 
 Supported `decision_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
 
 Boundary: optimization decisions are operator-reviewed decision records only. They do not auto-optimize content, assets, audiences, budgets, or execution handoffs; they do not ingest platform analytics, claim ROI attribution, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61M: Commercial Operation Evidence Snapshots
+
+Status: in progress.
+
+Phase 61M adds `commercial_operation_evidence_snapshots` and `CommercialOperationEvidenceSnapshot` records below each commercial operation. Operators can create a reviewed evidence snapshot from a packaged deliverable, update it while draft or rejected, mark it ready for review, approve it, reject it, or archive it. Approved evidence snapshot IDs and operator checklists can be attached to execution requests and copied into execution runs.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/evidence-snapshots`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots`
+- `PATCH /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/archive`
+
+Main fields: `operation_id`, `deliverable_id`, `content_draft_id`, `output_artifact_id`, `step_key`, `channel`, `evidence_type`, `title`, `snapshot_status`, `knowledge_collection`, `query`, `evidence_summary`, `relevance_notes`, `source_document_ids`, `source_links`, `evidence_items`, `coverage_checks`, `snapshot_payload`, `reviewer_notes`, `created_by`, `updated_by`, `approved_by`, and `metadata`.
+
+Execution request/run fields: `evidence_snapshot_ids`, `operator_checklist`, and `operator_checklist_snapshot`.
+
+Supported `snapshot_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
+
+Boundary: evidence snapshots are operator-reviewed evidence records only. They do not run live RAG retrieval, ingest knowledge files, claim ROI attribution, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

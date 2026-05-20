@@ -20,12 +20,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61L" in text
+    assert "Phase 61M" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
     assert "Asset requests" in text
     assert "Deliverables" in text
+    assert "Evidence snapshots" in text
     assert "Execution requests" in text
     assert "Execution runs" in text
     assert "Results" in text
@@ -74,6 +75,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.packageDeliverable" in text
     assert "commercialOperationsApi.failDeliverable" in text
     assert "commercialOperationsApi.archiveDeliverable" in text
+    assert "commercialOperationsApi.evidenceSnapshots" in text
+    assert "commercialOperationsApi.createEvidenceSnapshot" in text
+    assert "commercialOperationsApi.updateEvidenceSnapshot" in text
+    assert "commercialOperationsApi.readyEvidenceSnapshot" in text
+    assert "commercialOperationsApi.approveEvidenceSnapshot" in text
+    assert "commercialOperationsApi.rejectEvidenceSnapshot" in text
+    assert "commercialOperationsApi.archiveEvidenceSnapshot" in text
     assert "commercialOperationsApi.executionRequests" in text
     assert "commercialOperationsApi.createExecutionRequest" in text
     assert "commercialOperationsApi.updateExecutionRequest" in text
@@ -156,6 +164,12 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/package" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/ready" in text
@@ -228,6 +242,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-deliverable-list",
         ".commercial-deliverable-item",
         ".commercial-deliverable-actions",
+        ".commercial-evidence-grid",
+        ".commercial-evidence-list",
+        ".commercial-evidence-item",
+        ".commercial-evidence-actions",
         ".commercial-execution-grid",
         ".commercial-execution-list",
         ".commercial-execution-item",

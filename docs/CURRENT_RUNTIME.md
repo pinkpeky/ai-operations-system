@@ -32,7 +32,9 @@ Phase 61K adds `commercial_operation_monitoring_observations` and `/api/v1/comme
 
 Phase 61L adds `commercial_operation_optimization_decisions` and `/api/v1/commercial-operations/{operation_id}/optimization-decisions` so operators can create, edit, send for review, approve, reject, or archive operator-decided next actions from approved monitoring observations. Optimization decisions are reflected back into `plan_outline` metadata for operator visibility.
 
-Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, and Phase 61L optimization decisions are metadata-only records; the next runtime step remains a future guarded runtime adapter and later monitored analytics adapter.
+Phase 61M adds `commercial_operation_evidence_snapshots` and `/api/v1/commercial-operations/{operation_id}/evidence-snapshots` so operators can create, edit, send for review, approve, reject, or archive reviewed knowledge/source evidence snapshots from packaged deliverables. Approved snapshot IDs and operator checklists can be attached to execution requests and copied into execution runs for handoff visibility.
+
+Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, Phase 61L optimization decisions, and Phase 61M evidence snapshots are metadata-only records; the next runtime step remains a future guarded runtime adapter, live RAG snapshot generator, and later monitored analytics adapter.
 
 ## Provider Defaults
 

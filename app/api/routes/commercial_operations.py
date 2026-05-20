@@ -37,6 +37,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationDryRunDecisionRequest,
     CommercialOperationDryRunListResponse,
     CommercialOperationDryRunResponse,
+    CommercialOperationEvidenceSnapshotCreateRequest,
+    CommercialOperationEvidenceSnapshotDecisionRequest,
+    CommercialOperationEvidenceSnapshotListResponse,
+    CommercialOperationEvidenceSnapshotResponse,
+    CommercialOperationEvidenceSnapshotUpdateRequest,
     CommercialOperationExecutionRequestCreateRequest,
     CommercialOperationExecutionRequestDecisionRequest,
     CommercialOperationExecutionRequestListResponse,
@@ -1239,6 +1244,242 @@ async def archive_commercial_operation_deliverable(
             extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
         )
         raise AppError("Commercial operation deliverable archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/evidence-snapshots",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+    status_code=201,
+)
+async def create_commercial_operation_evidence_snapshot(
+    operation_id: UUID,
+    request: CommercialOperationEvidenceSnapshotCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Create a reviewable evidence snapshot from a packaged deliverable."""
+
+    try:
+        snapshot = await CommercialOperationService(session).create_evidence_snapshot(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            created_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot create API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/evidence-snapshots", response_model=CommercialOperationEvidenceSnapshotListResponse)
+async def list_commercial_operation_evidence_snapshots(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / archived"),
+    deliverable_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotListResponse:
+    """List reviewable evidence snapshots for a commercial operation."""
+
+    try:
+        snapshots = await CommercialOperationService(session).list_evidence_snapshots(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            deliverable_id=deliverable_id,
+            limit=limit,
+        )
+        return CommercialOperationEvidenceSnapshotListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationEvidenceSnapshotResponse.from_model(item) for item in snapshots],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot list API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/evidence-snapshots/{snapshot_id}",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+)
+async def update_commercial_operation_evidence_snapshot(
+    operation_id: UUID,
+    snapshot_id: UUID,
+    request: CommercialOperationEvidenceSnapshotUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Patch a draft or rejected commercial evidence snapshot."""
+
+    try:
+        snapshot = await CommercialOperationService(session).update_evidence_snapshot(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot update API failed",
+            extra={"operation_id": str(operation_id), "snapshot_id": str(snapshot_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/evidence-snapshots/{snapshot_id}/ready",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+)
+async def ready_commercial_operation_evidence_snapshot(
+    operation_id: UUID,
+    snapshot_id: UUID,
+    request: CommercialOperationEvidenceSnapshotDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Mark a commercial evidence snapshot ready for review."""
+
+    try:
+        snapshot = await CommercialOperationService(session).mark_evidence_snapshot_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot ready API failed",
+            extra={"operation_id": str(operation_id), "snapshot_id": str(snapshot_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/evidence-snapshots/{snapshot_id}/approve",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+)
+async def approve_commercial_operation_evidence_snapshot(
+    operation_id: UUID,
+    snapshot_id: UUID,
+    request: CommercialOperationEvidenceSnapshotDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Approve a reviewed commercial evidence snapshot."""
+
+    try:
+        snapshot = await CommercialOperationService(session).approve_evidence_snapshot(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot approve API failed",
+            extra={"operation_id": str(operation_id), "snapshot_id": str(snapshot_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/evidence-snapshots/{snapshot_id}/reject",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+)
+async def reject_commercial_operation_evidence_snapshot(
+    operation_id: UUID,
+    snapshot_id: UUID,
+    request: CommercialOperationEvidenceSnapshotDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Reject a reviewed commercial evidence snapshot for revision."""
+
+    try:
+        snapshot = await CommercialOperationService(session).reject_evidence_snapshot(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot reject API failed",
+            extra={"operation_id": str(operation_id), "snapshot_id": str(snapshot_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/evidence-snapshots/{snapshot_id}/archive",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+)
+async def archive_commercial_operation_evidence_snapshot(
+    operation_id: UUID,
+    snapshot_id: UUID,
+    request: CommercialOperationEvidenceSnapshotDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Archive a commercial evidence snapshot while preserving the audit trail."""
+
+    try:
+        snapshot = await CommercialOperationService(session).archive_evidence_snapshot(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation evidence snapshot archive API failed",
+            extra={"operation_id": str(operation_id), "snapshot_id": str(snapshot_id)},
+        )
+        raise AppError("Commercial operation evidence snapshot archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/execution-requests", response_model=CommercialOperationExecutionRequestResponse, status_code=201)

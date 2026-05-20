@@ -3372,6 +3372,30 @@ API：
 - `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/reject`
 - `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/archive`
 
+## Phase 61M: 商业运营证据快照
+
+状态：进行中。
+
+Phase 61M 在每个商业运营项目下新增 `commercial_operation_evidence_snapshots` 与 `CommercialOperationEvidenceSnapshot` 记录。操作人员可以从已打包交付物创建证据快照，编辑草稿或被驳回的快照，送审、批准、驳回或归档。已批准的证据快照 ID 与人工检查清单可以挂到执行请求，并复制到执行运行记录中。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/evidence-snapshots`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots`
+- `PATCH /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/archive`
+
+主要字段：`operation_id`、`deliverable_id`、`content_draft_id`、`output_artifact_id`、`step_key`、`channel`、`evidence_type`、`title`、`snapshot_status`、`knowledge_collection`、`query`、`evidence_summary`、`relevance_notes`、`source_document_ids`、`source_links`、`evidence_items`、`coverage_checks`、`snapshot_payload`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
+
+执行请求/运行字段：`evidence_snapshot_ids`、`operator_checklist`、`operator_checklist_snapshot`。
+
+支持的 `snapshot_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
+
+边界：证据快照只是人工审核后的证据记录。它不会运行实时 RAG 检索，不会上传或摄取知识文件，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。
+
 主要字段：`operation_id`、`observation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`decision_type`、`title`、`decision_status`、`priority`、`rationale`、`objective_updates`、`content_actions`、`asset_actions`、`audience_actions`、`execution_actions`、`risk_controls`、`decision_payload`、`next_review_at`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
 
 支持的 `decision_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。

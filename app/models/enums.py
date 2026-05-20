@@ -182,6 +182,16 @@ class CommercialOperationOptimizationDecisionStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationEvidenceSnapshotStatus(StrEnum):
+    """Commercial operation evidence snapshot lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
 class DocumentStatus(StrEnum):
     """知识库文档生命周期状态。"""
 

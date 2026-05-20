@@ -17,6 +17,7 @@ from app.models.enums import (
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
+    CommercialOperationEvidenceSnapshotStatus,
     CommercialOperationExecutionRequestStatus,
     CommercialOperationExecutionRunStatus,
     CommercialOperationLinkType,
@@ -412,6 +413,83 @@ class CommercialOperationDeliverable(IdTimestampMixin, Base):
     )
 
 
+class CommercialOperationEvidenceSnapshot(IdTimestampMixin, Base):
+    """Reviewable evidence snapshot attached to a packaged commercial deliverable."""
+
+    __tablename__ = "commercial_operation_evidence_snapshots"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    deliverable_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_deliverables.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Packaged commercial deliverable ID",
+    )
+    content_draft_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_content_drafts.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Approved content draft ID snapshot",
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked Output Library artifact ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    evidence_type: Mapped[str] = mapped_column(
+        String(64),
+        default="rag_snapshot",
+        index=True,
+        nullable=False,
+        comment="rag_snapshot / source_review / operator_note / compliance_note / other",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Evidence snapshot title")
+    snapshot_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationEvidenceSnapshotStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / archived",
+    )
+    knowledge_collection: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="RAG collection snapshot")
+    query: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Evidence retrieval or review query")
+    evidence_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Operator evidence summary")
+    relevance_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Why this evidence supports the deliverable")
+    source_document_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Referenced RAG document IDs")
+    source_links: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Referenced evidence links")
+    evidence_items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Evidence item snapshots")
+    coverage_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Coverage and safety checks")
+    snapshot_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Evidence snapshot payload and boundaries",
+    )
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    snapshot_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Evidence snapshot metadata",
+    )
+
+
 class CommercialOperationExecutionRequest(IdTimestampMixin, Base):
     """Metadata-only monitored execution request for a packaged deliverable."""
 
@@ -465,6 +543,18 @@ class CommercialOperationExecutionRequest(IdTimestampMixin, Base):
     runbook: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Metadata-only execution runbook")
     readiness_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Readiness checks")
     expected_outputs: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected monitored outputs")
+    evidence_snapshot_ids: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Approved evidence snapshot IDs included in the handoff",
+    )
+    operator_checklist: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Operator checklist before future runtime handoff",
+    )
     handoff_payload: Mapped[dict[str, Any]] = mapped_column(
         JSON,
         default=dict,
@@ -546,6 +636,18 @@ class CommercialOperationExecutionRun(IdTimestampMixin, Base):
     runbook_snapshot: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Runbook snapshot")
     readiness_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Readiness checks snapshot")
     expected_outputs: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected monitored outputs")
+    evidence_snapshot_ids: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Evidence snapshot IDs inherited from execution request",
+    )
+    operator_checklist_snapshot: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Operator checklist inherited from execution request",
+    )
     runtime_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Metadata-only runtime payload")
     result_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Operator result payload")
     recovery_plan: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Failure recovery guidance")

@@ -24,6 +24,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61J",
         "Phase 61K",
         "Phase 61L",
+        "Phase 61M",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -36,6 +37,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "commercial_operation_results",
         "commercial_operation_monitoring_observations",
         "commercial_operation_optimization_decisions",
+        "commercial_operation_evidence_snapshots",
         "CommercialOperationService",
         "CommercialOperationLink",
         "CommercialOperationApproval",
@@ -48,6 +50,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationResult",
         "CommercialOperationMonitoringObservation",
         "CommercialOperationOptimizationDecision",
+        "CommercialOperationEvidenceSnapshot",
         "/api/v1/commercial-operations",
         "/api/v1/commercial-operations/{operation_id}/links",
         "/api/v1/commercial-operations/{operation_id}/approvals",
@@ -60,6 +63,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/results",
         "/api/v1/commercial-operations/{operation_id}/monitoring-observations",
         "/api/v1/commercial-operations/{operation_id}/optimization-decisions",
+        "/api/v1/commercial-operations/{operation_id}/evidence-snapshots",
         "Admin Dashboard",
         "Evidence",
         "handoff",
@@ -73,6 +77,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Result",
         "Monitoring Observation",
         "Optimization Decision",
+        "Evidence Snapshot",
         "Output Library",
         "source_type=commercial_operation",
         "does not publish",
@@ -83,7 +88,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61l_commercial_operation_optimization_decisions() -> None:
+def test_recovery_docs_point_to_phase_61m_commercial_operation_evidence_snapshots() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -96,6 +101,6 @@ def test_recovery_docs_point_to_phase_61l_commercial_operation_optimization_deci
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61L" in text or "61L" in text, relative
+        assert "Phase 61M" in text or "61M" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "commercial_operation_optimization_decisions" in text or "/optimization-decisions" in text, relative
+        assert "commercial_operation_evidence_snapshots" in text or "/evidence-snapshots" in text, relative
