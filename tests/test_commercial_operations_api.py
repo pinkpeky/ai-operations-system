@@ -15,6 +15,7 @@ from app.db.postgres import get_session
 from app.models import (
     CommercialOperation,
     CommercialOperationApproval,
+    CommercialOperationAssetRequest,
     CommercialOperationContentDraft,
     CommercialOperationDryRun,
     CommercialOperationLink,
@@ -26,6 +27,7 @@ async def test_commercial_operations_api_flow() -> None:
     _ = (
         CommercialOperation,
         CommercialOperationApproval,
+        CommercialOperationAssetRequest,
         CommercialOperationContentDraft,
         CommercialOperationDryRun,
         CommercialOperationLink,
@@ -197,6 +199,167 @@ async def test_commercial_operations_api_flow() -> None:
             assert content_step["content_draft_id"] == content_draft_id
             assert content_step["content_draft_status"] == "approved"
             assert content_step["content_draft_channel"] == "newsletter"
+
+            asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests",
+                headers=headers,
+                json={
+                    "step_key": "content_production",
+                    "content_draft_id": content_draft_id,
+                    "channel": "newsletter",
+                    "asset_type": "image",
+                    "title": "Newsletter hero image request",
+                    "purpose": "Header visual for the approved newsletter draft.",
+                    "dimensions": "16:9",
+                    "style_constraints": "Clean product-led composition; no brand-inconsistent colors.",
+                    "generation_prompt": "Create a professional B2B hero visual for lead generation.",
+                    "negative_prompt": "No logos, no unreadable text.",
+                    "source_materials": ["ai_knowledge_base"],
+                    "readiness_checks": ["approved content draft", "no ComfyUI job"],
+                    "metadata": {"phase": "61F"},
+                },
+            )
+            assert asset_request.status_code == 201
+            asset_body = asset_request.json()
+            asset_request_id = asset_body["id"]
+            assert asset_body["workspace_id"] == "workspace-commercial-api"
+            assert asset_body["operation_id"] == operation_id
+            assert asset_body["content_draft_id"] == content_draft_id
+            assert asset_body["request_status"] == "draft"
+            assert asset_body["requested_by"] == "user-commercial-api"
+            assert asset_body["handoff_payload"]["execution_boundary"] == "no ComfyUI job is created in this phase"
+            assert asset_body["handoff_payload"]["next_runtime"] == "future_comfyui_handoff"
+
+            asset_requests = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests",
+                headers=headers,
+            )
+            assert asset_requests.status_code == 200
+            assert [item["id"] for item in asset_requests.json()["items"]] == [asset_request_id]
+
+            hidden_asset_requests = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_asset_requests.status_code == 404
+
+            patched_asset_request = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}",
+                headers=headers,
+                json={"generation_prompt": "Updated prompt for later generation.", "dimensions": "1200x628"},
+            )
+            assert patched_asset_request.status_code == 200
+            assert patched_asset_request.json()["generation_prompt"] == "Updated prompt for later generation."
+            assert patched_asset_request.json()["updated_by"] == "user-commercial-api"
+
+            ready_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for review."},
+            )
+            assert ready_asset_request.status_code == 200
+            assert ready_asset_request.json()["request_status"] == "ready_for_review"
+
+            approved_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as request only."},
+            )
+            assert approved_asset_request.status_code == 200
+            assert approved_asset_request.json()["request_status"] == "approved"
+            assert approved_asset_request.json()["approved_by"] == "user-commercial-api"
+
+            prepared_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/prepare",
+                headers=headers,
+                json={"result_summary": "Prepared for future ComfyUI handoff; no job started."},
+            )
+            assert prepared_asset_request.status_code == 200
+            assert prepared_asset_request.json()["request_status"] == "prepared"
+            assert prepared_asset_request.json()["prepared_by"] == "user-commercial-api"
+
+            fetched_after_asset_request = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_asset_request.status_code == 200
+            asset_step = [
+                step
+                for step in fetched_after_asset_request.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert asset_step["asset_request_id"] == asset_request_id
+            assert asset_step["asset_request_status"] == "prepared"
+            assert asset_step["asset_request_type"] == "image"
+
+            reject_after_prepared_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/reject",
+                headers=headers,
+                json={"reviewer_notes": "Too late to reject."},
+            )
+            assert reject_after_prepared_asset_request.status_code == 400
+
+            archived_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/archive",
+                headers=headers,
+                json={"reviewer_notes": "Archived after preparation."},
+            )
+            assert archived_asset_request.status_code == 200
+            assert archived_asset_request.json()["request_status"] == "archived"
+
+            patch_archived_asset_request = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}",
+                headers=headers,
+                json={"purpose": "Should not change."},
+            )
+            assert patch_archived_asset_request.status_code == 400
+
+            failing_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests",
+                headers=headers,
+                json={
+                    "step_key": "content_production",
+                    "channel": "newsletter",
+                    "asset_type": "design",
+                    "title": "Fallback design request",
+                },
+            )
+            assert failing_asset_request.status_code == 201
+            failing_asset_request_id = failing_asset_request.json()["id"]
+            assert (
+                await client.post(
+                    f"/api/v1/commercial-operations/{operation_id}/asset-requests/{failing_asset_request_id}/ready",
+                    headers=headers,
+                    json={},
+                )
+            ).status_code == 200
+            assert (
+                await client.post(
+                    f"/api/v1/commercial-operations/{operation_id}/asset-requests/{failing_asset_request_id}/approve",
+                    headers=headers,
+                    json={},
+                )
+            ).status_code == 200
+            failed_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests/{failing_asset_request_id}/fail",
+                headers=headers,
+                json={"failure_reason": "Missing required source material."},
+            )
+            assert failed_asset_request.status_code == 200
+            assert failed_asset_request.json()["request_status"] == "failed"
+            assert failed_asset_request.json()["failure_reason"] == "Missing required source material."
+
+            invalid_asset_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests",
+                headers=headers,
+                json={
+                    "step_key": "missing_step",
+                    "channel": "newsletter",
+                    "asset_type": "image",
+                    "title": "Invalid asset step",
+                },
+            )
+            assert invalid_asset_request.status_code == 400
 
             reject_after_approval_content_draft = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/content-drafts/{content_draft_id}/reject",

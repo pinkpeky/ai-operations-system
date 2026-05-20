@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation content draft slice."""
+    """Recovery docs should point to the active commercial operation asset request slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61e-commercial-operation-content-drafts" in text or "Commercial Operation Content Drafts" in text, path
-        assert "commercial_operation_content_drafts" in text or "/content-drafts" in text, path
+        assert "phase-61f-commercial-operation-asset-requests" in text or "Commercial Operation Asset Requests" in text, path
+        assert "commercial_operation_asset_requests" in text or "/asset-requests" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61D should be merged and Phase 61E should be the active content-draft slice."""
+    """Phase 61A-61E should be merged and Phase 61F should be the active asset-request slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -327,5 +327,13 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "61E" in phase_61_lines
     assert "phase-61e-commercial-operation-content-drafts" in phase_61_lines["61E"]
     assert "Commercial Operation Content Drafts" in phase_61_lines["61E"]
-    assert "TBD" in phase_61_lines["61E"]
-    assert "In progress" in phase_61_lines["61E"]
+    assert "#45" in phase_61_lines["61E"]
+    assert "Merged to main" in phase_61_lines["61E"]
+    assert "TBD" not in phase_61_lines["61E"]
+    assert "In progress" not in phase_61_lines["61E"]
+
+    assert "61F" in phase_61_lines
+    assert "phase-61f-commercial-operation-asset-requests" in phase_61_lines["61F"]
+    assert "Commercial Operation Asset Requests" in phase_61_lines["61F"]
+    assert "TBD" in phase_61_lines["61F"]
+    assert "In progress" in phase_61_lines["61F"]

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
+    CommercialOperationAssetRequest,
     CommercialOperationContentDraft,
     CommercialOperationDryRun,
     CommercialOperationLink,
@@ -24,6 +25,16 @@ CommercialOperationRiskLiteral = Literal["low", "medium", "high"]
 CommercialOperationApprovalStatusLiteral = Literal["pending", "approved", "rejected", "cancelled"]
 CommercialOperationContentDraftStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
 CommercialOperationContentFormatLiteral = Literal["copy", "email", "post", "script", "landing_page", "ad"]
+CommercialOperationAssetRequestStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "prepared",
+    "failed",
+    "archived",
+]
+CommercialOperationAssetTypeLiteral = Literal["image", "video", "audio", "document", "design", "copy_asset", "other"]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -406,6 +417,130 @@ class CommercialOperationContentDraftListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationContentDraftResponse]
+
+
+class CommercialOperationAssetRequestCreateRequest(BaseModel):
+    """Create a first-class, non-executing commercial operation asset request."""
+
+    step_key: str = Field(default="content_production", min_length=1, max_length=128)
+    content_draft_id: UUID | None = None
+    channel: str = Field(min_length=1, max_length=128)
+    asset_type: CommercialOperationAssetTypeLiteral = "image"
+    title: str = Field(min_length=1, max_length=255)
+    purpose: str | None = None
+    dimensions: str | None = Field(default=None, max_length=128)
+    style_constraints: str | None = None
+    generation_prompt: str | None = None
+    negative_prompt: str | None = None
+    source_materials: list[str] = Field(default_factory=list)
+    readiness_checks: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationAssetRequestUpdateRequest(BaseModel):
+    """Patch a commercial operation asset request without executing generation."""
+
+    content_draft_id: UUID | None = None
+    channel: str | None = Field(default=None, min_length=1, max_length=128)
+    asset_type: CommercialOperationAssetTypeLiteral | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    purpose: str | None = None
+    dimensions: str | None = Field(default=None, max_length=128)
+    style_constraints: str | None = None
+    generation_prompt: str | None = None
+    negative_prompt: str | None = None
+    source_materials: list[str] | None = None
+    readiness_checks: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationAssetRequestDecisionRequest(BaseModel):
+    """Review, prepare, fail, or archive a commercial operation asset request."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationAssetRequestResponse(BaseModel):
+    """Commercial operation asset request response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    content_draft_id: UUID | None
+    step_key: str
+    channel: str
+    asset_type: str
+    title: str
+    request_status: str
+    purpose: str | None
+    dimensions: str | None
+    style_constraints: str | None
+    generation_prompt: str | None
+    negative_prompt: str | None
+    source_materials: list[str]
+    readiness_checks: list[str]
+    handoff_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    requested_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    prepared_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    prepared_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, asset_request: CommercialOperationAssetRequest) -> "CommercialOperationAssetRequestResponse":
+        return cls(
+            id=asset_request.id,
+            workspace_id=asset_request.workspace_id,
+            operation_id=asset_request.operation_id,
+            content_draft_id=asset_request.content_draft_id,
+            step_key=asset_request.step_key,
+            channel=asset_request.channel,
+            asset_type=asset_request.asset_type,
+            title=asset_request.title,
+            request_status=asset_request.request_status,
+            purpose=asset_request.purpose,
+            dimensions=asset_request.dimensions,
+            style_constraints=asset_request.style_constraints,
+            generation_prompt=asset_request.generation_prompt,
+            negative_prompt=asset_request.negative_prompt,
+            source_materials=asset_request.source_materials,
+            readiness_checks=asset_request.readiness_checks,
+            handoff_payload=asset_request.handoff_payload,
+            result_summary=asset_request.result_summary,
+            failure_reason=asset_request.failure_reason,
+            reviewer_notes=asset_request.reviewer_notes,
+            requested_by=asset_request.requested_by,
+            updated_by=asset_request.updated_by,
+            approved_by=asset_request.approved_by,
+            prepared_by=asset_request.prepared_by,
+            approved_at=asset_request.approved_at,
+            rejected_at=asset_request.rejected_at,
+            prepared_at=asset_request.prepared_at,
+            failed_at=asset_request.failed_at,
+            archived_at=asset_request.archived_at,
+            metadata=asset_request.asset_metadata,
+            created_at=asset_request.created_at,
+            updated_at=asset_request.updated_at,
+        )
+
+
+class CommercialOperationAssetRequestListResponse(BaseModel):
+    """Commercial operation asset request list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationAssetRequestResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

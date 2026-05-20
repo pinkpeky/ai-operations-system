@@ -3771,7 +3771,7 @@ Boundary: dry-runs are approved, metadata-only execution preparation records. Th
 
 ## Phase 61E: Commercial Operation Content Drafts
 
-Status: in progress.
+Status: completed on `main` in PR #45.
 
 Phase 61E adds `commercial_operation_content_drafts` and `CommercialOperationContentDraft` records below each commercial operation. Operators can create a reviewable channel draft for a plan step, update the draft, mark it ready for review, approve it, reject it, or archive it for later handoff.
 
@@ -3789,4 +3789,28 @@ Main fields: `operation_id`, `step_key`, `channel`, `content_format`, `title`, `
 
 Supported `draft_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
 
-Boundary: content drafts and asset requests are review records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+Boundary: content drafts are review records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61F: Commercial Operation Asset Requests
+
+Status: in progress.
+
+Phase 61F adds `commercial_operation_asset_requests` and `CommercialOperationAssetRequest` records below each commercial operation. Operators can create a first-class asset request for a plan step, optionally link it to a content draft, update it, mark it ready for review, approve it, reject it, prepare it for future ComfyUI handoff, fail it during preparation, or archive it for later handoff.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/asset-requests`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests`
+- `PATCH /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/prepare`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/archive`
+
+Main fields: `operation_id`, `content_draft_id`, `step_key`, `channel`, `asset_type`, `title`, `request_status`, `purpose`, `dimensions`, `style_constraints`, `generation_prompt`, `negative_prompt`, `source_materials`, `readiness_checks`, `handoff_payload`, `result_summary`, `failure_reason`, `reviewer_notes`, `requested_by`, `updated_by`, `approved_by`, `prepared_by`, and `metadata`.
+
+Supported `request_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, and `archived`.
+
+Boundary: asset requests and handoff payloads are review records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

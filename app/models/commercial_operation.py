@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, IdTimestampMixin
 from app.models.enums import (
     CommercialOperationApprovalStatus,
+    CommercialOperationAssetRequestStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationLinkType,
@@ -261,4 +262,73 @@ class CommercialOperationContentDraft(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Content draft metadata",
+    )
+
+
+class CommercialOperationAssetRequest(IdTimestampMixin, Base):
+    """First-class asset request for a commercial operation plan step."""
+
+    __tablename__ = "commercial_operation_asset_requests"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    content_draft_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_content_drafts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Optional source content draft ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    asset_type: Mapped[str] = mapped_column(
+        String(64),
+        default="image",
+        index=True,
+        nullable=False,
+        comment="image / video / audio / document / design / copy_asset / other",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Asset request title")
+    request_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationAssetRequestStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / prepared / failed / archived",
+    )
+    purpose: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Business purpose or placement")
+    dimensions: Mapped[str | None] = mapped_column(String(128), nullable=True, comment="Requested size or format")
+    style_constraints: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Style and brand constraints")
+    generation_prompt: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Future generation prompt")
+    negative_prompt: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Future negative prompt")
+    source_materials: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Source materials")
+    readiness_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Readiness checks")
+    handoff_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing future ComfyUI handoff payload",
+    )
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Preparation result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Preparation failure reason")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    requested_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Requester user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    prepared_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Preparation user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    prepared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Prepared at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    asset_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Asset request metadata",
     )

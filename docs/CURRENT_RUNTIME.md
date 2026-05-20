@@ -18,6 +18,8 @@ Phase 61D adds `commercial_operation_dry_runs` and `/api/v1/commercial-operation
 
 Phase 61E adds `commercial_operation_content_drafts` and `/api/v1/commercial-operations/{operation_id}/content-drafts` so operators can create, edit, send for review, approve, reject, or archive per-channel content drafts. Draft decisions are reflected back into `plan_outline` metadata for operator visibility.
 
+Phase 61F adds `commercial_operation_asset_requests` and `/api/v1/commercial-operations/{operation_id}/asset-requests` so operators can create, edit, send for review, approve, reject, prepare, fail, or archive first-class asset requests linked to an operation and optionally a content draft. Asset request decisions are reflected back into `plan_outline` metadata for operator visibility.
+
 Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, or bypass approval.
 
 ## Provider Defaults

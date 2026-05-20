@@ -3203,7 +3203,7 @@ API：
 
 ## Phase 61E: 商业运营内容草稿
 
-状态：进行中。
+状态：已通过 PR #45 合并到 `main`。
 
 Phase 61E 在每个商业运营项目下新增 `commercial_operation_content_drafts` 与 `CommercialOperationContentDraft` 记录。操作人员可以针对计划步骤创建渠道内容草稿、编辑草稿、送审、批准、驳回或归档，供后续交接使用。
 
@@ -3221,4 +3221,28 @@ API：
 
 支持的 `draft_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
 
-边界：内容草稿和素材需求只是审阅记录，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
+边界：内容草稿只是审阅记录，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
+
+## Phase 61F: 商业运营素材请求
+
+状态：进行中。
+
+Phase 61F 在每个商业运营项目下新增 `commercial_operation_asset_requests` 与 `CommercialOperationAssetRequest` 记录。操作人员可以针对计划步骤创建一等公民素材请求，也可以关联到内容草稿，再进行编辑、送审、批准、驳回、准备未来 ComfyUI 交接、记录准备失败或归档。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/asset-requests`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests`
+- `PATCH /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/prepare`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/archive`
+
+主要字段：`operation_id`、`content_draft_id`、`step_key`、`channel`、`asset_type`、`title`、`request_status`、`purpose`、`dimensions`、`style_constraints`、`generation_prompt`、`negative_prompt`、`source_materials`、`readiness_checks`、`handoff_payload`、`result_summary`、`failure_reason`、`reviewer_notes`、`requested_by`、`updated_by`、`approved_by`、`prepared_by`、`metadata`。
+
+支持的 `request_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`prepared`、`failed`、`archived`。
+
+边界：素材请求和交接 payload 只是审阅记录，不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
