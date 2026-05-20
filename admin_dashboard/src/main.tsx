@@ -463,8 +463,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61O",
-    boundaryBody: "商业运营证据快照。把目标、计划、知识、内容、素材、审批、交付、证据、执行请求、执行运行和恢复记录串成可接手链路。",
+    boundaryTitle: "Phase 61P",
+    boundaryBody: "商业运营 RAG 素材请求生成。把已有知识检索结果转成可审阅素材简报，仍停在审批、ComfyUI、发布和账号控制之前。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61O",
-    boundaryBody: "Commercial operation RAG content generation: create reviewable content drafts from existing knowledge search while keeping approval, publishing, and external execution guarded.",
+    boundaryTitle: "Phase 61P",
+    boundaryBody: "Commercial operation RAG asset request generation: turn existing knowledge search into reviewable asset briefs while keeping approval, ComfyUI, publishing, and account control guarded.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4386,7 +4386,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61O",
+    phaseLabel: "Phase 61P",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4464,7 +4464,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61O",
+    phaseLabel: "Phase 61P",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4677,7 +4677,10 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           styleLabel: "风格约束",
           promptLabel: "生成提示",
           negativePromptLabel: "排除项",
+          queryLabel: "RAG 检索问题",
+          searchModeLabel: "检索模式",
           readinessLabel: "检查项",
+          generateAction: "从 RAG 生成素材请求",
           createAction: "创建请求",
           saveAction: "保存请求",
           editAction: "编辑",
@@ -4700,7 +4703,10 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           styleLabel: "Style constraints",
           promptLabel: "Generation prompt",
           negativePromptLabel: "Negative prompt",
+          queryLabel: "RAG query",
+          searchModeLabel: "Search mode",
           readinessLabel: "Readiness checks",
+          generateAction: "Generate request from RAG",
           createAction: "Create request",
           saveAction: "Save request",
           editAction: "Edit",
@@ -5114,6 +5120,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [assetStyleConstraints, setAssetStyleConstraints] = useState(language === "zh-CN" ? "清晰、可信、避免不一致品牌元素。" : "Clear, credible, avoid off-brand elements.");
   const [assetPrompt, setAssetPrompt] = useState(language === "zh-CN" ? "为 B2B 增长活动准备专业营销视觉。" : "Prepare a professional marketing visual for a B2B growth campaign.");
   const [assetNegativePrompt, setAssetNegativePrompt] = useState(language === "zh-CN" ? "不要真实商标，不要不可读文字。" : "No real logos, no unreadable text.");
+  const [assetRagQuery, setAssetRagQuery] = useState(language === "zh-CN" ? "哪些知识能支持这份素材简报？" : "Which knowledge should support this asset brief?");
+  const [assetSearchMode, setAssetSearchMode] = useState("hybrid");
   const [assetSourceMaterialsDraft, setAssetSourceMaterialsDraft] = useState("rag_document, approved_content_draft");
   const [assetReadinessChecksDraft, setAssetReadinessChecksDraft] = useState("approved draft, source materials, no ComfyUI job");
   const [selectedAssetRequestId, setSelectedAssetRequestId] = useState("");
@@ -5831,6 +5839,59 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation asset request create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const generateOperationAssetRequest = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: assetCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const generated = await commercialOperationsApi.generateAssetRequest(
+        selectedOperationId,
+        {
+          step_key: assetStepKey.trim() || "content_production",
+          content_draft_id: assetContentDraftId || undefined,
+          channel: assetChannel.trim() || "newsletter",
+          asset_type: assetType,
+          title: assetTitle.trim() || undefined,
+          purpose: assetPurpose.trim() || undefined,
+          dimensions: assetDimensions.trim() || undefined,
+          style_constraints: assetStyleConstraints.trim() || undefined,
+          query: assetRagQuery.trim() || undefined,
+          knowledge_collection: valueAt(selectedOperation, ["knowledge_collection"], knowledgeCollection).trim() || undefined,
+          search_mode: assetSearchMode,
+          negative_prompt: assetNegativePrompt.trim() || undefined,
+          readiness_checks: splitDraftList(assetReadinessChecksDraft),
+          metadata: { source: "admin_dashboard", phase: "61P", generation_mode: "rag_asset_brief" },
+        },
+        settings,
+      );
+      setActionState({ data: generated, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedAssetRequestId(valueAt(generated, ["id"], ""));
+      setAssetContentDraftId(valueAt(generated, ["content_draft_id"], assetContentDraftId));
+      setAssetPurpose(valueAt(generated, ["purpose"], assetPurpose));
+      setAssetStyleConstraints(valueAt(generated, ["style_constraints"], assetStyleConstraints));
+      setAssetPrompt(valueAt(generated, ["generation_prompt"], assetPrompt));
+      setAssetNegativePrompt(valueAt(generated, ["negative_prompt"], assetNegativePrompt));
+      setAssetSourceMaterialsDraft(draftListText(generated.source_materials));
+      setAssetReadinessChecksDraft(draftListText(generated.readiness_checks));
+      await loadAssetRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation RAG asset request generation unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -7472,6 +7533,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
                 {assetCopy.negativePromptLabel}
                 <textarea value={assetNegativePrompt} onChange={(event) => setAssetNegativePrompt(event.target.value)} />
               </label>
+              <label className="commercial-wide-label">
+                {assetCopy.queryLabel}
+                <textarea value={assetRagQuery} onChange={(event) => setAssetRagQuery(event.target.value)} />
+              </label>
+              <label>
+                {assetCopy.searchModeLabel}
+                <select value={assetSearchMode} onChange={(event) => setAssetSearchMode(event.target.value)}>
+                  <option value="hybrid">hybrid</option>
+                  <option value="keyword">keyword</option>
+                  <option value="dense">dense</option>
+                </select>
+              </label>
               <label>
                 {contentCopy.sourceMaterialsLabel}
                 <textarea value={assetSourceMaterialsDraft} onChange={(event) => setAssetSourceMaterialsDraft(event.target.value)} />
@@ -7489,6 +7562,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
               >
                 <FileText size={15} />
                 {assetCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void generateOperationAssetRequest()}
+                disabled={!assetStepKey.trim() || !assetChannel.trim() || actionState.loading}
+              >
+                <Search size={15} />
+                {assetCopy.generateAction}
               </button>
               <button
                 className="ghost-button"

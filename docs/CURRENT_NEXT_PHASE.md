@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-61o-commercial-rag-content-drafts`
+`codex/phase-61p-commercial-rag-asset-briefs`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61N have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, commercial operation deliverables, commercial operation execution requests, commercial operation execution runs, commercial operation results, commercial operation monitoring observations, commercial operation optimization decisions, commercial operation evidence snapshots, and commercial operation RAG evidence generation.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61O have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, commercial operation deliverables, commercial operation execution requests, commercial operation execution runs, commercial operation results, commercial operation monitoring observations, commercial operation optimization decisions, commercial operation evidence snapshots, commercial operation RAG evidence generation, and commercial operation RAG content draft generation.
 
-Current effective phase: Phase 61O Commercial Operation RAG Content Draft Generation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 61P Commercial Operation RAG Asset Brief Generation. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. PR #54 merged Phase 61N commercial RAG evidence generation. The current step is normal product development on RAG-generated commercial operation content draft records.
+Readiness and PR cleanup are complete. PR #55 merged Phase 61O commercial RAG content draft generation. The current step is normal product development on RAG-generated commercial operation asset request briefs.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-61o-commercial-rag-content-drafts`. Its scope is adding `/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag`, retrieved RAG chunk source materials, search metadata, and an Admin Dashboard action that creates draft content records from existing RAG search. It still creates traceable draft records only; it does not upload or ingest new knowledge files, auto-approve content, auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, ingest platform analytics, claim ROI attribution, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-61p-commercial-rag-asset-briefs`. Its scope is adding `/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`, retrieved RAG chunk source materials, search metadata, readiness checks, and an Admin Dashboard action that creates draft asset request briefs from existing RAG search and optional linked content draft context. It still creates traceable draft records only; it does not upload or ingest new knowledge files, auto-approve assets, auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, ingest platform analytics, claim ROI attribution, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -73,9 +73,10 @@ The next active branch is `codex/phase-61o-commercial-rag-content-drafts`. Its s
 | #52 | Phase 61L Commercial Operation Optimization Decisions | `codex/phase-61l-commercial-optimization-decisions` | Merged to `main` |
 | #53 | Phase 61M Commercial Operation Evidence Snapshots | `codex/phase-61m-commercial-evidence-snapshots` | Merged to main |
 | #54 | Phase 61N Commercial Operation RAG Evidence Generation | `codex/phase-61n-commercial-rag-evidence-generation` | Merged to main |
-| #55 | Phase 61O Commercial Operation RAG Content Draft Generation | `codex/phase-61o-commercial-rag-content-drafts` | Draft PR |
+| #55 | Phase 61O Commercial Operation RAG Content Draft Generation | `codex/phase-61o-commercial-rag-content-drafts` | Merged to main |
+| #56 | Phase 61P Commercial Operation RAG Asset Brief Generation | `codex/phase-61p-commercial-rag-asset-briefs` | Draft PR |
 
-PR #54 was merged to `main`; Phase 61O is the current development slice and will open as PR #55 from `codex/phase-61o-commercial-rag-content-drafts`.
+PR #55 was merged to `main`; Phase 61P is the current development slice and will open as PR #56 from `codex/phase-61p-commercial-rag-asset-briefs`.
 
 ## Current Architecture State
 
@@ -104,12 +105,13 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Phase 61M adds evidence snapshots so packaged deliverables can carry approved RAG/source evidence, evidence snapshot IDs, and operator checklists into execution requests and execution runs before any live RAG retrieval, knowledge ingestion, publishing, or external execution exists.
 - Phase 61N adds RAG evidence generation so existing knowledge search can create a draft evidence snapshot with retrieved chunks, source document IDs, search metadata, and explicit human review requirements before any knowledge ingestion, approval bypass, publishing, or external execution exists.
 - Phase 61O adds RAG content draft generation so existing knowledge search can create a draft content record with retrieved chunk source materials, search metadata, and explicit human review requirements before any knowledge ingestion, approval bypass, publishing, or external execution exists.
+- Phase 61P adds RAG asset brief generation so existing knowledge search can create a draft asset request record with retrieved chunk source materials, readiness checks, search metadata, and explicit human review requirements before any knowledge ingestion, approval bypass, ComfyUI job, publishing, or external execution exists.
 
 ## Current Deployment State
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61N are present on `main` through PR #22-#54.
+- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61O are present on `main` through PR #22-#55.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -151,8 +153,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish the Phase 61O commercial RAG content draft generation backend/API/frontend/docs slice.
+1. Finish the Phase 61P commercial RAG asset brief generation backend/API/frontend/docs slice.
 2. Run backend, frontend, docs, migration, and browser verification gates.
-3. Open PR #55 as a draft from `codex/phase-61o-commercial-rag-content-drafts`.
+3. Open PR #56 as a draft from `codex/phase-61p-commercial-rag-asset-briefs`.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
 5. After this slice, continue toward guarded ComfyUI/OpenClaw adapters, richer knowledge upload ergonomics, monitoring metrics, failure recovery, and commercial result reporting.

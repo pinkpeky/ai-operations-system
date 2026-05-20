@@ -20,7 +20,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61O" in text
+    assert "Phase 61P" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -60,6 +60,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.archiveContentDraft" in text
     assert "commercialOperationsApi.assetRequests" in text
     assert "commercialOperationsApi.createAssetRequest" in text
+    assert "commercialOperationsApi.generateAssetRequest" in text
     assert "commercialOperationsApi.updateAssetRequest" in text
     assert "commercialOperationsApi.readyAssetRequest" in text
     assert "commercialOperationsApi.approveAssetRequest" in text
@@ -128,6 +129,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
     assert "Generate draft from RAG" in text
+    assert "Generate request from RAG" in text
     assert "RAG query" in text
     assert "Search mode" in text
 
@@ -155,6 +157,7 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/reject" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/generate-rag" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/ready" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/approve" in text

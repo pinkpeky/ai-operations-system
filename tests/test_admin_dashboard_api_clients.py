@@ -58,6 +58,7 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/reject",
         "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/archive",
         "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests",
+        "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/generate-rag",
         "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}",
         "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/ready",
         "/commercial-operations/${encodeURIComponent(operationId)}/asset-requests/${encodeURIComponent(assetRequestId)}/approve",

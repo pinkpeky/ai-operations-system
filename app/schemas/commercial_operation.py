@@ -535,6 +535,29 @@ class CommercialOperationAssetRequestCreateRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class CommercialOperationAssetRequestGenerateRequest(BaseModel):
+    """Generate a first-class, non-executing asset request from existing RAG search results."""
+
+    step_key: str = Field(default="content_production", min_length=1, max_length=128)
+    content_draft_id: UUID | None = None
+    channel: str = Field(min_length=1, max_length=128)
+    asset_type: CommercialOperationAssetTypeLiteral = "image"
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    purpose: str | None = None
+    dimensions: str | None = Field(default=None, max_length=128)
+    style_constraints: str | None = None
+    query: str | None = Field(default=None, min_length=1)
+    knowledge_collection: str | None = Field(default=None, min_length=1, max_length=128)
+    source_id: str | None = Field(default=None, min_length=1, max_length=255)
+    search_mode: SearchMode | None = None
+    dense_top_k: int | None = Field(default=None, ge=1, le=100)
+    keyword_top_k: int | None = Field(default=None, ge=1, le=100)
+    final_top_k: int | None = Field(default=None, ge=1, le=50)
+    readiness_checks: list[str] = Field(default_factory=list)
+    negative_prompt: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class CommercialOperationAssetRequestUpdateRequest(BaseModel):
     """Patch a commercial operation asset request without executing generation."""
 

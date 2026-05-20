@@ -23,6 +23,7 @@ from app.schemas.commercial_operation import (
     CommercialOperationApprovalResponse,
     CommercialOperationAssetRequestCreateRequest,
     CommercialOperationAssetRequestDecisionRequest,
+    CommercialOperationAssetRequestGenerateRequest,
     CommercialOperationAssetRequestListResponse,
     CommercialOperationAssetRequestResponse,
     CommercialOperationAssetRequestUpdateRequest,
@@ -226,6 +227,123 @@ def _rag_content_draft_body(
             ),
         ]
     )
+
+
+def _rag_asset_brief_query(
+    *,
+    operation_title: str,
+    operation_objective: str,
+    target_audience: str | None,
+    success_metrics: list[str] | None,
+    channel: str,
+    asset_type: str,
+    content_draft: Any | None,
+    requested_query: str | None,
+) -> str:
+    clean_query = _clean_optional_text(requested_query)
+    if clean_query:
+        return clean_query
+    draft_body = getattr(content_draft, "content_body", "") if content_draft else ""
+    pieces = [
+        operation_title,
+        operation_objective,
+        target_audience or "",
+        " ".join(success_metrics or []),
+        channel,
+        asset_type,
+        getattr(content_draft, "title", "") if content_draft else "",
+        getattr(content_draft, "summary", "") if content_draft else "",
+        str(draft_body or "")[:500],
+    ]
+    return " ".join(piece.strip() for piece in pieces if piece and piece.strip())[:1000]
+
+
+def _rag_asset_generation_prompt(
+    *,
+    operation_title: str,
+    operation_objective: str,
+    target_audience: str | None,
+    channel: str,
+    asset_type: str,
+    purpose: str,
+    style_constraints: str,
+    dimensions: str | None,
+    query: str,
+    evidence_items: list[dict[str, Any]],
+    content_draft: Any | None,
+) -> str:
+    audience = target_audience or "target audience"
+    evidence_lines = [
+        (
+            f"- {str(item.get('text_excerpt') or '').strip()[:240]} "
+            f"(document: {item.get('document_id') or 'unknown'}, source: {item.get('source_id') or 'unknown'})"
+        )
+        for item in evidence_items
+        if str(item.get("text_excerpt") or "").strip()
+    ]
+    if not evidence_lines:
+        evidence_lines = ["- No retrieved RAG chunks; revise the query or attach source material before review."]
+    draft_context = ""
+    if content_draft is not None:
+        draft_context = " ".join(
+            piece.strip()
+            for piece in [
+                getattr(content_draft, "title", "") or "",
+                getattr(content_draft, "summary", "") or "",
+                getattr(content_draft, "call_to_action", "") or "",
+            ]
+            if piece and piece.strip()
+        )
+    return "\n".join(
+        [
+            f"Asset type: {asset_type}",
+            f"Channel: {channel}",
+            f"Operation: {operation_title}",
+            f"Audience: {audience}",
+            f"Objective: {operation_objective}",
+            f"Purpose: {purpose}",
+            f"Dimensions: {dimensions or 'operator-selected dimensions'}",
+            f"Style constraints: {style_constraints}",
+            f"RAG query: {query}",
+            "",
+            "Source evidence:",
+            *evidence_lines,
+            "",
+            "Visual brief:",
+            f"Create a reviewable {asset_type} asset brief for {channel} that supports: {operation_objective}",
+            "Use the reviewed knowledge points as conceptual guidance only.",
+            f"Draft context: {draft_context or 'no linked content draft'}",
+            "",
+            (
+                "Execution boundary: brief only; no ComfyUI job, OpenClaw action, browser worker action, "
+                "publishing, account control, or approval bypass was executed."
+            ),
+        ]
+    )
+
+
+def _rag_asset_readiness_checks(
+    *,
+    requested_checks: list[str],
+    evidence_items: list[dict[str, Any]],
+) -> list[str]:
+    seen: set[str] = set()
+    checks: list[str] = []
+    candidates = [
+        *requested_checks,
+        "RAG search completed against existing knowledge index",
+        "operator must review source materials before approval",
+        "no ComfyUI job was created",
+        "no publishing or account action was executed",
+    ]
+    if not evidence_items:
+        candidates.append("no retrieved chunks; revise query or attach source material before approval")
+    for candidate in candidates:
+        clean_candidate = candidate.strip() if candidate else ""
+        if clean_candidate and clean_candidate not in seen:
+            seen.add(clean_candidate)
+            checks.append(clean_candidate)
+    return checks
 
 
 def _unique_document_ids(evidence_items: list[dict[str, Any]]) -> list[str]:
@@ -978,6 +1096,151 @@ async def archive_commercial_operation_content_draft(
             extra={"operation_id": str(operation_id), "draft_id": str(draft_id)},
         )
         raise AppError("Commercial operation content draft archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/asset-requests/generate-rag",
+    response_model=CommercialOperationAssetRequestResponse,
+    status_code=201,
+)
+async def generate_commercial_operation_asset_request_from_rag(
+    operation_id: UUID,
+    request: CommercialOperationAssetRequestGenerateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAssetRequestResponse:
+    """Generate a non-executing asset request brief from existing RAG search results."""
+
+    try:
+        service = CommercialOperationService(session)
+        operation = await service.require_operation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+        )
+        content_draft = None
+        if request.content_draft_id is not None:
+            content_draft = await service.require_content_draft(
+                workspace_id=context.workspace_id,
+                operation_id=operation_id,
+                draft_id=request.content_draft_id,
+            )
+        settings = get_settings()
+        search_mode = request.search_mode or settings.default_search_mode
+        if search_mode not in {"dense", "keyword", "hybrid"}:
+            raise ValueError("search_mode must be dense, keyword, or hybrid")
+        dense_top_k = request.dense_top_k or settings.dense_top_k
+        keyword_top_k = request.keyword_top_k or settings.keyword_top_k
+        final_top_k = request.final_top_k or settings.final_top_k
+        query = _rag_asset_brief_query(
+            operation_title=operation.title,
+            operation_objective=operation.objective,
+            target_audience=operation.target_audience,
+            success_metrics=operation.success_metrics,
+            channel=request.channel,
+            asset_type=request.asset_type,
+            content_draft=content_draft,
+            requested_query=request.query,
+        )
+        pipeline = create_hybrid_search_pipeline(
+            settings=settings,
+            session=session,
+            collection_name=_clean_optional_text(request.knowledge_collection) or operation.knowledge_collection,
+        )
+        bundle = await pipeline.search(
+            query=query,
+            search_mode=search_mode,  # type: ignore[arg-type]
+            dense_top_k=dense_top_k,
+            keyword_top_k=keyword_top_k,
+            source_id=_clean_optional_text(request.source_id),
+            workspace_id=context.workspace_id,
+        )
+        reranked = await RerankerClient(settings=settings).rerank(
+            query=query,
+            chunks=bundle.merged_results,
+            top_n=final_top_k,
+        )
+        retrieved_chunks = [build_retrieved_chunk_from_reranked(result) for result in reranked]
+        evidence_items = [_rag_evidence_item(chunk) for chunk in retrieved_chunks]
+        collection_name = pipeline.vector_store.collection_name
+        source_materials = _rag_source_materials(collection_name=collection_name, evidence_items=evidence_items)
+        for material in getattr(content_draft, "source_materials", []) or []:
+            if isinstance(material, str) and material.strip() and material.strip() not in source_materials:
+                source_materials.append(material.strip())
+        purpose = _clean_optional_text(request.purpose) or (
+            f"Prepare a reviewable {request.asset_type} asset brief for {request.channel} using existing RAG evidence."
+        )
+        style_constraints = _clean_optional_text(request.style_constraints) or (
+            "Use only reviewed source context; avoid real logos, private data, unreadable text, and unsupported claims."
+        )
+        asset_request = await service.create_asset_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            step_key=request.step_key,
+            content_draft_id=request.content_draft_id,
+            channel=request.channel,
+            asset_type=request.asset_type,
+            title=_clean_optional_text(request.title) or f"RAG asset brief: {operation.title}",
+            purpose=purpose,
+            dimensions=request.dimensions,
+            style_constraints=style_constraints,
+            generation_prompt=_rag_asset_generation_prompt(
+                operation_title=operation.title,
+                operation_objective=operation.objective,
+                target_audience=operation.target_audience,
+                channel=request.channel,
+                asset_type=request.asset_type,
+                purpose=purpose,
+                style_constraints=style_constraints,
+                dimensions=request.dimensions,
+                query=query,
+                evidence_items=evidence_items,
+                content_draft=content_draft,
+            ),
+            negative_prompt=_clean_optional_text(request.negative_prompt)
+            or "No real logos, no private data, no unsupported claims, no unreadable text.",
+            source_materials=source_materials,
+            readiness_checks=_rag_asset_readiness_checks(
+                requested_checks=request.readiness_checks,
+                evidence_items=evidence_items,
+            ),
+            requested_by=context.user_id,
+            metadata={
+                **request.metadata,
+                "source": "commercial_operations_rag_asset_generation",
+                "phase": "61P",
+                "generation_mode": "rag_asset_brief",
+                "query": query,
+                "collection_name": collection_name,
+                "source_id": _clean_optional_text(request.source_id),
+                "search_mode": search_mode,
+                "dense_top_k": dense_top_k,
+                "keyword_top_k": keyword_top_k,
+                "final_top_k": final_top_k,
+                "rag_result_count": len(evidence_items),
+                "dense_candidate_count": len(bundle.dense_results),
+                "keyword_candidate_count": len(bundle.keyword_results),
+                "merged_candidate_count": len(bundle.merged_results),
+                "content_draft_id": str(request.content_draft_id) if request.content_draft_id else None,
+                "forbidden_actions": [
+                    "no knowledge ingestion",
+                    "no automatic approval",
+                    "no publishing",
+                    "no account control",
+                    "no ComfyUI, OpenClaw, or browser worker execution",
+                ],
+            },
+        )
+        return CommercialOperationAssetRequestResponse.from_model(asset_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation RAG asset request generate API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation RAG asset request generate failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/asset-requests", response_model=CommercialOperationAssetRequestResponse, status_code=201)

@@ -2,7 +2,7 @@
 
 ## Branch Status
 
-当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61N 已通过 PR #22-#54 合并到 `main`。当前下一分支是 `codex/phase-61o-commercial-rag-content-drafts`，范围是 Phase 61O 商业运营 RAG 内容草稿生成：`/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag`、Admin Dashboard 从 RAG 生成内容草稿操作、检索 chunk 来源材料和检索元数据。该阶段只从已有 RAG 知识检索生成草稿内容记录，不会上传或摄取知识文件、不会自动批准内容、不会自动发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61O 已通过 PR #22-#55 合并到 `main`。当前下一分支是 `codex/phase-61p-commercial-rag-asset-briefs`，范围是 Phase 61P 商业运营 RAG 素材简报生成：`/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`、Admin Dashboard 从 RAG 生成素材请求操作、检索 chunk 来源材料、准备检查和检索元数据。该阶段只从已有 RAG 知识检索生成草稿素材请求记录，不会上传或摄取知识文件、不会自动批准素材、不会自动发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
 
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.

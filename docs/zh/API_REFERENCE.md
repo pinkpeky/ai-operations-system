@@ -3297,7 +3297,7 @@ API：
 边界：执行请求和 handoff payload 只是审阅与未来运行交接记录。它不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
 ## Phase 61I: 商业运营执行运行记录
 
-状态：进行中。
+状态：已合并。
 
 Phase 61I 在每个商业运营项目下新增 `commercial_operation_execution_runs` 与 `CommercialOperationExecutionRun` 记录。操作人员可以从 prepared 执行请求创建 metadata-only 执行运行记录，再进行编辑、启动、标记成功、标记失败、在重试次数内重试、取消或归档。
 
@@ -3427,6 +3427,22 @@ API：
 生成 metadata 包含：`generation_mode=rag_content_draft`、`collection_name`、`query`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`rag_result_count`、`dense_candidate_count`、`keyword_candidate_count`、`merged_candidate_count` 和 `forbidden_actions`。
 
 边界：RAG 内容草稿生成只检索已有知识，不上传或摄取新知识文件，不自动批准内容，不发布内容，不运行 ComfyUI/OpenClaw/Browser Worker，不控制真实账号，不接入平台分析，不宣称 ROI 归因，也不绕过审批。
+
+## Phase 61P: 商业运营 RAG 素材简报生成
+
+状态：进行中。
+
+Phase 61P 新增一个受控生成接口：系统只检索已有 RAG 知识集合，并把命中的 chunk、来源材料、准备检查、检索参数和禁止动作写入一个草稿素材请求记录。生成后的素材请求仍必须由人工审阅，不能自动批准，也不能直接启动 ComfyUI 或执行。
+
+API：
+
+- `POST /api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`
+
+请求字段：`step_key`、`content_draft_id`、`channel`、`asset_type`、`title`、`purpose`、`dimensions`、`style_constraints`、`query`、`knowledge_collection`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`readiness_checks`、`negative_prompt` 和 `metadata`。
+
+生成 metadata 包含：`generation_mode=rag_asset_brief`、`collection_name`、`query`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`rag_result_count`、`dense_candidate_count`、`keyword_candidate_count`、`merged_candidate_count`、`content_draft_id` 和 `forbidden_actions`。
+
+边界：RAG 素材简报生成只检索已有知识，不上传或摄取新知识文件，不自动批准素材，不发布内容，不运行 ComfyUI/OpenClaw/Browser Worker，不控制真实账号，不接入平台分析，不宣称 ROI 归因，也不绕过审批。
 
 主要字段：`operation_id`、`observation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`decision_type`、`title`、`decision_status`、`priority`、`rationale`、`objective_updates`、`content_actions`、`asset_actions`、`audience_actions`、`execution_actions`、`risk_controls`、`decision_payload`、`next_review_at`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
 

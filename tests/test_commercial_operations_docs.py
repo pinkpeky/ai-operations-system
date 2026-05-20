@@ -27,6 +27,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61M",
         "Phase 61N",
         "Phase 61O",
+        "Phase 61P",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -60,6 +61,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/content-drafts",
         "/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag",
         "/api/v1/commercial-operations/{operation_id}/asset-requests",
+        "/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -92,7 +94,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61o_commercial_operation_rag_content_generation() -> None:
+def test_recovery_docs_point_to_phase_61p_commercial_operation_rag_asset_generation() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -105,6 +107,6 @@ def test_recovery_docs_point_to_phase_61o_commercial_operation_rag_content_gener
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61O" in text or "61O" in text, relative
+        assert "Phase 61P" in text or "61P" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "/content-drafts/generate-rag" in text or "RAG content" in text, relative
+        assert "/asset-requests/generate-rag" in text or "RAG asset" in text, relative
