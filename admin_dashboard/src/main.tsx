@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61N",
+    boundaryTitle: "Phase 61O",
     boundaryBody: "商业运营证据快照。把目标、计划、知识、内容、素材、审批、交付、证据、执行请求、执行运行和恢复记录串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61N",
-    boundaryBody: "Commercial operation RAG evidence generation: create draft evidence snapshots from existing knowledge search while keeping approval, publishing, and external execution guarded.",
+    boundaryTitle: "Phase 61O",
+    boundaryBody: "Commercial operation RAG content generation: create reviewable content drafts from existing knowledge search while keeping approval, publishing, and external execution guarded.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4386,7 +4386,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61N",
+    phaseLabel: "Phase 61O",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4464,7 +4464,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61N",
+    phaseLabel: "Phase 61O",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4626,7 +4626,10 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           summaryLabel: "摘要",
           ctaLabel: "行动引导",
           sourceMaterialsLabel: "素材/知识来源",
+          queryLabel: "RAG 检索问题",
+          searchModeLabel: "检索模式",
           assetRequestsLabel: "素材占位需求",
+          generateAction: "从 RAG 生成草稿",
           createAction: "创建草稿",
           saveAction: "保存草稿",
           editAction: "编辑",
@@ -4648,7 +4651,10 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           summaryLabel: "Summary",
           ctaLabel: "Call to action",
           sourceMaterialsLabel: "Sources",
+          queryLabel: "RAG query",
+          searchModeLabel: "Search mode",
           assetRequestsLabel: "Asset placeholders",
+          generateAction: "Generate draft from RAG",
           createAction: "Create draft",
           saveAction: "Save draft",
           editAction: "Edit",
@@ -5094,6 +5100,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [contentBody, setContentBody] = useState("");
   const [contentCallToAction, setContentCallToAction] = useState(language === "zh-CN" ? "预约演示" : "Book a demo");
   const [sourceMaterialsDraft, setSourceMaterialsDraft] = useState("rag_document, intake_notes");
+  const [contentRagQuery, setContentRagQuery] = useState(language === "zh-CN" ? "哪些知识能支撑这份内容草稿？" : "Which knowledge should support this content draft?");
+  const [contentSearchMode, setContentSearchMode] = useState("hybrid");
   const [assetRequestsDraft, setAssetRequestsDraft] = useState("hero image, product proof point");
   const [selectedContentDraftId, setSelectedContentDraftId] = useState("");
   const [assetStepKey, setAssetStepKey] = useState("content_production");
@@ -5664,6 +5672,54 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation content draft create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const generateOperationContentDraft = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: contentCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const generated = await commercialOperationsApi.generateContentDraft(
+        selectedOperationId,
+        {
+          step_key: contentStepKey.trim() || "content_production",
+          channel: contentChannel.trim() || "newsletter",
+          content_format: contentFormat,
+          title: contentTitle.trim() || undefined,
+          audience_segment: contentAudienceSegment.trim() || undefined,
+          query: contentRagQuery.trim() || undefined,
+          knowledge_collection: valueAt(selectedOperation, ["knowledge_collection"], knowledgeCollection).trim() || undefined,
+          search_mode: contentSearchMode,
+          summary: contentSummary.trim() || undefined,
+          call_to_action: contentCallToAction.trim() || undefined,
+          asset_requests: splitDraftList(assetRequestsDraft).map((item) => ({ title: item, type: "asset_placeholder" })),
+          metadata: { source: "admin_dashboard", phase: "61O", generation_mode: "rag_content_draft" },
+        },
+        settings,
+      );
+      setActionState({ data: generated, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedContentDraftId(valueAt(generated, ["id"], ""));
+      setContentBody(valueAt(generated, ["content_body"], contentBody));
+      setContentSummary(valueAt(generated, ["summary"], contentSummary));
+      setSourceMaterialsDraft(draftListText(generated.source_materials));
+      setAssetRequestsDraft(draftListText(generated.asset_requests));
+      await loadContentDrafts(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation RAG content draft generation unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -7235,6 +7291,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
                 <textarea value={sourceMaterialsDraft} onChange={(event) => setSourceMaterialsDraft(event.target.value)} />
               </label>
               <label>
+                {contentCopy.queryLabel}
+                <textarea value={contentRagQuery} onChange={(event) => setContentRagQuery(event.target.value)} />
+              </label>
+              <label>
+                {contentCopy.searchModeLabel}
+                <select value={contentSearchMode} onChange={(event) => setContentSearchMode(event.target.value)}>
+                  <option value="hybrid">hybrid</option>
+                  <option value="keyword">keyword</option>
+                  <option value="dense">dense</option>
+                </select>
+              </label>
+              <label>
                 {contentCopy.assetRequestsLabel}
                 <textarea value={assetRequestsDraft} onChange={(event) => setAssetRequestsDraft(event.target.value)} />
               </label>
@@ -7247,6 +7315,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
               >
                 <FileText size={15} />
                 {contentCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void generateOperationContentDraft()}
+                disabled={!contentStepKey.trim() || !contentChannel.trim() || !contentTitle.trim() || actionState.loading}
+              >
+                <Search size={15} />
+                {contentCopy.generateAction}
               </button>
               <button
                 className="ghost-button"

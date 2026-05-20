@@ -51,6 +51,7 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/fail",
         "/commercial-operations/${encodeURIComponent(operationId)}/dry-runs/${encodeURIComponent(dryRunId)}/cancel",
         "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts",
+        "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/generate-rag",
         "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}",
         "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/ready",
         "/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/approve",

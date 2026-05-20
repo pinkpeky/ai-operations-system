@@ -296,6 +296,15 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  generateContentDraft: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/generate-rag`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
   updateContentDraft: (operationId: string, draftId: string, payload: JsonRecord, settings?: AdminSettings) =>
     requestJson<JsonRecord>(
       `/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}`,
