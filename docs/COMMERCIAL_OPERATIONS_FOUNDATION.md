@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61m-commercial-evidence-snapshots
+codex/phase-61n-commercial-rag-evidence-generation
 ```
 
 ## What This Phase Adds
@@ -58,6 +58,7 @@ codex/phase-61m-commercial-evidence-snapshots
 - API route group: `/api/v1/commercial-operations/{operation_id}/monitoring-observations`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/optimization-decisions`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots`.
+- RAG generation route: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag`.
 - Admin Dashboard page: `?page=commercial-operations`.
 - API client: `commercialOperationsApi`.
 - Migration: `0035_phase61a_commercial_ops`.
@@ -206,9 +207,11 @@ Deliverables do not publish content, execute OpenClaw actions, run Browser Worke
 
 Phase 61M treats evidence snapshots as first-class, operator-reviewed knowledge packages created from packaged deliverables. A snapshot can be created only after a deliverable is `packaged`; it can then be edited while draft or rejected, marked ready for review, approved, rejected, or archived. Creating or deciding a snapshot writes the latest evidence state back to the matching `plan_outline` step and the deliverable package payload.
 
+Phase 61N adds controlled RAG evidence generation. Operators can call `/evidence-snapshots/generate-rag` with a packaged deliverable, query, collection, and search mode. The route searches the existing RAG index, reranks results, records retrieved chunks as evidence items, captures source document IDs and search metadata, and creates a draft evidence snapshot that still requires human review before approval.
+
 Approved evidence snapshots can be attached to execution requests. When an execution run is created, the approved evidence snapshot IDs and operator checklist are copied into the run so a workstation operator or server maintainer can see exactly which knowledge/source evidence was reviewed before future execution.
 
-Evidence snapshots are still metadata-only. They do not upload knowledge files, run live RAG retrieval, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, publish content, ingest platform analytics, claim ROI attribution, or bypass approval. The `snapshot_payload` records the reviewed source evidence shape only; automatic snapshot generation remains a later guarded RAG integration.
+Evidence snapshots are still guarded records. Manual snapshots do not run live RAG retrieval. Generated snapshots run only existing RAG search and do not upload or ingest knowledge files, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, publish content, ingest platform analytics, claim ROI attribution, auto-approve evidence, or bypass approval. The `snapshot_payload` records the reviewed source evidence shape, retrieved chunk counts, search mode, and forbidden actions.
 
 ## Execution Requests
 
@@ -311,6 +314,7 @@ POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/
 POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/evidence-snapshots
 POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots
+POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag
 PATCH /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}
 POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/ready
 POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/approve
@@ -365,7 +369,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation.
 
 It does not publish to social platforms.
 
@@ -373,7 +377,7 @@ It does not execute OpenClaw actions.
 
 It does not run ComfyUI jobs.
 
-It does not run live RAG retrieval or ingest knowledge files from evidence snapshots.
+It does not ingest knowledge files from evidence snapshots, and generated snapshots do not bypass review.
 
 It does not control real accounts.
 
@@ -387,7 +391,7 @@ The plan outline may mention future execution surfaces such as OpenClaw, ComfyUI
 
 Recommended follow-up slices:
 
-1. Add live RAG evidence snapshot generation only after the metadata-only evidence snapshot review path is stable.
+1. Extend RAG evidence generation with upload guidance, better previews, and review ergonomics after the draft-only path is stable.
 2. Add guarded ComfyUI job adapter stubs only after asset request approvals, preparation, deliverable packaging, evidence snapshots, execution request handoff, and execution run recovery are stable.
 3. Add guarded OpenClaw/browser worker adapters only after execution requests and execution runs can enforce explicit approval, evidence snapshot, checklist, and target checks.
 4. Add monitored analytics adapter stubs that can populate monitoring observations after explicit approval.

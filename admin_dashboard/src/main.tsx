@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61M",
+    boundaryTitle: "Phase 61N",
     boundaryBody: "商业运营证据快照。把目标、计划、知识、内容、素材、审批、交付、证据、执行请求、执行运行和恢复记录串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61M",
-    boundaryBody: "Commercial operation evidence snapshots: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, result review, and follow-up context.",
+    boundaryTitle: "Phase 61N",
+    boundaryBody: "Commercial operation RAG evidence generation: create draft evidence snapshots from existing knowledge search while keeping approval, publishing, and external execution guarded.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4386,7 +4386,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61M",
+    phaseLabel: "Phase 61N",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4464,7 +4464,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61M",
+    phaseLabel: "Phase 61N",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4755,11 +4755,12 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     language === "zh-CN"
       ? {
           title: "证据快照",
-          description: "把已打包交付物背后的 RAG 文档、来源链接和人工判断整理成可审阅快照。当前只记录证据，不实时检索、不上传新知识、不执行外部动作。",
+          description: "从已有 RAG 知识检索或人工输入生成已打包交付物的可审阅证据快照。RAG 生成只创建草稿，不上传知识、不自动批准、不发布、不执行外部动作。",
           deliverableLabel: "已打包交付物",
           typeLabel: "证据类型",
           collectionLabel: "知识库集合",
           queryLabel: "查询/审阅问题",
+          searchModeLabel: "检索模式",
           summaryLabel: "证据摘要",
           relevanceLabel: "相关性说明",
           documentsLabel: "文档 ID",
@@ -4767,6 +4768,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           itemsLabel: "证据条目",
           coverageLabel: "覆盖检查",
           createAction: "创建证据快照",
+          generateAction: "从 RAG 生成草稿",
           saveAction: "保存快照",
           editAction: "编辑",
           readyAction: "送审",
@@ -4779,11 +4781,12 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         }
       : {
           title: "Evidence snapshots",
-          description: "Capture the RAG documents, source links, and operator reasoning behind a packaged deliverable. This records evidence only; it does not run live retrieval, upload knowledge, or execute external actions.",
+          description: "Generate or capture evidence behind a packaged deliverable. RAG generation searches existing knowledge only and creates a draft; it does not upload knowledge, approve, publish, or execute external actions.",
           deliverableLabel: "Packaged deliverable",
           typeLabel: "Evidence type",
           collectionLabel: "Knowledge collection",
           queryLabel: "Query / review question",
+          searchModeLabel: "Search mode",
           summaryLabel: "Evidence summary",
           relevanceLabel: "Relevance notes",
           documentsLabel: "Document IDs",
@@ -4791,6 +4794,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           itemsLabel: "Evidence items",
           coverageLabel: "Coverage checks",
           createAction: "Create snapshot",
+          generateAction: "Generate from RAG",
           saveAction: "Save snapshot",
           editAction: "Edit",
           readyAction: "Ready",
@@ -5119,12 +5123,13 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [evidenceTitle, setEvidenceTitle] = useState(language === "zh-CN" ? "交付物证据快照" : "Deliverable evidence snapshot");
   const [evidenceCollection, setEvidenceCollection] = useState("ai_knowledge_base");
   const [evidenceQuery, setEvidenceQuery] = useState(language === "zh-CN" ? "哪些知识库材料支撑这次交付？" : "Which knowledge materials support this deliverable?");
+  const [evidenceSearchMode, setEvidenceSearchMode] = useState("hybrid");
   const [evidenceSummary, setEvidenceSummary] = useState(language === "zh-CN" ? "人工确认的来源材料和关键依据。" : "Operator-confirmed source materials and key proof points.");
   const [evidenceRelevance, setEvidenceRelevance] = useState(language === "zh-CN" ? "用于执行前核对内容、素材和目标受众是否匹配。" : "Used to verify content, assets, and target audience before execution.");
   const [evidenceDocumentIdsDraft, setEvidenceDocumentIdsDraft] = useState("doc-knowledge-1");
   const [evidenceLinksDraft, setEvidenceLinksDraft] = useState("intake conversation, approved draft");
   const [evidenceItemsDraft, setEvidenceItemsDraft] = useState("customer pain point, offer proof, approval boundary");
-  const [evidenceCoverageDraft, setEvidenceCoverageDraft] = useState("source reviewed, relevance confirmed, no live retrieval");
+  const [evidenceCoverageDraft, setEvidenceCoverageDraft] = useState("source reviewed, relevance confirmed, no upload or external execution");
   const [executionDeliverableId, setExecutionDeliverableId] = useState("");
   const [selectedExecutionRequestId, setSelectedExecutionRequestId] = useState("");
   const [executionRequestType, setExecutionRequestType] = useState("manual_handoff");
@@ -5960,6 +5965,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setEvidenceTitle(valueAt(snapshot, ["title"], evidenceTitle));
     setEvidenceCollection(valueAt(snapshot, ["knowledge_collection"], ""));
     setEvidenceQuery(valueAt(snapshot, ["query"], ""));
+    setEvidenceSearchMode(valueAt(snapshot, ["snapshot_payload", "search_mode"], evidenceSearchMode));
     setEvidenceSummary(valueAt(snapshot, ["evidence_summary"], ""));
     setEvidenceRelevance(valueAt(snapshot, ["relevance_notes"], ""));
     setEvidenceDocumentIdsDraft(draftListText(snapshot.source_document_ids));
@@ -5980,8 +5986,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     source_links: splitDraftList(evidenceLinksDraft).map((item) => ({ title: item, target: item })),
     evidence_items: splitDraftList(evidenceItemsDraft).map((item) => ({ title: item, summary: item })),
     coverage_checks: splitDraftList(evidenceCoverageDraft),
-    snapshot_payload: { source: "admin_dashboard", phase: "61M" },
-    metadata: { source: "admin_dashboard", phase: "61M" },
+    snapshot_payload: { source: "admin_dashboard", phase: "61N" },
+    metadata: { source: "admin_dashboard", phase: "61N" },
   });
 
   const createOperationEvidenceSnapshot = async () => {
@@ -6006,6 +6012,52 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation evidence snapshot create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const generateOperationEvidenceSnapshot = async () => {
+    if (!selectedOperationId || !evidenceDeliverableId) {
+      setActionState({
+        data: null,
+        error: evidenceCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const generated = await commercialOperationsApi.generateEvidenceSnapshot(
+        selectedOperationId,
+        {
+          deliverable_id: evidenceDeliverableId,
+          title: evidenceTitle.trim() || undefined,
+          knowledge_collection: evidenceCollection.trim() || undefined,
+          query: evidenceQuery.trim() || undefined,
+          search_mode: evidenceSearchMode,
+          evidence_summary: evidenceSummary.trim() || undefined,
+          relevance_notes: evidenceRelevance.trim() || undefined,
+          coverage_checks: splitDraftList(evidenceCoverageDraft),
+          metadata: { source: "admin_dashboard", phase: "61N" },
+        },
+        settings,
+      );
+      setActionState({ data: generated, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedEvidenceSnapshotId(valueAt(generated, ["id"], ""));
+      setEvidenceDocumentIdsDraft(draftListText(generated.source_document_ids));
+      setEvidenceLinksDraft(draftListText(generated.source_links));
+      setEvidenceItemsDraft(draftListText(generated.evidence_items));
+      setEvidenceCoverageDraft(draftListText(generated.coverage_checks));
+      await loadEvidenceSnapshots(selectedOperationId);
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation RAG evidence generation unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -7653,6 +7705,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
                 {evidenceCopy.collectionLabel}
                 <input value={evidenceCollection} onChange={(event) => setEvidenceCollection(event.target.value)} />
               </label>
+              <label>
+                {evidenceCopy.searchModeLabel}
+                <select value={evidenceSearchMode} onChange={(event) => setEvidenceSearchMode(event.target.value)}>
+                  <option value="hybrid">hybrid</option>
+                  <option value="keyword">keyword</option>
+                  <option value="dense">dense</option>
+                </select>
+              </label>
               <label className="commercial-wide-label">
                 {evidenceCopy.queryLabel}
                 <textarea value={evidenceQuery} onChange={(event) => setEvidenceQuery(event.target.value)} />
@@ -7685,6 +7745,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
             <div className="commercial-action-row">
               <button
                 className="primary-button"
+                onClick={() => void generateOperationEvidenceSnapshot()}
+                disabled={!evidenceDeliverableId || actionState.loading}
+              >
+                <Search size={15} />
+                {evidenceCopy.generateAction}
+              </button>
+              <button
+                className="ghost-button"
                 onClick={() => void createOperationEvidenceSnapshot()}
                 disabled={!evidenceDeliverableId || !evidenceTitle.trim() || actionState.loading}
               >

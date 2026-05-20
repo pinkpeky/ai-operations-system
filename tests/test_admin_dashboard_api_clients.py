@@ -73,6 +73,7 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/fail",
         "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/archive",
         "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots",
+        "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/generate-rag",
         "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}",
         "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/ready",
         "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/approve",

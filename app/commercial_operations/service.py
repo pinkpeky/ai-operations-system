@@ -4374,6 +4374,30 @@ class CommercialOperationService:
         deliverable: CommercialOperationDeliverable,
         snapshot: CommercialOperationEvidenceSnapshot,
     ) -> dict[str, Any]:
+        existing_payload = snapshot.snapshot_payload or {}
+        generated_from_rag = existing_payload.get("generation_mode") == "rag_search_snapshot"
+        if generated_from_rag:
+            operator_next_steps = [
+                "review retrieved chunks and source documents before execution handoff",
+                "approve this snapshot before it can be attached to an execution request",
+                "regenerate the snapshot if the knowledge collection or query changes",
+            ]
+            non_goals = [
+                "does not ingest new knowledge files",
+                "does not auto-approve retrieved evidence",
+                "does not publish, control accounts, or call external runtimes",
+            ]
+        else:
+            operator_next_steps = [
+                "review source documents and evidence links before execution handoff",
+                "approve this snapshot before it can be attached to an execution request",
+                "refresh the snapshot manually if the knowledge collection changes",
+            ]
+            non_goals = [
+                "does not run live RAG retrieval",
+                "does not ingest new knowledge files",
+                "does not publish, control accounts, or call external runtimes",
+            ]
         return {
             "operation_id": str(operation.id),
             "operation_title": operation.title,
@@ -4387,16 +4411,8 @@ class CommercialOperationService:
             "source_link_count": len(snapshot.source_links or []),
             "evidence_item_count": len(snapshot.evidence_items or []),
             "coverage_checks": snapshot.coverage_checks,
-            "operator_next_steps": [
-                "review source documents and evidence links before execution handoff",
-                "approve this snapshot before it can be attached to an execution request",
-                "refresh the snapshot manually if the knowledge collection changes",
-            ],
-            "non_goals": [
-                "does not run live RAG retrieval",
-                "does not ingest new knowledge files",
-                "does not publish, control accounts, or call external runtimes",
-            ],
+            "operator_next_steps": operator_next_steps,
+            "non_goals": non_goals,
         }
 
     def _build_operator_checklist(
@@ -4853,7 +4869,12 @@ class CommercialOperationService:
         )
         payload["evidence_snapshots"] = snapshots
         payload["evidence_snapshot_count"] = len(snapshots)
-        payload["evidence_boundary"] = "operator-reviewed snapshot only; no live RAG retrieval or external execution"
+        if (snapshot.snapshot_payload or {}).get("generation_mode") == "rag_search_snapshot":
+            payload["evidence_boundary"] = (
+                "RAG search snapshot only; no ingestion, approval bypass, publishing, or external execution"
+            )
+        else:
+            payload["evidence_boundary"] = "operator-reviewed snapshot only; no live RAG retrieval or external execution"
         deliverable.package_payload = payload
 
     def _apply_deliverable_to_plan(
