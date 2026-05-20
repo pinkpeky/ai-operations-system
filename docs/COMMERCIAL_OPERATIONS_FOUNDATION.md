@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61k-commercial-monitoring-observations
+codex/phase-61l-commercial-optimization-decisions
 ```
 
 ## What This Phase Adds
@@ -29,6 +29,7 @@ codex/phase-61k-commercial-monitoring-observations
 - Database table: `commercial_operation_execution_runs`.
 - Database table: `commercial_operation_results`.
 - Database table: `commercial_operation_monitoring_observations`.
+- Database table: `commercial_operation_optimization_decisions`.
 - ORM model: `CommercialOperation`.
 - ORM model: `CommercialOperationLink`.
 - ORM model: `CommercialOperationApproval`.
@@ -40,6 +41,7 @@ codex/phase-61k-commercial-monitoring-observations
 - ORM model: `CommercialOperationExecutionRun`.
 - ORM model: `CommercialOperationResult`.
 - ORM model: `CommercialOperationMonitoringObservation`.
+- ORM model: `CommercialOperationOptimizationDecision`.
 - Service layer: `CommercialOperationService`.
 - API route group: `/api/v1/commercial-operations`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/links`.
@@ -52,6 +54,7 @@ codex/phase-61k-commercial-monitoring-observations
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/results`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/monitoring-observations`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/optimization-decisions`.
 - Admin Dashboard page: `?page=commercial-operations`.
 - API client: `commercialOperationsApi`.
 - Migration: `0035_phase61a_commercial_ops`.
@@ -65,6 +68,7 @@ codex/phase-61k-commercial-monitoring-observations
 - Migration: `0043_phase61i_exec_runs`.
 - Migration: `0044_phase61j_results`.
 - Migration: `0045_phase61k_observations`.
+- Migration: `0046_phase61l_opt_decisions`.
 
 Each commercial operation stores:
 
@@ -146,6 +150,13 @@ Each commercial operation monitoring observation stores:
 - creator, updater, approver, approval/rejection/archive timestamps;
 - `observation_status`: `draft`, `ready_for_review`, `approved`, `rejected`, or `archived`.
 
+Each commercial operation optimization decision stores:
+
+- workspace, operation, approved monitoring observation, approved result, terminal execution run, execution request, packaged deliverable, linked Output Library artifact, and plan-step context;
+- channel, decision type, title, priority, rationale, objective updates, content actions, asset actions, audience actions, execution actions, risk controls, decision payload, reviewer notes, optional next review time, and metadata;
+- creator, updater, approver, approval/rejection/archive timestamps;
+- `decision_status`: `draft`, `ready_for_review`, `approved`, `rejected`, or `archived`.
+
 ## Evidence and Handoff Links
 
 Phase 61B treats these links as operator-readable evidence and handoff context. They are deliberately lightweight references so later phases can build approval-backed plan steps, content artifacts, RAG snapshots, safe dry-runs, monitoring, and result reports on top of a durable project record.
@@ -204,6 +215,12 @@ Phase 61K treats monitoring observations as first-class operator review records 
 
 Monitoring observations are still metadata-only. They do not ingest platform analytics, claim ROI attribution, publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, or bypass approval. The `observation_payload` records operator next steps and explicitly preserves the boundary that metric snapshots are operator-observed unless a later monitored analytics adapter is approved.
 
+## Optimization Decisions
+
+Phase 61L treats optimization decisions as first-class operator review records created from approved monitoring observations. A decision can be created only after the observation is approved; it can then be edited while draft or rejected, marked ready for review, approved, rejected, or archived. Creating or deciding an optimization decision writes the latest decision state back to the matching `plan_outline` step.
+
+Optimization decisions are still metadata-only. They do not auto-optimize content, assets, audiences, budgets, or execution handoffs. They do not publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, ingest platform analytics, claim ROI attribution, or bypass approval. The `decision_payload` records operator next steps and explicitly preserves the boundary that every future optimization must still pass a separate approved execution path.
+
 ## Operator Flow
 
 1. Open Admin Dashboard and select Commercial Ops / 商业运营.
@@ -220,11 +237,12 @@ Monitoring observations are still metadata-only. They do not ingest platform ana
 12. Create execution runs from prepared execution requests, then start/succeed/fail/retry/cancel/archive them as metadata-only operating records.
 13. Create result records from succeeded, failed, or cancelled execution runs; record observed metrics, evidence, outcomes, and follow-up actions; then send them for review, approve/reject, or archive them.
 14. Create monitoring observations from approved result records; record metric snapshots, qualitative signals, evidence, anomalies, and recommended actions; then send them for review, approve/reject, or archive them.
-15. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
-16. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
-17. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, deliverable, execution request, execution run, result record, monitoring observation, dry-run record, or external material.
+15. Create optimization decisions from approved monitoring observations; record rationale, content, asset, audience, execution, and risk-control actions; then send them for review, approve/reject, or archive them.
+16. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
+17. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
+18. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, deliverable, execution request, execution run, result record, monitoring observation, optimization decision, dry-run record, or external material.
 
-The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, deliverables, execution requests, execution runs, results, monitoring observations, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
+The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, deliverables, execution requests, execution runs, results, monitoring observations, optimization decisions, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
 
 ## Maintainer Flow
 
@@ -304,6 +322,13 @@ POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{obser
 POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/approve
 POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/reject
 POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/archive
+GET /api/v1/commercial-operations/{operation_id}/optimization-decisions
+POST /api/v1/commercial-operations/{operation_id}/optimization-decisions
+PATCH /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}
+POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/ready
+POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/approve
+POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/reject
+POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/links
 POST /api/v1/commercial-operations/{operation_id}/links
 DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}
@@ -313,7 +338,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation.
 
 It does not publish to social platforms.
 

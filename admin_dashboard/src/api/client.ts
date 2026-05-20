@@ -872,6 +872,91 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  optimizationDecisions: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions`,
+      {},
+      settings,
+    ),
+  createOptimizationDecision: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    payload: JsonRecord,
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    reviewerNotes = "Ready for review from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    reviewerNotes = "Approved from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  rejectOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    reviewerNotes = "Rejected from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  archiveOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    reviewerNotes = "Archived from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
   links: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/links`, {}, settings),
   createLink: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

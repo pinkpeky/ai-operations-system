@@ -56,6 +56,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationMonitoringObservationListResponse,
     CommercialOperationMonitoringObservationResponse,
     CommercialOperationMonitoringObservationUpdateRequest,
+    CommercialOperationOptimizationDecisionCreateRequest,
+    CommercialOperationOptimizationDecisionDecisionRequest,
+    CommercialOperationOptimizationDecisionListResponse,
+    CommercialOperationOptimizationDecisionResponse,
+    CommercialOperationOptimizationDecisionUpdateRequest,
     CommercialOperationPlanPreviewResponse,
     CommercialOperationResultCreateRequest,
     CommercialOperationResultDecisionRequest,
@@ -2323,6 +2328,242 @@ async def archive_commercial_operation_monitoring_observation(
             extra={"operation_id": str(operation_id), "observation_id": str(observation_id)},
         )
         raise AppError("Commercial operation monitoring observation archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/optimization-decisions",
+    response_model=CommercialOperationOptimizationDecisionResponse,
+    status_code=201,
+)
+async def create_commercial_operation_optimization_decision(
+    operation_id: UUID,
+    request: CommercialOperationOptimizationDecisionCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionResponse:
+    """Create an operator-reviewed optimization decision from an approved monitoring observation."""
+
+    try:
+        decision = await CommercialOperationService(session).create_optimization_decision(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            created_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationOptimizationDecisionResponse.from_model(decision)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision create API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation optimization decision create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/optimization-decisions", response_model=CommercialOperationOptimizationDecisionListResponse)
+async def list_commercial_operation_optimization_decisions(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / archived"),
+    observation_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionListResponse:
+    """List operator-reviewed optimization decisions for a commercial operation."""
+
+    try:
+        decisions = await CommercialOperationService(session).list_optimization_decisions(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            observation_id=observation_id,
+            limit=limit,
+        )
+        return CommercialOperationOptimizationDecisionListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationOptimizationDecisionResponse.from_model(item) for item in decisions],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision list API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation optimization decision list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/optimization-decisions/{optimization_decision_id}",
+    response_model=CommercialOperationOptimizationDecisionResponse,
+)
+async def update_commercial_operation_optimization_decision(
+    operation_id: UUID,
+    optimization_decision_id: UUID,
+    request: CommercialOperationOptimizationDecisionUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionResponse:
+    """Patch a draft or rejected commercial optimization decision."""
+
+    try:
+        decision = await CommercialOperationService(session).update_optimization_decision(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            decision_id=optimization_decision_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationOptimizationDecisionResponse.from_model(decision)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision update API failed",
+            extra={"operation_id": str(operation_id), "optimization_decision_id": str(optimization_decision_id)},
+        )
+        raise AppError("Commercial operation optimization decision update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/optimization-decisions/{optimization_decision_id}/ready",
+    response_model=CommercialOperationOptimizationDecisionResponse,
+)
+async def ready_commercial_operation_optimization_decision(
+    operation_id: UUID,
+    optimization_decision_id: UUID,
+    request: CommercialOperationOptimizationDecisionDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionResponse:
+    """Mark a commercial optimization decision ready for review."""
+
+    try:
+        decision = await CommercialOperationService(session).mark_optimization_decision_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            decision_id=optimization_decision_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationOptimizationDecisionResponse.from_model(decision)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision ready API failed",
+            extra={"operation_id": str(operation_id), "optimization_decision_id": str(optimization_decision_id)},
+        )
+        raise AppError("Commercial operation optimization decision ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/optimization-decisions/{optimization_decision_id}/approve",
+    response_model=CommercialOperationOptimizationDecisionResponse,
+)
+async def approve_commercial_operation_optimization_decision(
+    operation_id: UUID,
+    optimization_decision_id: UUID,
+    request: CommercialOperationOptimizationDecisionDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionResponse:
+    """Approve a reviewed commercial optimization decision."""
+
+    try:
+        decision = await CommercialOperationService(session).approve_optimization_decision(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            decision_id=optimization_decision_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationOptimizationDecisionResponse.from_model(decision)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision approve API failed",
+            extra={"operation_id": str(operation_id), "optimization_decision_id": str(optimization_decision_id)},
+        )
+        raise AppError("Commercial operation optimization decision approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/optimization-decisions/{optimization_decision_id}/reject",
+    response_model=CommercialOperationOptimizationDecisionResponse,
+)
+async def reject_commercial_operation_optimization_decision(
+    operation_id: UUID,
+    optimization_decision_id: UUID,
+    request: CommercialOperationOptimizationDecisionDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionResponse:
+    """Reject a reviewed commercial optimization decision for revision."""
+
+    try:
+        decision = await CommercialOperationService(session).reject_optimization_decision(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            decision_id=optimization_decision_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationOptimizationDecisionResponse.from_model(decision)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision reject API failed",
+            extra={"operation_id": str(operation_id), "optimization_decision_id": str(optimization_decision_id)},
+        )
+        raise AppError("Commercial operation optimization decision reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/optimization-decisions/{optimization_decision_id}/archive",
+    response_model=CommercialOperationOptimizationDecisionResponse,
+)
+async def archive_commercial_operation_optimization_decision(
+    operation_id: UUID,
+    optimization_decision_id: UUID,
+    request: CommercialOperationOptimizationDecisionDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationOptimizationDecisionResponse:
+    """Archive a commercial optimization decision while preserving the audit trail."""
+
+    try:
+        decision = await CommercialOperationService(session).archive_optimization_decision(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            decision_id=optimization_decision_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationOptimizationDecisionResponse.from_model(decision)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation optimization decision archive API failed",
+            extra={"operation_id": str(operation_id), "optimization_decision_id": str(optimization_decision_id)},
+        )
+        raise AppError("Commercial operation optimization decision archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)

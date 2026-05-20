@@ -21,6 +21,7 @@ from app.models.enums import (
     CommercialOperationExecutionRunStatus,
     CommercialOperationLinkType,
     CommercialOperationMonitoringObservationStatus,
+    CommercialOperationOptimizationDecisionStatus,
     CommercialOperationPriority,
     CommercialOperationResultStatus,
     CommercialOperationRiskLevel,
@@ -792,4 +793,100 @@ class CommercialOperationMonitoringObservation(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Monitoring observation metadata",
+    )
+
+
+class CommercialOperationOptimizationDecision(IdTimestampMixin, Base):
+    """Operator-reviewed optimization decision from an approved monitoring observation."""
+
+    __tablename__ = "commercial_operation_optimization_decisions"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    observation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_monitoring_observations.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Approved monitoring observation ID",
+    )
+    result_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_results.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Approved commercial result ID snapshot",
+    )
+    execution_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_runs.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Terminal execution run ID snapshot",
+    )
+    execution_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_execution_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Execution request ID snapshot",
+    )
+    deliverable_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_deliverables.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Packaged commercial deliverable ID",
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked Output Library artifact ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    decision_type: Mapped[str] = mapped_column(
+        String(64),
+        default="iterate",
+        index=True,
+        nullable=False,
+        comment="continue / iterate / retarget / retry / pause / escalate / stop",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Optimization decision title")
+    decision_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationOptimizationDecisionStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / archived",
+    )
+    priority: Mapped[str] = mapped_column(String(16), default="normal", index=True, nullable=False, comment="Decision priority")
+    rationale: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Decision rationale")
+    objective_updates: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Objective adjustments")
+    content_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Content optimization actions")
+    asset_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Asset optimization actions")
+    audience_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Audience optimization actions")
+    execution_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Execution handoff actions")
+    risk_controls: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Risk controls before next step")
+    decision_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Optimization decision payload and boundaries",
+    )
+    next_review_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Next review time")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    decision_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Optimization decision metadata",
     )

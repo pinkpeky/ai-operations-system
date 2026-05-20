@@ -20,7 +20,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61K" in text
+    assert "Phase 61L" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -30,6 +30,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Execution runs" in text
     assert "Results" in text
     assert "Monitoring observations" in text
+    assert "Optimization decisions" in text
     assert "证据与交接" in text
     assert "Evidence and handoff" in text
     assert "不会自动发布" in text
@@ -99,6 +100,20 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.approveResult" in text
     assert "commercialOperationsApi.rejectResult" in text
     assert "commercialOperationsApi.archiveResult" in text
+    assert "commercialOperationsApi.monitoringObservations" in text
+    assert "commercialOperationsApi.createMonitoringObservation" in text
+    assert "commercialOperationsApi.updateMonitoringObservation" in text
+    assert "commercialOperationsApi.readyMonitoringObservation" in text
+    assert "commercialOperationsApi.approveMonitoringObservation" in text
+    assert "commercialOperationsApi.rejectMonitoringObservation" in text
+    assert "commercialOperationsApi.archiveMonitoringObservation" in text
+    assert "commercialOperationsApi.optimizationDecisions" in text
+    assert "commercialOperationsApi.createOptimizationDecision" in text
+    assert "commercialOperationsApi.updateOptimizationDecision" in text
+    assert "commercialOperationsApi.readyOptimizationDecision" in text
+    assert "commercialOperationsApi.approveOptimizationDecision" in text
+    assert "commercialOperationsApi.rejectOptimizationDecision" in text
+    assert "commercialOperationsApi.archiveOptimizationDecision" in text
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
@@ -170,6 +185,12 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations/${encodeURIComponent(observationId)}/approve" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations/${encodeURIComponent(observationId)}/reject" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations/${encodeURIComponent(observationId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
@@ -223,6 +244,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-observation-list",
         ".commercial-observation-item",
         ".commercial-observation-actions",
+        ".commercial-optimization-grid",
+        ".commercial-optimization-list",
+        ".commercial-optimization-item",
+        ".commercial-optimization-actions",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",

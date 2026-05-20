@@ -2,7 +2,8 @@
 
 ## Branch Status
 
-当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61J 已通过 PR #22-#50 合并到 `main`。当前下一分支是 `codex/phase-61k-commercial-monitoring-observations`，范围是 Phase 61K 商业运营监控观察记录：`commercial_operation_monitoring_observations`、`/api/v1/commercial-operations/{operation_id}/monitoring-observations`、Admin Dashboard 监控观察操作，以及从已批准商业结果创建、编辑、送审、批准、驳回或归档人工观察到的指标快照、证据、异常和建议动作。该阶段仍不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61K 已通过 PR #22-#51 合并到 `main`。当前下一分支是 `codex/phase-61l-commercial-optimization-decisions`，范围是 Phase 61L 商业运营优化决策记录：`commercial_operation_optimization_decisions`、`/api/v1/commercial-operations/{operation_id}/optimization-decisions`、Admin Dashboard 优化决策操作，以及从已批准监控观察创建、编辑、送审、批准、驳回或归档人工决定的下一步优化动作。该阶段仍不会自动优化、不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after post-merge stabilization landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. PR #16 was accepted into the Phase 54 branch before PR #17 merged to `main`. Phase 56 was reverted and is not active.
 

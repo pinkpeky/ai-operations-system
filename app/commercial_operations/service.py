@@ -21,6 +21,7 @@ from app.models.commercial_operation import (
     CommercialOperationExecutionRun,
     CommercialOperationLink,
     CommercialOperationMonitoringObservation,
+    CommercialOperationOptimizationDecision,
     CommercialOperationResult,
 )
 from app.models.enums import (
@@ -32,6 +33,7 @@ from app.models.enums import (
     CommercialOperationExecutionRequestStatus,
     CommercialOperationExecutionRunStatus,
     CommercialOperationMonitoringObservationStatus,
+    CommercialOperationOptimizationDecisionStatus,
     CommercialOperationResultStatus,
     CommercialOperationStatus,
     OutputArtifactSourceType,
@@ -2454,6 +2456,259 @@ class CommercialOperationService:
             reviewer_notes=reviewer_notes,
         )
 
+    async def create_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        observation_id: UUID,
+        decision_type: str = "iterate",
+        title: str | None = None,
+        priority: str = "normal",
+        rationale: str | None = None,
+        objective_updates: list[str] | None = None,
+        content_actions: list[str] | None = None,
+        asset_actions: list[str] | None = None,
+        audience_actions: list[str] | None = None,
+        execution_actions: list[str] | None = None,
+        risk_controls: list[str] | None = None,
+        decision_payload: dict[str, Any] | None = None,
+        next_review_at: datetime | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationOptimizationDecision:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        observation = await self.require_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation_id,
+        )
+        if observation.observation_status != CommercialOperationMonitoringObservationStatus.APPROVED.value:
+            raise ValueError("Only approved monitoring observations can create optimization decisions")
+
+        clean_title = title.strip() if title and title.strip() else f"Optimization: {observation.title}"
+        decision = CommercialOperationOptimizationDecision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=observation.id,
+            result_id=observation.result_id,
+            execution_run_id=observation.execution_run_id,
+            execution_request_id=observation.execution_request_id,
+            deliverable_id=observation.deliverable_id,
+            output_artifact_id=observation.output_artifact_id,
+            step_key=observation.step_key,
+            channel=observation.channel,
+            decision_type=self._clean_required_text(decision_type, "decision_type")[:64],
+            title=clean_title[:255],
+            decision_status=CommercialOperationOptimizationDecisionStatus.DRAFT.value,
+            priority=self._clean_required_text(priority, "priority")[:16],
+            rationale=rationale.strip() if rationale and rationale.strip() else None,
+            objective_updates=self._clean_list(objective_updates),
+            content_actions=self._clean_list(content_actions),
+            asset_actions=self._clean_list(asset_actions),
+            audience_actions=self._clean_list(audience_actions),
+            execution_actions=self._clean_list(execution_actions),
+            risk_controls=self._clean_list(risk_controls),
+            decision_payload={},
+            next_review_at=next_review_at,
+            created_by=created_by,
+            decision_metadata=metadata or {},
+        )
+        self.session.add(decision)
+        await self.session.flush()
+        decision.decision_payload = {
+            **self._build_optimization_decision_payload(
+                operation=operation,
+                observation=observation,
+                decision=decision,
+            ),
+            **(decision_payload or {}),
+        }
+        self._apply_optimization_decision_to_plan(operation, decision)
+        await self.session.commit()
+        await self.session.refresh(decision)
+        return decision
+
+    async def list_optimization_decisions(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        observation_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationOptimizationDecision]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationOptimizationDecision).where(
+            CommercialOperationOptimizationDecision.workspace_id == workspace_id,
+            CommercialOperationOptimizationDecision.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationOptimizationDecision.decision_status == status)
+        if observation_id is not None:
+            statement = statement.where(CommercialOperationOptimizationDecision.observation_id == observation_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationOptimizationDecision.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+    ) -> CommercialOperationOptimizationDecision:
+        result = await self.session.execute(
+            select(CommercialOperationOptimizationDecision).where(
+                CommercialOperationOptimizationDecision.workspace_id == workspace_id,
+                CommercialOperationOptimizationDecision.operation_id == operation_id,
+                CommercialOperationOptimizationDecision.id == decision_id,
+            )
+        )
+        decision = result.scalar_one_or_none()
+        if decision is None:
+            raise ValueError("Commercial operation optimization decision not found in workspace")
+        return decision
+
+    async def update_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationOptimizationDecision:
+        decision = await self.require_optimization_decision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            decision_id=decision_id,
+        )
+        if decision.decision_status not in {
+            CommercialOperationOptimizationDecisionStatus.DRAFT.value,
+            CommercialOperationOptimizationDecisionStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected optimization decisions can be updated")
+        if "decision_type" in patch and patch["decision_type"] is not None:
+            decision.decision_type = self._clean_required_text(patch["decision_type"], "decision_type")[:64]
+        if "title" in patch and patch["title"] is not None:
+            decision.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "priority" in patch and patch["priority"] is not None:
+            decision.priority = self._clean_required_text(patch["priority"], "priority")[:16]
+        if "rationale" in patch:
+            value = patch["rationale"]
+            decision.rationale = value.strip() if isinstance(value, str) and value.strip() else None
+        if "objective_updates" in patch and patch["objective_updates"] is not None:
+            decision.objective_updates = self._clean_list(patch["objective_updates"])
+        if "content_actions" in patch and patch["content_actions"] is not None:
+            decision.content_actions = self._clean_list(patch["content_actions"])
+        if "asset_actions" in patch and patch["asset_actions"] is not None:
+            decision.asset_actions = self._clean_list(patch["asset_actions"])
+        if "audience_actions" in patch and patch["audience_actions"] is not None:
+            decision.audience_actions = self._clean_list(patch["audience_actions"])
+        if "execution_actions" in patch and patch["execution_actions"] is not None:
+            decision.execution_actions = self._clean_list(patch["execution_actions"])
+        if "risk_controls" in patch and patch["risk_controls"] is not None:
+            decision.risk_controls = self._clean_list(patch["risk_controls"])
+        if "decision_payload" in patch and patch["decision_payload"] is not None:
+            decision.decision_payload = patch["decision_payload"] or {}
+        if "next_review_at" in patch:
+            decision.next_review_at = patch["next_review_at"]
+        if "metadata" in patch and patch["metadata"] is not None:
+            decision.decision_metadata = patch["metadata"] or {}
+        decision.updated_by = updated_by
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        observation = await self.require_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=decision.observation_id,
+        )
+        decision.decision_payload = {
+            **self._build_optimization_decision_payload(
+                operation=operation,
+                observation=observation,
+                decision=decision,
+            ),
+            **(decision.decision_payload or {}),
+        }
+        self._apply_optimization_decision_to_plan(operation, decision)
+        await self.session.commit()
+        await self.session.refresh(decision)
+        return decision
+
+    async def mark_optimization_decision_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationOptimizationDecision:
+        return await self._decide_optimization_decision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            decision_id=decision_id,
+            status=CommercialOperationOptimizationDecisionStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def approve_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationOptimizationDecision:
+        return await self._decide_optimization_decision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            decision_id=decision_id,
+            status=CommercialOperationOptimizationDecisionStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def reject_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationOptimizationDecision:
+        return await self._decide_optimization_decision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            decision_id=decision_id,
+            status=CommercialOperationOptimizationDecisionStatus.REJECTED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def archive_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationOptimizationDecision:
+        return await self._decide_optimization_decision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            decision_id=decision_id,
+            status=CommercialOperationOptimizationDecisionStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
     async def create_link(
         self,
         *,
@@ -3286,6 +3541,75 @@ class CommercialOperationService:
         await self.session.refresh(observation)
         return observation
 
+    async def _decide_optimization_decision(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        decision_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+    ) -> CommercialOperationOptimizationDecision:
+        decision = await self.require_optimization_decision(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            decision_id=decision_id,
+        )
+        if decision.decision_status == CommercialOperationOptimizationDecisionStatus.ARCHIVED.value:
+            raise ValueError("Archived optimization decisions cannot be changed")
+        if status == CommercialOperationOptimizationDecisionStatus.READY_FOR_REVIEW.value and decision.decision_status not in {
+            CommercialOperationOptimizationDecisionStatus.DRAFT.value,
+            CommercialOperationOptimizationDecisionStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected optimization decisions can be marked ready")
+        if status in {
+            CommercialOperationOptimizationDecisionStatus.APPROVED.value,
+            CommercialOperationOptimizationDecisionStatus.REJECTED.value,
+        } and decision.decision_status != CommercialOperationOptimizationDecisionStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready optimization decisions can be approved or rejected")
+
+        now = datetime.now(UTC)
+        decision.decision_status = status
+        decision.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        decision.updated_by = actor_user_id
+        if status == CommercialOperationOptimizationDecisionStatus.APPROVED.value:
+            decision.approved_by = actor_user_id
+            decision.approved_at = now
+            decision.rejected_at = None
+            decision.archived_at = None
+        elif status == CommercialOperationOptimizationDecisionStatus.REJECTED.value:
+            decision.rejected_at = now
+            decision.approved_by = None
+            decision.approved_at = None
+            decision.archived_at = None
+        elif status == CommercialOperationOptimizationDecisionStatus.READY_FOR_REVIEW.value:
+            decision.approved_by = None
+            decision.approved_at = None
+            decision.rejected_at = None
+            decision.archived_at = None
+        elif status == CommercialOperationOptimizationDecisionStatus.ARCHIVED.value:
+            decision.archived_at = now
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        observation = await self.require_monitoring_observation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            observation_id=decision.observation_id,
+        )
+        decision.decision_payload = {
+            **(decision.decision_payload or {}),
+            **self._build_optimization_decision_payload(
+                operation=operation,
+                observation=observation,
+                decision=decision,
+            ),
+        }
+        self._apply_optimization_decision_to_plan(operation, decision)
+        await self.session.commit()
+        await self.session.refresh(decision)
+        return decision
+
     async def _decide_content_draft(
         self,
         *,
@@ -3752,6 +4076,41 @@ class CommercialOperationService:
             ],
         }
 
+    def _build_optimization_decision_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        observation: CommercialOperationMonitoringObservation,
+        decision: CommercialOperationOptimizationDecision,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "observation_id": str(observation.id),
+            "observation_status": observation.observation_status,
+            "decision_id": str(decision.id) if decision.id else None,
+            "decision_status": decision.decision_status,
+            "decision_type": decision.decision_type,
+            "priority": decision.priority,
+            "channel": decision.channel,
+            "objective_update_count": len(decision.objective_updates or []),
+            "content_action_count": len(decision.content_actions or []),
+            "asset_action_count": len(decision.asset_actions or []),
+            "audience_action_count": len(decision.audience_actions or []),
+            "execution_action_count": len(decision.execution_actions or []),
+            "risk_control_count": len(decision.risk_controls or []),
+            "operator_next_steps": [
+                "review the approved monitoring observation before changing the operation plan",
+                "decide which content, asset, audience, or execution handoff should be adjusted",
+                "create a separate approved record before any future runtime or publishing action",
+            ],
+            "non_goals": [
+                "does not auto-optimize content, assets, audiences, or budgets",
+                "does not publish, control accounts, or call external runtimes",
+                "does not ingest platform analytics automatically or claim ROI attribution",
+            ],
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -3881,6 +4240,33 @@ class CommercialOperationService:
                     updated["monitoring_observation_decision_at"] = observation.approved_at.isoformat()
                 elif observation.rejected_at is not None:
                     updated["monitoring_observation_decision_at"] = observation.rejected_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_optimization_decision_to_plan(
+        self,
+        operation: CommercialOperation,
+        decision: CommercialOperationOptimizationDecision,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == decision.step_key:
+                updated = dict(step)
+                updated["optimization_decision_id"] = str(decision.id)
+                updated["optimization_decision_status"] = decision.decision_status
+                updated["optimization_decision_type"] = decision.decision_type
+                updated["optimization_decision_channel"] = decision.channel
+                updated["optimization_decision_priority"] = decision.priority
+                if decision.next_review_at is not None:
+                    updated["optimization_decision_next_review_at"] = decision.next_review_at.isoformat()
+                if decision.archived_at is not None:
+                    updated["optimization_decision_decision_at"] = decision.archived_at.isoformat()
+                elif decision.approved_at is not None:
+                    updated["optimization_decision_decision_at"] = decision.approved_at.isoformat()
+                elif decision.rejected_at is not None:
+                    updated["optimization_decision_decision_at"] = decision.rejected_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

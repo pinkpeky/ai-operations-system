@@ -30,7 +30,9 @@ Phase 61J adds `commercial_operation_results` and `/api/v1/commercial-operations
 
 Phase 61K adds `commercial_operation_monitoring_observations` and `/api/v1/commercial-operations/{operation_id}/monitoring-observations` so operators can create, edit, send for review, approve, reject, or archive operator-observed monitoring snapshots from approved commercial results. Observation decisions are reflected back into `plan_outline` metadata for operator visibility.
 
-Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, and Phase 61K monitoring observations are metadata-only records; the next runtime step remains a future guarded runtime adapter and later monitored analytics adapter.
+Phase 61L adds `commercial_operation_optimization_decisions` and `/api/v1/commercial-operations/{operation_id}/optimization-decisions` so operators can create, edit, send for review, approve, reject, or archive operator-decided next actions from approved monitoring observations. Optimization decisions are reflected back into `plan_outline` metadata for operator visibility.
+
+Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, and Phase 61L optimization decisions are metadata-only records; the next runtime step remains a future guarded runtime adapter and later monitored analytics adapter.
 
 ## Provider Defaults
 
