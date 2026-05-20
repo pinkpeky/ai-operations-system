@@ -1,13 +1,13 @@
 # Run Cockpit Foundation
 
-Updated: 2026-05-19
+Updated: 2026-05-20
 
 This document records the Phase 57 return to normal product development after the Phase 56 readiness and CI closure work.
 
 ## Branch
 
 ```text
-codex/phase-61f-commercial-operation-asset-requests
+codex/phase-61g-commercial-operation-deliverables
 ```
 
 ## Scope
@@ -166,6 +166,7 @@ An operator can open one screen and answer:
 - A RAG / Documents page that lets a maintainer upload files, write text knowledge, inspect chunks, reingest sources, delete a confirmed source, and debug retrieval from the same concise screen.
 - A Replay Center page that lets an operator select a workflow run, scan attention metrics, filter traces, inspect diagnostics, and create a metadata-only replay record from one concise screen.
 - A RAG live-validation guide that a workstation user or server maintainer can follow to prove upload, search, debug, reingest, and delete behavior end to end.
+- A Commercial Ops deliverable package that links approved drafts and prepared assets into an Output Library artifact without publishing or executing.
 
 ## Boundaries
 
@@ -190,7 +191,7 @@ An operator can open one screen and answer:
 - The Phase 60E RAG operations slice is a frontend operation layer only; it does not add new parser support, OCR, PPTX/XLSX ingestion, auth or permission UI, new retrieval semantics, or backend lifecycle behavior.
 - The Phase 60F Workflow Observability slice is a frontend clarity layer only; it does not add OpenTelemetry, WebSocket/SSE streaming, deterministic replay, new workflow execution semantics, or action re-execution.
 - The Phase 60G RAG live-validation slice is validation and guidance only; it does not add OCR, PPTX/XLSX ingestion, new parser support, new retrieval semantics, auth/RBAC, or production knowledge-quality scoring.
-- Phase 61A adds the adjacent Commercial Ops project center. Phase 61B adds manual evidence and handoff links from Commercial Ops back to conversations, artifacts, tasks, workflows, RAG documents, approvals, and external materials. Phase 61C adds `commercial_operation_approvals` and `/api/v1/commercial-operations/{operation_id}/approvals` for individual Commercial Ops plan-step approval gates. Phase 61D adds `commercial_operation_dry_runs` and `/api/v1/commercial-operations/{operation_id}/dry-runs` for approved, metadata-only execution preparation records. Phase 61E adds `commercial_operation_content_drafts` and `/api/v1/commercial-operations/{operation_id}/content-drafts` for reviewable channel drafts. Phase 61F adds `commercial_operation_asset_requests` and `/api/v1/commercial-operations/{operation_id}/asset-requests` for first-class asset handoff preparation records. Run Cockpit still remains the execution-monitoring surface; Commercial Ops is the goal-to-plan, handoff, approval-gate, content-draft, asset-request, and dry-run entry point and does not publish or execute external actions.
+- Phase 61A adds the adjacent Commercial Ops project center. Phase 61B adds manual evidence and handoff links from Commercial Ops back to conversations, artifacts, tasks, workflows, RAG documents, approvals, and external materials. Phase 61C adds `commercial_operation_approvals` and `/api/v1/commercial-operations/{operation_id}/approvals` for individual Commercial Ops plan-step approval gates. Phase 61D adds `commercial_operation_dry_runs` and `/api/v1/commercial-operations/{operation_id}/dry-runs` for approved, metadata-only execution preparation records. Phase 61E adds `commercial_operation_content_drafts` and `/api/v1/commercial-operations/{operation_id}/content-drafts` for reviewable channel drafts. Phase 61F adds `commercial_operation_asset_requests` and `/api/v1/commercial-operations/{operation_id}/asset-requests` for first-class asset handoff preparation records. Phase 61G adds `commercial_operation_deliverables` and `/api/v1/commercial-operations/{operation_id}/deliverables` for approved commercial handoff packages linked to Output Library artifacts. Run Cockpit still remains the execution-monitoring surface; Commercial Ops is the goal-to-plan, handoff, approval-gate, content-draft, asset-request, deliverable, and dry-run entry point and does not publish or execute external actions.
 
 ## Acceptance
 

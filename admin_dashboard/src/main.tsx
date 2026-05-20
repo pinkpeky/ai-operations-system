@@ -19,6 +19,7 @@ import {
   Megaphone,
   MessageSquareText,
   MonitorCheck,
+  Package,
   PlayCircle,
   RefreshCcw,
   Search,
@@ -462,8 +463,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61F",
-    boundaryBody: "商业运营素材请求。把运营目标、计划、知识、内容草稿、审批、素材交接和安全干运行串成可接手链路。",
+    boundaryTitle: "Phase 61G",
+    boundaryBody: "商业运营交付物。把运营目标、计划、知识、内容草稿、素材交接、审批、交付产物和安全干运行串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -725,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61F",
-    boundaryBody: "Commercial operation asset requests: connect goals, plans, knowledge, content drafts, approvals, asset handoff, and safe dry-run context.",
+    boundaryTitle: "Phase 61G",
+    boundaryBody: "Commercial operation deliverables: connect goals, plans, knowledge, content drafts, asset handoff, approvals, output artifacts, and safe dry-run context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4385,10 +4386,10 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61F",
+    phaseLabel: "Phase 61G",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
-    summary: "当前只创建计划、审批、证据、内容草稿、素材请求和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
+    summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
     flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "监控恢复"],
     total: "项目",
     active: "进行中",
@@ -4463,10 +4464,10 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61F",
+    phaseLabel: "Phase 61G",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
-    summary: "This creates plans, approvals, evidence, content drafts, asset requests, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
+    summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
     flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
     total: "Operations",
     active: "In motion",
@@ -4663,12 +4664,57 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           selectedHint: "Select an operation before creating asset requests.",
           noRequests: "No asset requests yet.",
         };
+  const deliverableCopy =
+    language === "zh-CN"
+      ? {
+          title: "交付物",
+          description: "把已批准内容草稿和已批准/已准备素材请求组装成 Output Library 产物；当前只做交付记录，不发布、不执行外部动作。",
+          sourceDraftLabel: "批准草稿",
+          linkedAssetsLabel: "关联素材请求",
+          typeLabel: "交付类型",
+          summaryLabel: "交付摘要",
+          notesLabel: "交付说明",
+          qualityChecksLabel: "质量检查",
+          createAction: "创建交付物",
+          saveAction: "保存交付物",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          packageAction: "打包",
+          failAction: "失败",
+          archiveAction: "归档",
+          selectedHint: "先选择一个项目，再创建交付物。",
+          noDeliverables: "暂无交付物。",
+        }
+      : {
+          title: "Deliverables",
+          description: "Assemble approved content drafts and approved/prepared asset requests into Output Library artifacts. This records handoff only; it does not publish or execute external actions.",
+          sourceDraftLabel: "Approved draft",
+          linkedAssetsLabel: "Linked asset requests",
+          typeLabel: "Deliverable type",
+          summaryLabel: "Summary",
+          notesLabel: "Delivery notes",
+          qualityChecksLabel: "Quality checks",
+          createAction: "Create deliverable",
+          saveAction: "Save deliverable",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          packageAction: "Package",
+          failAction: "Fail",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation before creating deliverables.",
+          noDeliverables: "No deliverables yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [dryRunsState, setDryRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [contentDraftsState, setContentDraftsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [assetRequestsState, setAssetRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4718,6 +4764,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [assetSourceMaterialsDraft, setAssetSourceMaterialsDraft] = useState("rag_document, approved_content_draft");
   const [assetReadinessChecksDraft, setAssetReadinessChecksDraft] = useState("approved draft, source materials, no ComfyUI job");
   const [selectedAssetRequestId, setSelectedAssetRequestId] = useState("");
+  const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
+  const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
+  const [deliverableType, setDeliverableType] = useState("content_package");
+  const [deliverableTitle, setDeliverableTitle] = useState(language === "zh-CN" ? "商业运营交付物" : "Commercial operation deliverable");
+  const [deliverableSummary, setDeliverableSummary] = useState(language === "zh-CN" ? "面向操作员交接的内容产物。" : "Output artifact for operator handoff.");
+  const [deliverableNotes, setDeliverableNotes] = useState(language === "zh-CN" ? "只进入 Output Library，不发布。" : "Store in Output Library only; do not publish.");
+  const [deliverableQualityChecksDraft, setDeliverableQualityChecksDraft] = useState("approved content draft, linked assets reviewed, no external publish");
+  const [selectedDeliverableId, setSelectedDeliverableId] = useState("");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -4863,12 +4917,35 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadDeliverables = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setDeliverablesState(emptyState());
+        return;
+      }
+      setDeliverablesState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.deliverables(operationId, settings);
+        setDeliverablesState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setDeliverablesState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation deliverables API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
       void loadDryRuns(selectedOperationId);
       void loadContentDrafts(selectedOperationId);
       void loadAssetRequests(selectedOperationId);
+      void loadDeliverables(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
@@ -4876,8 +4953,9 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setDryRunsState(emptyState());
     setContentDraftsState(emptyState());
     setAssetRequestsState(emptyState());
+    setDeliverablesState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -5203,6 +5281,125 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editOperationDeliverable = (deliverable: JsonRecord) => {
+    const deliverableId = valueAt(deliverable, ["id"], "");
+    if (!deliverableId) {
+      return;
+    }
+    setSelectedDeliverableId(deliverableId);
+    setDeliverableContentDraftId(valueAt(deliverable, ["content_draft_id"], deliverableContentDraftId));
+    setDeliverableAssetRequestIdsDraft(draftListText(deliverable.asset_request_ids));
+    setDeliverableType(valueAt(deliverable, ["deliverable_type"], deliverableType));
+    setDeliverableTitle(valueAt(deliverable, ["title"], deliverableTitle));
+    setDeliverableSummary(valueAt(deliverable, ["summary"], ""));
+    setDeliverableNotes(valueAt(deliverable, ["delivery_notes"], ""));
+    setDeliverableQualityChecksDraft(draftListText(deliverable.quality_checks));
+  };
+
+  const deliverablePayload = (): JsonRecord => {
+    const explicitAssetIds = splitDraftList(deliverableAssetRequestIdsDraft);
+    const fallbackAssetIds = assetRequests
+      .filter((assetRequest) => {
+        const status = valueAt(assetRequest, ["request_status"], "");
+        const linkedDraft = valueAt(assetRequest, ["content_draft_id"], "");
+        return ["approved", "prepared"].includes(status) && (!deliverableContentDraftId || !linkedDraft || linkedDraft === deliverableContentDraftId);
+      })
+      .map((assetRequest) => valueAt(assetRequest, ["id"], ""))
+      .filter(Boolean);
+    return {
+      step_key: "content_production",
+      content_draft_id: deliverableContentDraftId,
+      asset_request_ids: explicitAssetIds.length ? explicitAssetIds : fallbackAssetIds,
+      deliverable_type: deliverableType,
+      title: deliverableTitle.trim(),
+      summary: deliverableSummary.trim() || undefined,
+      delivery_notes: deliverableNotes.trim() || undefined,
+      quality_checks: splitDraftList(deliverableQualityChecksDraft),
+      metadata: { source: "admin_dashboard", phase: "61G" },
+    };
+  };
+
+  const createOperationDeliverable = async () => {
+    if (!selectedOperationId) {
+      setActionState({
+        data: null,
+        error: deliverableCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createDeliverable(selectedOperationId, deliverablePayload(), settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedDeliverableId(valueAt(created, ["id"], ""));
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation deliverable create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOperationDeliverable = async () => {
+    if (!selectedOperationId || !selectedDeliverableId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateDeliverable(selectedOperationId, selectedDeliverableId, deliverablePayload(), settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation deliverable update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationDeliverable = async (
+    deliverableId: string,
+    action: "ready" | "approve" | "reject" | "package" | "fail" | "archive",
+  ) => {
+    if (!selectedOperationId || !deliverableId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyDeliverable(selectedOperationId, deliverableId, "Ready for review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveDeliverable(selectedOperationId, deliverableId, "Approved from Commercial Ops.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectDeliverable(selectedOperationId, deliverableId, "Rejected from Commercial Ops.", settings)
+              : action === "package"
+                ? await commercialOperationsApi.packageDeliverable(selectedOperationId, deliverableId, "Packaged for Output Library handoff; no publishing executed.", settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failDeliverable(selectedOperationId, deliverableId, "Failed during deliverable packaging; operator review required.", settings)
+                  : await commercialOperationsApi.archiveDeliverable(selectedOperationId, deliverableId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation deliverable action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const createOperationDryRun = async () => {
     if (!selectedOperationId) {
       setActionState({
@@ -5391,6 +5588,13 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const dryRuns = dryRunsState.data || [];
   const contentDrafts = contentDraftsState.data || [];
   const assetRequests = assetRequestsState.data || [];
+  const deliverables = deliverablesState.data || [];
+  const approvedContentDrafts = contentDrafts.filter((draft) => valueAt(draft, ["draft_status"], "") === "approved");
+  const eligibleDeliverableAssets = assetRequests.filter((assetRequest) => {
+    const status = valueAt(assetRequest, ["request_status"], "");
+    const linkedDraft = valueAt(assetRequest, ["content_draft_id"], "");
+    return ["approved", "prepared"].includes(status) && (!deliverableContentDraftId || !linkedDraft || linkedDraft === deliverableContentDraftId);
+  });
   const links = linksState.data || [];
 
   useEffect(() => {
@@ -5400,6 +5604,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
     setDryRunApprovalId(approved[0] ? valueAt(approved[0], ["id"], "") : "");
   }, [approvalsState.data, dryRunApprovalId]);
+
+  useEffect(() => {
+    if (deliverableContentDraftId && approvedContentDrafts.some((draft) => valueAt(draft, ["id"], "") === deliverableContentDraftId)) {
+      return;
+    }
+    const nextDraftId = approvedContentDrafts[0] ? valueAt(approvedContentDrafts[0], ["id"], "") : "";
+    setDeliverableContentDraftId(nextDraftId);
+  }, [approvedContentDrafts, deliverableContentDraftId]);
 
   return (
     <div className="page-stack">
@@ -5421,7 +5633,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -5885,6 +6097,169 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{assetCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={deliverableCopy.title} description={deliverableCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-deliverable-grid">
+              <label>
+                {deliverableCopy.sourceDraftLabel}
+                <select value={deliverableContentDraftId} onChange={(event) => setDeliverableContentDraftId(event.target.value)}>
+                  {approvedContentDrafts.length ? null : <option value="">-</option>}
+                  {approvedContentDrafts.map((draft) => {
+                    const draftId = valueAt(draft, ["id"], "");
+                    return (
+                      <option value={draftId} key={draftId}>
+                        {valueAt(draft, ["title"])} / {valueAt(draft, ["channel"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {deliverableCopy.typeLabel}
+                <select value={deliverableType} onChange={(event) => setDeliverableType(event.target.value)}>
+                  <option value="content_package">content_package</option>
+                  <option value="post">post</option>
+                  <option value="email">email</option>
+                  <option value="landing_page">landing_page</option>
+                  <option value="ad">ad</option>
+                  <option value="script">script</option>
+                  <option value="asset_brief">asset_brief</option>
+                  <option value="report">report</option>
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={deliverableTitle} onChange={(event) => setDeliverableTitle(event.target.value)} />
+              </label>
+              <label>
+                {deliverableCopy.linkedAssetsLabel}
+                <select value={deliverableAssetRequestIdsDraft} onChange={(event) => setDeliverableAssetRequestIdsDraft(event.target.value)}>
+                  <option value="">-</option>
+                  {eligibleDeliverableAssets.map((assetRequest) => {
+                    const assetRequestId = valueAt(assetRequest, ["id"], "");
+                    return (
+                      <option value={assetRequestId} key={assetRequestId}>
+                        {valueAt(assetRequest, ["title"])} / {valueAt(assetRequest, ["request_status"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="commercial-wide-label">
+                {deliverableCopy.summaryLabel}
+                <textarea value={deliverableSummary} onChange={(event) => setDeliverableSummary(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {deliverableCopy.notesLabel}
+                <textarea value={deliverableNotes} onChange={(event) => setDeliverableNotes(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {deliverableCopy.qualityChecksLabel}
+                <textarea value={deliverableQualityChecksDraft} onChange={(event) => setDeliverableQualityChecksDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOperationDeliverable()}
+                disabled={!deliverableContentDraftId || !deliverableTitle.trim() || actionState.loading}
+              >
+                <Package size={15} />
+                {deliverableCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOperationDeliverable()}
+                disabled={!selectedDeliverableId || !deliverableTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {deliverableCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={deliverablesState} />
+            {deliverablesState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {deliverablesState.updatedAt}</div> : null}
+            {deliverables.length ? (
+              <div className="commercial-deliverable-list">
+                {deliverables.map((deliverable) => {
+                  const deliverableId = valueAt(deliverable, ["id"], "");
+                  const deliverableStatus = valueAt(deliverable, ["deliverable_status"], "");
+                  return (
+                    <article className="commercial-deliverable-item" key={deliverableId}>
+                      <div>
+                        <strong>{valueAt(deliverable, ["title"])}</strong>
+                        <span>{valueAt(deliverable, ["channel"])} / {valueAt(deliverable, ["deliverable_type"])}</span>
+                        <p>{valueAt(deliverable, ["summary"], valueAt(deliverable, ["delivery_notes"], ""))}</p>
+                        <p>{valueAt(deliverable, ["output_artifact_id"], "")}</p>
+                        <StatusPill value={deliverableStatus} />
+                      </div>
+                      <div className="commercial-deliverable-actions">
+                        <button className="ghost-button" onClick={() => editOperationDeliverable(deliverable)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {deliverableCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationDeliverable(deliverableId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(deliverableStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {deliverableCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationDeliverable(deliverableId, "approve")}
+                          disabled={deliverableStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {deliverableCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationDeliverable(deliverableId, "reject")}
+                          disabled={deliverableStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {deliverableCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationDeliverable(deliverableId, "package")}
+                          disabled={deliverableStatus !== "approved" || actionState.loading}
+                        >
+                          <Package size={15} />
+                          {deliverableCopy.packageAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationDeliverable(deliverableId, "fail")}
+                          disabled={deliverableStatus !== "approved" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {deliverableCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationDeliverable(deliverableId, "archive")}
+                          disabled={deliverableStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {deliverableCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{deliverableCopy.noDeliverables}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{deliverableCopy.selectedHint}</div>
         )}
       </Panel>
 

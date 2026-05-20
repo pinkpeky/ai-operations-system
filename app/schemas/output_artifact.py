@@ -19,6 +19,7 @@ ArtifactSourceLiteral = Literal[
     "rag",
     "content_agent",
     "planning",
+    "commercial_operation",
     "openclaw_mock",
 ]
 ArtifactTypeLiteral = Literal[

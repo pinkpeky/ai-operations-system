@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationContentDraft,
+    CommercialOperationDeliverable,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
@@ -35,6 +36,25 @@ CommercialOperationAssetRequestStatusLiteral = Literal[
     "archived",
 ]
 CommercialOperationAssetTypeLiteral = Literal["image", "video", "audio", "document", "design", "copy_asset", "other"]
+CommercialOperationDeliverableStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "packaged",
+    "failed",
+    "archived",
+]
+CommercialOperationDeliverableTypeLiteral = Literal[
+    "content_package",
+    "post",
+    "email",
+    "landing_page",
+    "ad",
+    "script",
+    "asset_brief",
+    "report",
+]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -541,6 +561,117 @@ class CommercialOperationAssetRequestListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationAssetRequestResponse]
+
+
+class CommercialOperationDeliverableCreateRequest(BaseModel):
+    """Create a reviewable commercial deliverable and Output Library artifact."""
+
+    step_key: str = Field(default="content_production", min_length=1, max_length=128)
+    content_draft_id: UUID
+    asset_request_ids: list[UUID] = Field(default_factory=list)
+    deliverable_type: CommercialOperationDeliverableTypeLiteral = "content_package"
+    title: str = Field(min_length=1, max_length=255)
+    summary: str | None = None
+    delivery_notes: str | None = None
+    quality_checks: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationDeliverableUpdateRequest(BaseModel):
+    """Patch a commercial deliverable before final packaging."""
+
+    asset_request_ids: list[UUID] | None = None
+    deliverable_type: CommercialOperationDeliverableTypeLiteral | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    summary: str | None = None
+    delivery_notes: str | None = None
+    quality_checks: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationDeliverableDecisionRequest(BaseModel):
+    """Review, package, fail, or archive a commercial deliverable."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationDeliverableResponse(BaseModel):
+    """Commercial operation deliverable response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    content_draft_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    deliverable_type: str
+    title: str
+    deliverable_status: str
+    summary: str | None
+    delivery_notes: str | None
+    asset_request_ids: list[str]
+    quality_checks: list[str]
+    package_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    packaged_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    packaged_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, deliverable: CommercialOperationDeliverable) -> "CommercialOperationDeliverableResponse":
+        return cls(
+            id=deliverable.id,
+            workspace_id=deliverable.workspace_id,
+            operation_id=deliverable.operation_id,
+            content_draft_id=deliverable.content_draft_id,
+            output_artifact_id=deliverable.output_artifact_id,
+            step_key=deliverable.step_key,
+            channel=deliverable.channel,
+            deliverable_type=deliverable.deliverable_type,
+            title=deliverable.title,
+            deliverable_status=deliverable.deliverable_status,
+            summary=deliverable.summary,
+            delivery_notes=deliverable.delivery_notes,
+            asset_request_ids=deliverable.asset_request_ids,
+            quality_checks=deliverable.quality_checks,
+            package_payload=deliverable.package_payload,
+            result_summary=deliverable.result_summary,
+            failure_reason=deliverable.failure_reason,
+            reviewer_notes=deliverable.reviewer_notes,
+            created_by=deliverable.created_by,
+            updated_by=deliverable.updated_by,
+            approved_by=deliverable.approved_by,
+            packaged_by=deliverable.packaged_by,
+            approved_at=deliverable.approved_at,
+            rejected_at=deliverable.rejected_at,
+            packaged_at=deliverable.packaged_at,
+            failed_at=deliverable.failed_at,
+            archived_at=deliverable.archived_at,
+            metadata=deliverable.deliverable_metadata,
+            created_at=deliverable.created_at,
+            updated_at=deliverable.updated_at,
+        )
+
+
+class CommercialOperationDeliverableListResponse(BaseModel):
+    """Commercial operation deliverable list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationDeliverableResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

@@ -18,24 +18,28 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61D",
         "Phase 61E",
         "Phase 61F",
+        "Phase 61G",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
         "commercial_operation_dry_runs",
         "commercial_operation_content_drafts",
         "commercial_operation_asset_requests",
+        "commercial_operation_deliverables",
         "CommercialOperationService",
         "CommercialOperationLink",
         "CommercialOperationApproval",
         "CommercialOperationDryRun",
         "CommercialOperationContentDraft",
         "CommercialOperationAssetRequest",
+        "CommercialOperationDeliverable",
         "/api/v1/commercial-operations",
         "/api/v1/commercial-operations/{operation_id}/links",
         "/api/v1/commercial-operations/{operation_id}/approvals",
         "/api/v1/commercial-operations/{operation_id}/dry-runs",
         "/api/v1/commercial-operations/{operation_id}/content-drafts",
         "/api/v1/commercial-operations/{operation_id}/asset-requests",
+        "/api/v1/commercial-operations/{operation_id}/deliverables",
         "Admin Dashboard",
         "Evidence",
         "handoff",
@@ -43,6 +47,9 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Dry-Run",
         "Content Draft",
         "Asset Request",
+        "Deliverable",
+        "Output Library",
+        "source_type=commercial_operation",
         "does not publish",
         "does not execute OpenClaw actions",
         "does not run ComfyUI jobs",
@@ -51,7 +58,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61f_commercial_operation_asset_requests() -> None:
+def test_recovery_docs_point_to_phase_61g_commercial_operation_deliverables() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -64,6 +71,6 @@ def test_recovery_docs_point_to_phase_61f_commercial_operation_asset_requests() 
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61F" in text or "61F" in text, relative
+        assert "Phase 61G" in text or "61G" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "commercial_operation_asset_requests" in text or "/asset-requests" in text, relative
+        assert "commercial_operation_deliverables" in text or "/deliverables" in text, relative

@@ -17,6 +17,7 @@ from app.models import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationContentDraft,
+    CommercialOperationDeliverable,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
@@ -29,6 +30,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationApproval,
         CommercialOperationAssetRequest,
         CommercialOperationContentDraft,
+        CommercialOperationDeliverable,
         CommercialOperationDryRun,
         CommercialOperationLink,
     )
@@ -291,6 +293,143 @@ async def test_commercial_operations_api_flow() -> None:
             assert asset_step["asset_request_id"] == asset_request_id
             assert asset_step["asset_request_status"] == "prepared"
             assert asset_step["asset_request_type"] == "image"
+
+            deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables",
+                headers=headers,
+                json={
+                    "step_key": "content_production",
+                    "content_draft_id": content_draft_id,
+                    "asset_request_ids": [asset_request_id],
+                    "deliverable_type": "email",
+                    "title": "Newsletter commercial deliverable",
+                    "summary": "Approved newsletter packaged for operator handoff.",
+                    "delivery_notes": "Keep as Output Library artifact only; do not publish.",
+                    "quality_checks": ["approved copy", "prepared hero image", "no external execution"],
+                    "metadata": {"phase": "61G"},
+                },
+            )
+            assert deliverable.status_code == 201
+            deliverable_body = deliverable.json()
+            deliverable_id = deliverable_body["id"]
+            output_artifact_id = deliverable_body["output_artifact_id"]
+            assert deliverable_body["workspace_id"] == "workspace-commercial-api"
+            assert deliverable_body["operation_id"] == operation_id
+            assert deliverable_body["content_draft_id"] == content_draft_id
+            assert deliverable_body["asset_request_ids"] == [asset_request_id]
+            assert deliverable_body["deliverable_status"] == "draft"
+            assert deliverable_body["created_by"] == "user-commercial-api"
+            assert output_artifact_id
+            assert deliverable_body["package_payload"]["output_artifact_id"] == output_artifact_id
+            assert "metadata-only" in deliverable_body["package_payload"]["execution_boundary"]
+
+            deliverables = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables",
+                headers=headers,
+            )
+            assert deliverables.status_code == 200
+            assert [item["id"] for item in deliverables.json()["items"]] == [deliverable_id]
+
+            hidden_deliverables = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_deliverables.status_code == 404
+
+            patched_deliverable = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}",
+                headers=headers,
+                json={"summary": "Updated operator handoff summary.", "quality_checks": ["approved copy"]},
+            )
+            assert patched_deliverable.status_code == 200
+            assert patched_deliverable.json()["summary"] == "Updated operator handoff summary."
+            assert patched_deliverable.json()["updated_by"] == "user-commercial-api"
+
+            ready_deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for review."},
+            )
+            assert ready_deliverable.status_code == 200
+            assert ready_deliverable.json()["deliverable_status"] == "ready_for_review"
+
+            approved_deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as handoff artifact only."},
+            )
+            assert approved_deliverable.status_code == 200
+            assert approved_deliverable.json()["deliverable_status"] == "approved"
+            assert approved_deliverable.json()["approved_by"] == "user-commercial-api"
+
+            packaged_deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/package",
+                headers=headers,
+                json={"result_summary": "Packaged for Output Library handoff; no publishing executed."},
+            )
+            assert packaged_deliverable.status_code == 200
+            assert packaged_deliverable.json()["deliverable_status"] == "packaged"
+            assert packaged_deliverable.json()["packaged_by"] == "user-commercial-api"
+            assert packaged_deliverable.json()["package_payload"]["next_runtime"] == "future_monitored_execution_request"
+
+            output_artifact = await client.get(
+                f"/api/v1/output-artifacts/{output_artifact_id}",
+                headers=headers,
+            )
+            assert output_artifact.status_code == 200
+            output_artifact_body = output_artifact.json()
+            assert output_artifact_body["source_type"] == "commercial_operation"
+            assert output_artifact_body["artifact_type"] == "markdown"
+            assert output_artifact_body["artifact_stage"] == "packaged"
+            assert output_artifact_body["metadata"]["commercial_deliverable_id"] == deliverable_id
+            assert "does not publish" in output_artifact_body["content"]
+
+            fetched_after_deliverable = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_deliverable.status_code == 200
+            deliverable_step = [
+                step
+                for step in fetched_after_deliverable.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert deliverable_step["deliverable_id"] == deliverable_id
+            assert deliverable_step["deliverable_status"] == "packaged"
+            assert deliverable_step["deliverable_output_artifact_id"] == output_artifact_id
+
+            fail_after_packaged_deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/fail",
+                headers=headers,
+                json={"failure_reason": "Too late to fail."},
+            )
+            assert fail_after_packaged_deliverable.status_code == 400
+
+            archived_deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/archive",
+                headers=headers,
+                json={"reviewer_notes": "Archived after packaging."},
+            )
+            assert archived_deliverable.status_code == 200
+            assert archived_deliverable.json()["deliverable_status"] == "archived"
+
+            patch_archived_deliverable = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}",
+                headers=headers,
+                json={"summary": "Should not change."},
+            )
+            assert patch_archived_deliverable.status_code == 400
+
+            invalid_deliverable = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/deliverables",
+                headers=headers,
+                json={
+                    "step_key": "missing_step",
+                    "content_draft_id": content_draft_id,
+                    "title": "Invalid deliverable step",
+                },
+            )
+            assert invalid_deliverable.status_code == 400
 
             reject_after_prepared_asset_request = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/reject",

@@ -3793,7 +3793,7 @@ Boundary: content drafts are review records only. They do not publish content, r
 
 ## Phase 61F: Commercial Operation Asset Requests
 
-Status: in progress.
+Status: completed on `main`.
 
 Phase 61F adds `commercial_operation_asset_requests` and `CommercialOperationAssetRequest` records below each commercial operation. Operators can create a first-class asset request for a plan step, optionally link it to a content draft, update it, mark it ready for review, approve it, reject it, prepare it for future ComfyUI handoff, fail it during preparation, or archive it for later handoff.
 
@@ -3814,3 +3814,27 @@ Main fields: `operation_id`, `content_draft_id`, `step_key`, `channel`, `asset_t
 Supported `request_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, and `archived`.
 
 Boundary: asset requests and handoff payloads are review records only. They do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61G: Commercial Operation Deliverables
+
+Status: in progress.
+
+Phase 61G adds `commercial_operation_deliverables` and `CommercialOperationDeliverable` records below each commercial operation. Operators can package an approved content draft together with approved or prepared asset requests, update the package, mark it ready for review, approve it, reject it, package it into the Output Library, fail it during packaging, or archive it.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/deliverables`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables`
+- `PATCH /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/package`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/archive`
+
+Main fields: `operation_id`, `content_draft_id`, `output_artifact_id`, `asset_request_ids`, `step_key`, `channel`, `deliverable_type`, `title`, `deliverable_status`, `summary`, `delivery_notes`, `quality_checks`, `package_payload`, `result_summary`, `failure_reason`, `reviewer_notes`, `created_by`, `updated_by`, `approved_by`, `packaged_by`, and `metadata`.
+
+Supported `deliverable_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `packaged`, `failed`, and `archived`.
+
+Boundary: deliverables and package payloads are review and handoff records only. They create linked Output Library artifacts with `source_type=commercial_operation`, but they do not publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

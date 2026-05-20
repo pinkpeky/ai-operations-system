@@ -15,6 +15,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationContentDraft,
+    CommercialOperationDeliverable,
     CommercialOperationDryRun,
     CommercialOperationLink,
 )
@@ -22,9 +23,14 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationContentDraftStatus,
+    CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationStatus,
+    OutputArtifactSourceType,
+    OutputArtifactStage,
+    OutputArtifactType,
 )
+from app.services.output_artifact_service import OutputArtifactService
 
 
 class CommercialOperationService:
@@ -984,6 +990,366 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        step_key: str = "content_production",
+        content_draft_id: UUID,
+        asset_request_ids: list[UUID] | None = None,
+        deliverable_type: str = "content_package",
+        title: str,
+        summary: str | None = None,
+        delivery_notes: str | None = None,
+        quality_checks: list[str] | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationDeliverable:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        clean_step_key = self._clean_required_text(step_key, "step_key")
+        if not self._plan_step(operation, clean_step_key):
+            raise ValueError("step_key is not present in operation plan_outline")
+        draft = await self.require_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=content_draft_id,
+        )
+        if draft.draft_status != CommercialOperationContentDraftStatus.APPROVED.value:
+            raise ValueError("Only approved content drafts can produce commercial deliverables")
+        if draft.step_key != clean_step_key:
+            raise ValueError("deliverable step_key must match the content draft step_key")
+        asset_requests = await self._require_deliverable_asset_requests(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            content_draft_id=content_draft_id,
+            asset_request_ids=asset_request_ids or [],
+        )
+        clean_title = self._clean_required_text(title, "title")
+        clean_type = self._clean_required_text(deliverable_type, "deliverable_type")
+        clean_quality_checks = self._clean_list(quality_checks) or [
+            "approved content draft",
+            "linked assets reviewed",
+            "Output Library artifact generated",
+            "no external publishing",
+        ]
+        deliverable = CommercialOperationDeliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            content_draft_id=content_draft_id,
+            step_key=clean_step_key,
+            channel=draft.channel,
+            deliverable_type=clean_type,
+            title=clean_title,
+            deliverable_status=CommercialOperationDeliverableStatus.DRAFT.value,
+            summary=summary.strip() if summary and summary.strip() else draft.summary,
+            delivery_notes=delivery_notes.strip() if delivery_notes and delivery_notes.strip() else None,
+            asset_request_ids=[str(asset_request.id) for asset_request in asset_requests],
+            quality_checks=clean_quality_checks,
+            created_by=created_by,
+            updated_by=created_by,
+            deliverable_metadata=metadata or {},
+        )
+        self.session.add(deliverable)
+        await self.session.flush()
+        artifact_content = self._build_deliverable_artifact_content(
+            operation=operation,
+            draft=draft,
+            asset_requests=asset_requests,
+            deliverable=deliverable,
+        )
+        artifact = await OutputArtifactService(self.session).create_artifact(
+            workspace_id=workspace_id,
+            source_type=OutputArtifactSourceType.COMMERCIAL_OPERATION.value,
+            artifact_type=OutputArtifactType.MARKDOWN.value,
+            title=deliverable.title,
+            summary=deliverable.summary,
+            content=artifact_content,
+            mime_type="text/markdown",
+            metadata=self._build_deliverable_artifact_metadata(
+                operation=operation,
+                draft=draft,
+                asset_requests=asset_requests,
+                deliverable=deliverable,
+            ),
+            artifact_stage=OutputArtifactStage.PROCESSED.value,
+            generated_by="commercial_operation_service",
+            created_by=created_by,
+            commit=False,
+        )
+        deliverable.output_artifact_id = artifact.id
+        deliverable.package_payload = self._build_deliverable_package_payload(
+            operation=operation,
+            draft=draft,
+            asset_requests=asset_requests,
+            deliverable=deliverable,
+        )
+        self._apply_deliverable_to_plan(operation, deliverable)
+        await self.session.commit()
+        await self.session.refresh(deliverable)
+        return deliverable
+
+    async def list_deliverables(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        content_draft_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationDeliverable]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationDeliverable).where(
+            CommercialOperationDeliverable.workspace_id == workspace_id,
+            CommercialOperationDeliverable.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationDeliverable.deliverable_status == status)
+        if content_draft_id is not None:
+            statement = statement.where(CommercialOperationDeliverable.content_draft_id == content_draft_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationDeliverable.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+    ) -> CommercialOperationDeliverable:
+        result = await self.session.execute(
+            select(CommercialOperationDeliverable).where(
+                CommercialOperationDeliverable.workspace_id == workspace_id,
+                CommercialOperationDeliverable.operation_id == operation_id,
+                CommercialOperationDeliverable.id == deliverable_id,
+            )
+        )
+        deliverable = result.scalar_one_or_none()
+        if deliverable is None:
+            raise ValueError("Commercial operation deliverable not found in workspace")
+        return deliverable
+
+    async def update_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+        )
+        if deliverable.deliverable_status in {
+            CommercialOperationDeliverableStatus.PACKAGED.value,
+            CommercialOperationDeliverableStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Packaged or archived deliverables cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        draft = await self.require_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=deliverable.content_draft_id,
+        )
+        if draft.draft_status != CommercialOperationContentDraftStatus.APPROVED.value:
+            raise ValueError("Only approved content drafts can produce commercial deliverables")
+        if "asset_request_ids" in patch and patch["asset_request_ids"] is not None:
+            asset_requests = await self._require_deliverable_asset_requests(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                content_draft_id=deliverable.content_draft_id,
+                asset_request_ids=patch["asset_request_ids"],
+            )
+            deliverable.asset_request_ids = [str(asset_request.id) for asset_request in asset_requests]
+        else:
+            asset_requests = await self._require_deliverable_asset_requests(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                content_draft_id=deliverable.content_draft_id,
+                asset_request_ids=[UUID(item) for item in deliverable.asset_request_ids],
+            )
+        scalar_fields = {"deliverable_type", "title", "summary", "delivery_notes"}
+        required_text_fields = {"deliverable_type", "title"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                setattr(deliverable, field, value)
+        if "quality_checks" in patch:
+            deliverable.quality_checks = self._clean_list(patch["quality_checks"])
+        if "metadata" in patch:
+            deliverable.deliverable_metadata = patch["metadata"] or {}
+        deliverable.updated_by = updated_by
+        deliverable.deliverable_status = CommercialOperationDeliverableStatus.DRAFT.value
+        deliverable.approved_by = None
+        deliverable.packaged_by = None
+        deliverable.approved_at = None
+        deliverable.rejected_at = None
+        deliverable.packaged_at = None
+        deliverable.failed_at = None
+        deliverable.failure_reason = None
+        deliverable.result_summary = None
+        deliverable.package_payload = self._build_deliverable_package_payload(
+            operation=operation,
+            draft=draft,
+            asset_requests=asset_requests,
+            deliverable=deliverable,
+        )
+        if deliverable.output_artifact_id is not None:
+            artifact = await OutputArtifactService(self.session).require_artifact(
+                workspace_id=workspace_id,
+                artifact_id=deliverable.output_artifact_id,
+            )
+            artifact.title = deliverable.title[:255]
+            artifact.summary = deliverable.summary
+            artifact.content = self._build_deliverable_artifact_content(
+                operation=operation,
+                draft=draft,
+                asset_requests=asset_requests,
+                deliverable=deliverable,
+            )
+            artifact.artifact_metadata = self._build_deliverable_artifact_metadata(
+                operation=operation,
+                draft=draft,
+                asset_requests=asset_requests,
+                deliverable=deliverable,
+            )
+            artifact.artifact_stage = OutputArtifactStage.PROCESSED.value
+        self._apply_deliverable_to_plan(operation, deliverable)
+        await self.session.commit()
+        await self.session.refresh(deliverable)
+        return deliverable
+
+    async def mark_deliverable_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        return await self._decide_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            status=CommercialOperationDeliverableStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        return await self._decide_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            status=CommercialOperationDeliverableStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        return await self._decide_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            status=CommercialOperationDeliverableStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def package_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        packaged_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        return await self._decide_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            status=CommercialOperationDeliverableStatus.PACKAGED.value,
+            actor_user_id=packaged_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        return await self._decide_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            status=CommercialOperationDeliverableStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def archive_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationDeliverable:
+        return await self._decide_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+            status=CommercialOperationDeliverableStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_link(
         self,
         *,
@@ -1309,6 +1675,121 @@ class CommercialOperationService:
         await self.session.refresh(asset_request)
         return asset_request
 
+    async def _decide_deliverable(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationDeliverable:
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+        )
+        if deliverable.deliverable_status == CommercialOperationDeliverableStatus.ARCHIVED.value:
+            raise ValueError("Archived deliverables cannot be changed")
+        if status == CommercialOperationDeliverableStatus.READY_FOR_REVIEW.value and deliverable.deliverable_status not in {
+            CommercialOperationDeliverableStatus.DRAFT.value,
+            CommercialOperationDeliverableStatus.REJECTED.value,
+            CommercialOperationDeliverableStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed deliverables can be marked ready")
+        if status in {
+            CommercialOperationDeliverableStatus.APPROVED.value,
+            CommercialOperationDeliverableStatus.REJECTED.value,
+        } and deliverable.deliverable_status != CommercialOperationDeliverableStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready deliverables can be approved or rejected")
+        if status in {
+            CommercialOperationDeliverableStatus.PACKAGED.value,
+            CommercialOperationDeliverableStatus.FAILED.value,
+        } and deliverable.deliverable_status != CommercialOperationDeliverableStatus.APPROVED.value:
+            raise ValueError("Only approved deliverables can be packaged or failed")
+        now = datetime.now(UTC)
+        deliverable.deliverable_status = status
+        deliverable.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        deliverable.result_summary = result_summary.strip() if result_summary and result_summary.strip() else None
+        deliverable.failure_reason = failure_reason.strip() if failure_reason and failure_reason.strip() else None
+        deliverable.updated_by = actor_user_id
+        if status == CommercialOperationDeliverableStatus.APPROVED.value:
+            deliverable.approved_by = actor_user_id
+            deliverable.approved_at = now
+            deliverable.rejected_at = None
+            deliverable.packaged_at = None
+            deliverable.failed_at = None
+            deliverable.archived_at = None
+        elif status == CommercialOperationDeliverableStatus.REJECTED.value:
+            deliverable.rejected_at = now
+            deliverable.approved_by = None
+            deliverable.packaged_by = None
+            deliverable.approved_at = None
+            deliverable.packaged_at = None
+            deliverable.failed_at = None
+            deliverable.archived_at = None
+        elif status == CommercialOperationDeliverableStatus.READY_FOR_REVIEW.value:
+            deliverable.approved_by = None
+            deliverable.packaged_by = None
+            deliverable.approved_at = None
+            deliverable.rejected_at = None
+            deliverable.packaged_at = None
+            deliverable.failed_at = None
+            deliverable.archived_at = None
+        elif status == CommercialOperationDeliverableStatus.PACKAGED.value:
+            deliverable.packaged_by = actor_user_id
+            deliverable.packaged_at = now
+            deliverable.failed_at = None
+            deliverable.archived_at = None
+        elif status == CommercialOperationDeliverableStatus.FAILED.value:
+            deliverable.failed_at = now
+            deliverable.packaged_by = None
+            deliverable.packaged_at = None
+            deliverable.archived_at = None
+        elif status == CommercialOperationDeliverableStatus.ARCHIVED.value:
+            deliverable.archived_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        draft = await self.require_content_draft(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            draft_id=deliverable.content_draft_id,
+        )
+        asset_requests = await self._require_deliverable_asset_requests(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            content_draft_id=deliverable.content_draft_id,
+            asset_request_ids=[UUID(item) for item in deliverable.asset_request_ids],
+        )
+        deliverable.package_payload = self._build_deliverable_package_payload(
+            operation=operation,
+            draft=draft,
+            asset_requests=asset_requests,
+            deliverable=deliverable,
+        )
+        if deliverable.output_artifact_id is not None:
+            artifact = await OutputArtifactService(self.session).require_artifact(
+                workspace_id=workspace_id,
+                artifact_id=deliverable.output_artifact_id,
+            )
+            artifact.artifact_stage = (
+                OutputArtifactStage.PACKAGED.value
+                if status == CommercialOperationDeliverableStatus.PACKAGED.value
+                else OutputArtifactStage.PROCESSED.value
+            )
+            artifact.artifact_metadata = self._build_deliverable_artifact_metadata(
+                operation=operation,
+                draft=draft,
+                asset_requests=asset_requests,
+                deliverable=deliverable,
+            )
+        self._apply_deliverable_to_plan(operation, deliverable)
+        await self.session.commit()
+        await self.session.refresh(deliverable)
+        return deliverable
+
     async def _decide_content_draft(
         self,
         *,
@@ -1494,6 +1975,131 @@ class CommercialOperationService:
             "next_runtime": "future_comfyui_handoff",
         }
 
+    async def _require_deliverable_asset_requests(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        content_draft_id: UUID,
+        asset_request_ids: list[UUID],
+    ) -> list[CommercialOperationAssetRequest]:
+        seen: set[UUID] = set()
+        requests: list[CommercialOperationAssetRequest] = []
+        for asset_request_id in asset_request_ids:
+            if asset_request_id in seen:
+                continue
+            seen.add(asset_request_id)
+            asset_request = await self.require_asset_request(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                asset_request_id=asset_request_id,
+            )
+            if asset_request.request_status not in {
+                CommercialOperationAssetRequestStatus.APPROVED.value,
+                CommercialOperationAssetRequestStatus.PREPARED.value,
+            }:
+                raise ValueError("Deliverable asset requests must be approved or prepared")
+            if asset_request.content_draft_id is not None and asset_request.content_draft_id != content_draft_id:
+                raise ValueError("Deliverable asset requests must belong to the same content draft")
+            requests.append(asset_request)
+        return requests
+
+    def _build_deliverable_artifact_content(
+        self,
+        *,
+        operation: CommercialOperation,
+        draft: CommercialOperationContentDraft,
+        asset_requests: list[CommercialOperationAssetRequest],
+        deliverable: CommercialOperationDeliverable,
+    ) -> str:
+        asset_lines = [
+            f"- {asset.title} ({asset.asset_type}, {asset.request_status})"
+            for asset in asset_requests
+        ] or ["- No linked asset requests"]
+        checks = [f"- {check}" for check in deliverable.quality_checks] or ["- Operator review required"]
+        lines = [
+            f"# {deliverable.title}",
+            "",
+            f"Operation: {operation.title}",
+            f"Objective: {operation.objective}",
+            f"Channel: {deliverable.channel}",
+            f"Deliverable type: {deliverable.deliverable_type}",
+            f"Status: {deliverable.deliverable_status}",
+            "",
+            "## Summary",
+            deliverable.summary or draft.summary or "No summary provided.",
+            "",
+            "## Approved Content",
+            draft.content_body,
+            "",
+            "## Linked Asset Requests",
+            *asset_lines,
+            "",
+            "## Quality Checks",
+            *checks,
+            "",
+            "## Boundary",
+            "This deliverable is an Output Library artifact for operator handoff only. It does not publish, control accounts, start ComfyUI, run OpenClaw, or call browser workers.",
+        ]
+        if draft.call_to_action:
+            lines.insert(10, f"Call to action: {draft.call_to_action}")
+        if deliverable.delivery_notes:
+            lines.extend(["", "## Delivery Notes", deliverable.delivery_notes])
+        return "\n".join(lines)
+
+    def _build_deliverable_artifact_metadata(
+        self,
+        *,
+        operation: CommercialOperation,
+        draft: CommercialOperationContentDraft,
+        asset_requests: list[CommercialOperationAssetRequest],
+        deliverable: CommercialOperationDeliverable,
+    ) -> dict[str, Any]:
+        return {
+            "commercial_operation_id": str(operation.id),
+            "commercial_operation_title": operation.title,
+            "commercial_deliverable_id": str(deliverable.id),
+            "content_draft_id": str(draft.id),
+            "asset_request_ids": [str(asset.id) for asset in asset_requests],
+            "channel": deliverable.channel,
+            "deliverable_type": deliverable.deliverable_type,
+            "deliverable_status": deliverable.deliverable_status,
+            "execution_boundary": "no publish, no real account control, no ComfyUI job, no OpenClaw action, no browser worker action",
+            "phase": "61G",
+        }
+
+    def _build_deliverable_package_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        draft: CommercialOperationContentDraft,
+        asset_requests: list[CommercialOperationAssetRequest],
+        deliverable: CommercialOperationDeliverable,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "content_draft_id": str(draft.id),
+            "output_artifact_id": str(deliverable.output_artifact_id) if deliverable.output_artifact_id else None,
+            "step_key": deliverable.step_key,
+            "channel": deliverable.channel,
+            "deliverable_type": deliverable.deliverable_type,
+            "deliverable_status": deliverable.deliverable_status,
+            "asset_requests": [
+                {
+                    "asset_request_id": str(asset.id),
+                    "title": asset.title,
+                    "asset_type": asset.asset_type,
+                    "request_status": asset.request_status,
+                    "handoff_payload": asset.handoff_payload,
+                }
+                for asset in asset_requests
+            ],
+            "quality_checks": deliverable.quality_checks,
+            "execution_boundary": "metadata-only deliverable assembly; no publishing or external runtime execution",
+            "next_runtime": "future_monitored_execution_request",
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -1513,6 +2119,36 @@ class CommercialOperationService:
                     updated["content_draft_decision_at"] = draft.rejected_at.isoformat()
                 elif draft.archived_at is not None:
                     updated["content_draft_decision_at"] = draft.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_deliverable_to_plan(
+        self,
+        operation: CommercialOperation,
+        deliverable: CommercialOperationDeliverable,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == deliverable.step_key:
+                updated = dict(step)
+                updated["deliverable_id"] = str(deliverable.id)
+                updated["deliverable_status"] = deliverable.deliverable_status
+                updated["deliverable_type"] = deliverable.deliverable_type
+                updated["deliverable_channel"] = deliverable.channel
+                if deliverable.output_artifact_id is not None:
+                    updated["deliverable_output_artifact_id"] = str(deliverable.output_artifact_id)
+                if deliverable.approved_at is not None:
+                    updated["deliverable_decision_at"] = deliverable.approved_at.isoformat()
+                elif deliverable.rejected_at is not None:
+                    updated["deliverable_decision_at"] = deliverable.rejected_at.isoformat()
+                elif deliverable.packaged_at is not None:
+                    updated["deliverable_decision_at"] = deliverable.packaged_at.isoformat()
+                elif deliverable.failed_at is not None:
+                    updated["deliverable_decision_at"] = deliverable.failed_at.isoformat()
+                elif deliverable.archived_at is not None:
+                    updated["deliverable_decision_at"] = deliverable.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))
