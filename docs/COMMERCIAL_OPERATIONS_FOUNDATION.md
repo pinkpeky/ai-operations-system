@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. Phase 61R adds metadata-only ComfyUI connection preflights from approved or prepared handoffs. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61q-commercial-comfyui-handoffs
+codex/phase-61r-commercial-comfyui-preflight
 ```
 
 ## What This Phase Adds
@@ -25,6 +25,7 @@ codex/phase-61q-commercial-comfyui-handoffs
 - Database table: `commercial_operation_content_drafts`.
 - Database table: `commercial_operation_asset_requests`.
 - Database table: `commercial_operation_comfyui_handoffs`.
+- Database table: `commercial_operation_comfyui_preflights`.
 - Database table: `commercial_operation_deliverables`.
 - Database table: `commercial_operation_execution_requests`.
 - Database table: `commercial_operation_execution_runs`.
@@ -39,6 +40,7 @@ codex/phase-61q-commercial-comfyui-handoffs
 - ORM model: `CommercialOperationContentDraft`.
 - ORM model: `CommercialOperationAssetRequest`.
 - ORM model: `CommercialOperationComfyUIHandoff`.
+- ORM model: `CommercialOperationComfyUIPreflight`.
 - ORM model: `CommercialOperationDeliverable`.
 - ORM model: `CommercialOperationExecutionRequest`.
 - ORM model: `CommercialOperationExecutionRun`.
@@ -56,6 +58,7 @@ codex/phase-61q-commercial-comfyui-handoffs
 - API route group: `/api/v1/commercial-operations/{operation_id}/asset-requests`.
 - RAG asset request route: `/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-handoffs`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-preflights`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/deliverables`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
@@ -80,6 +83,7 @@ codex/phase-61q-commercial-comfyui-handoffs
 - Migration: `0046_phase61l_opt_decisions`.
 - Migration: `0047_phase61m_evidence_snapshots`.
 - Migration: `0048_phase61q_comfyui_handoff`.
+- Migration: `0049_phase61r_comfyui_preflights`.
 
 Each commercial operation stores:
 
@@ -218,6 +222,12 @@ Phase 61Q treats ComfyUI handoffs as first-class, operator-reviewed metadata rec
 
 ComfyUI handoffs do not submit jobs to ComfyUI, generate images or videos, publish assets, run OpenClaw, control Browser Worker actions, contact external accounts, or bypass approval. The `handoff_payload` records the operation, source asset request, workflow name, prompt payload, workflow payload, readiness checks, `future_guarded_comfyui_adapter`, and forbidden actions so both workstation operators and server maintainers can understand what is prepared and what is still blocked.
 
+## ComfyUI Preflights
+
+Phase 61R treats ComfyUI preflights as first-class, metadata-only readiness records created from approved or prepared ComfyUI handoffs. A preflight can be created, edited, rechecked, marked failed, or archived. Creating or checking a preflight writes the latest preflight state back to the matching `plan_outline` step.
+
+Preflights record target URL, queue name, workflow name, model/checkpoint references, guarded adapter config, local check items, result summary, and failure reason. The service normalizes adapter config back to `execution_mode=metadata_only`, `network_probe=disabled`, and `queue_submission=disabled` so client input cannot accidentally open live execution. Preflights do not call ComfyUI, submit queue jobs, generate media, publish, run OpenClaw, control Browser Worker actions, contact external accounts, or bypass approval. The `preflight_payload` is designed for workstation users and server maintainers to understand what configuration is ready and what remains blocked before a future guarded adapter is allowed.
+
 ## Deliverables
 
 Phase 61G treats deliverables as the operator-facing handoff package for an approved content draft and approved/prepared asset requests. A deliverable can be created, edited, marked ready for review, approved, rejected, packaged, failed during packaging, or archived. Creating or deciding a deliverable writes the latest deliverable state back to the matching `plan_outline` step.
@@ -328,6 +338,21 @@ POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_
 POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/prepare
 POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/fail
 POST /api/v1/commercial-operations/{operation_id}/asset-requests/{asset_request_id}/archive
+GET /api/v1/commercial-operations/{operation_id}/comfyui-handoffs
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs
+PATCH /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/ready
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/approve
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/reject
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/prepare
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/fail
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/archive
+POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/preflights
+GET /api/v1/commercial-operations/{operation_id}/comfyui-preflights
+PATCH /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}
+POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/check
+POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/fail
+POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/deliverables
 POST /api/v1/commercial-operations/{operation_id}/deliverables
 PATCH /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}
@@ -394,13 +419,15 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation.
 
 It does not publish to social platforms.
 
 It does not execute OpenClaw actions.
 
 It does not run ComfyUI jobs.
+
+It does not call ComfyUI health, prompt, history, upload, or queue endpoints during preflight.
 
 It does not ingest knowledge files from evidence snapshots, content draft generation, or asset brief generation, and generated snapshots, content drafts, or asset briefs do not bypass review.
 

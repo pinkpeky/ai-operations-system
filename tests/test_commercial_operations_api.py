@@ -17,6 +17,7 @@ from app.models import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIHandoff,
+    CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -39,6 +40,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationApproval,
         CommercialOperationAssetRequest,
         CommercialOperationComfyUIHandoff,
+        CommercialOperationComfyUIPreflight,
         CommercialOperationContentDraft,
         CommercialOperationDeliverable,
         CommercialOperationDryRun,
@@ -457,6 +459,72 @@ async def test_commercial_operations_api_flow() -> None:
             assert prepared_comfyui_handoff.json()["handoff_status"] == "prepared"
             assert prepared_comfyui_handoff.json()["prepared_by"] == "user-commercial-api"
 
+            comfyui_preflight = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{comfyui_handoff_id}/preflights",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI preflight",
+                    "target_url": "http://comfyui:8188",
+                    "queue_name": "commercial-assets",
+                    "workflow_name": "future_comfyui_handoff_v2",
+                    "model_refs": ["sdxl_base", "brand_lora_placeholder"],
+                    "adapter_config": {"execution_mode": "live", "network_probe": "enabled"},
+                    "check_items": [{"key": "operator_owner", "label": "Operator owner assigned", "status": True}],
+                    "metadata": {"phase": "61R"},
+                },
+            )
+            assert comfyui_preflight.status_code == 201
+            comfyui_preflight_body = comfyui_preflight.json()
+            comfyui_preflight_id = comfyui_preflight_body["id"]
+            assert comfyui_preflight_body["preflight_status"] == "checked"
+            assert comfyui_preflight_body["handoff_id"] == comfyui_handoff_id
+            assert comfyui_preflight_body["adapter_config"]["execution_mode"] == "metadata_only"
+            assert comfyui_preflight_body["adapter_config"]["network_probe"] == "disabled"
+            assert comfyui_preflight_body["adapter_config"]["queue_submission"] == "disabled"
+            assert comfyui_preflight_body["preflight_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI preflight; no ComfyUI API call or queue submission occurs"
+            )
+            assert "no ComfyUI HTTP request" in comfyui_preflight_body["preflight_payload"]["forbidden_actions"]
+
+            comfyui_preflights = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-preflights",
+                headers=headers,
+            )
+            assert comfyui_preflights.status_code == 200
+            assert [item["id"] for item in comfyui_preflights.json()["items"]] == [comfyui_preflight_id]
+
+            hidden_comfyui_preflights = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-preflights",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_preflights.status_code == 404
+
+            blocked_comfyui_preflight = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-preflights/{comfyui_preflight_id}",
+                headers=headers,
+                json={"target_url": "", "queue_name": ""},
+            )
+            assert blocked_comfyui_preflight.status_code == 200
+            assert blocked_comfyui_preflight.json()["preflight_status"] == "blocked"
+            assert "ComfyUI endpoint is configured" in blocked_comfyui_preflight.json()["failure_reason"]
+
+            checked_comfyui_preflight = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-preflights/{comfyui_preflight_id}",
+                headers=headers,
+                json={"target_url": "http://comfyui:8188", "queue_name": "commercial-assets"},
+            )
+            assert checked_comfyui_preflight.status_code == 200
+            assert checked_comfyui_preflight.json()["preflight_status"] == "checked"
+
+            rerun_comfyui_preflight = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-preflights/{comfyui_preflight_id}/check",
+                headers=headers,
+                json={},
+            )
+            assert rerun_comfyui_preflight.status_code == 200
+            assert rerun_comfyui_preflight.json()["preflight_status"] == "checked"
+            assert rerun_comfyui_preflight.json()["checked_by"] == "user-commercial-api"
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -471,6 +539,9 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_handoff_status"] == "prepared"
             assert comfyui_step["comfyui_handoff_asset_request_id"] == asset_request_id
             assert comfyui_step["comfyui_handoff_workflow_name"] == "future_comfyui_handoff_v2"
+            assert comfyui_step["comfyui_preflight_id"] == comfyui_preflight_id
+            assert comfyui_step["comfyui_preflight_status"] == "checked"
+            assert comfyui_step["comfyui_preflight_target_url"] == "http://comfyui:8188"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

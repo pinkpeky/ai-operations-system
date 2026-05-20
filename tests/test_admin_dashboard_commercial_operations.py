@@ -20,12 +20,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61Q" in text
+    assert "Phase 61R" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
     assert "Asset requests" in text
     assert "ComfyUI handoffs" in text
+    assert "ComfyUI preflights" in text
     assert "Deliverables" in text
     assert "Evidence snapshots" in text
     assert "Execution requests" in text
@@ -78,6 +79,12 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.prepareComfyuiHandoff" in text
     assert "commercialOperationsApi.failComfyuiHandoff" in text
     assert "commercialOperationsApi.archiveComfyuiHandoff" in text
+    assert "commercialOperationsApi.comfyuiPreflights" in text
+    assert "commercialOperationsApi.createComfyuiPreflight" in text
+    assert "commercialOperationsApi.updateComfyuiPreflight" in text
+    assert "commercialOperationsApi.checkComfyuiPreflight" in text
+    assert "commercialOperationsApi.failComfyuiPreflight" in text
+    assert "commercialOperationsApi.archiveComfyuiPreflight" in text
     assert "commercialOperationsApi.deliverables" in text
     assert "commercialOperationsApi.createDeliverable" in text
     assert "commercialOperationsApi.updateDeliverable" in text
@@ -183,6 +190,12 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-handoffs/${encodeURIComponent(handoffId)}/prepare" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-handoffs/${encodeURIComponent(handoffId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-handoffs/${encodeURIComponent(handoffId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-handoffs/${encodeURIComponent(handoffId)}/preflights" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights/${encodeURIComponent(preflightId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights/${encodeURIComponent(preflightId)}/check" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights/${encodeURIComponent(preflightId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights/${encodeURIComponent(preflightId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready" in text

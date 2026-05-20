@@ -1,5 +1,21 @@
 # API 参考
 
+## Phase 61R: 商业运营 ComfyUI 连接预检
+
+状态：进行中。
+
+Phase 61R 在每个商业运营项目下新增 `commercial_operation_comfyui_preflights` 与 `CommercialOperationComfyUIPreflight` 记录。操作人员和服务器维护人员可以从已批准或已准备的 ComfyUI 交接创建 metadata-only 预检，编辑、重新检查、标记失败或归档。预检只记录目标地址、队列、模型、workflow、adapter config 和检查项，不会请求 ComfyUI 或提交队列。
+
+API：
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/preflights`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-preflights`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/check`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/archive`
+
+边界：ComfyUI 预检只是元数据记录，不会调用 health、prompt、history、upload、queue 等 ComfyUI 接口，不会提交任务、不会生成媒体、不会发布、不会运行 OpenClaw 或 Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+
 ## Phase 61Q: 商业运营 ComfyUI 交接记录
 
 状态：进行中。

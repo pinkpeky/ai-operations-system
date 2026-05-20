@@ -15,6 +15,7 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIHandoffStatus,
+    CommercialOperationComfyUIPreflightStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
@@ -431,6 +432,80 @@ class CommercialOperationComfyUIHandoff(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="ComfyUI handoff metadata",
+    )
+
+
+class CommercialOperationComfyUIPreflight(IdTimestampMixin, Base):
+    """Metadata-only ComfyUI adapter readiness preflight for a handoff."""
+
+    __tablename__ = "commercial_operation_comfyui_preflights"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    handoff_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_handoffs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="ComfyUI handoff ID",
+    )
+    asset_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_asset_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Source asset request ID snapshot",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="ComfyUI preflight title")
+    preflight_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationComfyUIPreflightStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / checked / blocked / failed / archived",
+    )
+    target_url: Mapped[str | None] = mapped_column(String(512), nullable=True, comment="Future ComfyUI endpoint URL")
+    connection_mode: Mapped[str] = mapped_column(
+        String(32),
+        default="metadata_only",
+        index=True,
+        nullable=False,
+        comment="metadata_only / future_guarded_adapter",
+    )
+    queue_name: Mapped[str | None] = mapped_column(String(128), nullable=True, comment="Future ComfyUI queue name")
+    workflow_name: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="ComfyUI workflow name")
+    model_refs: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected model/checkpoint refs")
+    adapter_config: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Metadata-only adapter configuration",
+    )
+    check_items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Preflight check items")
+    preflight_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing ComfyUI preflight payload",
+    )
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Preflight result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Preflight failure reason")
+    checked_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Checker user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    archived_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Archiver user ID")
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Checked at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    preflight_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="ComfyUI preflight metadata",
     )
 
 

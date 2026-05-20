@@ -127,6 +127,16 @@ class CommercialOperationComfyUIHandoffStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationComfyUIPreflightStatus(StrEnum):
+    """Commercial operation ComfyUI preflight lifecycle status."""
+
+    DRAFT = "draft"
+    CHECKED = "checked"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
 class CommercialOperationDeliverableStatus(StrEnum):
     """Commercial operation deliverable lifecycle status."""
 
