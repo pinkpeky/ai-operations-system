@@ -19,6 +19,7 @@ from app.models import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationEvidenceSnapshot,
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
@@ -36,6 +37,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationContentDraft,
         CommercialOperationDeliverable,
         CommercialOperationDryRun,
+        CommercialOperationEvidenceSnapshot,
         CommercialOperationExecutionRequest,
         CommercialOperationExecutionRun,
         CommercialOperationLink,
@@ -406,6 +408,89 @@ async def test_commercial_operations_api_flow() -> None:
             assert deliverable_step["deliverable_status"] == "packaged"
             assert deliverable_step["deliverable_output_artifact_id"] == output_artifact_id
 
+            evidence_snapshot = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots",
+                headers=headers,
+                json={
+                    "deliverable_id": deliverable_id,
+                    "evidence_type": "rag_snapshot",
+                    "title": "Newsletter evidence snapshot",
+                    "knowledge_collection": "ai_knowledge_base",
+                    "query": "Which knowledge sources support this newsletter handoff?",
+                    "evidence_summary": "Source notes support the target audience, offer, and review boundary.",
+                    "relevance_notes": "Operator confirmed the evidence before execution handoff.",
+                    "source_document_ids": ["doc-001", "doc-002"],
+                    "source_links": [{"title": "Approved draft", "target": content_draft_id}],
+                    "evidence_items": [{"title": "Customer pain point"}, {"title": "Offer proof"}],
+                    "coverage_checks": ["source reviewed", "relevance confirmed", "no live retrieval"],
+                    "metadata": {"phase": "61M"},
+                },
+            )
+            assert evidence_snapshot.status_code == 201
+            evidence_snapshot_body = evidence_snapshot.json()
+            evidence_snapshot_id = evidence_snapshot_body["id"]
+            assert evidence_snapshot_body["workspace_id"] == "workspace-commercial-api"
+            assert evidence_snapshot_body["operation_id"] == operation_id
+            assert evidence_snapshot_body["deliverable_id"] == deliverable_id
+            assert evidence_snapshot_body["content_draft_id"] == content_draft_id
+            assert evidence_snapshot_body["output_artifact_id"] == output_artifact_id
+            assert evidence_snapshot_body["snapshot_status"] == "draft"
+            assert evidence_snapshot_body["created_by"] == "user-commercial-api"
+            assert evidence_snapshot_body["snapshot_payload"]["non_goals"][0] == "does not run live RAG retrieval"
+
+            evidence_snapshots = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots",
+                headers=headers,
+            )
+            assert evidence_snapshots.status_code == 200
+            assert [item["id"] for item in evidence_snapshots.json()["items"]] == [evidence_snapshot_id]
+
+            hidden_evidence_snapshots = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_evidence_snapshots.status_code == 404
+
+            patched_evidence_snapshot = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots/{evidence_snapshot_id}",
+                headers=headers,
+                json={"evidence_summary": "Updated operator evidence summary.", "coverage_checks": ["reviewed"]},
+            )
+            assert patched_evidence_snapshot.status_code == 200
+            assert patched_evidence_snapshot.json()["evidence_summary"] == "Updated operator evidence summary."
+            assert patched_evidence_snapshot.json()["updated_by"] == "user-commercial-api"
+
+            ready_evidence_snapshot = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots/{evidence_snapshot_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for evidence review."},
+            )
+            assert ready_evidence_snapshot.status_code == 200
+            assert ready_evidence_snapshot.json()["snapshot_status"] == "ready_for_review"
+
+            approved_evidence_snapshot = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots/{evidence_snapshot_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved for execution handoff."},
+            )
+            assert approved_evidence_snapshot.status_code == 200
+            assert approved_evidence_snapshot.json()["snapshot_status"] == "approved"
+            assert approved_evidence_snapshot.json()["approved_by"] == "user-commercial-api"
+
+            fetched_after_evidence_snapshot = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_evidence_snapshot.status_code == 200
+            evidence_step = [
+                step
+                for step in fetched_after_evidence_snapshot.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert evidence_step["evidence_snapshot_id"] == evidence_snapshot_id
+            assert evidence_step["evidence_snapshot_status"] == "approved"
+            assert evidence_step["evidence_snapshot_item_count"] == 2
+
             execution_request = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/execution-requests",
                 headers=headers,
@@ -422,7 +507,12 @@ async def test_commercial_operations_api_flow() -> None:
                     ],
                     "readiness_checks": ["packaged deliverable", "operator approval"],
                     "expected_outputs": ["approved execution request", "traceable handoff payload"],
-                    "metadata": {"phase": "61H"},
+                    "evidence_snapshot_ids": [evidence_snapshot_id],
+                    "operator_checklist": [
+                        {"item": "Review approved evidence snapshot"},
+                        {"item": "Confirm target account"},
+                    ],
+                    "metadata": {"phase": "61M"},
                 },
             )
             assert execution_request.status_code == 201
@@ -440,6 +530,9 @@ async def test_commercial_operations_api_flow() -> None:
             assert execution_request_body["handoff_payload"]["next_runtime"] == "future_guarded_runtime_adapter"
             assert "no publishing" in execution_request_body["handoff_payload"]["forbidden_actions"]
             assert execution_request_body["runbook"][0]["execution_boundary"] == "metadata-only; no external runtime call"
+            assert execution_request_body["evidence_snapshot_ids"] == [evidence_snapshot_id]
+            assert execution_request_body["operator_checklist"][0]["item"] == "Review approved evidence snapshot"
+            assert execution_request_body["handoff_payload"]["evidence_snapshot_ids"] == [evidence_snapshot_id]
 
             execution_requests = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}/execution-requests",
@@ -508,6 +601,7 @@ async def test_commercial_operations_api_flow() -> None:
             assert execution_step["execution_request_status"] == "prepared"
             assert execution_step["execution_request_mode"] == "metadata_only"
             assert execution_step["execution_request_target"] == "newsletter_platform_primary"
+            assert execution_step["execution_request_evidence_snapshot_count"] == 1
 
             execution_run = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -539,6 +633,9 @@ async def test_commercial_operations_api_flow() -> None:
             assert execution_run_body["runtime_payload"]["next_runtime"] == "future_guarded_runtime_adapter"
             assert "no OpenClaw action" in execution_run_body["runtime_payload"]["forbidden_actions"]
             assert execution_run_body["recovery_plan"]["max_retries"] == 1
+            assert execution_run_body["evidence_snapshot_ids"] == [evidence_snapshot_id]
+            assert execution_run_body["operator_checklist_snapshot"][0]["item"] == "Review approved evidence snapshot"
+            assert execution_run_body["runtime_payload"]["evidence_snapshot_ids"] == [evidence_snapshot_id]
 
             execution_runs = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}/execution-runs",

@@ -463,8 +463,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61L",
-    boundaryBody: "商业运营执行运行记录。把目标、计划、知识、内容、素材、审批、交付、执行请求、执行运行和恢复记录串成可接手链路。",
+    boundaryTitle: "Phase 61M",
+    boundaryBody: "商业运营证据快照。把目标、计划、知识、内容、素材、审批、交付、证据、执行请求、执行运行和恢复记录串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61L",
-    boundaryBody: "Commercial operation results: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, result review, and follow-up context.",
+    boundaryTitle: "Phase 61M",
+    boundaryBody: "Commercial operation evidence snapshots: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, result review, and follow-up context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4386,10 +4386,10 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61L",
+    phaseLabel: "Phase 61M",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
-    summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、执行请求、执行运行记录和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
+    summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
     flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "结果复盘"],
     total: "项目",
     active: "进行中",
@@ -4464,10 +4464,10 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61L",
+    phaseLabel: "Phase 61M",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
-    summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
+    summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
     flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
     total: "Operations",
     active: "In motion",
@@ -4557,7 +4557,7 @@ function draftListText(value: unknown): string {
           return item;
         }
         if (item && typeof item === "object") {
-          return valueAt(item as JsonRecord, ["step", "title", "asset", "name"], "");
+          return valueAt(item as JsonRecord, ["step", "item", "title", "asset", "name"], "");
         }
         return "";
       })
@@ -4751,6 +4751,56 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           selectedHint: "Select an operation before creating deliverables.",
           noDeliverables: "No deliverables yet.",
         };
+  const evidenceCopy =
+    language === "zh-CN"
+      ? {
+          title: "证据快照",
+          description: "把已打包交付物背后的 RAG 文档、来源链接和人工判断整理成可审阅快照。当前只记录证据，不实时检索、不上传新知识、不执行外部动作。",
+          deliverableLabel: "已打包交付物",
+          typeLabel: "证据类型",
+          collectionLabel: "知识库集合",
+          queryLabel: "查询/审阅问题",
+          summaryLabel: "证据摘要",
+          relevanceLabel: "相关性说明",
+          documentsLabel: "文档 ID",
+          linksLabel: "来源链接",
+          itemsLabel: "证据条目",
+          coverageLabel: "覆盖检查",
+          createAction: "创建证据快照",
+          saveAction: "保存快照",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并至少打包一个交付物。",
+          requiresDeliverable: "需要先打包交付物。",
+          noSnapshots: "暂无证据快照。",
+        }
+      : {
+          title: "Evidence snapshots",
+          description: "Capture the RAG documents, source links, and operator reasoning behind a packaged deliverable. This records evidence only; it does not run live retrieval, upload knowledge, or execute external actions.",
+          deliverableLabel: "Packaged deliverable",
+          typeLabel: "Evidence type",
+          collectionLabel: "Knowledge collection",
+          queryLabel: "Query / review question",
+          summaryLabel: "Evidence summary",
+          relevanceLabel: "Relevance notes",
+          documentsLabel: "Document IDs",
+          linksLabel: "Source links",
+          itemsLabel: "Evidence items",
+          coverageLabel: "Coverage checks",
+          createAction: "Create snapshot",
+          saveAction: "Save snapshot",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and package at least one deliverable first.",
+          requiresDeliverable: "Package one deliverable first.",
+          noSnapshots: "No evidence snapshots yet.",
+        };
   const executionRequestCopy =
     language === "zh-CN"
       ? {
@@ -4764,6 +4814,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           runbookLabel: "操作步骤",
           readinessLabel: "准备检查",
           outputsLabel: "预期输出",
+          evidenceLabel: "证据快照",
+          checklistLabel: "人工检查清单",
           createAction: "创建执行请求",
           saveAction: "保存执行请求",
           editAction: "编辑",
@@ -4788,6 +4840,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           runbookLabel: "Runbook",
           readinessLabel: "Readiness checks",
           outputsLabel: "Expected outputs",
+          evidenceLabel: "Evidence snapshots",
+          checklistLabel: "Operator checklist",
           createAction: "Create execution request",
           saveAction: "Save execution request",
           editAction: "Edit",
@@ -4996,6 +5050,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [contentDraftsState, setContentDraftsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [assetRequestsState, setAssetRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [evidenceSnapshotsState, setEvidenceSnapshotsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRunsState, setExecutionRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [resultsState, setResultsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -5058,6 +5113,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [deliverableNotes, setDeliverableNotes] = useState(language === "zh-CN" ? "只进入 Output Library，不发布。" : "Store in Output Library only; do not publish.");
   const [deliverableQualityChecksDraft, setDeliverableQualityChecksDraft] = useState("approved content draft, linked assets reviewed, no external publish");
   const [selectedDeliverableId, setSelectedDeliverableId] = useState("");
+  const [evidenceDeliverableId, setEvidenceDeliverableId] = useState("");
+  const [selectedEvidenceSnapshotId, setSelectedEvidenceSnapshotId] = useState("");
+  const [evidenceType, setEvidenceType] = useState("rag_snapshot");
+  const [evidenceTitle, setEvidenceTitle] = useState(language === "zh-CN" ? "交付物证据快照" : "Deliverable evidence snapshot");
+  const [evidenceCollection, setEvidenceCollection] = useState("ai_knowledge_base");
+  const [evidenceQuery, setEvidenceQuery] = useState(language === "zh-CN" ? "哪些知识库材料支撑这次交付？" : "Which knowledge materials support this deliverable?");
+  const [evidenceSummary, setEvidenceSummary] = useState(language === "zh-CN" ? "人工确认的来源材料和关键依据。" : "Operator-confirmed source materials and key proof points.");
+  const [evidenceRelevance, setEvidenceRelevance] = useState(language === "zh-CN" ? "用于执行前核对内容、素材和目标受众是否匹配。" : "Used to verify content, assets, and target audience before execution.");
+  const [evidenceDocumentIdsDraft, setEvidenceDocumentIdsDraft] = useState("doc-knowledge-1");
+  const [evidenceLinksDraft, setEvidenceLinksDraft] = useState("intake conversation, approved draft");
+  const [evidenceItemsDraft, setEvidenceItemsDraft] = useState("customer pain point, offer proof, approval boundary");
+  const [evidenceCoverageDraft, setEvidenceCoverageDraft] = useState("source reviewed, relevance confirmed, no live retrieval");
   const [executionDeliverableId, setExecutionDeliverableId] = useState("");
   const [selectedExecutionRequestId, setSelectedExecutionRequestId] = useState("");
   const [executionRequestType, setExecutionRequestType] = useState("manual_handoff");
@@ -5068,6 +5135,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [executionRunbookDraft, setExecutionRunbookDraft] = useState("review packaged deliverable, confirm target account, prepare future guarded runtime handoff");
   const [executionReadinessDraft, setExecutionReadinessDraft] = useState("packaged deliverable, human approval, no external runtime call");
   const [executionOutputsDraft, setExecutionOutputsDraft] = useState("approved request, traceable handoff payload, operator result record");
+  const [executionEvidenceSnapshotIdsDraft, setExecutionEvidenceSnapshotIdsDraft] = useState("");
+  const [executionChecklistDraft, setExecutionChecklistDraft] = useState("review approved evidence snapshots, confirm target account, confirm approval gate");
   const [executionRunRequestId, setExecutionRunRequestId] = useState("");
   const [selectedExecutionRunId, setSelectedExecutionRunId] = useState("");
   const [executionRunTitle, setExecutionRunTitle] = useState(language === "zh-CN" ? "执行运行记录" : "Execution run record");
@@ -5275,6 +5344,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadEvidenceSnapshots = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setEvidenceSnapshotsState(emptyState());
+        return;
+      }
+      setEvidenceSnapshotsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.evidenceSnapshots(operationId, settings);
+        setEvidenceSnapshotsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setEvidenceSnapshotsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation evidence snapshots API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadExecutionRequests = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -5392,6 +5483,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadContentDrafts(selectedOperationId);
       void loadAssetRequests(selectedOperationId);
       void loadDeliverables(selectedOperationId);
+      void loadEvidenceSnapshots(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
       void loadExecutionRuns(selectedOperationId);
       void loadResults(selectedOperationId);
@@ -5405,13 +5497,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setContentDraftsState(emptyState());
     setAssetRequestsState(emptyState());
     setDeliverablesState(emptyState());
+    setEvidenceSnapshotsState(emptyState());
     setExecutionRequestsState(emptyState());
     setExecutionRunsState(emptyState());
     setResultsState(emptyState());
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -5856,6 +5949,121 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editOperationEvidenceSnapshot = (snapshot: JsonRecord) => {
+    const snapshotId = valueAt(snapshot, ["id"], "");
+    if (!snapshotId) {
+      return;
+    }
+    setSelectedEvidenceSnapshotId(snapshotId);
+    setEvidenceDeliverableId(valueAt(snapshot, ["deliverable_id"], evidenceDeliverableId));
+    setEvidenceType(valueAt(snapshot, ["evidence_type"], evidenceType));
+    setEvidenceTitle(valueAt(snapshot, ["title"], evidenceTitle));
+    setEvidenceCollection(valueAt(snapshot, ["knowledge_collection"], ""));
+    setEvidenceQuery(valueAt(snapshot, ["query"], ""));
+    setEvidenceSummary(valueAt(snapshot, ["evidence_summary"], ""));
+    setEvidenceRelevance(valueAt(snapshot, ["relevance_notes"], ""));
+    setEvidenceDocumentIdsDraft(draftListText(snapshot.source_document_ids));
+    setEvidenceLinksDraft(draftListText(snapshot.source_links));
+    setEvidenceItemsDraft(draftListText(snapshot.evidence_items));
+    setEvidenceCoverageDraft(draftListText(snapshot.coverage_checks));
+  };
+
+  const evidenceSnapshotPayload = (): JsonRecord => ({
+    deliverable_id: evidenceDeliverableId,
+    evidence_type: evidenceType,
+    title: evidenceTitle.trim(),
+    knowledge_collection: evidenceCollection.trim() || undefined,
+    query: evidenceQuery.trim() || undefined,
+    evidence_summary: evidenceSummary.trim() || undefined,
+    relevance_notes: evidenceRelevance.trim() || undefined,
+    source_document_ids: splitDraftList(evidenceDocumentIdsDraft),
+    source_links: splitDraftList(evidenceLinksDraft).map((item) => ({ title: item, target: item })),
+    evidence_items: splitDraftList(evidenceItemsDraft).map((item) => ({ title: item, summary: item })),
+    coverage_checks: splitDraftList(evidenceCoverageDraft),
+    snapshot_payload: { source: "admin_dashboard", phase: "61M" },
+    metadata: { source: "admin_dashboard", phase: "61M" },
+  });
+
+  const createOperationEvidenceSnapshot = async () => {
+    if (!selectedOperationId || !evidenceDeliverableId) {
+      setActionState({
+        data: null,
+        error: evidenceCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createEvidenceSnapshot(selectedOperationId, evidenceSnapshotPayload(), settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedEvidenceSnapshotId(valueAt(created, ["id"], ""));
+      await loadEvidenceSnapshots(selectedOperationId);
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation evidence snapshot create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOperationEvidenceSnapshot = async () => {
+    if (!selectedOperationId || !selectedEvidenceSnapshotId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateEvidenceSnapshot(selectedOperationId, selectedEvidenceSnapshotId, evidenceSnapshotPayload(), settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadEvidenceSnapshots(selectedOperationId);
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation evidence snapshot update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationEvidenceSnapshot = async (
+    snapshotId: string,
+    action: "ready" | "approve" | "reject" | "archive",
+  ) => {
+    if (!selectedOperationId || !snapshotId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyEvidenceSnapshot(selectedOperationId, snapshotId, "Ready for review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveEvidenceSnapshot(selectedOperationId, snapshotId, "Approved from Commercial Ops.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectEvidenceSnapshot(selectedOperationId, snapshotId, "Rejected from Commercial Ops.", settings)
+              : await commercialOperationsApi.archiveEvidenceSnapshot(selectedOperationId, snapshotId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadEvidenceSnapshots(selectedOperationId);
+      await loadDeliverables(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation evidence snapshot action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const editOperationExecutionRequest = (executionRequest: JsonRecord) => {
     const executionRequestId = valueAt(executionRequest, ["id"], "");
     if (!executionRequestId) {
@@ -5871,6 +6079,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setExecutionRunbookDraft(draftListText(executionRequest.runbook));
     setExecutionReadinessDraft(draftListText(executionRequest.readiness_checks));
     setExecutionOutputsDraft(draftListText(executionRequest.expected_outputs));
+    setExecutionEvidenceSnapshotIdsDraft(draftListText(executionRequest.evidence_snapshot_ids));
+    setExecutionChecklistDraft(draftListText(executionRequest.operator_checklist));
   };
 
   const executionRequestPayload = (): JsonRecord => ({
@@ -5883,7 +6093,9 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     runbook: splitDraftList(executionRunbookDraft).map((item) => ({ step: item })),
     readiness_checks: splitDraftList(executionReadinessDraft),
     expected_outputs: splitDraftList(executionOutputsDraft),
-    metadata: { source: "admin_dashboard", phase: "61H" },
+    evidence_snapshot_ids: splitDraftList(executionEvidenceSnapshotIdsDraft),
+    operator_checklist: splitDraftList(executionChecklistDraft).map((item) => ({ item })),
+    metadata: { source: "admin_dashboard", phase: "61M" },
   });
 
   const createOperationExecutionRequest = async () => {
@@ -6636,12 +6848,21 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const contentDrafts = contentDraftsState.data || [];
   const assetRequests = assetRequestsState.data || [];
   const deliverables = deliverablesState.data || [];
+  const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
   const executionRuns = executionRunsState.data || [];
   const results = resultsState.data || [];
   const monitoringObservations = monitoringState.data || [];
   const optimizationDecisions = optimizationState.data || [];
   const packagedDeliverables = deliverables.filter((deliverable) => valueAt(deliverable, ["deliverable_status"], "") === "packaged");
+  const approvedEvidenceSnapshots = evidenceSnapshots.filter((snapshot) => valueAt(snapshot, ["snapshot_status"], "") === "approved");
+  const approvedEvidenceSnapshotsForExecution = approvedEvidenceSnapshots.filter((snapshot) => {
+    const linkedDeliverable = valueAt(snapshot, ["deliverable_id"], "");
+    return !executionDeliverableId || linkedDeliverable === executionDeliverableId;
+  });
+  const approvedEvidenceSnapshotIdsForExecution = approvedEvidenceSnapshotsForExecution
+    .map((snapshot) => valueAt(snapshot, ["id"], ""))
+    .filter(Boolean);
   const preparedExecutionRequests = executionRequests.filter((executionRequest) => valueAt(executionRequest, ["request_status"], "") === "prepared");
   const terminalExecutionRuns = executionRuns.filter((executionRun) => ["succeeded", "failed", "cancelled"].includes(valueAt(executionRun, ["run_status"], "")));
   const approvedResults = results.filter((result) => valueAt(result, ["result_status"], "") === "approved");
@@ -6671,12 +6892,31 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, [approvedContentDrafts, deliverableContentDraftId]);
 
   useEffect(() => {
+    if (evidenceDeliverableId && packagedDeliverables.some((deliverable) => valueAt(deliverable, ["id"], "") === evidenceDeliverableId)) {
+      return;
+    }
+    const nextDeliverable = packagedDeliverables[0];
+    const nextDeliverableId = nextDeliverable ? valueAt(nextDeliverable, ["id"], "") : "";
+    setEvidenceDeliverableId(nextDeliverableId);
+    if (nextDeliverable && !selectedEvidenceSnapshotId) {
+      setEvidenceTitle(`${valueAt(nextDeliverable, ["title"], "Deliverable")} evidence`);
+    }
+  }, [packagedDeliverables, evidenceDeliverableId, selectedEvidenceSnapshotId]);
+
+  useEffect(() => {
     if (executionDeliverableId && packagedDeliverables.some((deliverable) => valueAt(deliverable, ["id"], "") === executionDeliverableId)) {
       return;
     }
     const nextDeliverableId = packagedDeliverables[0] ? valueAt(packagedDeliverables[0], ["id"], "") : "";
     setExecutionDeliverableId(nextDeliverableId);
   }, [packagedDeliverables, executionDeliverableId]);
+
+  useEffect(() => {
+    if (selectedExecutionRequestId) {
+      return;
+    }
+    setExecutionEvidenceSnapshotIdsDraft(approvedEvidenceSnapshotIdsForExecution.join(", "));
+  }, [approvedEvidenceSnapshotIdsForExecution.join("|"), selectedExecutionRequestId]);
 
   useEffect(() => {
     if (executionRunRequestId && preparedExecutionRequests.some((request) => valueAt(request, ["id"], "") === executionRunRequestId)) {
@@ -6747,7 +6987,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -7377,6 +7617,156 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         )}
       </Panel>
 
+      <Panel title={evidenceCopy.title} description={evidenceCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-evidence-grid">
+              <label>
+                {evidenceCopy.deliverableLabel}
+                <select value={evidenceDeliverableId} onChange={(event) => setEvidenceDeliverableId(event.target.value)}>
+                  {packagedDeliverables.length ? null : <option value="">-</option>}
+                  {packagedDeliverables.map((deliverable) => {
+                    const deliverableId = valueAt(deliverable, ["id"], "");
+                    return (
+                      <option value={deliverableId} key={deliverableId}>
+                        {valueAt(deliverable, ["title"])} / {valueAt(deliverable, ["channel"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {evidenceCopy.typeLabel}
+                <select value={evidenceType} onChange={(event) => setEvidenceType(event.target.value)}>
+                  <option value="rag_snapshot">rag_snapshot</option>
+                  <option value="source_review">source_review</option>
+                  <option value="operator_note">operator_note</option>
+                  <option value="compliance_note">compliance_note</option>
+                  <option value="other">other</option>
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={evidenceTitle} onChange={(event) => setEvidenceTitle(event.target.value)} />
+              </label>
+              <label>
+                {evidenceCopy.collectionLabel}
+                <input value={evidenceCollection} onChange={(event) => setEvidenceCollection(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {evidenceCopy.queryLabel}
+                <textarea value={evidenceQuery} onChange={(event) => setEvidenceQuery(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {evidenceCopy.summaryLabel}
+                <textarea value={evidenceSummary} onChange={(event) => setEvidenceSummary(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {evidenceCopy.relevanceLabel}
+                <textarea value={evidenceRelevance} onChange={(event) => setEvidenceRelevance(event.target.value)} />
+              </label>
+              <label>
+                {evidenceCopy.documentsLabel}
+                <textarea value={evidenceDocumentIdsDraft} onChange={(event) => setEvidenceDocumentIdsDraft(event.target.value)} />
+              </label>
+              <label>
+                {evidenceCopy.linksLabel}
+                <textarea value={evidenceLinksDraft} onChange={(event) => setEvidenceLinksDraft(event.target.value)} />
+              </label>
+              <label>
+                {evidenceCopy.itemsLabel}
+                <textarea value={evidenceItemsDraft} onChange={(event) => setEvidenceItemsDraft(event.target.value)} />
+              </label>
+              <label>
+                {evidenceCopy.coverageLabel}
+                <textarea value={evidenceCoverageDraft} onChange={(event) => setEvidenceCoverageDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOperationEvidenceSnapshot()}
+                disabled={!evidenceDeliverableId || !evidenceTitle.trim() || actionState.loading}
+              >
+                <FileText size={15} />
+                {evidenceCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOperationEvidenceSnapshot()}
+                disabled={!selectedEvidenceSnapshotId || !evidenceTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {evidenceCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={evidenceSnapshotsState} />
+            {evidenceSnapshotsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {evidenceSnapshotsState.updatedAt}</div> : null}
+            {evidenceSnapshots.length ? (
+              <div className="commercial-evidence-list">
+                {evidenceSnapshots.map((snapshot) => {
+                  const snapshotId = valueAt(snapshot, ["id"], "");
+                  const snapshotStatus = valueAt(snapshot, ["snapshot_status"], "");
+                  return (
+                    <article className="commercial-evidence-item" key={snapshotId}>
+                      <div>
+                        <strong>{valueAt(snapshot, ["title"])}</strong>
+                        <span>{valueAt(snapshot, ["channel"])} / {valueAt(snapshot, ["evidence_type"])} / {valueAt(snapshot, ["knowledge_collection"], "-")}</span>
+                        <p>{valueAt(snapshot, ["evidence_summary"], valueAt(snapshot, ["query"], ""))}</p>
+                        <p>{shortJson(snapshot.snapshot_payload, 90)}</p>
+                        <StatusPill value={snapshotStatus} />
+                      </div>
+                      <div className="commercial-evidence-actions">
+                        <button className="ghost-button" onClick={() => editOperationEvidenceSnapshot(snapshot)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {evidenceCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationEvidenceSnapshot(snapshotId, "ready")}
+                          disabled={!["draft", "rejected"].includes(snapshotStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {evidenceCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationEvidenceSnapshot(snapshotId, "approve")}
+                          disabled={snapshotStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {evidenceCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationEvidenceSnapshot(snapshotId, "reject")}
+                          disabled={snapshotStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {evidenceCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationEvidenceSnapshot(snapshotId, "archive")}
+                          disabled={snapshotStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {evidenceCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{packagedDeliverables.length ? evidenceCopy.noSnapshots : evidenceCopy.requiresDeliverable}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{evidenceCopy.selectedHint}</div>
+        )}
+      </Panel>
+
       <Panel title={executionRequestCopy.title} description={executionRequestCopy.description}>
         {selectedOperation ? (
           <>
@@ -7437,6 +7827,30 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
               <label>
                 {executionRequestCopy.outputsLabel}
                 <textarea value={executionOutputsDraft} onChange={(event) => setExecutionOutputsDraft(event.target.value)} />
+              </label>
+              <label>
+                {executionRequestCopy.evidenceLabel}
+                <select
+                  value={executionEvidenceSnapshotIdsDraft}
+                  onChange={(event) => setExecutionEvidenceSnapshotIdsDraft(event.target.value)}
+                >
+                  <option value="">-</option>
+                  {approvedEvidenceSnapshotIdsForExecution.length > 1 ? (
+                    <option value={approvedEvidenceSnapshotIdsForExecution.join(", ")}>all approved snapshots</option>
+                  ) : null}
+                  {approvedEvidenceSnapshotsForExecution.map((snapshot) => {
+                    const snapshotId = valueAt(snapshot, ["id"], "");
+                    return (
+                      <option value={snapshotId} key={snapshotId}>
+                        {valueAt(snapshot, ["title"])} / {valueAt(snapshot, ["snapshot_status"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {executionRequestCopy.checklistLabel}
+                <textarea value={executionChecklistDraft} onChange={(event) => setExecutionChecklistDraft(event.target.value)} />
               </label>
             </div>
             <div className="commercial-action-row">

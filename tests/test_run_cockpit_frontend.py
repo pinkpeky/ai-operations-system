@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61l-commercial-optimization-decisions" in text or "Commercial Operation Optimization Decisions" in text, path
-        assert "commercial_operation_optimization_decisions" in text or "/optimization-decisions" in text, path
+        assert "phase-61m-commercial-evidence-snapshots" in text or "Commercial Operation Evidence Snapshots" in text, path
+        assert "commercial_operation_evidence_snapshots" in text or "/evidence-snapshots" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61K should be merged and Phase 61L should be the active optimization slice."""
+    """Phase 61A-61L should be merged and Phase 61M should be the active evidence snapshot slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -384,6 +384,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "phase-61l-commercial-optimization-decisions" in phase_61_lines["61L"]
     assert "Commercial Operation Optimization Decisions" in phase_61_lines["61L"]
     assert "#52" in phase_61_lines["61L"]
-    assert "Draft PR" in phase_61_lines["61L"]
+    assert "Merged to main" in phase_61_lines["61L"]
     assert "TBD" not in phase_61_lines["61L"]
     assert "In progress" not in phase_61_lines["61L"]
+
+    assert "61M" in phase_61_lines
+    assert "phase-61m-commercial-evidence-snapshots" in phase_61_lines["61M"]
+    assert "Commercial Operation Evidence Snapshots" in phase_61_lines["61M"]
+    assert "#53" in phase_61_lines["61M"]
+    assert "Draft PR" in phase_61_lines["61M"]
+    assert "TBD" not in phase_61_lines["61M"]
+    assert "In progress" not in phase_61_lines["61M"]

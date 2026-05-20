@@ -16,6 +16,7 @@ from app.models.commercial_operation import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationEvidenceSnapshot,
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
@@ -97,6 +98,13 @@ CommercialOperationMonitoringObservationStatusLiteral = Literal[
     "archived",
 ]
 CommercialOperationOptimizationDecisionStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "archived",
+]
+CommercialOperationEvidenceSnapshotStatusLiteral = Literal[
     "draft",
     "ready_for_review",
     "approved",
@@ -722,6 +730,124 @@ class CommercialOperationDeliverableListResponse(BaseModel):
     items: list[CommercialOperationDeliverableResponse]
 
 
+class CommercialOperationEvidenceSnapshotCreateRequest(BaseModel):
+    """Create a reviewable evidence snapshot from a packaged commercial deliverable."""
+
+    deliverable_id: UUID
+    evidence_type: str = Field(default="rag_snapshot", min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    knowledge_collection: str | None = Field(default=None, max_length=128)
+    query: str | None = None
+    evidence_summary: str | None = None
+    relevance_notes: str | None = None
+    source_document_ids: list[str] = Field(default_factory=list)
+    source_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_items: list[dict[str, Any]] = Field(default_factory=list)
+    coverage_checks: list[str] = Field(default_factory=list)
+    snapshot_payload: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationEvidenceSnapshotUpdateRequest(BaseModel):
+    """Patch a draft or rejected commercial evidence snapshot."""
+
+    evidence_type: str | None = Field(default=None, min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    knowledge_collection: str | None = Field(default=None, max_length=128)
+    query: str | None = None
+    evidence_summary: str | None = None
+    relevance_notes: str | None = None
+    source_document_ids: list[str] | None = None
+    source_links: list[dict[str, Any]] | None = None
+    evidence_items: list[dict[str, Any]] | None = None
+    coverage_checks: list[str] | None = None
+    snapshot_payload: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationEvidenceSnapshotDecisionRequest(BaseModel):
+    """Send, approve, reject, or archive an evidence snapshot."""
+
+    reviewer_notes: str | None = None
+
+
+class CommercialOperationEvidenceSnapshotResponse(BaseModel):
+    """Commercial operation evidence snapshot response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    deliverable_id: UUID
+    content_draft_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    evidence_type: str
+    title: str
+    snapshot_status: str
+    knowledge_collection: str | None
+    query: str | None
+    evidence_summary: str | None
+    relevance_notes: str | None
+    source_document_ids: list[str]
+    source_links: list[dict[str, Any]]
+    evidence_items: list[dict[str, Any]]
+    coverage_checks: list[str]
+    snapshot_payload: dict[str, Any]
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, snapshot: CommercialOperationEvidenceSnapshot) -> "CommercialOperationEvidenceSnapshotResponse":
+        return cls(
+            id=snapshot.id,
+            workspace_id=snapshot.workspace_id,
+            operation_id=snapshot.operation_id,
+            deliverable_id=snapshot.deliverable_id,
+            content_draft_id=snapshot.content_draft_id,
+            output_artifact_id=snapshot.output_artifact_id,
+            step_key=snapshot.step_key,
+            channel=snapshot.channel,
+            evidence_type=snapshot.evidence_type,
+            title=snapshot.title,
+            snapshot_status=snapshot.snapshot_status,
+            knowledge_collection=snapshot.knowledge_collection,
+            query=snapshot.query,
+            evidence_summary=snapshot.evidence_summary,
+            relevance_notes=snapshot.relevance_notes,
+            source_document_ids=snapshot.source_document_ids,
+            source_links=snapshot.source_links,
+            evidence_items=snapshot.evidence_items,
+            coverage_checks=snapshot.coverage_checks,
+            snapshot_payload=snapshot.snapshot_payload,
+            reviewer_notes=snapshot.reviewer_notes,
+            created_by=snapshot.created_by,
+            updated_by=snapshot.updated_by,
+            approved_by=snapshot.approved_by,
+            approved_at=snapshot.approved_at,
+            rejected_at=snapshot.rejected_at,
+            archived_at=snapshot.archived_at,
+            metadata=snapshot.snapshot_metadata,
+            created_at=snapshot.created_at,
+            updated_at=snapshot.updated_at,
+        )
+
+
+class CommercialOperationEvidenceSnapshotListResponse(BaseModel):
+    """Commercial operation evidence snapshot list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationEvidenceSnapshotResponse]
+
+
 class CommercialOperationExecutionRequestCreateRequest(BaseModel):
     """Create a metadata-only monitored execution request from a packaged deliverable."""
 
@@ -734,6 +860,8 @@ class CommercialOperationExecutionRequestCreateRequest(BaseModel):
     runbook: list[dict[str, Any]] = Field(default_factory=list)
     readiness_checks: list[str] = Field(default_factory=list)
     expected_outputs: list[str] = Field(default_factory=list)
+    evidence_snapshot_ids: list[UUID] = Field(default_factory=list)
+    operator_checklist: list[dict[str, Any]] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -748,6 +876,8 @@ class CommercialOperationExecutionRequestUpdateRequest(BaseModel):
     runbook: list[dict[str, Any]] | None = None
     readiness_checks: list[str] | None = None
     expected_outputs: list[str] | None = None
+    evidence_snapshot_ids: list[UUID] | None = None
+    operator_checklist: list[dict[str, Any]] | None = None
     metadata: dict[str, Any] | None = None
 
 
@@ -778,6 +908,8 @@ class CommercialOperationExecutionRequestResponse(BaseModel):
     runbook: list[dict[str, Any]]
     readiness_checks: list[str]
     expected_outputs: list[str]
+    evidence_snapshot_ids: list[str]
+    operator_checklist: list[dict[str, Any]]
     handoff_payload: dict[str, Any]
     result_summary: str | None
     failure_reason: str | None
@@ -816,6 +948,8 @@ class CommercialOperationExecutionRequestResponse(BaseModel):
             runbook=request.runbook,
             readiness_checks=request.readiness_checks,
             expected_outputs=request.expected_outputs,
+            evidence_snapshot_ids=request.evidence_snapshot_ids,
+            operator_checklist=request.operator_checklist,
             handoff_payload=request.handoff_payload,
             result_summary=request.result_summary,
             failure_reason=request.failure_reason,
@@ -896,6 +1030,8 @@ class CommercialOperationExecutionRunResponse(BaseModel):
     runbook_snapshot: list[dict[str, Any]]
     readiness_checks: list[str]
     expected_outputs: list[str]
+    evidence_snapshot_ids: list[str]
+    operator_checklist_snapshot: list[dict[str, Any]]
     runtime_payload: dict[str, Any]
     result_payload: dict[str, Any]
     recovery_plan: dict[str, Any]
@@ -938,6 +1074,8 @@ class CommercialOperationExecutionRunResponse(BaseModel):
             runbook_snapshot=run.runbook_snapshot,
             readiness_checks=run.readiness_checks,
             expected_outputs=run.expected_outputs,
+            evidence_snapshot_ids=run.evidence_snapshot_ids,
+            operator_checklist_snapshot=run.operator_checklist_snapshot,
             runtime_payload=run.runtime_payload,
             result_payload=run.result_payload,
             recovery_plan=run.recovery_plan,

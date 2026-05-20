@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61l-commercial-optimization-decisions
+codex/phase-61m-commercial-evidence-snapshots
 ```
 
 ## What This Phase Adds
@@ -30,6 +30,7 @@ codex/phase-61l-commercial-optimization-decisions
 - Database table: `commercial_operation_results`.
 - Database table: `commercial_operation_monitoring_observations`.
 - Database table: `commercial_operation_optimization_decisions`.
+- Database table: `commercial_operation_evidence_snapshots`.
 - ORM model: `CommercialOperation`.
 - ORM model: `CommercialOperationLink`.
 - ORM model: `CommercialOperationApproval`.
@@ -42,6 +43,7 @@ codex/phase-61l-commercial-optimization-decisions
 - ORM model: `CommercialOperationResult`.
 - ORM model: `CommercialOperationMonitoringObservation`.
 - ORM model: `CommercialOperationOptimizationDecision`.
+- ORM model: `CommercialOperationEvidenceSnapshot`.
 - Service layer: `CommercialOperationService`.
 - API route group: `/api/v1/commercial-operations`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/links`.
@@ -55,6 +57,7 @@ codex/phase-61l-commercial-optimization-decisions
 - API route group: `/api/v1/commercial-operations/{operation_id}/results`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/monitoring-observations`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/optimization-decisions`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots`.
 - Admin Dashboard page: `?page=commercial-operations`.
 - API client: `commercialOperationsApi`.
 - Migration: `0035_phase61a_commercial_ops`.
@@ -69,6 +72,7 @@ codex/phase-61l-commercial-optimization-decisions
 - Migration: `0044_phase61j_results`.
 - Migration: `0045_phase61k_observations`.
 - Migration: `0046_phase61l_opt_decisions`.
+- Migration: `0047_phase61m_evidence_snapshots`.
 
 Each commercial operation stores:
 
@@ -125,14 +129,14 @@ Each commercial operation deliverable stores:
 Each commercial operation execution request stores:
 
 - workspace, operation, packaged deliverable, linked Output Library artifact, and plan-step context;
-- channel, execution type, execution mode, title, target platform/account, input summary, runbook, readiness checks, expected outputs, handoff payload, reviewer notes, result summary, failure reason, and metadata;
+- channel, execution type, execution mode, title, target platform/account, input summary, runbook, readiness checks, expected outputs, approved evidence snapshot IDs, operator checklist items, handoff payload, reviewer notes, result summary, failure reason, and metadata;
 - requester, updater, approver, preparer, canceller, decision timestamps, failure timestamp, cancellation timestamp, and archive timestamp;
 - `request_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, `cancelled`, or `archived`.
 
 Each commercial operation execution run stores:
 
 - workspace, operation, prepared execution request, packaged deliverable, linked Output Library artifact, and plan-step context;
-- channel, execution type, execution mode, target platform/account, title, input payload, runbook snapshot, readiness checks, expected outputs, runtime payload, result payload, recovery plan, operator notes, and metadata;
+- channel, execution type, execution mode, target platform/account, title, input payload, runbook snapshot, readiness checks, expected outputs, approved evidence snapshot IDs, operator checklist snapshot, runtime payload, result payload, recovery plan, operator notes, and metadata;
 - queuer, starter, completer, canceller, lifecycle timestamps, retry count, and maximum retries;
 - `run_status`: `queued`, `running`, `succeeded`, `failed`, `retrying`, `cancelled`, or `archived`.
 
@@ -156,6 +160,13 @@ Each commercial operation optimization decision stores:
 - channel, decision type, title, priority, rationale, objective updates, content actions, asset actions, audience actions, execution actions, risk controls, decision payload, reviewer notes, optional next review time, and metadata;
 - creator, updater, approver, approval/rejection/archive timestamps;
 - `decision_status`: `draft`, `ready_for_review`, `approved`, `rejected`, or `archived`.
+
+Each commercial operation evidence snapshot stores:
+
+- workspace, operation, packaged deliverable, optional content draft, optional linked Output Library artifact, and plan-step context;
+- channel, evidence type, title, knowledge collection, query, evidence summary, relevance notes, source document ids, source links, evidence items, coverage checks, snapshot payload, reviewer notes, and metadata;
+- creator, updater, approver, approval/rejection/archive timestamps;
+- `snapshot_status`: `draft`, `ready_for_review`, `approved`, `rejected`, or `archived`.
 
 ## Evidence and Handoff Links
 
@@ -191,11 +202,19 @@ Creating a deliverable also creates a linked Output Library artifact with `sourc
 
 Deliverables do not publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, or bypass approval. The `package_payload` describes the future handoff shape only; the next runtime step remains a future monitored execution request.
 
+## Evidence Snapshots
+
+Phase 61M treats evidence snapshots as first-class, operator-reviewed knowledge packages created from packaged deliverables. A snapshot can be created only after a deliverable is `packaged`; it can then be edited while draft or rejected, marked ready for review, approved, rejected, or archived. Creating or deciding a snapshot writes the latest evidence state back to the matching `plan_outline` step and the deliverable package payload.
+
+Approved evidence snapshots can be attached to execution requests. When an execution run is created, the approved evidence snapshot IDs and operator checklist are copied into the run so a workstation operator or server maintainer can see exactly which knowledge/source evidence was reviewed before future execution.
+
+Evidence snapshots are still metadata-only. They do not upload knowledge files, run live RAG retrieval, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, publish content, ingest platform analytics, claim ROI attribution, or bypass approval. The `snapshot_payload` records the reviewed source evidence shape only; automatic snapshot generation remains a later guarded RAG integration.
+
 ## Execution Requests
 
 Phase 61H treats execution requests as first-class, reviewable records created from packaged deliverables. A request can be created, edited, marked ready for review, approved, rejected, prepared for future guarded runtime handoff, failed before handoff, cancelled before preparation, or archived. Creating or deciding an execution request writes the latest request state back to the matching `plan_outline` step.
 
-Execution requests are still metadata-only. They do not publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, or bypass approval. The `handoff_payload` records the future runtime shape, `future_guarded_runtime_adapter`, and the forbidden actions list so workstation operators and server maintainers can see exactly what has and has not happened.
+Execution requests are still metadata-only. They do not publish content, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, contact external accounts, or bypass approval. The `handoff_payload` records the future runtime shape, approved evidence snapshot IDs, operator checklist, `future_guarded_runtime_adapter`, and the forbidden actions list so workstation operators and server maintainers can see exactly what has and has not happened.
 
 ## Execution Runs
 
@@ -238,11 +257,12 @@ Optimization decisions are still metadata-only. They do not auto-optimize conten
 13. Create result records from succeeded, failed, or cancelled execution runs; record observed metrics, evidence, outcomes, and follow-up actions; then send them for review, approve/reject, or archive them.
 14. Create monitoring observations from approved result records; record metric snapshots, qualitative signals, evidence, anomalies, and recommended actions; then send them for review, approve/reject, or archive them.
 15. Create optimization decisions from approved monitoring observations; record rationale, content, asset, audience, execution, and risk-control actions; then send them for review, approve/reject, or archive them.
-16. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
-17. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
-18. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, deliverable, execution request, execution run, result record, monitoring observation, optimization decision, dry-run record, or external material.
+16. Create evidence snapshots from packaged deliverables; record reviewed knowledge collection, source document ids, source links, evidence items, coverage checks, and relevance notes; then send them for review, approve/reject, or archive them.
+17. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
+18. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
+19. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, deliverable, evidence snapshot, execution request, execution run, result record, monitoring observation, optimization decision, dry-run record, or external material.
 
-The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, deliverables, execution requests, execution runs, results, monitoring observations, optimization decisions, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
+The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution runs, results, monitoring observations, optimization decisions, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
 
 ## Maintainer Flow
 
@@ -289,6 +309,13 @@ POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/
 POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/package
 POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/fail
 POST /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/archive
+GET /api/v1/commercial-operations/{operation_id}/evidence-snapshots
+POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots
+PATCH /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}
+POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/ready
+POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/approve
+POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/reject
+POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/{snapshot_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/execution-requests
 POST /api/v1/commercial-operations/{operation_id}/execution-requests
 PATCH /api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}
@@ -338,13 +365,15 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation.
 
 It does not publish to social platforms.
 
 It does not execute OpenClaw actions.
 
 It does not run ComfyUI jobs.
+
+It does not run live RAG retrieval or ingest knowledge files from evidence snapshots.
 
 It does not control real accounts.
 
@@ -358,9 +387,8 @@ The plan outline may mention future execution surfaces such as OpenClaw, ComfyUI
 
 Recommended follow-up slices:
 
-1. Attach RAG evidence snapshots to the deliverable package and plan outline.
-2. Attach approval-gate evidence and operator checklists to execution requests and execution runs.
-3. Add guarded ComfyUI job adapter stubs only after asset request approvals, preparation, deliverable packaging, execution request handoff, and execution run recovery are stable.
-4. Add guarded OpenClaw/browser worker adapters only after execution requests and execution runs can enforce explicit approval and target checks.
-5. Add monitored analytics adapter stubs that can populate monitoring observations after explicit approval.
-6. Add final business-result reporting once real execution and monitored analytics data exist.
+1. Add live RAG evidence snapshot generation only after the metadata-only evidence snapshot review path is stable.
+2. Add guarded ComfyUI job adapter stubs only after asset request approvals, preparation, deliverable packaging, evidence snapshots, execution request handoff, and execution run recovery are stable.
+3. Add guarded OpenClaw/browser worker adapters only after execution requests and execution runs can enforce explicit approval, evidence snapshot, checklist, and target checks.
+4. Add monitored analytics adapter stubs that can populate monitoring observations after explicit approval.
+5. Add final business-result reporting once real execution and monitored analytics data exist.

@@ -17,6 +17,7 @@ from app.models.commercial_operation import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationEvidenceSnapshot,
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
@@ -30,6 +31,7 @@ from app.models.enums import (
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
+    CommercialOperationEvidenceSnapshotStatus,
     CommercialOperationExecutionRequestStatus,
     CommercialOperationExecutionRunStatus,
     CommercialOperationMonitoringObservationStatus,
@@ -1360,6 +1362,283 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        evidence_type: str = "rag_snapshot",
+        title: str | None = None,
+        knowledge_collection: str | None = None,
+        query: str | None = None,
+        evidence_summary: str | None = None,
+        relevance_notes: str | None = None,
+        source_document_ids: list[str] | None = None,
+        source_links: list[dict[str, Any]] | None = None,
+        evidence_items: list[dict[str, Any]] | None = None,
+        coverage_checks: list[str] | None = None,
+        snapshot_payload: dict[str, Any] | None = None,
+        created_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+        )
+        if deliverable.deliverable_status != CommercialOperationDeliverableStatus.PACKAGED.value:
+            raise ValueError("Evidence snapshots require a packaged commercial deliverable")
+        clean_type = self._clean_required_text(evidence_type, "evidence_type")
+        clean_collection = (
+            knowledge_collection.strip()
+            if knowledge_collection and knowledge_collection.strip()
+            else operation.knowledge_collection
+        )
+        clean_title = (
+            title.strip()
+            if title and title.strip()
+            else f"Evidence snapshot: {deliverable.title}"
+        )
+        clean_checks = self._clean_list(coverage_checks) or [
+            "source documents or evidence links reviewed",
+            "operator confirms evidence relevance",
+            "snapshot does not run live RAG ingestion or external analytics",
+        ]
+        snapshot = CommercialOperationEvidenceSnapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable.id,
+            content_draft_id=deliverable.content_draft_id,
+            output_artifact_id=deliverable.output_artifact_id,
+            step_key=deliverable.step_key,
+            channel=deliverable.channel,
+            evidence_type=clean_type,
+            title=clean_title[:255],
+            snapshot_status=CommercialOperationEvidenceSnapshotStatus.DRAFT.value,
+            knowledge_collection=clean_collection,
+            query=query.strip() if query and query.strip() else None,
+            evidence_summary=evidence_summary.strip() if evidence_summary and evidence_summary.strip() else None,
+            relevance_notes=relevance_notes.strip() if relevance_notes and relevance_notes.strip() else None,
+            source_document_ids=self._clean_list(source_document_ids),
+            source_links=self._clean_json_records(source_links),
+            evidence_items=self._clean_json_records(evidence_items),
+            coverage_checks=clean_checks,
+            snapshot_payload=snapshot_payload or {},
+            created_by=created_by,
+            updated_by=created_by,
+            snapshot_metadata=metadata or {},
+        )
+        self.session.add(snapshot)
+        await self.session.flush()
+        snapshot.snapshot_payload = {
+            **(snapshot.snapshot_payload or {}),
+            **self._build_evidence_snapshot_payload(
+                operation=operation,
+                deliverable=deliverable,
+                snapshot=snapshot,
+            ),
+        }
+        self._apply_evidence_snapshot_to_deliverable(deliverable, snapshot)
+        self._apply_evidence_snapshot_to_plan(operation, snapshot)
+        await self.session.commit()
+        await self.session.refresh(snapshot)
+        return snapshot
+
+    async def list_evidence_snapshots(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        deliverable_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationEvidenceSnapshot]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationEvidenceSnapshot).where(
+            CommercialOperationEvidenceSnapshot.workspace_id == workspace_id,
+            CommercialOperationEvidenceSnapshot.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationEvidenceSnapshot.snapshot_status == status)
+        if deliverable_id is not None:
+            statement = statement.where(CommercialOperationEvidenceSnapshot.deliverable_id == deliverable_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationEvidenceSnapshot.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+    ) -> CommercialOperationEvidenceSnapshot:
+        result = await self.session.execute(
+            select(CommercialOperationEvidenceSnapshot).where(
+                CommercialOperationEvidenceSnapshot.workspace_id == workspace_id,
+                CommercialOperationEvidenceSnapshot.operation_id == operation_id,
+                CommercialOperationEvidenceSnapshot.id == snapshot_id,
+            )
+        )
+        snapshot = result.scalar_one_or_none()
+        if snapshot is None:
+            raise ValueError("Commercial operation evidence snapshot not found in workspace")
+        return snapshot
+
+    async def update_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        snapshot = await self.require_evidence_snapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+        )
+        if snapshot.snapshot_status not in {
+            CommercialOperationEvidenceSnapshotStatus.DRAFT.value,
+            CommercialOperationEvidenceSnapshotStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected evidence snapshots can be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=snapshot.deliverable_id,
+        )
+        scalar_fields = {
+            "evidence_type",
+            "title",
+            "knowledge_collection",
+            "query",
+            "evidence_summary",
+            "relevance_notes",
+        }
+        required_text_fields = {"evidence_type", "title"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                    if field not in required_text_fields and not value:
+                        value = None
+                setattr(snapshot, field, value)
+        if "source_document_ids" in patch and patch["source_document_ids"] is not None:
+            snapshot.source_document_ids = self._clean_list(patch["source_document_ids"])
+        if "source_links" in patch and patch["source_links"] is not None:
+            snapshot.source_links = self._clean_json_records(patch["source_links"])
+        if "evidence_items" in patch and patch["evidence_items"] is not None:
+            snapshot.evidence_items = self._clean_json_records(patch["evidence_items"])
+        if "coverage_checks" in patch and patch["coverage_checks"] is not None:
+            snapshot.coverage_checks = self._clean_list(patch["coverage_checks"])
+        if "snapshot_payload" in patch and patch["snapshot_payload"] is not None:
+            snapshot.snapshot_payload = patch["snapshot_payload"] or {}
+        if "metadata" in patch and patch["metadata"] is not None:
+            snapshot.snapshot_metadata = patch["metadata"] or {}
+        snapshot.updated_by = updated_by
+        snapshot.snapshot_status = CommercialOperationEvidenceSnapshotStatus.DRAFT.value
+        snapshot.approved_by = None
+        snapshot.approved_at = None
+        snapshot.rejected_at = None
+        snapshot.archived_at = None
+        snapshot.reviewer_notes = None
+        snapshot.snapshot_payload = {
+            **(snapshot.snapshot_payload or {}),
+            **self._build_evidence_snapshot_payload(
+                operation=operation,
+                deliverable=deliverable,
+                snapshot=snapshot,
+            ),
+        }
+        self._apply_evidence_snapshot_to_deliverable(deliverable, snapshot)
+        self._apply_evidence_snapshot_to_plan(operation, snapshot)
+        await self.session.commit()
+        await self.session.refresh(snapshot)
+        return snapshot
+
+    async def mark_evidence_snapshot_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        return await self._decide_evidence_snapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            status=CommercialOperationEvidenceSnapshotStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def approve_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        return await self._decide_evidence_snapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            status=CommercialOperationEvidenceSnapshotStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def reject_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        return await self._decide_evidence_snapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            status=CommercialOperationEvidenceSnapshotStatus.REJECTED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
+    async def archive_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        return await self._decide_evidence_snapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+            status=CommercialOperationEvidenceSnapshotStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+        )
+
     async def create_execution_request(
         self,
         *,
@@ -1374,6 +1653,8 @@ class CommercialOperationService:
         runbook: list[dict[str, Any]] | None = None,
         readiness_checks: list[str] | None = None,
         expected_outputs: list[str] | None = None,
+        evidence_snapshot_ids: list[UUID] | None = None,
+        operator_checklist: list[dict[str, Any]] | None = None,
         requested_by: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> CommercialOperationExecutionRequest:
@@ -1385,6 +1666,12 @@ class CommercialOperationService:
         )
         if deliverable.deliverable_status != CommercialOperationDeliverableStatus.PACKAGED.value:
             raise ValueError("Only packaged deliverables can create execution requests")
+        evidence_snapshots = await self._resolve_execution_evidence_snapshots(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable.id,
+            snapshot_ids=evidence_snapshot_ids,
+        )
         clean_title = self._clean_required_text(title, "title")
         clean_type = self._clean_required_text(execution_type, "execution_type")
         clean_mode = self._clean_required_text(execution_mode, "execution_mode")
@@ -1393,6 +1680,8 @@ class CommercialOperationService:
             "human approval required before runtime execution",
             "no external action executed by this request",
         ]
+        if evidence_snapshots and "approved evidence snapshots reviewed" not in clean_checks:
+            clean_checks.append("approved evidence snapshots reviewed")
         clean_outputs = self._clean_list(expected_outputs) or [
             "execution request approved or prepared for future runtime handoff",
             "future runtime handoff remains traceable to the packaged deliverable",
@@ -1402,6 +1691,10 @@ class CommercialOperationService:
             {"step": "confirm target account or runtime manually", "status": "pending"},
             {"step": "prepare future monitored execution handoff", "status": "pending"},
         ]
+        clean_checklist = self._clean_operator_checklist(operator_checklist) or self._build_operator_checklist(
+            deliverable=deliverable,
+            evidence_snapshots=evidence_snapshots,
+        )
         request = CommercialOperationExecutionRequest(
             workspace_id=workspace_id,
             operation_id=operation_id,
@@ -1418,6 +1711,8 @@ class CommercialOperationService:
             runbook=clean_runbook,
             readiness_checks=clean_checks,
             expected_outputs=clean_outputs,
+            evidence_snapshot_ids=[str(snapshot.id) for snapshot in evidence_snapshots],
+            operator_checklist=clean_checklist,
             requested_by=requested_by,
             updated_by=requested_by,
             execution_metadata=metadata or {},
@@ -1522,6 +1817,21 @@ class CommercialOperationService:
             request.readiness_checks = self._clean_list(patch["readiness_checks"])
         if "expected_outputs" in patch and patch["expected_outputs"] is not None:
             request.expected_outputs = self._clean_list(patch["expected_outputs"])
+        if "evidence_snapshot_ids" in patch and patch["evidence_snapshot_ids"] is not None:
+            evidence_snapshots = await self._resolve_execution_evidence_snapshots(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                deliverable_id=deliverable.id,
+                snapshot_ids=patch["evidence_snapshot_ids"],
+            )
+            request.evidence_snapshot_ids = [str(snapshot.id) for snapshot in evidence_snapshots]
+            if evidence_snapshots and "approved evidence snapshots reviewed" not in request.readiness_checks:
+                request.readiness_checks = [
+                    *request.readiness_checks,
+                    "approved evidence snapshots reviewed",
+                ]
+        if "operator_checklist" in patch and patch["operator_checklist"] is not None:
+            request.operator_checklist = self._clean_operator_checklist(patch["operator_checklist"])
         if "metadata" in patch and patch["metadata"] is not None:
             request.execution_metadata = patch["metadata"] or {}
         request.updated_by = updated_by
@@ -1732,6 +2042,8 @@ class CommercialOperationService:
             runbook_snapshot=request.runbook,
             readiness_checks=request.readiness_checks,
             expected_outputs=request.expected_outputs,
+            evidence_snapshot_ids=request.evidence_snapshot_ids,
+            operator_checklist_snapshot=request.operator_checklist,
             retry_count=0,
             max_retries=max(0, max_retries),
             operator_notes=operator_notes.strip() if operator_notes and operator_notes.strip() else None,
@@ -2845,6 +3157,9 @@ class CommercialOperationService:
     def _clean_list(self, values: list[str] | None) -> list[str]:
         return [item.strip() for item in values or [] if item and item.strip()]
 
+    def _clean_json_records(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        return [dict(item) for item in values or [] if isinstance(item, dict)]
+
     def _clean_asset_requests(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
         requests: list[dict[str, Any]] = []
         for item in values or []:
@@ -2873,6 +3188,22 @@ class CommercialOperationService:
             cleaned["execution_boundary"] = "metadata-only; no external runtime call"
             steps.append(cleaned)
         return steps
+
+    def _clean_operator_checklist(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        checklist: list[dict[str, Any]] = []
+        for index, item in enumerate(values or [], start=1):
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("item") or item.get("check") or item.get("title") or item.get("step") or "").strip()
+            if not label:
+                continue
+            cleaned = dict(item)
+            cleaned["item"] = label
+            cleaned["status"] = str(cleaned.get("status") or "pending").strip() or "pending"
+            cleaned.setdefault("order", index)
+            cleaned["execution_boundary"] = "operator checklist only; no external runtime call"
+            checklist.append(cleaned)
+        return checklist
 
     def _clean_result_metrics(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
         metrics: list[dict[str, Any]] = []
@@ -3194,6 +3525,76 @@ class CommercialOperationService:
         await self.session.commit()
         await self.session.refresh(deliverable)
         return deliverable
+
+    async def _decide_evidence_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        snapshot_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+    ) -> CommercialOperationEvidenceSnapshot:
+        snapshot = await self.require_evidence_snapshot(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            snapshot_id=snapshot_id,
+        )
+        if snapshot.snapshot_status == CommercialOperationEvidenceSnapshotStatus.ARCHIVED.value:
+            raise ValueError("Archived evidence snapshots cannot be changed")
+        if status == CommercialOperationEvidenceSnapshotStatus.READY_FOR_REVIEW.value and snapshot.snapshot_status not in {
+            CommercialOperationEvidenceSnapshotStatus.DRAFT.value,
+            CommercialOperationEvidenceSnapshotStatus.REJECTED.value,
+        }:
+            raise ValueError("Only draft or rejected evidence snapshots can be marked ready")
+        if status in {
+            CommercialOperationEvidenceSnapshotStatus.APPROVED.value,
+            CommercialOperationEvidenceSnapshotStatus.REJECTED.value,
+        } and snapshot.snapshot_status != CommercialOperationEvidenceSnapshotStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready evidence snapshots can be approved or rejected")
+
+        now = datetime.now(UTC)
+        snapshot.snapshot_status = status
+        snapshot.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        snapshot.updated_by = actor_user_id
+        if status == CommercialOperationEvidenceSnapshotStatus.APPROVED.value:
+            snapshot.approved_by = actor_user_id
+            snapshot.approved_at = now
+            snapshot.rejected_at = None
+            snapshot.archived_at = None
+        elif status == CommercialOperationEvidenceSnapshotStatus.REJECTED.value:
+            snapshot.rejected_at = now
+            snapshot.approved_by = None
+            snapshot.approved_at = None
+            snapshot.archived_at = None
+        elif status == CommercialOperationEvidenceSnapshotStatus.READY_FOR_REVIEW.value:
+            snapshot.approved_by = None
+            snapshot.approved_at = None
+            snapshot.rejected_at = None
+            snapshot.archived_at = None
+        elif status == CommercialOperationEvidenceSnapshotStatus.ARCHIVED.value:
+            snapshot.archived_at = now
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=snapshot.deliverable_id,
+        )
+        snapshot.snapshot_payload = {
+            **(snapshot.snapshot_payload or {}),
+            **self._build_evidence_snapshot_payload(
+                operation=operation,
+                deliverable=deliverable,
+                snapshot=snapshot,
+            ),
+        }
+        self._apply_evidence_snapshot_to_deliverable(deliverable, snapshot)
+        self._apply_evidence_snapshot_to_plan(operation, snapshot)
+        await self.session.commit()
+        await self.session.refresh(snapshot)
+        return snapshot
 
     async def _decide_execution_request(
         self,
@@ -3824,6 +4225,45 @@ class CommercialOperationService:
             requests.append(asset_request)
         return requests
 
+    async def _resolve_execution_evidence_snapshots(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        snapshot_ids: list[UUID] | None,
+    ) -> list[CommercialOperationEvidenceSnapshot]:
+        if snapshot_ids:
+            seen: set[UUID] = set()
+            snapshots: list[CommercialOperationEvidenceSnapshot] = []
+            for snapshot_id in snapshot_ids:
+                if isinstance(snapshot_id, str):
+                    snapshot_id = UUID(snapshot_id)
+                if snapshot_id in seen:
+                    continue
+                seen.add(snapshot_id)
+                snapshot = await self.require_evidence_snapshot(
+                    workspace_id=workspace_id,
+                    operation_id=operation_id,
+                    snapshot_id=snapshot_id,
+                )
+                if snapshot.deliverable_id != deliverable_id:
+                    raise ValueError("Evidence snapshots must belong to the execution request deliverable")
+                if snapshot.snapshot_status != CommercialOperationEvidenceSnapshotStatus.APPROVED.value:
+                    raise ValueError("Execution requests can only include approved evidence snapshots")
+                snapshots.append(snapshot)
+            return snapshots
+        result = await self.session.execute(
+            select(CommercialOperationEvidenceSnapshot).where(
+                CommercialOperationEvidenceSnapshot.workspace_id == workspace_id,
+                CommercialOperationEvidenceSnapshot.operation_id == operation_id,
+                CommercialOperationEvidenceSnapshot.deliverable_id == deliverable_id,
+                CommercialOperationEvidenceSnapshot.snapshot_status
+                == CommercialOperationEvidenceSnapshotStatus.APPROVED.value,
+            )
+        )
+        return list(result.scalars().all())
+
     def _build_deliverable_artifact_content(
         self,
         *,
@@ -3896,6 +4336,11 @@ class CommercialOperationService:
         asset_requests: list[CommercialOperationAssetRequest],
         deliverable: CommercialOperationDeliverable,
     ) -> dict[str, Any]:
+        existing_snapshots = [
+            dict(item)
+            for item in (deliverable.package_payload or {}).get("evidence_snapshots", [])
+            if isinstance(item, dict)
+        ]
         return {
             "operation_id": str(operation.id),
             "operation_title": operation.title,
@@ -3916,9 +4361,85 @@ class CommercialOperationService:
                 for asset in asset_requests
             ],
             "quality_checks": deliverable.quality_checks,
+            "evidence_snapshots": existing_snapshots,
+            "evidence_snapshot_count": len(existing_snapshots),
             "execution_boundary": "metadata-only deliverable assembly; no publishing or external runtime execution",
             "next_runtime": "future_monitored_execution_request",
         }
+
+    def _build_evidence_snapshot_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        deliverable: CommercialOperationDeliverable,
+        snapshot: CommercialOperationEvidenceSnapshot,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "deliverable_id": str(deliverable.id),
+            "output_artifact_id": str(deliverable.output_artifact_id) if deliverable.output_artifact_id else None,
+            "evidence_snapshot_id": str(snapshot.id) if snapshot.id else None,
+            "snapshot_status": snapshot.snapshot_status,
+            "evidence_type": snapshot.evidence_type,
+            "knowledge_collection": snapshot.knowledge_collection,
+            "source_document_count": len(snapshot.source_document_ids or []),
+            "source_link_count": len(snapshot.source_links or []),
+            "evidence_item_count": len(snapshot.evidence_items or []),
+            "coverage_checks": snapshot.coverage_checks,
+            "operator_next_steps": [
+                "review source documents and evidence links before execution handoff",
+                "approve this snapshot before it can be attached to an execution request",
+                "refresh the snapshot manually if the knowledge collection changes",
+            ],
+            "non_goals": [
+                "does not run live RAG retrieval",
+                "does not ingest new knowledge files",
+                "does not publish, control accounts, or call external runtimes",
+            ],
+        }
+
+    def _build_operator_checklist(
+        self,
+        *,
+        deliverable: CommercialOperationDeliverable,
+        evidence_snapshots: list[CommercialOperationEvidenceSnapshot],
+    ) -> list[dict[str, Any]]:
+        checklist = [
+            {
+                "order": 1,
+                "item": "confirm packaged deliverable is approved for the target channel",
+                "status": "pending",
+                "reference_id": str(deliverable.id),
+                "execution_boundary": "operator checklist only; no external runtime call",
+            },
+            {
+                "order": 2,
+                "item": "confirm target account, platform, and owner before any future runtime handoff",
+                "status": "pending",
+                "execution_boundary": "operator checklist only; no external runtime call",
+            },
+            {
+                "order": 3,
+                "item": "confirm an approval gate exists before real publishing or account control",
+                "status": "pending",
+                "execution_boundary": "operator checklist only; no external runtime call",
+            },
+        ]
+        if evidence_snapshots:
+            checklist.insert(
+                1,
+                {
+                    "order": 2,
+                    "item": "review approved evidence snapshots and source coverage",
+                    "status": "pending",
+                    "evidence_snapshot_ids": [str(snapshot.id) for snapshot in evidence_snapshots],
+                    "execution_boundary": "operator checklist only; no external runtime call",
+                },
+            )
+            for index, item in enumerate(checklist, start=1):
+                item["order"] = index
+        return checklist
 
     def _build_execution_request_handoff_payload(
         self,
@@ -3943,6 +4464,8 @@ class CommercialOperationService:
             "runbook": execution_request.runbook,
             "readiness_checks": execution_request.readiness_checks,
             "expected_outputs": execution_request.expected_outputs,
+            "evidence_snapshot_ids": execution_request.evidence_snapshot_ids,
+            "operator_checklist": execution_request.operator_checklist,
             "execution_boundary": "metadata-only execution request; no external runtime call",
             "next_runtime": "future_guarded_runtime_adapter",
             "forbidden_actions": [
@@ -3979,6 +4502,8 @@ class CommercialOperationService:
             "runbook_snapshot": execution_run.runbook_snapshot,
             "readiness_checks": execution_run.readiness_checks,
             "expected_outputs": execution_run.expected_outputs,
+            "evidence_snapshot_ids": execution_run.evidence_snapshot_ids,
+            "operator_checklist_snapshot": execution_run.operator_checklist_snapshot,
             "execution_boundary": "metadata-only execution run; no external runtime call",
             "next_runtime": "future_guarded_runtime_adapter",
             "forbidden_actions": [
@@ -4148,6 +4673,10 @@ class CommercialOperationService:
                 updated["execution_request_status"] = execution_request.request_status
                 updated["execution_request_type"] = execution_request.execution_type
                 updated["execution_request_mode"] = execution_request.execution_mode
+                updated["execution_request_evidence_snapshot_count"] = len(
+                    execution_request.evidence_snapshot_ids or []
+                )
+                updated["execution_request_operator_check_count"] = len(execution_request.operator_checklist or [])
                 if execution_request.execution_target:
                     updated["execution_request_target"] = execution_request.execution_target
                 if execution_request.cancelled_at is not None:
@@ -4180,6 +4709,8 @@ class CommercialOperationService:
                 updated["execution_run_status"] = execution_run.run_status
                 updated["execution_run_target"] = execution_run.execution_target
                 updated["execution_run_retry_count"] = execution_run.retry_count
+                updated["execution_run_evidence_snapshot_count"] = len(execution_run.evidence_snapshot_ids or [])
+                updated["execution_run_operator_check_count"] = len(execution_run.operator_checklist_snapshot or [])
                 if execution_run.archived_at is not None:
                     updated["execution_run_decision_at"] = execution_run.archived_at.isoformat()
                 elif execution_run.cancelled_at is not None:
@@ -4271,6 +4802,59 @@ class CommercialOperationService:
             else:
                 outline.append(dict(step))
         operation.plan_outline = outline
+
+    def _apply_evidence_snapshot_to_plan(
+        self,
+        operation: CommercialOperation,
+        snapshot: CommercialOperationEvidenceSnapshot,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == snapshot.step_key:
+                updated = dict(step)
+                updated["evidence_snapshot_id"] = str(snapshot.id)
+                updated["evidence_snapshot_status"] = snapshot.snapshot_status
+                updated["evidence_snapshot_type"] = snapshot.evidence_type
+                updated["evidence_snapshot_channel"] = snapshot.channel
+                updated["evidence_snapshot_collection"] = snapshot.knowledge_collection
+                updated["evidence_snapshot_item_count"] = len(snapshot.evidence_items or [])
+                if snapshot.archived_at is not None:
+                    updated["evidence_snapshot_decision_at"] = snapshot.archived_at.isoformat()
+                elif snapshot.approved_at is not None:
+                    updated["evidence_snapshot_decision_at"] = snapshot.approved_at.isoformat()
+                elif snapshot.rejected_at is not None:
+                    updated["evidence_snapshot_decision_at"] = snapshot.rejected_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_evidence_snapshot_to_deliverable(
+        self,
+        deliverable: CommercialOperationDeliverable,
+        snapshot: CommercialOperationEvidenceSnapshot,
+    ) -> None:
+        payload = dict(deliverable.package_payload or {})
+        snapshots = [
+            dict(item)
+            for item in payload.get("evidence_snapshots", [])
+            if isinstance(item, dict) and item.get("evidence_snapshot_id") != str(snapshot.id)
+        ]
+        snapshots.append(
+            {
+                "evidence_snapshot_id": str(snapshot.id),
+                "title": snapshot.title,
+                "snapshot_status": snapshot.snapshot_status,
+                "evidence_type": snapshot.evidence_type,
+                "knowledge_collection": snapshot.knowledge_collection,
+                "source_document_count": len(snapshot.source_document_ids or []),
+                "evidence_item_count": len(snapshot.evidence_items or []),
+            }
+        )
+        payload["evidence_snapshots"] = snapshots
+        payload["evidence_snapshot_count"] = len(snapshots)
+        payload["evidence_boundary"] = "operator-reviewed snapshot only; no live RAG retrieval or external execution"
+        deliverable.package_payload = payload
 
     def _apply_deliverable_to_plan(
         self,

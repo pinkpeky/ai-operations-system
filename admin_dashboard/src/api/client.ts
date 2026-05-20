@@ -489,6 +489,82 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  evidenceSnapshots: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots`, {}, settings),
+  createEvidenceSnapshot: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateEvidenceSnapshot: (operationId: string, snapshotId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyEvidenceSnapshot: (
+    operationId: string,
+    snapshotId: string,
+    reviewerNotes = "Ready for review from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveEvidenceSnapshot: (
+    operationId: string,
+    snapshotId: string,
+    reviewerNotes = "Approved from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  rejectEvidenceSnapshot: (
+    operationId: string,
+    snapshotId: string,
+    reviewerNotes = "Rejected from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  archiveEvidenceSnapshot: (
+    operationId: string,
+    snapshotId: string,
+    reviewerNotes = "Archived from Commercial Ops.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
   executionRequests: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/execution-requests`, {}, settings),
   createExecutionRequest: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

@@ -897,6 +897,13 @@ textarea {
   margin-bottom: 14px;
 }
 
+.commercial-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .commercial-execution-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -944,6 +951,7 @@ textarea {
 .commercial-content-grid label,
 .commercial-asset-grid label,
 .commercial-deliverable-grid label,
+.commercial-evidence-grid label,
 .commercial-execution-grid label,
 .commercial-execution-run-grid label,
 .commercial-result-grid label,
@@ -982,6 +990,12 @@ textarea {
 }
 
 .commercial-deliverable-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.commercial-evidence-list {
   display: grid;
   gap: 10px;
   margin-top: 14px;
@@ -1078,6 +1092,17 @@ textarea {
   background: #fbfcfd;
 }
 
+.commercial-evidence-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
 .commercial-execution-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1149,6 +1174,7 @@ textarea {
 .commercial-content-item strong,
 .commercial-asset-item strong,
 .commercial-deliverable-item strong,
+.commercial-evidence-item strong,
 .commercial-execution-item strong,
 .commercial-execution-run-item strong,
 .commercial-result-item strong,
@@ -1162,6 +1188,7 @@ textarea {
 .commercial-content-item span,
 .commercial-asset-item span,
 .commercial-deliverable-item span,
+.commercial-evidence-item span,
 .commercial-execution-item span,
 .commercial-execution-run-item span,
 .commercial-result-item span {
@@ -1187,6 +1214,7 @@ textarea {
 .commercial-content-item strong,
 .commercial-asset-item strong,
 .commercial-deliverable-item strong,
+.commercial-evidence-item strong,
 .commercial-execution-item strong,
 .commercial-execution-run-item strong,
 .commercial-result-item strong,
@@ -1208,6 +1236,8 @@ textarea {
 .commercial-asset-item p,
 .commercial-deliverable-item span,
 .commercial-deliverable-item p,
+.commercial-evidence-item span,
+.commercial-evidence-item p,
 .commercial-execution-item span,
 .commercial-execution-item p,
 .commercial-execution-run-item span,
@@ -1261,6 +1291,13 @@ textarea {
 }
 
 .commercial-deliverable-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.commercial-evidence-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1612,6 +1649,8 @@ textarea {
   .commercial-asset-item,
   .commercial-deliverable-grid,
   .commercial-deliverable-item,
+  .commercial-evidence-grid,
+  .commercial-evidence-item,
   .commercial-execution-grid,
   .commercial-execution-item,
   .commercial-execution-run-grid,

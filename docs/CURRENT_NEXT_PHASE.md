@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-61l-commercial-optimization-decisions`
+`codex/phase-61m-commercial-evidence-snapshots`
 
-`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61K have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, commercial operation deliverables, commercial operation execution requests, commercial operation execution runs, commercial operation results, and commercial operation monitoring observations.
+`main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61L have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, commercial operation deliverables, commercial operation execution requests, commercial operation execution runs, commercial operation results, commercial operation monitoring observations, and commercial operation optimization decisions.
 
-Current effective phase: Phase 61L Commercial Operation Optimization Decisions. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 61M Commercial Operation Evidence Snapshots. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. PR #51 merged Phase 61K commercial monitoring observations. The current step is normal product development on commercial operation optimization decisions.
+Readiness and PR cleanup are complete. PR #52 merged Phase 61L commercial optimization decisions. The current step is normal product development on commercial operation evidence snapshots.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-61l-commercial-optimization-decisions`. Its scope is adding `commercial_operation_optimization_decisions`, `/api/v1/commercial-operations/{operation_id}/optimization-decisions`, and an Admin Dashboard Optimization decisions panel for creating, editing, sending for review, approving, rejecting, and archiving operator-decided optimization actions from approved monitoring observations. It still creates traceable records only; it does not auto-optimize, auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, ingest platform analytics, claim ROI attribution, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-61m-commercial-evidence-snapshots`. Its scope is adding `commercial_operation_evidence_snapshots`, `/api/v1/commercial-operations/{operation_id}/evidence-snapshots`, approved evidence snapshot IDs on execution requests/runs, operator checklists, and an Admin Dashboard Evidence snapshots panel for packaging reviewed knowledge/source evidence from packaged deliverables. It still creates traceable records only; it does not run live RAG retrieval, ingest knowledge files, auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, ingest platform analytics, claim ROI attribution, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -70,9 +70,10 @@ The next active branch is `codex/phase-61l-commercial-optimization-decisions`. I
 | #49 | Phase 61I Commercial Operation Execution Runs | `codex/phase-61i-commercial-operation-execution-runs` | Merged to `main` |
 | #50 | Phase 61J Commercial Operation Results | `codex/phase-61j-commercial-operation-results` | Merged to `main` |
 | #51 | Phase 61K Commercial Operation Monitoring Observations | `codex/phase-61k-commercial-monitoring-observations` | Merged to `main` |
-| #52 | Phase 61L Commercial Operation Optimization Decisions | `codex/phase-61l-commercial-optimization-decisions` | Draft PR |
+| #52 | Phase 61L Commercial Operation Optimization Decisions | `codex/phase-61l-commercial-optimization-decisions` | Merged to `main` |
+| #53 | Phase 61M Commercial Operation Evidence Snapshots | `codex/phase-61m-commercial-evidence-snapshots` | Draft PR |
 
-PR #51 was merged to `main`; Phase 61L is the current development slice and will open as PR #52 from `codex/phase-61l-commercial-optimization-decisions`.
+PR #52 was merged to `main`; Phase 61M is the current development slice and will open as PR #53 from `codex/phase-61m-commercial-evidence-snapshots`.
 
 ## Current Architecture State
 
@@ -98,12 +99,13 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Phase 61J adds commercial results so terminal execution runs can have draft/ready/approved/rejected/archived operator-observed result records before any platform analytics ingestion or ROI attribution exists.
 - Phase 61K adds monitoring observations so approved commercial results can have draft/ready/approved/rejected/archived operator-observed monitoring snapshots before any platform analytics ingestion or ROI attribution exists.
 - Phase 61L adds optimization decisions so approved monitoring observations can have draft/ready/approved/rejected/archived operator-decided next actions before any automatic optimization, publishing, or runtime execution exists.
+- Phase 61M adds evidence snapshots so packaged deliverables can carry approved RAG/source evidence, evidence snapshot IDs, and operator checklists into execution requests and execution runs before any live RAG retrieval, knowledge ingestion, publishing, or external execution exists.
 
 ## Current Deployment State
 
 - `main` is Phase 55 stable after PR #17 plus Phase 56A-56D readiness closures.
 - Phase 43-55 are present on `main` through the combined RC merge.
-- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61K are present on `main` through PR #22-#51.
+- Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61L are present on `main` through PR #22-#52.
 - PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`.
 - PR #1 and PR #15 are closed as superseded.
 - Phase 52 adds deployment profiles for local-dev, server-docker, client-worker, desktop-client, staging, and production-like.
@@ -145,8 +147,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish the Phase 61L commercial optimization decisions backend/API/frontend/docs slice.
+1. Finish the Phase 61M commercial evidence snapshots backend/API/frontend/docs slice.
 2. Run backend, frontend, docs, migration, and browser verification gates.
-3. Open PR #52 as a draft from `codex/phase-61l-commercial-optimization-decisions`.
+3. Open PR #53 as a draft from `codex/phase-61m-commercial-evidence-snapshots`.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
-5. After this slice, continue toward approval evidence snapshots, guarded ComfyUI/OpenClaw adapters, monitoring metrics, failure recovery, and commercial result reporting.
+5. After this slice, continue toward guarded ComfyUI/OpenClaw adapters, live RAG snapshot generation, monitoring metrics, failure recovery, and commercial result reporting.
