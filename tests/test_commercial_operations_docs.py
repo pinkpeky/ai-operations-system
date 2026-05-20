@@ -28,12 +28,14 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61N",
         "Phase 61O",
         "Phase 61P",
+        "Phase 61Q",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
         "commercial_operation_dry_runs",
         "commercial_operation_content_drafts",
         "commercial_operation_asset_requests",
+        "commercial_operation_comfyui_handoffs",
         "commercial_operation_deliverables",
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
@@ -47,6 +49,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationDryRun",
         "CommercialOperationContentDraft",
         "CommercialOperationAssetRequest",
+        "CommercialOperationComfyUIHandoff",
         "CommercialOperationDeliverable",
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
@@ -62,6 +65,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/content-drafts/generate-rag",
         "/api/v1/commercial-operations/{operation_id}/asset-requests",
         "/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag",
+        "/api/v1/commercial-operations/{operation_id}/comfyui-handoffs",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -77,6 +81,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Dry-Run",
         "Content Draft",
         "Asset Request",
+        "ComfyUI Handoff",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -94,7 +99,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61p_commercial_operation_rag_asset_generation() -> None:
+def test_recovery_docs_point_to_phase_61q_commercial_operation_comfyui_handoffs() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -107,6 +112,6 @@ def test_recovery_docs_point_to_phase_61p_commercial_operation_rag_asset_generat
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61P" in text or "61P" in text, relative
+        assert "Phase 61Q" in text or "61Q" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "/asset-requests/generate-rag" in text or "RAG asset" in text, relative
+        assert "/comfyui-handoffs" in text or "ComfyUI handoff" in text, relative

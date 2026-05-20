@@ -1,5 +1,25 @@
 # API 参考
 
+## Phase 61Q: 商业运营 ComfyUI 交接记录
+
+状态：进行中。
+
+Phase 61Q 在每个商业运营项目下新增 `commercial_operation_comfyui_handoffs` 与 `CommercialOperationComfyUIHandoff` 记录。操作人员可以从已批准或已准备的素材请求创建 metadata-only ComfyUI 交接，编辑草稿/被驳回/失败记录，送审、批准、驳回、准备、标记失败或归档。这些记录只为未来受控适配器准备上下文，不会提交真实 ComfyUI 任务。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-handoffs`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/prepare`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/archive`
+
+边界：ComfyUI 交接只是人工审阅的元数据记录。它不会提交 ComfyUI 任务、不会生成图片或视频、不会发布内容、不会运行 OpenClaw 或 Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+
 更新日期：2026-05-12
 
 本文记录当前真实可用 API。除 workspace/user 创建类接口外，业务接口默认要求：

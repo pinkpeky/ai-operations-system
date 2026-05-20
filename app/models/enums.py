@@ -115,6 +115,18 @@ class CommercialOperationAssetRequestStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationComfyUIHandoffStatus(StrEnum):
+    """Commercial operation ComfyUI handoff lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PREPARED = "prepared"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
 class CommercialOperationDeliverableStatus(StrEnum):
     """Commercial operation deliverable lifecycle status."""
 

@@ -2,6 +2,8 @@
 
 ## Branch Status
 
+当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61P 已通过 PR #22-#56 合并到 `main`。当前下一分支是 `codex/phase-61q-commercial-comfyui-handoffs`，范围是 Phase 61Q 商业运营 ComfyUI 交接记录：`/api/v1/commercial-operations/{operation_id}/comfyui-handoffs`、Admin Dashboard ComfyUI 交接操作、prompt/workflow payload、准备检查和人工生命周期决策。该阶段只保存元数据交接记录，不会提交 ComfyUI 任务、不会生成媒体、不会自动发布、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
+
 当前更新（2026-05-20）：Phase 57A-59C、Phase 60A-60G 和 Phase 61A-61O 已通过 PR #22-#55 合并到 `main`。当前下一分支是 `codex/phase-61p-commercial-rag-asset-briefs`，范围是 Phase 61P 商业运营 RAG 素材简报生成：`/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`、Admin Dashboard 从 RAG 生成素材请求操作、检索 chunk 来源材料、准备检查和检索元数据。该阶段只从已有 RAG 知识检索生成草稿素材请求记录，不会上传或摄取知识文件、不会自动批准素材、不会自动发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号、不会接入平台分析、不会宣称 ROI 归因，也不会绕过审批。
 
 

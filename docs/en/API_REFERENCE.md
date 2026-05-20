@@ -4025,3 +4025,27 @@ Request fields: `step_key`, `content_draft_id`, `channel`, `asset_type`, `title`
 Generated metadata fields include `generation_mode=rag_asset_brief`, `collection_name`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `rag_result_count`, `dense_candidate_count`, `keyword_candidate_count`, `merged_candidate_count`, `content_draft_id`, and `forbidden_actions`.
 
 Boundary: RAG asset brief generation searches existing knowledge only. It does not upload or ingest new knowledge files, auto-approve assets, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.
+
+## Phase 61Q: Commercial Operation ComfyUI Handoffs
+
+Status: in progress.
+
+Phase 61Q adds `commercial_operation_comfyui_handoffs` and `CommercialOperationComfyUIHandoff` records below each commercial operation. Operators can create metadata-only ComfyUI handoffs from approved or prepared asset requests, edit them while draft/rejected/failed, mark them ready for review, approve, reject, prepare, fail, or archive them. These records prepare a future guarded adapter but do not submit ComfyUI jobs.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-handoffs`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/prepare`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{handoff_id}/archive`
+
+Main fields: `operation_id`, `asset_request_id`, `content_draft_id`, `step_key`, `channel`, `asset_type`, `title`, `handoff_status`, `workflow_name`, `dimensions`, `generation_prompt`, `negative_prompt`, `workflow_payload`, `prompt_payload`, `source_materials`, `readiness_checks`, `handoff_payload`, `result_summary`, `failure_reason`, `reviewer_notes`, `requested_by`, `updated_by`, `approved_by`, `prepared_by`, and `metadata`.
+
+Supported `handoff_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `prepared`, `failed`, and `archived`.
+
+Boundary: ComfyUI handoffs are operator-reviewed metadata records only. They do not submit ComfyUI jobs, generate images or videos, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.

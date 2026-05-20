@@ -13,6 +13,7 @@ from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
+    CommercialOperationComfyUIHandoff,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -43,6 +44,15 @@ CommercialOperationAssetRequestStatusLiteral = Literal[
     "archived",
 ]
 CommercialOperationAssetTypeLiteral = Literal["image", "video", "audio", "document", "design", "copy_asset", "other"]
+CommercialOperationComfyUIHandoffStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "prepared",
+    "failed",
+    "archived",
+]
 CommercialOperationDeliverableStatusLiteral = Literal[
     "draft",
     "ready_for_review",
@@ -662,6 +672,131 @@ class CommercialOperationAssetRequestListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationAssetRequestResponse]
+
+
+class CommercialOperationComfyUIHandoffCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI handoff from an approved asset request."""
+
+    asset_request_id: UUID
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    workflow_name: str = Field(default="future_comfyui_handoff", min_length=1, max_length=128)
+    dimensions: str | None = Field(default=None, max_length=128)
+    generation_prompt: str | None = None
+    negative_prompt: str | None = None
+    workflow_payload: dict[str, Any] = Field(default_factory=dict)
+    prompt_payload: dict[str, Any] = Field(default_factory=dict)
+    source_materials: list[str] = Field(default_factory=list)
+    readiness_checks: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIHandoffUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI handoff without submitting jobs."""
+
+    asset_request_id: UUID | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    workflow_name: str | None = Field(default=None, min_length=1, max_length=128)
+    dimensions: str | None = Field(default=None, max_length=128)
+    generation_prompt: str | None = None
+    negative_prompt: str | None = None
+    workflow_payload: dict[str, Any] | None = None
+    prompt_payload: dict[str, Any] | None = None
+    source_materials: list[str] | None = None
+    readiness_checks: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIHandoffDecisionRequest(BaseModel):
+    """Review, prepare, fail, or archive a metadata-only ComfyUI handoff."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIHandoffResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI handoff response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    asset_request_id: UUID
+    content_draft_id: UUID | None
+    step_key: str
+    channel: str
+    asset_type: str
+    title: str
+    handoff_status: str
+    workflow_name: str
+    dimensions: str | None
+    generation_prompt: str | None
+    negative_prompt: str | None
+    workflow_payload: dict[str, Any]
+    prompt_payload: dict[str, Any]
+    source_materials: list[str]
+    readiness_checks: list[str]
+    handoff_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    requested_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    prepared_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    prepared_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, handoff: CommercialOperationComfyUIHandoff) -> "CommercialOperationComfyUIHandoffResponse":
+        return cls(
+            id=handoff.id,
+            workspace_id=handoff.workspace_id,
+            operation_id=handoff.operation_id,
+            asset_request_id=handoff.asset_request_id,
+            content_draft_id=handoff.content_draft_id,
+            step_key=handoff.step_key,
+            channel=handoff.channel,
+            asset_type=handoff.asset_type,
+            title=handoff.title,
+            handoff_status=handoff.handoff_status,
+            workflow_name=handoff.workflow_name,
+            dimensions=handoff.dimensions,
+            generation_prompt=handoff.generation_prompt,
+            negative_prompt=handoff.negative_prompt,
+            workflow_payload=handoff.workflow_payload,
+            prompt_payload=handoff.prompt_payload,
+            source_materials=handoff.source_materials,
+            readiness_checks=handoff.readiness_checks,
+            handoff_payload=handoff.handoff_payload,
+            result_summary=handoff.result_summary,
+            failure_reason=handoff.failure_reason,
+            reviewer_notes=handoff.reviewer_notes,
+            requested_by=handoff.requested_by,
+            updated_by=handoff.updated_by,
+            approved_by=handoff.approved_by,
+            prepared_by=handoff.prepared_by,
+            approved_at=handoff.approved_at,
+            rejected_at=handoff.rejected_at,
+            prepared_at=handoff.prepared_at,
+            failed_at=handoff.failed_at,
+            archived_at=handoff.archived_at,
+            metadata=handoff.handoff_metadata,
+            created_at=handoff.created_at,
+            updated_at=handoff.updated_at,
+        )
+
+
+class CommercialOperationComfyUIHandoffListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI handoff list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIHandoffResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

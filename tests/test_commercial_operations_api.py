@@ -16,6 +16,7 @@ from app.models import (
     CommercialOperation,
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
+    CommercialOperationComfyUIHandoff,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -37,6 +38,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperation,
         CommercialOperationApproval,
         CommercialOperationAssetRequest,
+        CommercialOperationComfyUIHandoff,
         CommercialOperationContentDraft,
         CommercialOperationDeliverable,
         CommercialOperationDryRun,
@@ -369,6 +371,106 @@ async def test_commercial_operations_api_flow() -> None:
             assert asset_step["asset_request_id"] == asset_request_id
             assert asset_step["asset_request_status"] == "prepared"
             assert asset_step["asset_request_type"] == "image"
+
+            comfyui_handoff = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs",
+                headers=headers,
+                json={
+                    "asset_request_id": asset_request_id,
+                    "title": "Newsletter hero ComfyUI handoff",
+                    "workflow_name": "future_comfyui_handoff",
+                    "prompt_payload": {"prompt": "metadata only", "asset_request_id": asset_request_id},
+                    "workflow_payload": {
+                        "adapter": "unsafe_live_adapter",
+                        "execution_mode": "live",
+                        "workflow_name": "unsafe_live_workflow",
+                    },
+                    "readiness_checks": ["approved asset request", "no ComfyUI job submitted"],
+                    "metadata": {"phase": "61Q"},
+                },
+            )
+            assert comfyui_handoff.status_code == 201
+            comfyui_handoff_body = comfyui_handoff.json()
+            comfyui_handoff_id = comfyui_handoff_body["id"]
+            assert comfyui_handoff_body["handoff_status"] == "draft"
+            assert comfyui_handoff_body["asset_request_id"] == asset_request_id
+            assert comfyui_handoff_body["requested_by"] == "user-commercial-api"
+            assert "no ComfyUI job is submitted" in comfyui_handoff_body["handoff_payload"]["execution_boundary"]
+            assert comfyui_handoff_body["handoff_payload"]["next_runtime"] == "future_guarded_comfyui_adapter"
+            assert "no approval bypass" in comfyui_handoff_body["handoff_payload"]["forbidden_actions"]
+            assert comfyui_handoff_body["workflow_payload"]["adapter"] == "future_guarded_comfyui_adapter"
+            assert comfyui_handoff_body["workflow_payload"]["execution_mode"] == "metadata_only"
+            assert comfyui_handoff_body["workflow_payload"]["workflow_name"] == "future_comfyui_handoff"
+
+            comfyui_handoffs = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs",
+                headers=headers,
+            )
+            assert comfyui_handoffs.status_code == 200
+            assert [item["id"] for item in comfyui_handoffs.json()["items"]] == [comfyui_handoff_id]
+
+            hidden_comfyui_handoffs = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_handoffs.status_code == 404
+
+            patched_comfyui_handoff = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{comfyui_handoff_id}",
+                headers=headers,
+                json={
+                    "title": "Updated ComfyUI handoff",
+                    "workflow_name": "future_comfyui_handoff_v2",
+                    "workflow_payload": {"execution_mode": "live"},
+                },
+            )
+            assert patched_comfyui_handoff.status_code == 200
+            assert patched_comfyui_handoff.json()["title"] == "Updated ComfyUI handoff"
+            assert patched_comfyui_handoff.json()["updated_by"] == "user-commercial-api"
+            assert patched_comfyui_handoff.json()["handoff_status"] == "draft"
+            assert patched_comfyui_handoff.json()["workflow_payload"]["execution_mode"] == "metadata_only"
+            assert patched_comfyui_handoff.json()["workflow_payload"]["workflow_name"] == "future_comfyui_handoff_v2"
+
+            ready_comfyui_handoff = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{comfyui_handoff_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for guarded adapter review."},
+            )
+            assert ready_comfyui_handoff.status_code == 200
+            assert ready_comfyui_handoff.json()["handoff_status"] == "ready_for_review"
+
+            approved_comfyui_handoff = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{comfyui_handoff_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as metadata-only handoff."},
+            )
+            assert approved_comfyui_handoff.status_code == 200
+            assert approved_comfyui_handoff.json()["handoff_status"] == "approved"
+            assert approved_comfyui_handoff.json()["approved_by"] == "user-commercial-api"
+
+            prepared_comfyui_handoff = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-handoffs/{comfyui_handoff_id}/prepare",
+                headers=headers,
+                json={"result_summary": "Prepared for future guarded ComfyUI adapter; no job submitted."},
+            )
+            assert prepared_comfyui_handoff.status_code == 200
+            assert prepared_comfyui_handoff.json()["handoff_status"] == "prepared"
+            assert prepared_comfyui_handoff.json()["prepared_by"] == "user-commercial-api"
+
+            fetched_after_comfyui_handoff = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_comfyui_handoff.status_code == 200
+            comfyui_step = [
+                step
+                for step in fetched_after_comfyui_handoff.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert comfyui_step["comfyui_handoff_id"] == comfyui_handoff_id
+            assert comfyui_step["comfyui_handoff_status"] == "prepared"
+            assert comfyui_step["comfyui_handoff_asset_request_id"] == asset_request_id
+            assert comfyui_step["comfyui_handoff_workflow_name"] == "future_comfyui_handoff_v2"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

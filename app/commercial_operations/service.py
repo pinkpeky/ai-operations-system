@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
+    CommercialOperationComfyUIHandoff,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -28,6 +29,7 @@ from app.models.commercial_operation import (
 from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
+    CommercialOperationComfyUIHandoffStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
@@ -996,6 +998,361 @@ class CommercialOperationService:
             operation_id=operation_id,
             asset_request_id=asset_request_id,
             status=CommercialOperationAssetRequestStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def create_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        asset_request_id: UUID,
+        title: str | None = None,
+        workflow_name: str = "future_comfyui_handoff",
+        dimensions: str | None = None,
+        generation_prompt: str | None = None,
+        negative_prompt: str | None = None,
+        workflow_payload: dict[str, Any] | None = None,
+        prompt_payload: dict[str, Any] | None = None,
+        source_materials: list[str] | None = None,
+        readiness_checks: list[str] | None = None,
+        requested_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request_id,
+        )
+        if asset_request.request_status not in {
+            CommercialOperationAssetRequestStatus.APPROVED.value,
+            CommercialOperationAssetRequestStatus.PREPARED.value,
+        }:
+            raise ValueError("Only approved or prepared asset requests can create ComfyUI handoffs")
+        clean_workflow_name = self._clean_required_text(workflow_name, "workflow_name")[:128]
+        clean_title = (
+            self._clean_required_text(title, "title")
+            if title and title.strip()
+            else f"ComfyUI handoff: {asset_request.title}"
+        )[:255]
+        clean_source_materials = self._clean_list(source_materials or asset_request.source_materials)
+        clean_readiness_checks = self._clean_list(readiness_checks) or [
+            "asset request approved or prepared",
+            "operator reviewed source materials",
+            "ComfyUI job not submitted",
+            "external execution disabled",
+        ]
+        clean_prompt_payload = prompt_payload if isinstance(prompt_payload, dict) else {}
+        if not clean_prompt_payload:
+            clean_prompt_payload = {
+                "asset_request_id": str(asset_request.id),
+                "asset_type": asset_request.asset_type,
+                "channel": asset_request.channel,
+                "dimensions": asset_request.dimensions,
+                "style_constraints": asset_request.style_constraints,
+                "generation_prompt": asset_request.generation_prompt,
+                "negative_prompt": asset_request.negative_prompt,
+                "source_materials": asset_request.source_materials,
+            }
+        clean_workflow_payload = workflow_payload if isinstance(workflow_payload, dict) else {}
+        clean_workflow_payload = {
+            **clean_workflow_payload,
+            "workflow_name": clean_workflow_name,
+            "execution_mode": "metadata_only",
+            "adapter": "future_guarded_comfyui_adapter",
+        }
+        handoff = CommercialOperationComfyUIHandoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=asset_request.id,
+            content_draft_id=asset_request.content_draft_id,
+            step_key=asset_request.step_key,
+            channel=asset_request.channel,
+            asset_type=asset_request.asset_type,
+            title=clean_title,
+            handoff_status=CommercialOperationComfyUIHandoffStatus.DRAFT.value,
+            workflow_name=clean_workflow_name,
+            dimensions=(dimensions.strip() if dimensions and dimensions.strip() else asset_request.dimensions),
+            generation_prompt=(
+                generation_prompt.strip()
+                if generation_prompt and generation_prompt.strip()
+                else asset_request.generation_prompt
+            ),
+            negative_prompt=(
+                negative_prompt.strip()
+                if negative_prompt and negative_prompt.strip()
+                else asset_request.negative_prompt
+            ),
+            workflow_payload=clean_workflow_payload,
+            prompt_payload=clean_prompt_payload,
+            source_materials=clean_source_materials,
+            readiness_checks=clean_readiness_checks,
+            requested_by=requested_by,
+            updated_by=requested_by,
+            handoff_metadata=metadata or {},
+        )
+        handoff.handoff_payload = self._build_comfyui_handoff_payload(
+            operation=operation,
+            asset_request=asset_request,
+            handoff=handoff,
+        )
+        self.session.add(handoff)
+        await self.session.flush()
+        self._apply_comfyui_handoff_to_plan(operation, handoff)
+        await self.session.commit()
+        await self.session.refresh(handoff)
+        return handoff
+
+    async def list_comfyui_handoffs(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        asset_request_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIHandoff]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIHandoff).where(
+            CommercialOperationComfyUIHandoff.workspace_id == workspace_id,
+            CommercialOperationComfyUIHandoff.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIHandoff.handoff_status == status)
+        if asset_request_id is not None:
+            statement = statement.where(CommercialOperationComfyUIHandoff.asset_request_id == asset_request_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIHandoff.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+    ) -> CommercialOperationComfyUIHandoff:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIHandoff).where(
+                CommercialOperationComfyUIHandoff.workspace_id == workspace_id,
+                CommercialOperationComfyUIHandoff.operation_id == operation_id,
+                CommercialOperationComfyUIHandoff.id == handoff_id,
+            )
+        )
+        handoff = result.scalar_one_or_none()
+        if handoff is None:
+            raise ValueError("Commercial operation ComfyUI handoff not found in workspace")
+        return handoff
+
+    async def update_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+        )
+        if handoff.handoff_status == CommercialOperationComfyUIHandoffStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI handoffs cannot be updated")
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=handoff.asset_request_id,
+        )
+        if "asset_request_id" in patch and patch["asset_request_id"] is not None:
+            asset_request_id = patch["asset_request_id"]
+            if isinstance(asset_request_id, str):
+                asset_request_id = UUID(asset_request_id)
+            asset_request = await self.require_asset_request(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                asset_request_id=asset_request_id,
+            )
+            handoff.asset_request_id = asset_request.id
+            handoff.content_draft_id = asset_request.content_draft_id
+            handoff.step_key = asset_request.step_key
+            handoff.channel = asset_request.channel
+            handoff.asset_type = asset_request.asset_type
+        if asset_request.request_status not in {
+            CommercialOperationAssetRequestStatus.APPROVED.value,
+            CommercialOperationAssetRequestStatus.PREPARED.value,
+        }:
+            raise ValueError("ComfyUI handoffs require an approved or prepared asset request")
+        scalar_fields = {"title", "workflow_name", "dimensions", "generation_prompt", "negative_prompt"}
+        required_text_fields = {"title", "workflow_name"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                setattr(handoff, field, value)
+        workflow_payload = handoff.workflow_payload if isinstance(handoff.workflow_payload, dict) else {}
+        if "workflow_payload" in patch:
+            workflow_payload = patch["workflow_payload"] if isinstance(patch["workflow_payload"], dict) else {}
+        handoff.workflow_payload = {
+            **workflow_payload,
+            "workflow_name": handoff.workflow_name,
+            "execution_mode": "metadata_only",
+            "adapter": "future_guarded_comfyui_adapter",
+        }
+        if "prompt_payload" in patch:
+            handoff.prompt_payload = patch["prompt_payload"] if isinstance(patch["prompt_payload"], dict) else {}
+        if "source_materials" in patch:
+            handoff.source_materials = self._clean_list(patch["source_materials"])
+        if "readiness_checks" in patch:
+            handoff.readiness_checks = self._clean_list(patch["readiness_checks"])
+        if "metadata" in patch:
+            handoff.handoff_metadata = patch["metadata"] or {}
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        handoff.handoff_payload = self._build_comfyui_handoff_payload(
+            operation=operation,
+            asset_request=asset_request,
+            handoff=handoff,
+        )
+        handoff.updated_by = updated_by
+        handoff.handoff_status = CommercialOperationComfyUIHandoffStatus.DRAFT.value
+        handoff.approved_by = None
+        handoff.prepared_by = None
+        handoff.approved_at = None
+        handoff.rejected_at = None
+        handoff.prepared_at = None
+        handoff.failed_at = None
+        handoff.failure_reason = None
+        handoff.result_summary = None
+        self._apply_comfyui_handoff_to_plan(operation, handoff)
+        await self.session.commit()
+        await self.session.refresh(handoff)
+        return handoff
+
+    async def mark_comfyui_handoff_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        return await self._decide_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            status=CommercialOperationComfyUIHandoffStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        return await self._decide_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            status=CommercialOperationComfyUIHandoffStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        return await self._decide_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            status=CommercialOperationComfyUIHandoffStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def prepare_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        prepared_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        return await self._decide_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            status=CommercialOperationComfyUIHandoffStatus.PREPARED.value,
+            actor_user_id=prepared_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        return await self._decide_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            status=CommercialOperationComfyUIHandoffStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def archive_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIHandoff:
+        return await self._decide_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            status=CommercialOperationComfyUIHandoffStatus.ARCHIVED.value,
             actor_user_id=updated_by,
             reviewer_notes=reviewer_notes,
             result_summary=None,
@@ -3411,6 +3768,98 @@ class CommercialOperationService:
         await self.session.refresh(asset_request)
         return asset_request
 
+    async def _decide_comfyui_handoff(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        handoff_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIHandoff:
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+        )
+        if handoff.handoff_status == CommercialOperationComfyUIHandoffStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI handoffs cannot be changed")
+        if status == CommercialOperationComfyUIHandoffStatus.READY_FOR_REVIEW.value and handoff.handoff_status not in {
+            CommercialOperationComfyUIHandoffStatus.DRAFT.value,
+            CommercialOperationComfyUIHandoffStatus.REJECTED.value,
+            CommercialOperationComfyUIHandoffStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI handoffs can be marked ready")
+        if status in {
+            CommercialOperationComfyUIHandoffStatus.APPROVED.value,
+            CommercialOperationComfyUIHandoffStatus.REJECTED.value,
+        } and handoff.handoff_status != CommercialOperationComfyUIHandoffStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI handoffs can be approved or rejected")
+        if status in {
+            CommercialOperationComfyUIHandoffStatus.PREPARED.value,
+            CommercialOperationComfyUIHandoffStatus.FAILED.value,
+        } and handoff.handoff_status != CommercialOperationComfyUIHandoffStatus.APPROVED.value:
+            raise ValueError("Only approved ComfyUI handoffs can be prepared or failed")
+        now = datetime.now(UTC)
+        handoff.handoff_status = status
+        handoff.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        handoff.result_summary = result_summary.strip() if result_summary and result_summary.strip() else None
+        handoff.failure_reason = failure_reason.strip() if failure_reason and failure_reason.strip() else None
+        handoff.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIHandoffStatus.APPROVED.value:
+            handoff.approved_by = actor_user_id
+            handoff.approved_at = now
+            handoff.rejected_at = None
+            handoff.prepared_at = None
+            handoff.failed_at = None
+            handoff.archived_at = None
+        elif status == CommercialOperationComfyUIHandoffStatus.REJECTED.value:
+            handoff.rejected_at = now
+            handoff.approved_by = None
+            handoff.prepared_by = None
+            handoff.approved_at = None
+            handoff.prepared_at = None
+            handoff.failed_at = None
+            handoff.archived_at = None
+        elif status == CommercialOperationComfyUIHandoffStatus.READY_FOR_REVIEW.value:
+            handoff.approved_by = None
+            handoff.prepared_by = None
+            handoff.approved_at = None
+            handoff.rejected_at = None
+            handoff.prepared_at = None
+            handoff.failed_at = None
+            handoff.archived_at = None
+        elif status == CommercialOperationComfyUIHandoffStatus.PREPARED.value:
+            handoff.prepared_by = actor_user_id
+            handoff.prepared_at = now
+            handoff.failed_at = None
+            handoff.archived_at = None
+        elif status == CommercialOperationComfyUIHandoffStatus.FAILED.value:
+            handoff.failed_at = now
+            handoff.prepared_by = None
+            handoff.prepared_at = None
+            handoff.archived_at = None
+        elif status == CommercialOperationComfyUIHandoffStatus.ARCHIVED.value:
+            handoff.archived_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=handoff.asset_request_id,
+        )
+        handoff.handoff_payload = self._build_comfyui_handoff_payload(
+            operation=operation,
+            asset_request=asset_request,
+            handoff=handoff,
+        )
+        self._apply_comfyui_handoff_to_plan(operation, handoff)
+        await self.session.commit()
+        await self.session.refresh(handoff)
+        return handoff
+
     async def _decide_deliverable(
         self,
         *,
@@ -4196,6 +4645,43 @@ class CommercialOperationService:
             "next_runtime": "future_comfyui_handoff",
         }
 
+    def _build_comfyui_handoff_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        asset_request: CommercialOperationAssetRequest,
+        handoff: CommercialOperationComfyUIHandoff,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "asset_request_id": str(asset_request.id),
+            "content_draft_id": str(handoff.content_draft_id) if handoff.content_draft_id else None,
+            "step_key": handoff.step_key,
+            "channel": handoff.channel,
+            "asset_type": handoff.asset_type,
+            "title": handoff.title,
+            "workflow_name": handoff.workflow_name,
+            "dimensions": handoff.dimensions,
+            "generation_prompt": handoff.generation_prompt,
+            "negative_prompt": handoff.negative_prompt,
+            "source_materials": handoff.source_materials,
+            "readiness_checks": handoff.readiness_checks,
+            "prompt_payload": handoff.prompt_payload,
+            "workflow_payload": handoff.workflow_payload,
+            "handoff_status": handoff.handoff_status,
+            "execution_boundary": "metadata-only ComfyUI handoff; no ComfyUI job is submitted in this phase",
+            "next_runtime": "future_guarded_comfyui_adapter",
+            "forbidden_actions": [
+                "no ComfyUI job submission",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no OpenClaw or browser worker execution",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -4932,6 +5418,34 @@ class CommercialOperationService:
                     updated["asset_request_decision_at"] = asset_request.failed_at.isoformat()
                 elif asset_request.archived_at is not None:
                     updated["asset_request_decision_at"] = asset_request.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_handoff_to_plan(
+        self,
+        operation: CommercialOperation,
+        handoff: CommercialOperationComfyUIHandoff,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == handoff.step_key:
+                updated = dict(step)
+                updated["comfyui_handoff_id"] = str(handoff.id)
+                updated["comfyui_handoff_status"] = handoff.handoff_status
+                updated["comfyui_handoff_asset_request_id"] = str(handoff.asset_request_id)
+                updated["comfyui_handoff_workflow_name"] = handoff.workflow_name
+                if handoff.approved_at is not None:
+                    updated["comfyui_handoff_decision_at"] = handoff.approved_at.isoformat()
+                elif handoff.rejected_at is not None:
+                    updated["comfyui_handoff_decision_at"] = handoff.rejected_at.isoformat()
+                elif handoff.prepared_at is not None:
+                    updated["comfyui_handoff_decision_at"] = handoff.prepared_at.isoformat()
+                elif handoff.failed_at is not None:
+                    updated["comfyui_handoff_decision_at"] = handoff.failed_at.isoformat()
+                elif handoff.archived_at is not None:
+                    updated["comfyui_handoff_decision_at"] = handoff.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

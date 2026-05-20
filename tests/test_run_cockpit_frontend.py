@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation RAG asset slice."""
+    """Recovery docs should point to the active commercial operation ComfyUI handoff slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61p-commercial-rag-asset-briefs" in text or "Commercial Operation RAG Asset Brief Generation" in text, path
-        assert "/asset-requests/generate-rag" in text or "RAG asset" in text, path
+        assert "phase-61q-commercial-comfyui-handoffs" in text or "Commercial Operation ComfyUI Handoffs" in text, path
+        assert "/comfyui-handoffs" in text or "ComfyUI handoff" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61O should be merged and Phase 61P should be the active RAG asset slice."""
+    """Phase 61A-61P should be merged and Phase 61Q should be the active ComfyUI handoff slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -419,6 +419,15 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "phase-61p-commercial-rag-asset-briefs" in phase_61_lines["61P"]
     assert "Commercial Operation RAG Asset Brief Generation" in phase_61_lines["61P"]
     assert "#56" in phase_61_lines["61P"]
-    assert "Draft PR" in phase_61_lines["61P"]
+    assert "Merged to main" in phase_61_lines["61P"]
+    assert "Draft PR" not in phase_61_lines["61P"]
     assert "TBD" not in phase_61_lines["61P"]
     assert "In progress" not in phase_61_lines["61P"]
+
+    assert "61Q" in phase_61_lines
+    assert "phase-61q-commercial-comfyui-handoffs" in phase_61_lines["61Q"]
+    assert "Commercial Operation ComfyUI Handoffs" in phase_61_lines["61Q"]
+    assert "#57" in phase_61_lines["61Q"]
+    assert "Draft PR" in phase_61_lines["61Q"]
+    assert "TBD" not in phase_61_lines["61Q"]
+    assert "In progress" not in phase_61_lines["61Q"]

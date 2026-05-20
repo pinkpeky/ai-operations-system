@@ -27,6 +27,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationAssetRequestListResponse,
     CommercialOperationAssetRequestResponse,
     CommercialOperationAssetRequestUpdateRequest,
+    CommercialOperationComfyUIHandoffCreateRequest,
+    CommercialOperationComfyUIHandoffDecisionRequest,
+    CommercialOperationComfyUIHandoffListResponse,
+    CommercialOperationComfyUIHandoffResponse,
+    CommercialOperationComfyUIHandoffUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
     CommercialOperationContentDraftGenerateRequest,
@@ -1514,6 +1519,279 @@ async def archive_commercial_operation_asset_request(
             extra={"operation_id": str(operation_id), "asset_request_id": str(asset_request_id)},
         )
         raise AppError("Commercial operation asset request archive failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs", response_model=CommercialOperationComfyUIHandoffResponse, status_code=201)
+async def create_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    request: CommercialOperationComfyUIHandoffCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Create a metadata-only ComfyUI handoff from an approved asset request."""
+
+    try:
+        handoff = await CommercialOperationService(session).create_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            requested_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI handoff create API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI handoff create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-handoffs", response_model=CommercialOperationComfyUIHandoffListResponse)
+async def list_commercial_operation_comfyui_handoffs(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / prepared / failed / archived"),
+    asset_request_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffListResponse:
+    """List metadata-only ComfyUI handoffs for a commercial operation."""
+
+    try:
+        handoffs = await CommercialOperationService(session).list_comfyui_handoffs(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            asset_request_id=asset_request_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIHandoffListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIHandoffResponse.from_model(handoff) for handoff in handoffs],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI handoff list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI handoff list failed", status_code=500) from exc
+
+
+@router.patch("/{operation_id}/comfyui-handoffs/{handoff_id}", response_model=CommercialOperationComfyUIHandoffResponse)
+async def update_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Patch one metadata-only ComfyUI handoff without submitting jobs."""
+
+    try:
+        handoff = await CommercialOperationService(session).update_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff update API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff update failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs/{handoff_id}/ready", response_model=CommercialOperationComfyUIHandoffResponse)
+async def ready_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Mark a metadata-only ComfyUI handoff ready for review."""
+
+    try:
+        handoff = await CommercialOperationService(session).mark_comfyui_handoff_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff ready API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff ready failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs/{handoff_id}/approve", response_model=CommercialOperationComfyUIHandoffResponse)
+async def approve_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Approve a metadata-only ComfyUI handoff without generating assets."""
+
+    try:
+        handoff = await CommercialOperationService(session).approve_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff approve API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff approve failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs/{handoff_id}/reject", response_model=CommercialOperationComfyUIHandoffResponse)
+async def reject_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Reject a metadata-only ComfyUI handoff without generating assets."""
+
+    try:
+        handoff = await CommercialOperationService(session).reject_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff reject API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff reject failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs/{handoff_id}/prepare", response_model=CommercialOperationComfyUIHandoffResponse)
+async def prepare_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Mark an approved ComfyUI handoff prepared for a future guarded adapter."""
+
+    try:
+        handoff = await CommercialOperationService(session).prepare_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            prepared_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff prepare API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff prepare failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs/{handoff_id}/fail", response_model=CommercialOperationComfyUIHandoffResponse)
+async def fail_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Mark an approved ComfyUI handoff failed during preparation."""
+
+    try:
+        handoff = await CommercialOperationService(session).fail_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff fail API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff fail failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/comfyui-handoffs/{handoff_id}/archive", response_model=CommercialOperationComfyUIHandoffResponse)
+async def archive_commercial_operation_comfyui_handoff(
+    operation_id: UUID,
+    handoff_id: UUID,
+    request: CommercialOperationComfyUIHandoffDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIHandoffResponse:
+    """Archive a ComfyUI handoff without deleting the audit trail."""
+
+    try:
+        handoff = await CommercialOperationService(session).archive_comfyui_handoff(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            handoff_id=handoff_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIHandoffResponse.from_model(handoff)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI handoff archive API failed",
+            extra={"operation_id": str(operation_id), "handoff_id": str(handoff_id)},
+        )
+        raise AppError("Commercial operation ComfyUI handoff archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)
