@@ -23,8 +23,11 @@ from app.models import (
     CommercialOperationExecutionRequest,
     CommercialOperationExecutionRun,
     CommercialOperationLink,
+    CommercialOperationMonitoringObservation,
     CommercialOperationResult,
     CommercialOperationOptimizationDecision,
+    Document,
+    DocumentChunk,
 )
 
 
@@ -41,8 +44,11 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationExecutionRequest,
         CommercialOperationExecutionRun,
         CommercialOperationLink,
+        CommercialOperationMonitoringObservation,
         CommercialOperationResult,
         CommercialOperationOptimizationDecision,
+        Document,
+        DocumentChunk,
     )
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -490,6 +496,62 @@ async def test_commercial_operations_api_flow() -> None:
             assert evidence_step["evidence_snapshot_id"] == evidence_snapshot_id
             assert evidence_step["evidence_snapshot_status"] == "approved"
             assert evidence_step["evidence_snapshot_item_count"] == 2
+
+            async with session_factory() as db_session:
+                rag_document = Document(
+                    workspace_id="workspace-commercial-api",
+                    user_id="user-commercial-api",
+                    source_id="commercial-playbook-source",
+                    source_name="Commercial playbook",
+                    source_type="text",
+                    collection_name="ai_knowledge_base",
+                    chunk_count=1,
+                    document_metadata={"phase": "61N"},
+                )
+                db_session.add(rag_document)
+                await db_session.flush()
+                db_session.add(
+                    DocumentChunk(
+                        document_id=rag_document.id,
+                        collection_name="ai_knowledge_base",
+                        chunk_index=0,
+                        text=(
+                            "Lead generation proof: the newsletter offer should reference customer pain points, "
+                            "book-a-demo CTA, and the approved review boundary."
+                        ),
+                        qdrant_point_id="commercial-rag-chunk-1",
+                        chunk_metadata={"section": "proof_points"},
+                    )
+                )
+                await db_session.commit()
+                rag_document_id = str(rag_document.id)
+
+            generated_evidence_snapshot = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag",
+                headers=headers,
+                json={
+                    "deliverable_id": deliverable_id,
+                    "title": "Generated newsletter evidence snapshot",
+                    "knowledge_collection": "ai_knowledge_base",
+                    "query": "lead generation proof newsletter offer",
+                    "search_mode": "keyword",
+                    "final_top_k": 3,
+                    "coverage_checks": ["rag search completed", "operator review required"],
+                    "metadata": {"phase": "61N"},
+                },
+            )
+            assert generated_evidence_snapshot.status_code == 201
+            generated_evidence_snapshot_body = generated_evidence_snapshot.json()
+            assert generated_evidence_snapshot_body["snapshot_status"] == "draft"
+            assert generated_evidence_snapshot_body["query"] == "lead generation proof newsletter offer"
+            assert generated_evidence_snapshot_body["source_document_ids"] == [rag_document_id]
+            assert generated_evidence_snapshot_body["evidence_items"][0]["document_id"] == rag_document_id
+            assert generated_evidence_snapshot_body["evidence_items"][0]["source_id"] == "commercial-playbook-source"
+            assert generated_evidence_snapshot_body["snapshot_payload"]["generation_mode"] == "rag_search_snapshot"
+            assert generated_evidence_snapshot_body["snapshot_payload"]["search_mode"] == "keyword"
+            assert generated_evidence_snapshot_body["snapshot_payload"]["result_count"] == 1
+            assert "does not ingest new knowledge files" in generated_evidence_snapshot_body["snapshot_payload"]["non_goals"]
+            assert "no knowledge ingestion" in generated_evidence_snapshot_body["snapshot_payload"]["forbidden_actions"]
 
             execution_request = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/execution-requests",

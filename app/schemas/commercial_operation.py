@@ -24,6 +24,7 @@ from app.models.commercial_operation import (
     CommercialOperationOptimizationDecision,
     CommercialOperationResult,
 )
+from app.schemas.rag import SearchMode
 
 
 CommercialOperationStatusLiteral = Literal["draft", "planning", "ready", "active", "paused", "completed", "archived"]
@@ -745,6 +746,24 @@ class CommercialOperationEvidenceSnapshotCreateRequest(BaseModel):
     evidence_items: list[dict[str, Any]] = Field(default_factory=list)
     coverage_checks: list[str] = Field(default_factory=list)
     snapshot_payload: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationEvidenceSnapshotGenerateRequest(BaseModel):
+    """Generate a draft evidence snapshot from existing RAG search results."""
+
+    deliverable_id: UUID
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    knowledge_collection: str | None = Field(default=None, min_length=1, max_length=128)
+    query: str | None = Field(default=None, min_length=1)
+    source_id: str | None = Field(default=None, min_length=1, max_length=255)
+    search_mode: SearchMode | None = None
+    dense_top_k: int | None = Field(default=None, ge=1, le=100)
+    keyword_top_k: int | None = Field(default=None, ge=1, le=100)
+    final_top_k: int | None = Field(default=None, ge=1, le=50)
+    evidence_summary: str | None = None
+    relevance_notes: str | None = None
+    coverage_checks: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

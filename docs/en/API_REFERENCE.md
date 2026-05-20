@@ -3866,7 +3866,7 @@ Boundary: execution requests and handoff payloads are review and future-runtime 
 
 ## Phase 61I: Commercial Operation Execution Runs
 
-Status: in progress.
+Status: merged to main.
 
 Phase 61I adds `commercial_operation_execution_runs` and `CommercialOperationExecutionRun` records below each commercial operation. Operators can create a metadata-only execution run from a prepared execution request, update it while queued or retrying, start it, mark it succeeded, mark it failed, retry it within the retry limit, cancel it, or archive it.
 
@@ -3977,3 +3977,19 @@ Execution request/run fields: `evidence_snapshot_ids`, `operator_checklist`, and
 Supported `snapshot_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
 
 Boundary: evidence snapshots are operator-reviewed evidence records only. They do not run live RAG retrieval, ingest knowledge files, claim ROI attribution, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61N: Commercial Operation RAG Evidence Generation
+
+Status: in progress.
+
+Phase 61N adds a controlled generation route that searches an existing RAG collection and creates a draft commercial operation evidence snapshot from retrieved chunks. Generated snapshots include source document IDs, evidence items, search metadata, and explicit forbidden actions. They still require human review before they can be approved or attached to execution handoffs.
+
+API:
+
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag`
+
+Request fields: `deliverable_id`, `title`, `knowledge_collection`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `evidence_summary`, `relevance_notes`, `coverage_checks`, and `metadata`.
+
+Generated payload fields include `generation_mode=rag_search_snapshot`, `collection_name`, `query`, `source_id`, `search_mode`, `dense_top_k`, `keyword_top_k`, `final_top_k`, `result_count`, `dense_candidate_count`, `keyword_candidate_count`, `merged_candidate_count`, and `forbidden_actions`.
+
+Boundary: RAG evidence generation searches existing knowledge only. It does not upload or ingest new knowledge files, auto-approve evidence, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval.

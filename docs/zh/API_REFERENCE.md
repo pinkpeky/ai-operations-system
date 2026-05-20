@@ -3374,7 +3374,7 @@ API：
 
 ## Phase 61M: 商业运营证据快照
 
-状态：进行中。
+状态：已合并到 main。
 
 Phase 61M 在每个商业运营项目下新增 `commercial_operation_evidence_snapshots` 与 `CommercialOperationEvidenceSnapshot` 记录。操作人员可以从已打包交付物创建证据快照，编辑草稿或被驳回的快照，送审、批准、驳回或归档。已批准的证据快照 ID 与人工检查清单可以挂到执行请求，并复制到执行运行记录中。
 
@@ -3394,7 +3394,23 @@ API：
 
 支持的 `snapshot_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
 
-边界：证据快照只是人工审核后的证据记录。它不会运行实时 RAG 检索，不会上传或摄取知识文件，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。
+边界：证据快照只是人工审核后的证据记录。手工快照不会运行实时 RAG 检索；生成快照只检索已有 RAG 知识。它不会上传或摄取知识文件，不会自动批准证据，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。
+
+## Phase 61N: 商业运营 RAG 证据生成
+
+状态：进行中。
+
+Phase 61N 新增一个受控生成接口：系统只检索已有 RAG 知识集合，并把命中的 chunk、来源文档 ID、检索参数和禁止动作写入一个草稿证据快照。生成后的快照仍必须由人工审阅，不能自动批准，也不能直接进入执行。
+
+API：
+
+- `POST /api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag`
+
+请求字段：`deliverable_id`、`title`、`knowledge_collection`、`query`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`evidence_summary`、`relevance_notes`、`coverage_checks` 和 `metadata`。
+
+生成载荷包含：`generation_mode=rag_search_snapshot`、`collection_name`、`query`、`source_id`、`search_mode`、`dense_top_k`、`keyword_top_k`、`final_top_k`、`result_count`、`dense_candidate_count`、`keyword_candidate_count`、`merged_candidate_count` 和 `forbidden_actions`。
+
+边界：RAG 证据生成只检索已有知识，不上传或摄取新知识文件，不自动批准证据，不发布内容，不运行 ComfyUI/OpenClaw/Browser Worker，不控制真实账号，不接入平台分析，不宣称 ROI 归因，也不绕过审批。
 
 主要字段：`operation_id`、`observation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`decision_type`、`title`、`decision_status`、`priority`、`rationale`、`objective_updates`、`content_actions`、`asset_actions`、`audience_actions`、`execution_actions`、`risk_controls`、`decision_payload`、`next_review_at`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
 

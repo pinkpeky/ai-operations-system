@@ -20,7 +20,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61M" in text
+    assert "Phase 61N" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -77,6 +77,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.archiveDeliverable" in text
     assert "commercialOperationsApi.evidenceSnapshots" in text
     assert "commercialOperationsApi.createEvidenceSnapshot" in text
+    assert "commercialOperationsApi.generateEvidenceSnapshot" in text
     assert "commercialOperationsApi.updateEvidenceSnapshot" in text
     assert "commercialOperationsApi.readyEvidenceSnapshot" in text
     assert "commercialOperationsApi.approveEvidenceSnapshot" in text
@@ -125,6 +126,8 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
+    assert "Generate from RAG" in text
+    assert "Search mode" in text
 
 
 def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
@@ -165,6 +168,7 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/generate-rag" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/ready" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}/approve" in text

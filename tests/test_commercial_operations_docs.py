@@ -25,6 +25,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61K",
         "Phase 61L",
         "Phase 61M",
+        "Phase 61N",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -64,6 +65,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/monitoring-observations",
         "/api/v1/commercial-operations/{operation_id}/optimization-decisions",
         "/api/v1/commercial-operations/{operation_id}/evidence-snapshots",
+        "/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag",
         "Admin Dashboard",
         "Evidence",
         "handoff",
@@ -88,7 +90,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61m_commercial_operation_evidence_snapshots() -> None:
+def test_recovery_docs_point_to_phase_61n_commercial_operation_rag_evidence_generation() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -101,6 +103,6 @@ def test_recovery_docs_point_to_phase_61m_commercial_operation_evidence_snapshot
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61M" in text or "61M" in text, relative
+        assert "Phase 61N" in text or "61N" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "commercial_operation_evidence_snapshots" in text or "/evidence-snapshots" in text, relative
+        assert "/evidence-snapshots/generate-rag" in text or "RAG evidence" in text, relative

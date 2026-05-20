@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.routes.rag import build_retrieved_chunk_from_reranked, create_hybrid_search_pipeline
 from app.commercial_operations.service import CommercialOperationService
+from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
 from app.db.postgres import get_session
+from app.reranker.reranker_client import RerankerClient
 from app.schemas.commercial_operation import (
     CommercialOperationApprovalCreateRequest,
     CommercialOperationApprovalDecisionRequest,
@@ -39,6 +43,7 @@ from app.schemas.commercial_operation import (
     CommercialOperationDryRunResponse,
     CommercialOperationEvidenceSnapshotCreateRequest,
     CommercialOperationEvidenceSnapshotDecisionRequest,
+    CommercialOperationEvidenceSnapshotGenerateRequest,
     CommercialOperationEvidenceSnapshotListResponse,
     CommercialOperationEvidenceSnapshotResponse,
     CommercialOperationEvidenceSnapshotUpdateRequest,
@@ -79,6 +84,63 @@ from app.schemas.commercial_operation import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/commercial-operations", tags=["commercial-operations"])
+
+
+def _clean_optional_text(value: str | None) -> str | None:
+    return value.strip() if value and value.strip() else None
+
+
+def _rag_generation_query(
+    *,
+    operation_title: str,
+    operation_objective: str,
+    deliverable_title: str,
+    deliverable_summary: str | None,
+    requested_query: str | None,
+) -> str:
+    clean_query = _clean_optional_text(requested_query)
+    if clean_query:
+        return clean_query
+    pieces = [
+        operation_title,
+        operation_objective,
+        deliverable_title,
+        deliverable_summary or "",
+    ]
+    return " ".join(piece.strip() for piece in pieces if piece and piece.strip())[:1000]
+
+
+def _rag_evidence_item(chunk: Any) -> dict[str, Any]:
+    metadata = dict(getattr(chunk, "metadata", {}) or {})
+    score = (
+        getattr(chunk, "rerank_score", None)
+        or getattr(chunk, "hybrid_score", None)
+        or getattr(chunk, "keyword_score", None)
+        or getattr(chunk, "dense_score", None)
+        or getattr(chunk, "similarity_score", None)
+    )
+    text = getattr(chunk, "text", "") or ""
+    return {
+        "chunk_id": getattr(chunk, "id", None),
+        "document_id": metadata.get("document_id"),
+        "source_id": metadata.get("source_id"),
+        "chunk_index": getattr(chunk, "chunk_index", None),
+        "score": score,
+        "text_excerpt": text[:800],
+        "metadata": metadata,
+        "evidence_boundary": "retrieved from existing RAG index; not auto-approved or externally executed",
+    }
+
+
+def _unique_document_ids(evidence_items: list[dict[str, Any]]) -> list[str]:
+    seen: set[str] = set()
+    document_ids: list[str] = []
+    for item in evidence_items:
+        document_id = item.get("document_id")
+        if isinstance(document_id, str) and document_id and document_id not in seen:
+            seen.add(document_id)
+            document_ids.append(document_id)
+    return document_ids
 
 
 @router.post("", response_model=CommercialOperationResponse, status_code=201)
@@ -1310,6 +1372,149 @@ async def list_commercial_operation_evidence_snapshots(
             extra={"operation_id": str(operation_id)},
         )
         raise AppError("Commercial operation evidence snapshot list failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/evidence-snapshots/generate-rag",
+    response_model=CommercialOperationEvidenceSnapshotResponse,
+    status_code=201,
+)
+async def generate_commercial_operation_evidence_snapshot_from_rag(
+    operation_id: UUID,
+    request: CommercialOperationEvidenceSnapshotGenerateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationEvidenceSnapshotResponse:
+    """Generate a draft evidence snapshot from existing RAG search results."""
+
+    try:
+        service = CommercialOperationService(session)
+        operation = await service.require_operation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+        )
+        deliverable = await service.require_deliverable(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=request.deliverable_id,
+        )
+        if deliverable.deliverable_status != "packaged":
+            raise ValueError("Evidence snapshots require a packaged commercial deliverable")
+
+        settings = get_settings()
+        search_mode = request.search_mode or settings.default_search_mode
+        if search_mode not in {"dense", "keyword", "hybrid"}:
+            raise ValueError("search_mode must be dense, keyword, or hybrid")
+        dense_top_k = request.dense_top_k or settings.dense_top_k
+        keyword_top_k = request.keyword_top_k or settings.keyword_top_k
+        final_top_k = request.final_top_k or settings.final_top_k
+        query = _rag_generation_query(
+            operation_title=operation.title,
+            operation_objective=operation.objective,
+            deliverable_title=deliverable.title,
+            deliverable_summary=deliverable.summary,
+            requested_query=request.query,
+        )
+        pipeline = create_hybrid_search_pipeline(
+            settings=settings,
+            session=session,
+            collection_name=_clean_optional_text(request.knowledge_collection) or operation.knowledge_collection,
+        )
+        bundle = await pipeline.search(
+            query=query,
+            search_mode=search_mode,  # type: ignore[arg-type]
+            dense_top_k=dense_top_k,
+            keyword_top_k=keyword_top_k,
+            source_id=_clean_optional_text(request.source_id),
+            workspace_id=context.workspace_id,
+        )
+        reranked = await RerankerClient(settings=settings).rerank(
+            query=query,
+            chunks=bundle.merged_results,
+            top_n=final_top_k,
+        )
+        retrieved_chunks = [build_retrieved_chunk_from_reranked(result) for result in reranked]
+        evidence_items = [_rag_evidence_item(chunk) for chunk in retrieved_chunks]
+        source_document_ids = _unique_document_ids(evidence_items)
+        coverage_checks = request.coverage_checks or [
+            "RAG search completed against the existing knowledge index",
+            "operator must review retrieved chunks before approval",
+            "no knowledge upload, publishing, account control, or external runtime was executed",
+        ]
+        if not evidence_items:
+            coverage_checks = [
+                *coverage_checks,
+                "no retrieved chunks; revise the query or attach manual evidence before approval",
+            ]
+        evidence_summary = _clean_optional_text(request.evidence_summary) or (
+            f"Generated from {len(evidence_items)} existing RAG chunk(s) for query: {query}"
+            if evidence_items
+            else f"RAG search returned no chunks for query: {query}"
+        )
+        relevance_notes = _clean_optional_text(request.relevance_notes) or (
+            "Review the retrieved chunks and approve only if they support the packaged deliverable."
+        )
+        snapshot = await service.create_evidence_snapshot(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            deliverable_id=request.deliverable_id,
+            evidence_type="rag_snapshot",
+            title=_clean_optional_text(request.title) or f"RAG evidence draft: {deliverable.title}",
+            knowledge_collection=pipeline.vector_store.collection_name,
+            query=query,
+            evidence_summary=evidence_summary,
+            relevance_notes=relevance_notes,
+            source_document_ids=source_document_ids,
+            source_links=[
+                {
+                    "title": "RAG search",
+                    "target": "/api/v1/rag/search",
+                    "collection_name": pipeline.vector_store.collection_name,
+                    "query": query,
+                    "search_mode": search_mode,
+                }
+            ],
+            evidence_items=evidence_items,
+            coverage_checks=coverage_checks,
+            snapshot_payload={
+                "generation_mode": "rag_search_snapshot",
+                "collection_name": pipeline.vector_store.collection_name,
+                "query": query,
+                "source_id": _clean_optional_text(request.source_id),
+                "search_mode": search_mode,
+                "dense_top_k": dense_top_k,
+                "keyword_top_k": keyword_top_k,
+                "final_top_k": final_top_k,
+                "result_count": len(evidence_items),
+                "dense_candidate_count": len(bundle.dense_results),
+                "keyword_candidate_count": len(bundle.keyword_results),
+                "merged_candidate_count": len(bundle.merged_results),
+                "forbidden_actions": [
+                    "no knowledge ingestion",
+                    "no automatic approval",
+                    "no publishing",
+                    "no account control",
+                    "no ComfyUI, OpenClaw, or browser worker execution",
+                ],
+            },
+            created_by=context.user_id,
+            metadata={
+                **request.metadata,
+                "source": "commercial_operations_rag_generation",
+                "phase": "61N",
+            },
+        )
+        return CommercialOperationEvidenceSnapshotResponse.from_model(snapshot)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation RAG evidence snapshot generation API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation RAG evidence snapshot generation failed", status_code=500) from exc
 
 
 @router.patch(

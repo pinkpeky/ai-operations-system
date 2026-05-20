@@ -500,6 +500,15 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  generateEvidenceSnapshot: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/generate-rag`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
   updateEvidenceSnapshot: (operationId: string, snapshotId: string, payload: JsonRecord, settings?: AdminSettings) =>
     requestJson<JsonRecord>(
       `/commercial-operations/${encodeURIComponent(operationId)}/evidence-snapshots/${encodeURIComponent(snapshotId)}`,
