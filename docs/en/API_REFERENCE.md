@@ -3931,3 +3931,25 @@ Main fields: `operation_id`, `result_id`, `execution_run_id`, `execution_request
 Supported `observation_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
 
 Boundary: monitoring observations are operator-observed review records only. They do not ingest platform analytics, claim ROI attribution, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.
+
+## Phase 61L: Commercial Operation Optimization Decisions
+
+Status: in progress.
+
+Phase 61L adds `commercial_operation_optimization_decisions` and `CommercialOperationOptimizationDecision` records below each commercial operation. Operators can create an optimization decision from an approved monitoring observation, update it while draft or rejected, mark it ready for review, approve it, reject it, or archive it.
+
+APIs:
+
+- `GET /api/v1/commercial-operations/{operation_id}/optimization-decisions`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions`
+- `PATCH /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/archive`
+
+Main fields: `operation_id`, `observation_id`, `result_id`, `execution_run_id`, `execution_request_id`, `deliverable_id`, `output_artifact_id`, `step_key`, `channel`, `decision_type`, `title`, `decision_status`, `priority`, `rationale`, `objective_updates`, `content_actions`, `asset_actions`, `audience_actions`, `execution_actions`, `risk_controls`, `decision_payload`, `next_review_at`, `reviewer_notes`, `created_by`, `updated_by`, `approved_by`, and `metadata`.
+
+Supported `decision_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, and `archived`.
+
+Boundary: optimization decisions are operator-reviewed decision records only. They do not auto-optimize content, assets, audiences, budgets, or execution handoffs; they do not ingest platform analytics, claim ROI attribution, publish content, run ComfyUI, run OpenClaw, run Browser Worker actions, control real accounts, or bypass approval.

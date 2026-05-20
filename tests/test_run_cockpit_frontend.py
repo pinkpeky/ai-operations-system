@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation result slice."""
+    """Recovery docs should point to the active commercial operation optimization slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61k-commercial-monitoring-observations" in text or "Commercial Operation Monitoring Observations" in text, path
-        assert "commercial_operation_monitoring_observations" in text or "/monitoring-observations" in text, path
+        assert "phase-61l-commercial-optimization-decisions" in text or "Commercial Operation Optimization Decisions" in text, path
+        assert "commercial_operation_optimization_decisions" in text or "/optimization-decisions" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61J should be merged and Phase 61K should be the active monitoring slice."""
+    """Phase 61A-61K should be merged and Phase 61L should be the active optimization slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -376,6 +376,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "phase-61k-commercial-monitoring-observations" in phase_61_lines["61K"]
     assert "Commercial Operation Monitoring Observations" in phase_61_lines["61K"]
     assert "#51" in phase_61_lines["61K"]
-    assert "Draft PR" in phase_61_lines["61K"]
+    assert "Merged to main" in phase_61_lines["61K"]
     assert "TBD" not in phase_61_lines["61K"]
     assert "In progress" not in phase_61_lines["61K"]
+
+    assert "61L" in phase_61_lines
+    assert "phase-61l-commercial-optimization-decisions" in phase_61_lines["61L"]
+    assert "Commercial Operation Optimization Decisions" in phase_61_lines["61L"]
+    assert "#52" in phase_61_lines["61L"]
+    assert "Draft PR" in phase_61_lines["61L"]
+    assert "TBD" not in phase_61_lines["61L"]
+    assert "In progress" not in phase_61_lines["61L"]

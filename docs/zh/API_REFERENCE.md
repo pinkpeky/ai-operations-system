@@ -3356,6 +3356,28 @@ API：
 - `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/reject`
 - `POST /api/v1/commercial-operations/{operation_id}/monitoring-observations/{observation_id}/archive`
 
+## Phase 61L: 商业运营优化决策记录
+
+状态：进行中。
+
+Phase 61L 在每个商业运营项目下新增 `commercial_operation_optimization_decisions` 与 `CommercialOperationOptimizationDecision` 记录。操作人员可以从已批准的监控观察创建优化决策，再进行编辑、送审、批准、驳回或归档。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/optimization-decisions`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions`
+- `PATCH /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/archive`
+
+主要字段：`operation_id`、`observation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`decision_type`、`title`、`decision_status`、`priority`、`rationale`、`objective_updates`、`content_actions`、`asset_actions`、`audience_actions`、`execution_actions`、`risk_controls`、`decision_payload`、`next_review_at`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
+
+支持的 `decision_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
+
+边界：优化决策记录只保存人工审核的下一步决定。它不会自动优化内容、素材、受众、预算或执行交接；不会接入平台分析、不会宣称 ROI 归因、不会发布内容、不会运行 ComfyUI/OpenClaw/Browser Worker、不会控制真实账号，也不会绕过审批。
+
 主要字段：`operation_id`、`result_id`、`execution_run_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`observation_type`、`title`、`observation_status`、`observation_window_start`、`observation_window_end`、`metric_snapshots`、`qualitative_signals`、`evidence_links`、`anomaly_flags`、`recommended_actions`、`observation_payload`、`reviewer_notes`、`created_by`、`updated_by`、`approved_by` 和 `metadata`。
 
 支持的 `observation_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。

@@ -20,6 +20,7 @@ from app.models.commercial_operation import (
     CommercialOperationExecutionRun,
     CommercialOperationLink,
     CommercialOperationMonitoringObservation,
+    CommercialOperationOptimizationDecision,
     CommercialOperationResult,
 )
 
@@ -89,6 +90,13 @@ CommercialOperationExecutionRunStatusLiteral = Literal[
 ]
 CommercialOperationResultStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
 CommercialOperationMonitoringObservationStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "archived",
+]
+CommercialOperationOptimizationDecisionStatusLiteral = Literal[
     "draft",
     "ready_for_review",
     "approved",
@@ -1196,6 +1204,137 @@ class CommercialOperationMonitoringObservationListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationMonitoringObservationResponse]
+
+
+class CommercialOperationOptimizationDecisionCreateRequest(BaseModel):
+    """Create an operator-reviewed optimization decision from an approved monitoring observation."""
+
+    observation_id: UUID
+    decision_type: str = Field(default="iterate", min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: str = Field(default="normal", min_length=1, max_length=16)
+    rationale: str | None = None
+    objective_updates: list[str] = Field(default_factory=list)
+    content_actions: list[str] = Field(default_factory=list)
+    asset_actions: list[str] = Field(default_factory=list)
+    audience_actions: list[str] = Field(default_factory=list)
+    execution_actions: list[str] = Field(default_factory=list)
+    risk_controls: list[str] = Field(default_factory=list)
+    decision_payload: dict[str, Any] = Field(default_factory=dict)
+    next_review_at: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationOptimizationDecisionUpdateRequest(BaseModel):
+    """Patch a draft or rejected commercial optimization decision."""
+
+    decision_type: str | None = Field(default=None, min_length=1, max_length=64)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: str | None = Field(default=None, min_length=1, max_length=16)
+    rationale: str | None = None
+    objective_updates: list[str] | None = None
+    content_actions: list[str] | None = None
+    asset_actions: list[str] | None = None
+    audience_actions: list[str] | None = None
+    execution_actions: list[str] | None = None
+    risk_controls: list[str] | None = None
+    decision_payload: dict[str, Any] | None = None
+    next_review_at: datetime | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationOptimizationDecisionDecisionRequest(BaseModel):
+    """Send, approve, reject, or archive a commercial optimization decision."""
+
+    reviewer_notes: str | None = None
+
+
+class CommercialOperationOptimizationDecisionResponse(BaseModel):
+    """Commercial operation optimization decision response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    observation_id: UUID
+    result_id: UUID
+    execution_run_id: UUID
+    execution_request_id: UUID
+    deliverable_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    decision_type: str
+    title: str
+    decision_status: str
+    priority: str
+    rationale: str | None
+    objective_updates: list[str]
+    content_actions: list[str]
+    asset_actions: list[str]
+    audience_actions: list[str]
+    execution_actions: list[str]
+    risk_controls: list[str]
+    decision_payload: dict[str, Any]
+    next_review_at: datetime | None
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        decision: CommercialOperationOptimizationDecision,
+    ) -> "CommercialOperationOptimizationDecisionResponse":
+        return cls(
+            id=decision.id,
+            workspace_id=decision.workspace_id,
+            operation_id=decision.operation_id,
+            observation_id=decision.observation_id,
+            result_id=decision.result_id,
+            execution_run_id=decision.execution_run_id,
+            execution_request_id=decision.execution_request_id,
+            deliverable_id=decision.deliverable_id,
+            output_artifact_id=decision.output_artifact_id,
+            step_key=decision.step_key,
+            channel=decision.channel,
+            decision_type=decision.decision_type,
+            title=decision.title,
+            decision_status=decision.decision_status,
+            priority=decision.priority,
+            rationale=decision.rationale,
+            objective_updates=decision.objective_updates,
+            content_actions=decision.content_actions,
+            asset_actions=decision.asset_actions,
+            audience_actions=decision.audience_actions,
+            execution_actions=decision.execution_actions,
+            risk_controls=decision.risk_controls,
+            decision_payload=decision.decision_payload,
+            next_review_at=decision.next_review_at,
+            reviewer_notes=decision.reviewer_notes,
+            created_by=decision.created_by,
+            updated_by=decision.updated_by,
+            approved_by=decision.approved_by,
+            approved_at=decision.approved_at,
+            rejected_at=decision.rejected_at,
+            archived_at=decision.archived_at,
+            metadata=decision.decision_metadata,
+            created_at=decision.created_at,
+            updated_at=decision.updated_at,
+        )
+
+
+class CommercialOperationOptimizationDecisionListResponse(BaseModel):
+    """Commercial operation optimization decision list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationOptimizationDecisionResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

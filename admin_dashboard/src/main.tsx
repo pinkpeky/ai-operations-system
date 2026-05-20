@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61K",
+    boundaryTitle: "Phase 61L",
     boundaryBody: "商业运营执行运行记录。把目标、计划、知识、内容、素材、审批、交付、执行请求、执行运行和恢复记录串成可接手链路。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,7 +726,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61K",
+    boundaryTitle: "Phase 61L",
     boundaryBody: "Commercial operation results: connect goals, plans, knowledge, content, assets, approvals, deliverables, execution requests, run records, result review, and follow-up context.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
@@ -4386,7 +4386,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61K",
+    phaseLabel: "Phase 61L",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、执行请求、执行运行记录和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4464,7 +4464,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61K",
+    phaseLabel: "Phase 61L",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4939,6 +4939,56 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresResult: "Approve one commercial result first.",
           noObservations: "No monitoring observations yet.",
         };
+  const optimizationCopy =
+    language === "zh-CN"
+      ? {
+          title: "优化决策",
+          description: "从已批准的监控观察创建可审计的下一步优化决策。它只记录继续、调整内容、调整素材、调整受众、重试交接、暂停或升级审核等人工决定，不会自动优化或发布。",
+          observationLabel: "已批准观察",
+          typeLabel: "决策类型",
+          priorityLabel: "优先级",
+          rationaleLabel: "决策理由",
+          objectiveLabel: "目标调整",
+          contentLabel: "内容动作",
+          assetLabel: "素材动作",
+          audienceLabel: "受众动作",
+          executionLabel: "执行动作",
+          riskLabel: "风险控制",
+          createAction: "创建决策",
+          saveAction: "保存决策",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并批准至少一条监控观察，再创建优化决策。",
+          requiresObservation: "需要先批准一条监控观察。",
+          noDecisions: "暂无优化决策记录。",
+        }
+      : {
+          title: "Optimization decisions",
+          description: "Create auditable next-step decisions from approved monitoring observations. This records continue, content, asset, audience, retry, pause, or escalation choices only; it does not auto-optimize or publish.",
+          observationLabel: "Approved observation",
+          typeLabel: "Decision type",
+          priorityLabel: "Priority",
+          rationaleLabel: "Rationale",
+          objectiveLabel: "Objective updates",
+          contentLabel: "Content actions",
+          assetLabel: "Asset actions",
+          audienceLabel: "Audience actions",
+          executionLabel: "Execution actions",
+          riskLabel: "Risk controls",
+          createAction: "Create decision",
+          saveAction: "Save decision",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and approve at least one monitoring observation first.",
+          requiresObservation: "Approve one monitoring observation first.",
+          noDecisions: "No optimization decisions yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -4950,6 +5000,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [executionRunsState, setExecutionRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [resultsState, setResultsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [monitoringState, setMonitoringState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [optimizationState, setOptimizationState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -5045,6 +5096,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [monitoringEvidenceDraft, setMonitoringEvidenceDraft] = useState("operator screenshot, platform note");
   const [monitoringAnomaliesDraft, setMonitoringAnomaliesDraft] = useState("no automated analytics ingestion");
   const [monitoringActionsDraft, setMonitoringActionsDraft] = useState("review next content angle, confirm handoff owner");
+  const [optimizationObservationId, setOptimizationObservationId] = useState("");
+  const [selectedOptimizationDecisionId, setSelectedOptimizationDecisionId] = useState("");
+  const [optimizationTitle, setOptimizationTitle] = useState(language === "zh-CN" ? "下一轮优化决策" : "Next optimization decision");
+  const [optimizationType, setOptimizationType] = useState("iterate");
+  const [optimizationPriority, setOptimizationPriority] = useState("normal");
+  const [optimizationRationale, setOptimizationRationale] = useState(language === "zh-CN" ? "基于已批准监控观察，准备人工确认的下一步优化。" : "Based on the approved monitoring observation, prepare the next operator-confirmed optimization.");
+  const [optimizationObjectiveUpdatesDraft, setOptimizationObjectiveUpdatesDraft] = useState("focus on qualified leads");
+  const [optimizationContentActionsDraft, setOptimizationContentActionsDraft] = useState("update content proof point, test next CTA");
+  const [optimizationAssetActionsDraft, setOptimizationAssetActionsDraft] = useState("refresh hero visual brief");
+  const [optimizationAudienceActionsDraft, setOptimizationAudienceActionsDraft] = useState("review next audience segment");
+  const [optimizationExecutionActionsDraft, setOptimizationExecutionActionsDraft] = useState("prepare next manual handoff");
+  const [optimizationRiskControlsDraft, setOptimizationRiskControlsDraft] = useState("human approval before runtime, no auto publish");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -5300,6 +5363,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadOptimizationDecisions = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setOptimizationState(emptyState());
+        return;
+      }
+      setOptimizationState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.optimizationDecisions(operationId, settings);
+        setOptimizationState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setOptimizationState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation optimization decisions API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
@@ -5311,6 +5396,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadExecutionRuns(selectedOperationId);
       void loadResults(selectedOperationId);
       void loadMonitoringObservations(selectedOperationId);
+      void loadOptimizationDecisions(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
@@ -5323,8 +5409,9 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setExecutionRunsState(emptyState());
     setResultsState(emptyState());
     setMonitoringState(emptyState());
+    setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -6235,6 +6322,131 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editOptimizationDecision = (decision: JsonRecord) => {
+    const decisionId = valueAt(decision, ["id"], "");
+    if (!decisionId) {
+      return;
+    }
+    setSelectedOptimizationDecisionId(decisionId);
+    setOptimizationObservationId(valueAt(decision, ["observation_id"], optimizationObservationId));
+    setOptimizationTitle(valueAt(decision, ["title"], optimizationTitle));
+    setOptimizationType(valueAt(decision, ["decision_type"], optimizationType));
+    setOptimizationPriority(valueAt(decision, ["priority"], optimizationPriority));
+    setOptimizationRationale(valueAt(decision, ["rationale"], ""));
+    setOptimizationObjectiveUpdatesDraft(draftListText(decision.objective_updates));
+    setOptimizationContentActionsDraft(draftListText(decision.content_actions));
+    setOptimizationAssetActionsDraft(draftListText(decision.asset_actions));
+    setOptimizationAudienceActionsDraft(draftListText(decision.audience_actions));
+    setOptimizationExecutionActionsDraft(draftListText(decision.execution_actions));
+    setOptimizationRiskControlsDraft(draftListText(decision.risk_controls));
+  };
+
+  const optimizationDecisionPayload = (): JsonRecord => ({
+    observation_id: optimizationObservationId,
+    decision_type: optimizationType.trim() || "iterate",
+    title: optimizationTitle.trim(),
+    priority: optimizationPriority.trim() || "normal",
+    rationale: optimizationRationale.trim() || undefined,
+    objective_updates: splitDraftList(optimizationObjectiveUpdatesDraft),
+    content_actions: splitDraftList(optimizationContentActionsDraft),
+    asset_actions: splitDraftList(optimizationAssetActionsDraft),
+    audience_actions: splitDraftList(optimizationAudienceActionsDraft),
+    execution_actions: splitDraftList(optimizationExecutionActionsDraft),
+    risk_controls: splitDraftList(optimizationRiskControlsDraft),
+    decision_payload: {
+      source: "admin_dashboard",
+      boundary: "metadata-only; no automatic optimization, publishing, or external runtime call",
+    },
+    metadata: { source: "admin_dashboard", phase: "61L" },
+  });
+
+  const createOptimizationDecision = async () => {
+    if (!selectedOperationId || !optimizationObservationId) {
+      setActionState({
+        data: null,
+        error: optimizationCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createOptimizationDecision(
+        selectedOperationId,
+        optimizationDecisionPayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedOptimizationDecisionId(valueAt(created, ["id"], ""));
+      await loadOptimizationDecisions(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation optimization decision create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOptimizationDecision = async () => {
+    if (!selectedOperationId || !selectedOptimizationDecisionId) {
+      return;
+    }
+    const { observation_id: _observationId, ...payload } = optimizationDecisionPayload();
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateOptimizationDecision(
+        selectedOperationId,
+        selectedOptimizationDecisionId,
+        payload,
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadOptimizationDecisions(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation optimization decision update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOptimizationDecision = async (
+    decisionId: string,
+    action: "ready" | "approve" | "reject" | "archive",
+  ) => {
+    if (!selectedOperationId || !decisionId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyOptimizationDecision(selectedOperationId, decisionId, "Ready for optimization decision review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveOptimizationDecision(selectedOperationId, decisionId, "Approved as operator optimization decision; no automatic optimization or publishing.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectOptimizationDecision(selectedOperationId, decisionId, "Rejected from Commercial Ops; revise rationale, actions, or risk controls.", settings)
+              : await commercialOperationsApi.archiveOptimizationDecision(selectedOperationId, decisionId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadOptimizationDecisions(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation optimization decision action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const createOperationDryRun = async () => {
     if (!selectedOperationId) {
       setActionState({
@@ -6428,10 +6640,12 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const executionRuns = executionRunsState.data || [];
   const results = resultsState.data || [];
   const monitoringObservations = monitoringState.data || [];
+  const optimizationDecisions = optimizationState.data || [];
   const packagedDeliverables = deliverables.filter((deliverable) => valueAt(deliverable, ["deliverable_status"], "") === "packaged");
   const preparedExecutionRequests = executionRequests.filter((executionRequest) => valueAt(executionRequest, ["request_status"], "") === "prepared");
   const terminalExecutionRuns = executionRuns.filter((executionRun) => ["succeeded", "failed", "cancelled"].includes(valueAt(executionRun, ["run_status"], "")));
   const approvedResults = results.filter((result) => valueAt(result, ["result_status"], "") === "approved");
+  const approvedMonitoringObservations = monitoringObservations.filter((observation) => valueAt(observation, ["observation_status"], "") === "approved");
   const approvedContentDrafts = contentDrafts.filter((draft) => valueAt(draft, ["draft_status"], "") === "approved");
   const eligibleDeliverableAssets = assetRequests.filter((assetRequest) => {
     const status = valueAt(assetRequest, ["request_status"], "");
@@ -6501,6 +6715,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   }, [approvedResults, monitoringResultId, selectedObservationId]);
 
+  useEffect(() => {
+    if (optimizationObservationId && approvedMonitoringObservations.some((observation) => valueAt(observation, ["id"], "") === optimizationObservationId)) {
+      return;
+    }
+    const nextObservation = approvedMonitoringObservations[0];
+    const nextObservationId = nextObservation ? valueAt(nextObservation, ["id"], "") : "";
+    setOptimizationObservationId(nextObservationId);
+    if (nextObservation && !selectedOptimizationDecisionId) {
+      setOptimizationTitle(`${valueAt(nextObservation, ["title"], "Monitoring observation")} decision`);
+    }
+  }, [approvedMonitoringObservations, optimizationObservationId, selectedOptimizationDecisionId]);
+
   return (
     <div className="page-stack">
       <section className="commercial-command-center">
@@ -6521,7 +6747,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -7737,6 +7963,164 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{monitoringCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={optimizationCopy.title} description={optimizationCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-optimization-grid">
+              <label>
+                {optimizationCopy.observationLabel}
+                <select value={optimizationObservationId} onChange={(event) => setOptimizationObservationId(event.target.value)}>
+                  {approvedMonitoringObservations.length ? null : <option value="">-</option>}
+                  {approvedMonitoringObservations.map((observation) => {
+                    const observationId = valueAt(observation, ["id"], "");
+                    return (
+                      <option value={observationId} key={observationId}>
+                        {valueAt(observation, ["title"])} / {valueAt(observation, ["observation_status"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={optimizationTitle} onChange={(event) => setOptimizationTitle(event.target.value)} />
+              </label>
+              <label>
+                {optimizationCopy.typeLabel}
+                <select value={optimizationType} onChange={(event) => setOptimizationType(event.target.value)}>
+                  <option value="continue">continue</option>
+                  <option value="iterate">iterate</option>
+                  <option value="adjust_content">adjust_content</option>
+                  <option value="adjust_assets">adjust_assets</option>
+                  <option value="retarget_audience">retarget_audience</option>
+                  <option value="retry_execution">retry_execution</option>
+                  <option value="pause">pause</option>
+                  <option value="escalate_review">escalate_review</option>
+                  <option value="stop">stop</option>
+                </select>
+              </label>
+              <label>
+                {optimizationCopy.priorityLabel}
+                <select value={optimizationPriority} onChange={(event) => setOptimizationPriority(event.target.value)}>
+                  <option value="low">low</option>
+                  <option value="normal">normal</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label className="commercial-wide-label">
+                {optimizationCopy.rationaleLabel}
+                <textarea value={optimizationRationale} onChange={(event) => setOptimizationRationale(event.target.value)} />
+              </label>
+              <label>
+                {optimizationCopy.objectiveLabel}
+                <textarea value={optimizationObjectiveUpdatesDraft} onChange={(event) => setOptimizationObjectiveUpdatesDraft(event.target.value)} />
+              </label>
+              <label>
+                {optimizationCopy.contentLabel}
+                <textarea value={optimizationContentActionsDraft} onChange={(event) => setOptimizationContentActionsDraft(event.target.value)} />
+              </label>
+              <label>
+                {optimizationCopy.assetLabel}
+                <textarea value={optimizationAssetActionsDraft} onChange={(event) => setOptimizationAssetActionsDraft(event.target.value)} />
+              </label>
+              <label>
+                {optimizationCopy.audienceLabel}
+                <textarea value={optimizationAudienceActionsDraft} onChange={(event) => setOptimizationAudienceActionsDraft(event.target.value)} />
+              </label>
+              <label>
+                {optimizationCopy.executionLabel}
+                <textarea value={optimizationExecutionActionsDraft} onChange={(event) => setOptimizationExecutionActionsDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {optimizationCopy.riskLabel}
+                <textarea value={optimizationRiskControlsDraft} onChange={(event) => setOptimizationRiskControlsDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOptimizationDecision()}
+                disabled={!optimizationObservationId || !optimizationTitle.trim() || actionState.loading}
+              >
+                <Sparkles size={15} />
+                {optimizationCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOptimizationDecision()}
+                disabled={!selectedOptimizationDecisionId || !optimizationTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {optimizationCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={optimizationState} />
+            {optimizationState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {optimizationState.updatedAt}</div> : null}
+            {optimizationDecisions.length ? (
+              <div className="commercial-optimization-list">
+                {optimizationDecisions.map((decision) => {
+                  const decisionId = valueAt(decision, ["id"], "");
+                  const decisionStatus = valueAt(decision, ["decision_status"], "");
+                  return (
+                    <article className="commercial-optimization-item" key={decisionId}>
+                      <div>
+                        <strong>{valueAt(decision, ["title"])}</strong>
+                        <span>{valueAt(decision, ["channel"])} / {valueAt(decision, ["decision_type"])} / {valueAt(decision, ["priority"])}</span>
+                        <p>{valueAt(decision, ["rationale"], "-")}</p>
+                        <p>{shortJson(decision.content_actions, 90)}</p>
+                        <StatusPill value={decisionStatus} />
+                      </div>
+                      <div className="commercial-optimization-actions">
+                        <button className="ghost-button" onClick={() => editOptimizationDecision(decision)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {optimizationCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOptimizationDecision(decisionId, "ready")}
+                          disabled={!["draft", "rejected"].includes(decisionStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {optimizationCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOptimizationDecision(decisionId, "approve")}
+                          disabled={decisionStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {optimizationCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOptimizationDecision(decisionId, "reject")}
+                          disabled={decisionStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {optimizationCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOptimizationDecision(decisionId, "archive")}
+                          disabled={decisionStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {optimizationCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{approvedMonitoringObservations.length ? optimizationCopy.noDecisions : optimizationCopy.requiresObservation}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{optimizationCopy.selectedHint}</div>
         )}
       </Panel>
 

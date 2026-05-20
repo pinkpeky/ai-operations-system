@@ -23,6 +23,7 @@ from app.models import (
     CommercialOperationExecutionRun,
     CommercialOperationLink,
     CommercialOperationResult,
+    CommercialOperationOptimizationDecision,
 )
 
 
@@ -39,6 +40,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationExecutionRun,
         CommercialOperationLink,
         CommercialOperationResult,
+        CommercialOperationOptimizationDecision,
     )
     engine = create_async_engine(
         "sqlite+aiosqlite://",
@@ -784,6 +786,122 @@ async def test_commercial_operations_api_flow() -> None:
             assert monitoring_step["monitoring_observation_id"] == monitoring_observation_id
             assert monitoring_step["monitoring_observation_status"] == "approved"
             assert monitoring_step["monitoring_observation_type"] == "manual_snapshot"
+
+            optimization_decision = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions",
+                headers=headers,
+                json={
+                    "observation_id": monitoring_observation_id,
+                    "decision_type": "iterate",
+                    "title": "Newsletter optimization decision",
+                    "priority": "high",
+                    "rationale": "Manual monitoring indicates the next content angle should be tested.",
+                    "objective_updates": ["focus on qualified reply signal"],
+                    "content_actions": ["revise proof point"],
+                    "asset_actions": ["refresh hero visual brief"],
+                    "audience_actions": ["review next segment"],
+                    "execution_actions": ["prepare next manual handoff"],
+                    "risk_controls": ["human approval before runtime"],
+                    "metadata": {"phase": "61L"},
+                },
+            )
+            assert optimization_decision.status_code == 201
+            optimization_decision_body = optimization_decision.json()
+            optimization_decision_id = optimization_decision_body["id"]
+            assert optimization_decision_body["workspace_id"] == "workspace-commercial-api"
+            assert optimization_decision_body["operation_id"] == operation_id
+            assert optimization_decision_body["observation_id"] == monitoring_observation_id
+            assert optimization_decision_body["result_id"] == commercial_result_id
+            assert optimization_decision_body["execution_run_id"] == execution_run_id
+            assert optimization_decision_body["execution_request_id"] == execution_request_id
+            assert optimization_decision_body["deliverable_id"] == deliverable_id
+            assert optimization_decision_body["output_artifact_id"] == output_artifact_id
+            assert optimization_decision_body["decision_status"] == "draft"
+            assert optimization_decision_body["decision_type"] == "iterate"
+            assert optimization_decision_body["priority"] == "high"
+            assert optimization_decision_body["created_by"] == "user-commercial-api"
+            assert "does not auto-optimize" in optimization_decision_body["decision_payload"]["non_goals"][0]
+
+            optimization_decisions = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions",
+                headers=headers,
+            )
+            assert optimization_decisions.status_code == 200
+            assert [item["id"] for item in optimization_decisions.json()["items"]] == [optimization_decision_id]
+
+            hidden_optimization_decisions = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_optimization_decisions.status_code == 404
+
+            patched_optimization_decision = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}",
+                headers=headers,
+                json={
+                    "priority": "normal",
+                    "rationale": "Updated rationale for manual optimization.",
+                    "content_actions": ["revise CTA", "tighten proof point"],
+                },
+            )
+            assert patched_optimization_decision.status_code == 200
+            assert patched_optimization_decision.json()["updated_by"] == "user-commercial-api"
+            assert patched_optimization_decision.json()["priority"] == "normal"
+            assert patched_optimization_decision.json()["content_actions"] == ["revise CTA", "tighten proof point"]
+
+            ready_optimization_decision = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for optimization review."},
+            )
+            assert ready_optimization_decision.status_code == 200
+            assert ready_optimization_decision.json()["decision_status"] == "ready_for_review"
+
+            approved_optimization_decision = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as manual optimization decision only."},
+            )
+            assert approved_optimization_decision.status_code == 200
+            assert approved_optimization_decision.json()["decision_status"] == "approved"
+            assert approved_optimization_decision.json()["approved_by"] == "user-commercial-api"
+            assert approved_optimization_decision.json()["decision_payload"]["decision_status"] == "approved"
+
+            fetched_after_optimization_decision = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_optimization_decision.status_code == 200
+            optimization_step = [
+                step
+                for step in fetched_after_optimization_decision.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert optimization_step["optimization_decision_id"] == optimization_decision_id
+            assert optimization_step["optimization_decision_status"] == "approved"
+            assert optimization_step["optimization_decision_type"] == "iterate"
+
+            reject_approved_optimization_decision = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/reject",
+                headers=headers,
+                json={"reviewer_notes": "Too late to reject."},
+            )
+            assert reject_approved_optimization_decision.status_code == 400
+
+            archived_optimization_decision = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/archive",
+                headers=headers,
+                json={"reviewer_notes": "Archived after approval."},
+            )
+            assert archived_optimization_decision.status_code == 200
+            assert archived_optimization_decision.json()["decision_status"] == "archived"
+
+            patch_archived_optimization_decision = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}",
+                headers=headers,
+                json={"title": "Should not change."},
+            )
+            assert patch_archived_optimization_decision.status_code == 400
 
             reject_approved_monitoring_observation = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/monitoring-observations/{monitoring_observation_id}/reject",
