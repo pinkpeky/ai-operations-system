@@ -4085,3 +4085,24 @@ Endpoints:
 - `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/archive`
 
 Boundary: ComfyUI adapter configs are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Ready configs can be selected by ComfyUI preflights to prefill endpoint, queue, workflow, model references, and guarded adapter metadata.
+
+## Phase 61T: Commercial Operation ComfyUI Job Requests
+
+Phase 61T adds `commercial_operation_comfyui_job_requests` and `CommercialOperationComfyUIJobRequest` records below each commercial operation. Operators can create metadata-only job requests from checked ComfyUI preflights, edit them, send them for review, approve or reject them, mark approved requests as queued, mark failed requests, cancel active requests, or archive their audit trail. These records document the future guarded ComfyUI queue payload, safety checks, output expectations, and recovery guidance without uploading files, storing secret values, calling ComfyUI, submitting queues, or generating media.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/job-requests`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-job-requests`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/queue`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/archive`
+
+Supported `job_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `queued`, `failed`, `cancelled`, and `archived`.
+
+Boundary: ComfyUI job requests are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved requests can be marked queued only as an operator-facing state record; no ComfyUI queue submission occurs.

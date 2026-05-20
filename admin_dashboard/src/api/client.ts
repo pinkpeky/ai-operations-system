@@ -606,6 +606,94 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  comfyuiJobRequests: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests`, {}, settings),
+  createComfyuiJobRequest: (operationId: string, preflightId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-preflights/${encodeURIComponent(preflightId)}/job-requests`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateComfyuiJobRequest: (operationId: string, jobRequestId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyComfyuiJobRequest: (operationId: string, jobRequestId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Ready from Commercial Ops; still metadata-only." }),
+      },
+      settings,
+    ),
+  approveComfyuiJobRequest: (operationId: string, jobRequestId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Approved from Commercial Ops; no ComfyUI queue submission." }),
+      },
+      settings,
+    ),
+  rejectComfyuiJobRequest: (operationId: string, jobRequestId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Rejected from Commercial Ops." }),
+      },
+      settings,
+    ),
+  queueComfyuiJobRequest: (operationId: string, jobRequestId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/queue`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: "Queued as metadata-only request; no ComfyUI call occurred." }),
+      },
+      settings,
+    ),
+  failComfyuiJobRequest: (
+    operationId: string,
+    jobRequestId: string,
+    failureReason = "Failed from Commercial Ops job request; operator review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  cancelComfyuiJobRequest: (operationId: string, jobRequestId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Cancelled from Commercial Ops." }),
+      },
+      settings,
+    ),
+  archiveComfyuiJobRequest: (operationId: string, jobRequestId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Archived from Commercial Ops." }),
+      },
+      settings,
+    ),
   deliverables: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/deliverables`, {}, settings),
   createDeliverable: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

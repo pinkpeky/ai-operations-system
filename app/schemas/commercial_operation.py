@@ -15,6 +15,7 @@ from app.models.commercial_operation import (
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
     CommercialOperationComfyUIHandoff,
+    CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
@@ -58,6 +59,16 @@ CommercialOperationComfyUIHandoffStatusLiteral = Literal[
 CommercialOperationComfyUIPreflightStatusLiteral = Literal["draft", "checked", "blocked", "failed", "archived"]
 CommercialOperationComfyUIAdapterConfigStatusLiteral = Literal["draft", "ready", "blocked", "failed", "archived"]
 CommercialOperationComfyUIAdapterAuthModeLiteral = Literal["none", "token_ref", "basic_ref", "custom_ref"]
+CommercialOperationComfyUIJobRequestStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "queued",
+    "failed",
+    "cancelled",
+    "archived",
+]
 CommercialOperationDeliverableStatusLiteral = Literal[
     "draft",
     "ready_for_review",
@@ -1027,6 +1038,141 @@ class CommercialOperationComfyUIAdapterConfigListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIAdapterConfigResponse]
+
+
+class CommercialOperationComfyUIJobRequestCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI job request from a checked preflight."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: CommercialOperationPriorityLiteral = "normal"
+    runtime_payload: dict[str, Any] = Field(default_factory=dict)
+    safety_checks: list[dict[str, Any]] = Field(default_factory=list)
+    output_expectations: list[str] = Field(default_factory=list)
+    recovery_plan: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIJobRequestUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI job request before queue handoff."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: CommercialOperationPriorityLiteral | None = None
+    runtime_payload: dict[str, Any] | None = None
+    safety_checks: list[dict[str, Any]] | None = None
+    output_expectations: list[str] | None = None
+    recovery_plan: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIJobRequestDecisionRequest(BaseModel):
+    """Review, queue, fail, cancel, or archive a metadata-only ComfyUI job request."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIJobRequestResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI job request response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    job_status: str
+    priority: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    connection_mode: str
+    prompt_payload: dict[str, Any]
+    workflow_payload: dict[str, Any]
+    runtime_payload: dict[str, Any]
+    safety_checks: list[dict[str, Any]]
+    output_expectations: list[str]
+    recovery_plan: dict[str, Any]
+    job_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    requested_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    queued_by: str | None
+    cancelled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    queued_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        job_request: CommercialOperationComfyUIJobRequest,
+    ) -> "CommercialOperationComfyUIJobRequestResponse":
+        return cls(
+            id=job_request.id,
+            workspace_id=job_request.workspace_id,
+            operation_id=job_request.operation_id,
+            preflight_id=job_request.preflight_id,
+            handoff_id=job_request.handoff_id,
+            adapter_config_id=job_request.adapter_config_id,
+            asset_request_id=job_request.asset_request_id,
+            step_key=job_request.step_key,
+            title=job_request.title,
+            job_status=job_request.job_status,
+            priority=job_request.priority,
+            target_url=job_request.target_url,
+            queue_name=job_request.queue_name,
+            workflow_name=job_request.workflow_name,
+            connection_mode=job_request.connection_mode,
+            prompt_payload=job_request.prompt_payload,
+            workflow_payload=job_request.workflow_payload,
+            runtime_payload=job_request.runtime_payload,
+            safety_checks=job_request.safety_checks,
+            output_expectations=job_request.output_expectations,
+            recovery_plan=job_request.recovery_plan,
+            job_payload=job_request.job_payload,
+            result_summary=job_request.result_summary,
+            failure_reason=job_request.failure_reason,
+            reviewer_notes=job_request.reviewer_notes,
+            requested_by=job_request.requested_by,
+            updated_by=job_request.updated_by,
+            approved_by=job_request.approved_by,
+            queued_by=job_request.queued_by,
+            cancelled_by=job_request.cancelled_by,
+            archived_by=job_request.archived_by,
+            approved_at=job_request.approved_at,
+            rejected_at=job_request.rejected_at,
+            queued_at=job_request.queued_at,
+            failed_at=job_request.failed_at,
+            cancelled_at=job_request.cancelled_at,
+            archived_at=job_request.archived_at,
+            metadata=job_request.job_metadata,
+            created_at=job_request.created_at,
+            updated_at=job_request.updated_at,
+        )
+
+
+class CommercialOperationComfyUIJobRequestListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI job request list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIJobRequestResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

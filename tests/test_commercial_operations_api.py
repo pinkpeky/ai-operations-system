@@ -18,6 +18,7 @@ from app.models import (
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
     CommercialOperationComfyUIHandoff,
+    CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
@@ -42,6 +43,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationAssetRequest,
         CommercialOperationComfyUIAdapterConfig,
         CommercialOperationComfyUIHandoff,
+        CommercialOperationComfyUIJobRequest,
         CommercialOperationComfyUIPreflight,
         CommercialOperationContentDraft,
         CommercialOperationDeliverable,
@@ -621,6 +623,90 @@ async def test_commercial_operations_api_flow() -> None:
             assert linked_comfyui_preflight.json()["adapter_config"]["network_probe"] == "disabled"
             assert linked_comfyui_preflight.json()["adapter_config"]["queue_submission"] == "disabled"
 
+            comfyui_job_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-preflights/{comfyui_preflight_id}/job-requests",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI job request",
+                    "priority": "high",
+                    "runtime_payload": {
+                        "execution_mode": "live",
+                        "queue_submission": True,
+                        "submit_job": True,
+                    },
+                    "safety_checks": [
+                        {"key": "operator_owner", "label": "Operator owner assigned", "status": True}
+                    ],
+                    "output_expectations": ["reviewable queue payload", "operator recovery plan"],
+                    "recovery_plan": {"next_steps": ["review preflight", "adjust prompt"]},
+                    "metadata": {"phase": "61T"},
+                },
+            )
+            assert comfyui_job_request.status_code == 201
+            comfyui_job_body = comfyui_job_request.json()
+            comfyui_job_request_id = comfyui_job_body["id"]
+            assert comfyui_job_body["job_status"] == "draft"
+            assert comfyui_job_body["runtime_payload"]["execution_mode"] == "metadata_only"
+            assert comfyui_job_body["runtime_payload"]["queue_submission"] is False
+            assert comfyui_job_body["runtime_payload"]["submit_job"] is False
+            assert comfyui_job_body["job_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI job request; no ComfyUI API call or queue submission occurs"
+            )
+            assert "no file upload to ComfyUI" in comfyui_job_body["job_payload"]["forbidden_actions"]
+
+            comfyui_job_requests = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests",
+                headers=headers,
+            )
+            assert comfyui_job_requests.status_code == 200
+            assert [item["id"] for item in comfyui_job_requests.json()["items"]] == [comfyui_job_request_id]
+
+            hidden_comfyui_job_requests = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_job_requests.status_code == 404
+
+            updated_comfyui_job_request = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{comfyui_job_request_id}",
+                headers=headers,
+                json={
+                    "runtime_payload": {"execution_mode": "live", "queue_submission": True, "submit_job": True},
+                    "output_expectations": ["safe metadata-only request"],
+                },
+            )
+            assert updated_comfyui_job_request.status_code == 200
+            assert updated_comfyui_job_request.json()["job_status"] == "draft"
+            assert updated_comfyui_job_request.json()["runtime_payload"]["execution_mode"] == "metadata_only"
+            assert updated_comfyui_job_request.json()["runtime_payload"]["queue_submission"] is False
+
+            ready_comfyui_job_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{comfyui_job_request_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for operator review."},
+            )
+            assert ready_comfyui_job_request.status_code == 200
+            assert ready_comfyui_job_request.json()["job_status"] == "ready_for_review"
+
+            approved_comfyui_job_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{comfyui_job_request_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved metadata-only queue shape."},
+            )
+            assert approved_comfyui_job_request.status_code == 200
+            assert approved_comfyui_job_request.json()["job_status"] == "approved"
+            assert approved_comfyui_job_request.json()["approved_by"] == "user-commercial-api"
+
+            queued_comfyui_job_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{comfyui_job_request_id}/queue",
+                headers=headers,
+                json={"result_summary": "Operator recorded queued state; no ComfyUI request submitted."},
+            )
+            assert queued_comfyui_job_request.status_code == 200
+            assert queued_comfyui_job_request.json()["job_status"] == "queued"
+            assert queued_comfyui_job_request.json()["queued_by"] == "user-commercial-api"
+            assert queued_comfyui_job_request.json()["runtime_payload"]["external_calls"] == "disabled"
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -641,6 +727,10 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_adapter_config_id"] == comfyui_adapter_config_id
             assert comfyui_step["comfyui_adapter_config_status"] == "ready"
             assert comfyui_step["comfyui_adapter_config_queue_name"] == "commercial-assets"
+            assert comfyui_step["comfyui_job_request_id"] == comfyui_job_request_id
+            assert comfyui_step["comfyui_job_request_status"] == "queued"
+            assert comfyui_step["comfyui_job_request_preflight_id"] == comfyui_preflight_id
+            assert comfyui_step["comfyui_job_request_queue_name"] == "commercial-assets"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

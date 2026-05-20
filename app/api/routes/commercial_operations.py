@@ -37,6 +37,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIHandoffListResponse,
     CommercialOperationComfyUIHandoffResponse,
     CommercialOperationComfyUIHandoffUpdateRequest,
+    CommercialOperationComfyUIJobRequestCreateRequest,
+    CommercialOperationComfyUIJobRequestDecisionRequest,
+    CommercialOperationComfyUIJobRequestListResponse,
+    CommercialOperationComfyUIJobRequestResponse,
+    CommercialOperationComfyUIJobRequestUpdateRequest,
     CommercialOperationComfyUIPreflightCreateRequest,
     CommercialOperationComfyUIPreflightDecisionRequest,
     CommercialOperationComfyUIPreflightListResponse,
@@ -2185,6 +2190,343 @@ async def archive_commercial_operation_comfyui_adapter_config(
             extra={"operation_id": str(operation_id), "config_id": str(config_id)},
         )
         raise AppError("Commercial operation ComfyUI adapter config archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-preflights/{preflight_id}/job-requests",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    preflight_id: UUID,
+    request: CommercialOperationComfyUIJobRequestCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Create a metadata-only ComfyUI job request from a checked preflight."""
+
+    try:
+        job_request = await CommercialOperationService(session).create_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            preflight_id=preflight_id,
+            requested_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request create API failed",
+            extra={"operation_id": str(operation_id), "preflight_id": str(preflight_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-job-requests", response_model=CommercialOperationComfyUIJobRequestListResponse)
+async def list_commercial_operation_comfyui_job_requests(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / queued / failed / cancelled / archived"),
+    preflight_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestListResponse:
+    """List metadata-only ComfyUI job requests for a commercial operation."""
+
+    try:
+        job_requests = await CommercialOperationService(session).list_comfyui_job_requests(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            preflight_id=preflight_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIJobRequestListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIJobRequestResponse.from_model(item) for item in job_requests],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI job request list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI job request list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def update_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Patch a metadata-only ComfyUI job request before queue handoff."""
+
+    try:
+        job_request = await CommercialOperationService(session).update_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request update API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/ready",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def ready_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Mark a metadata-only ComfyUI job request ready for review."""
+
+    try:
+        job_request = await CommercialOperationService(session).mark_comfyui_job_request_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request ready API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/approve",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def approve_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Approve a metadata-only ComfyUI job request without submitting it."""
+
+    try:
+        job_request = await CommercialOperationService(session).approve_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request approve API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/reject",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def reject_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Reject a metadata-only ComfyUI job request without submitting it."""
+
+    try:
+        job_request = await CommercialOperationService(session).reject_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request reject API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/queue",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def queue_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Mark a ComfyUI job request queued as metadata only; no ComfyUI call occurs."""
+
+    try:
+        job_request = await CommercialOperationService(session).queue_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            queued_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request queue API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request queue failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/fail",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def fail_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Mark a ComfyUI job request failed without external execution."""
+
+    try:
+        job_request = await CommercialOperationService(session).fail_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request fail API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/cancel",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def cancel_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Cancel a metadata-only ComfyUI job request."""
+
+    try:
+        job_request = await CommercialOperationService(session).cancel_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request cancel API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/archive",
+    response_model=CommercialOperationComfyUIJobRequestResponse,
+)
+async def archive_commercial_operation_comfyui_job_request(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIJobRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIJobRequestResponse:
+    """Archive a ComfyUI job request without deleting its audit trail."""
+
+    try:
+        job_request = await CommercialOperationService(session).archive_comfyui_job_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIJobRequestResponse.from_model(job_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI job request archive API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI job request archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

@@ -3505,3 +3505,21 @@ API：
 支持的 `observation_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`archived`。
 
 边界：监控观察记录只是人工观察和复核记录；不会接入平台分析，不会宣称 ROI 归因，不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。
+## Phase 61T: 商业运营 ComfyUI 作业请求
+
+Phase 61T 新增 `commercial_operation_comfyui_job_requests` 与 `CommercialOperationComfyUIJobRequest` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-job-requests`。操作人员可以从 checked ComfyUI preflight 创建 metadata-only job request，编辑、送审、批准、驳回、标记 queued、标记 failed、取消或归档。该记录用于保存未来受控 ComfyUI 队列 payload、安全检查、输出预期和恢复指引；系统不会上传文件、不会保存密钥值、不会请求 ComfyUI、不会提交队列、不会生成媒体。
+
+API:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-preflights/{preflight_id}/job-requests`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-job-requests`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/queue`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/archive`
+
+边界：ComfyUI job request 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved request 的 queued 状态只是人工操作记录，不代表真实队列提交。
