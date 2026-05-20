@@ -16,6 +16,7 @@ from app.models.commercial_operation import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationExecutionRequest,
     CommercialOperationLink,
 )
 
@@ -55,6 +56,25 @@ CommercialOperationDeliverableTypeLiteral = Literal[
     "asset_brief",
     "report",
 ]
+CommercialOperationExecutionRequestStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "prepared",
+    "failed",
+    "cancelled",
+    "archived",
+]
+CommercialOperationExecutionTypeLiteral = Literal[
+    "manual_handoff",
+    "browser_worker",
+    "openclaw",
+    "platform_post",
+    "email_send",
+    "other",
+]
+CommercialOperationExecutionModeLiteral = Literal["metadata_only", "approval_handoff", "future_runtime"]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -672,6 +692,128 @@ class CommercialOperationDeliverableListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationDeliverableResponse]
+
+
+class CommercialOperationExecutionRequestCreateRequest(BaseModel):
+    """Create a metadata-only monitored execution request from a packaged deliverable."""
+
+    deliverable_id: UUID
+    execution_type: CommercialOperationExecutionTypeLiteral = "manual_handoff"
+    execution_mode: CommercialOperationExecutionModeLiteral = "metadata_only"
+    title: str = Field(min_length=1, max_length=255)
+    execution_target: str | None = Field(default=None, max_length=128)
+    input_summary: str | None = None
+    runbook: list[dict[str, Any]] = Field(default_factory=list)
+    readiness_checks: list[str] = Field(default_factory=list)
+    expected_outputs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationExecutionRequestUpdateRequest(BaseModel):
+    """Patch a metadata-only execution request before final preparation."""
+
+    execution_type: CommercialOperationExecutionTypeLiteral | None = None
+    execution_mode: CommercialOperationExecutionModeLiteral | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    execution_target: str | None = Field(default=None, max_length=128)
+    input_summary: str | None = None
+    runbook: list[dict[str, Any]] | None = None
+    readiness_checks: list[str] | None = None
+    expected_outputs: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationExecutionRequestDecisionRequest(BaseModel):
+    """Review, prepare, fail, cancel, or archive an execution request."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationExecutionRequestResponse(BaseModel):
+    """Commercial operation execution request response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    deliverable_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    execution_type: str
+    execution_mode: str
+    title: str
+    request_status: str
+    execution_target: str | None
+    input_summary: str | None
+    runbook: list[dict[str, Any]]
+    readiness_checks: list[str]
+    expected_outputs: list[str]
+    handoff_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    requested_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    prepared_by: str | None
+    cancelled_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    prepared_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, request: CommercialOperationExecutionRequest) -> "CommercialOperationExecutionRequestResponse":
+        return cls(
+            id=request.id,
+            workspace_id=request.workspace_id,
+            operation_id=request.operation_id,
+            deliverable_id=request.deliverable_id,
+            output_artifact_id=request.output_artifact_id,
+            step_key=request.step_key,
+            channel=request.channel,
+            execution_type=request.execution_type,
+            execution_mode=request.execution_mode,
+            title=request.title,
+            request_status=request.request_status,
+            execution_target=request.execution_target,
+            input_summary=request.input_summary,
+            runbook=request.runbook,
+            readiness_checks=request.readiness_checks,
+            expected_outputs=request.expected_outputs,
+            handoff_payload=request.handoff_payload,
+            result_summary=request.result_summary,
+            failure_reason=request.failure_reason,
+            reviewer_notes=request.reviewer_notes,
+            requested_by=request.requested_by,
+            updated_by=request.updated_by,
+            approved_by=request.approved_by,
+            prepared_by=request.prepared_by,
+            cancelled_by=request.cancelled_by,
+            approved_at=request.approved_at,
+            rejected_at=request.rejected_at,
+            prepared_at=request.prepared_at,
+            failed_at=request.failed_at,
+            cancelled_at=request.cancelled_at,
+            archived_at=request.archived_at,
+            metadata=request.execution_metadata,
+            created_at=request.created_at,
+            updated_at=request.updated_at,
+        )
+
+
+class CommercialOperationExecutionRequestListResponse(BaseModel):
+    """Commercial operation execution request list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationExecutionRequestResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

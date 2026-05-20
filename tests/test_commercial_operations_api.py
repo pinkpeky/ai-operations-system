@@ -19,6 +19,7 @@ from app.models import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationExecutionRequest,
     CommercialOperationLink,
 )
 
@@ -32,6 +33,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationContentDraft,
         CommercialOperationDeliverable,
         CommercialOperationDryRun,
+        CommercialOperationExecutionRequest,
         CommercialOperationLink,
     )
     engine = create_async_engine(
@@ -398,6 +400,131 @@ async def test_commercial_operations_api_flow() -> None:
             assert deliverable_step["deliverable_status"] == "packaged"
             assert deliverable_step["deliverable_output_artifact_id"] == output_artifact_id
 
+            execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests",
+                headers=headers,
+                json={
+                    "deliverable_id": deliverable_id,
+                    "execution_type": "platform_post",
+                    "execution_mode": "metadata_only",
+                    "title": "Newsletter platform handoff request",
+                    "execution_target": "newsletter_platform",
+                    "input_summary": "Prepare a future newsletter send from the packaged artifact.",
+                    "runbook": [
+                        {"step": "Review packaged artifact"},
+                        {"step": "Confirm target segment"},
+                    ],
+                    "readiness_checks": ["packaged deliverable", "operator approval"],
+                    "expected_outputs": ["approved execution request", "traceable handoff payload"],
+                    "metadata": {"phase": "61H"},
+                },
+            )
+            assert execution_request.status_code == 201
+            execution_request_body = execution_request.json()
+            execution_request_id = execution_request_body["id"]
+            assert execution_request_body["workspace_id"] == "workspace-commercial-api"
+            assert execution_request_body["operation_id"] == operation_id
+            assert execution_request_body["deliverable_id"] == deliverable_id
+            assert execution_request_body["output_artifact_id"] == output_artifact_id
+            assert execution_request_body["request_status"] == "draft"
+            assert execution_request_body["requested_by"] == "user-commercial-api"
+            assert execution_request_body["handoff_payload"]["execution_boundary"] == (
+                "metadata-only execution request; no external runtime call"
+            )
+            assert execution_request_body["handoff_payload"]["next_runtime"] == "future_guarded_runtime_adapter"
+            assert "no publishing" in execution_request_body["handoff_payload"]["forbidden_actions"]
+            assert execution_request_body["runbook"][0]["execution_boundary"] == "metadata-only; no external runtime call"
+
+            execution_requests = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests",
+                headers=headers,
+            )
+            assert execution_requests.status_code == 200
+            assert [item["id"] for item in execution_requests.json()["items"]] == [execution_request_id]
+
+            hidden_execution_requests = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_execution_requests.status_code == 404
+
+            patched_execution_request = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}",
+                headers=headers,
+                json={
+                    "title": "Newsletter execution handoff request",
+                    "execution_target": "newsletter_platform_primary",
+                    "readiness_checks": ["packaged deliverable", "manual target confirmed"],
+                },
+            )
+            assert patched_execution_request.status_code == 200
+            assert patched_execution_request.json()["title"] == "Newsletter execution handoff request"
+            assert patched_execution_request.json()["request_status"] == "draft"
+            assert patched_execution_request.json()["updated_by"] == "user-commercial-api"
+
+            ready_execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for execution review."},
+            )
+            assert ready_execution_request.status_code == 200
+            assert ready_execution_request.json()["request_status"] == "ready_for_review"
+
+            approved_execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved as metadata-only handoff."},
+            )
+            assert approved_execution_request.status_code == 200
+            assert approved_execution_request.json()["request_status"] == "approved"
+            assert approved_execution_request.json()["approved_by"] == "user-commercial-api"
+
+            prepared_execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/prepare",
+                headers=headers,
+                json={"result_summary": "Prepared for future guarded runtime adapter; no execution occurred."},
+            )
+            assert prepared_execution_request.status_code == 200
+            assert prepared_execution_request.json()["request_status"] == "prepared"
+            assert prepared_execution_request.json()["prepared_by"] == "user-commercial-api"
+
+            fetched_after_execution_request = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_execution_request.status_code == 200
+            execution_step = [
+                step
+                for step in fetched_after_execution_request.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert execution_step["execution_request_id"] == execution_request_id
+            assert execution_step["execution_request_status"] == "prepared"
+            assert execution_step["execution_request_mode"] == "metadata_only"
+            assert execution_step["execution_request_target"] == "newsletter_platform_primary"
+
+            fail_after_prepared_execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/fail",
+                headers=headers,
+                json={"failure_reason": "Too late to fail after preparation."},
+            )
+            assert fail_after_prepared_execution_request.status_code == 400
+
+            archived_execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/archive",
+                headers=headers,
+                json={"reviewer_notes": "Archived after preparation."},
+            )
+            assert archived_execution_request.status_code == 200
+            assert archived_execution_request.json()["request_status"] == "archived"
+
+            patch_archived_execution_request = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}",
+                headers=headers,
+                json={"title": "Should not change."},
+            )
+            assert patch_archived_execution_request.status_code == 400
+
             fail_after_packaged_deliverable = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/fail",
                 headers=headers,
@@ -412,6 +539,16 @@ async def test_commercial_operations_api_flow() -> None:
             )
             assert archived_deliverable.status_code == 200
             assert archived_deliverable.json()["deliverable_status"] == "archived"
+
+            invalid_execution_request = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-requests",
+                headers=headers,
+                json={
+                    "deliverable_id": deliverable_id,
+                    "title": "Invalid execution request from archived deliverable",
+                },
+            )
+            assert invalid_execution_request.status_code == 400
 
             patch_archived_deliverable = await client.patch(
                 f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}",

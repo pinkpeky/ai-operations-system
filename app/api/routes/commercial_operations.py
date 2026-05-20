@@ -37,6 +37,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationDryRunDecisionRequest,
     CommercialOperationDryRunListResponse,
     CommercialOperationDryRunResponse,
+    CommercialOperationExecutionRequestCreateRequest,
+    CommercialOperationExecutionRequestDecisionRequest,
+    CommercialOperationExecutionRequestListResponse,
+    CommercialOperationExecutionRequestResponse,
+    CommercialOperationExecutionRequestUpdateRequest,
     CommercialOperationLinkCreateRequest,
     CommercialOperationLinkListResponse,
     CommercialOperationLinkResponse,
@@ -1214,6 +1219,343 @@ async def archive_commercial_operation_deliverable(
             extra={"operation_id": str(operation_id), "deliverable_id": str(deliverable_id)},
         )
         raise AppError("Commercial operation deliverable archive failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/execution-requests", response_model=CommercialOperationExecutionRequestResponse, status_code=201)
+async def create_commercial_operation_execution_request(
+    operation_id: UUID,
+    request: CommercialOperationExecutionRequestCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Create a metadata-only monitored execution request from a packaged deliverable."""
+
+    try:
+        execution_request = await CommercialOperationService(session).create_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            requested_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request create API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation execution request create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/execution-requests", response_model=CommercialOperationExecutionRequestListResponse)
+async def list_commercial_operation_execution_requests(
+    operation_id: UUID,
+    status: str | None = Query(
+        default=None,
+        description="draft / ready_for_review / approved / rejected / prepared / failed / cancelled / archived",
+    ),
+    deliverable_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestListResponse:
+    """List metadata-only execution requests for a commercial operation."""
+
+    try:
+        requests = await CommercialOperationService(session).list_execution_requests(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            deliverable_id=deliverable_id,
+            limit=limit,
+        )
+        return CommercialOperationExecutionRequestListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationExecutionRequestResponse.from_model(item) for item in requests],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request list API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation execution request list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/execution-requests/{execution_request_id}",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def update_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Patch an execution request before it is prepared or archived."""
+
+    try:
+        execution_request = await CommercialOperationService(session).update_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request update API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/ready",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def ready_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Mark an execution request ready for review."""
+
+    try:
+        execution_request = await CommercialOperationService(session).mark_execution_request_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request ready API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/approve",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def approve_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Approve an execution request without executing it."""
+
+    try:
+        execution_request = await CommercialOperationService(session).approve_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request approve API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/reject",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def reject_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Reject an execution request without executing it."""
+
+    try:
+        execution_request = await CommercialOperationService(session).reject_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request reject API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/prepare",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def prepare_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Prepare an approved request for future guarded runtime handoff."""
+
+    try:
+        execution_request = await CommercialOperationService(session).prepare_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            prepared_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request prepare API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request prepare failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/fail",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def fail_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Mark an approved execution request failed before any external runtime action."""
+
+    try:
+        execution_request = await CommercialOperationService(session).fail_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request fail API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/cancel",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def cancel_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Cancel an execution request before it is prepared."""
+
+    try:
+        execution_request = await CommercialOperationService(session).cancel_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request cancel API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-requests/{execution_request_id}/archive",
+    response_model=CommercialOperationExecutionRequestResponse,
+)
+async def archive_commercial_operation_execution_request(
+    operation_id: UUID,
+    execution_request_id: UUID,
+    request: CommercialOperationExecutionRequestDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRequestResponse:
+    """Archive an execution request while preserving the audit trail."""
+
+    try:
+        execution_request = await CommercialOperationService(session).archive_execution_request(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationExecutionRequestResponse.from_model(execution_request)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution request archive API failed",
+            extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
+        )
+        raise AppError("Commercial operation execution request archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)

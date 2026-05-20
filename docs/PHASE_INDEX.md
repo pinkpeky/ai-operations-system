@@ -8,11 +8,11 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 ## Current Active Development Branch
 
-`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, Phase 61C Commercial Operation Approval Gates, Phase 61D Commercial Operation Safe Dry-Runs, Phase 61E Commercial Operation Content Drafts, and Phase 61F Commercial Operation Asset Requests.
+`main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, Phase 61C Commercial Operation Approval Gates, Phase 61D Commercial Operation Safe Dry-Runs, Phase 61E Commercial Operation Content Drafts, Phase 61F Commercial Operation Asset Requests, and Phase 61G Commercial Operation Deliverables.
 
-Current effective phase: Phase 61G Commercial Operation Deliverables. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 61H Commercial Operation Execution Requests. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-61g-commercial-operation-deliverables`. It follows merged PR #46 and adds commercial operation deliverable records: `commercial_operation_deliverables`, deliverable create/list/update/ready/approve/reject/package/fail/archive APIs, linked Output Library artifacts with `source_type=commercial_operation`, and a bilingual Admin Dashboard surface for packaging commercial handoff records without publishing or external execution.
+The current fresh branch is `codex/phase-61h-commercial-operation-execution-requests`. It follows merged PR #47 and adds commercial operation execution request records: `commercial_operation_execution_requests`, execution-request create/list/update/ready/approve/reject/prepare/fail/cancel/archive APIs, and a bilingual Admin Dashboard surface for preparing metadata-only future runtime handoff records without publishing or external execution.
 
 ## Open PR List
 
@@ -63,7 +63,8 @@ The current fresh branch is `codex/phase-61g-commercial-operation-deliverables`.
 | #44 | Phase 61D Commercial Operation Safe Dry-Runs | `codex/phase-61d-commercial-operation-dry-runs` | Merged to main |
 | #45 | Phase 61E Commercial Operation Content Drafts | `codex/phase-61e-commercial-operation-content-drafts` | Merged to main |
 | #46 | Phase 61F Commercial Operation Asset Requests | `codex/phase-61f-commercial-operation-asset-requests` | Merged to main |
-| #47 | Phase 61G Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | Draft PR |
+| #47 | Phase 61G Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | Merged to main |
+| #48 | Phase 61H Commercial Operation Execution Requests | `codex/phase-61h-commercial-operation-execution-requests` | Draft PR |
 
 ## Phase Timeline Table
 
@@ -154,7 +155,8 @@ The current fresh branch is `codex/phase-61g-commercial-operation-deliverables`.
 | 61D | Commercial Operation Safe Dry-Runs | `codex/phase-61d-commercial-operation-dry-runs` | #44 | Merged to main | `commercial_operation_dry_runs`, approved-approval gated dry-run create/list/complete/fail/cancel APIs, Admin Dashboard Safe dry-runs panel, and plan-step dry-run state written back to `plan_outline` without OpenClaw, ComfyUI, browser worker, account, or publishing execution. |
 | 61E | Commercial Operation Content Drafts | `codex/phase-61e-commercial-operation-content-drafts` | #45 | Merged to main | `commercial_operation_content_drafts`, content-draft create/list/update/ready/approve/reject/archive APIs, Admin Dashboard Content drafts panel, and plan-step content draft state written back to `plan_outline` without publishing, OpenClaw, ComfyUI, browser worker, or account execution. |
 | 61F | Commercial Operation Asset Requests | `codex/phase-61f-commercial-operation-asset-requests` | #46 | Merged to main | `commercial_operation_asset_requests`, asset-request create/list/update/ready/approve/reject/prepare/fail/archive APIs, Admin Dashboard Asset requests panel, and plan-step asset request state written back to `plan_outline` without ComfyUI, publishing, OpenClaw, browser worker, or account execution. |
-| 61G | Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | #47 | Draft PR | `commercial_operation_deliverables`, deliverable create/list/update/ready/approve/reject/package/fail/archive APIs, linked Output Library artifacts with `source_type=commercial_operation`, Admin Dashboard Deliverables panel, and plan-step deliverable state written back to `plan_outline` without publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
+| 61G | Commercial Operation Deliverables | `codex/phase-61g-commercial-operation-deliverables` | #47 | Merged to main | `commercial_operation_deliverables`, deliverable create/list/update/ready/approve/reject/package/fail/archive APIs, linked Output Library artifacts with `source_type=commercial_operation`, Admin Dashboard Deliverables panel, and plan-step deliverable state written back to `plan_outline` without publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
+| 61H | Commercial Operation Execution Requests | `codex/phase-61h-commercial-operation-execution-requests` | #48 | Draft PR | `commercial_operation_execution_requests`, execution-request create/list/update/ready/approve/reject/prepare/fail/cancel/archive APIs, Admin Dashboard Execution requests panel, and plan-step execution request state written back to `plan_outline` without publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
 
 ## Runtime Evolution
 

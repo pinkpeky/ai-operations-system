@@ -4386,10 +4386,10 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61G",
+    phaseLabel: "Phase 61H",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
-    summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
+    summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、执行请求和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
     flow: ["目标", "知识与素材", "内容草案", "人工审批", "安全执行", "监控恢复"],
     total: "项目",
     active: "进行中",
@@ -4464,10 +4464,10 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61G",
+    phaseLabel: "Phase 61H",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
-    summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
+    summary: "This creates plans, approvals, evidence, content drafts, asset requests, deliverables, execution requests, and dry-run records only. It does not publish, control real accounts, or bypass approval.",
     flow: ["Goal", "Knowledge", "Drafts", "Approval", "Safe run", "Monitor"],
     total: "Operations",
     active: "In motion",
@@ -4557,7 +4557,7 @@ function draftListText(value: unknown): string {
           return item;
         }
         if (item && typeof item === "object") {
-          return valueAt(item as JsonRecord, ["title", "asset", "name"], "");
+          return valueAt(item as JsonRecord, ["step", "title", "asset", "name"], "");
         }
         return "";
       })
@@ -4708,6 +4708,56 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           selectedHint: "Select an operation before creating deliverables.",
           noDeliverables: "No deliverables yet.",
         };
+  const executionRequestCopy =
+    language === "zh-CN"
+      ? {
+          title: "执行请求",
+          description: "从已打包交付物创建可审批、可准备、可追踪的执行交接请求；当前只保存元数据和交接载荷，不调用平台、不发布、不控制账号。",
+          deliverableLabel: "已打包交付物",
+          typeLabel: "执行类型",
+          modeLabel: "执行模式",
+          targetLabel: "目标平台/账号",
+          summaryLabel: "输入摘要",
+          runbookLabel: "操作步骤",
+          readinessLabel: "准备检查",
+          outputsLabel: "预期输出",
+          createAction: "创建执行请求",
+          saveAction: "保存执行请求",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          prepareAction: "准备",
+          failAction: "失败",
+          cancelAction: "取消",
+          archiveAction: "归档",
+          selectedHint: "先选择一个项目，并至少打包一个交付物，再创建执行请求。",
+          noRequests: "暂无执行请求。",
+        }
+      : {
+          title: "Execution requests",
+          description: "Create reviewable, preparable, and traceable execution handoff requests from packaged deliverables. This stores metadata and handoff payloads only; it does not call platforms, publish, or control accounts.",
+          deliverableLabel: "Packaged deliverable",
+          typeLabel: "Execution type",
+          modeLabel: "Execution mode",
+          targetLabel: "Target platform/account",
+          summaryLabel: "Input summary",
+          runbookLabel: "Runbook",
+          readinessLabel: "Readiness checks",
+          outputsLabel: "Expected outputs",
+          createAction: "Create execution request",
+          saveAction: "Save execution request",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          prepareAction: "Prepare",
+          failAction: "Fail",
+          cancelAction: "Cancel",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and package at least one deliverable before creating execution requests.",
+          noRequests: "No execution requests yet.",
+        };
   const [state, setState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [approvalsState, setApprovalsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -4715,6 +4765,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [contentDraftsState, setContentDraftsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [assetRequestsState, setAssetRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
@@ -4772,6 +4823,16 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [deliverableNotes, setDeliverableNotes] = useState(language === "zh-CN" ? "只进入 Output Library，不发布。" : "Store in Output Library only; do not publish.");
   const [deliverableQualityChecksDraft, setDeliverableQualityChecksDraft] = useState("approved content draft, linked assets reviewed, no external publish");
   const [selectedDeliverableId, setSelectedDeliverableId] = useState("");
+  const [executionDeliverableId, setExecutionDeliverableId] = useState("");
+  const [selectedExecutionRequestId, setSelectedExecutionRequestId] = useState("");
+  const [executionRequestType, setExecutionRequestType] = useState("manual_handoff");
+  const [executionRequestMode, setExecutionRequestMode] = useState("metadata_only");
+  const [executionRequestTitle, setExecutionRequestTitle] = useState(language === "zh-CN" ? "执行交接请求" : "Execution handoff request");
+  const [executionRequestTarget, setExecutionRequestTarget] = useState("newsletter_platform");
+  const [executionRequestInputSummary, setExecutionRequestInputSummary] = useState(language === "zh-CN" ? "从已打包交付物准备后续人工确认的执行交接。" : "Prepare future operator-confirmed execution from a packaged deliverable.");
+  const [executionRunbookDraft, setExecutionRunbookDraft] = useState("review packaged deliverable, confirm target account, prepare future guarded runtime handoff");
+  const [executionReadinessDraft, setExecutionReadinessDraft] = useState("packaged deliverable, human approval, no external runtime call");
+  const [executionOutputsDraft, setExecutionOutputsDraft] = useState("approved request, traceable handoff payload, operator result record");
   const [linkType, setLinkType] = useState("conversation");
   const [targetType, setTargetType] = useState("conversation_thread");
   const [targetId, setTargetId] = useState("");
@@ -4939,6 +5000,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadExecutionRequests = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setExecutionRequestsState(emptyState());
+        return;
+      }
+      setExecutionRequestsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.executionRequests(operationId, settings);
+        setExecutionRequestsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setExecutionRequestsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation execution requests API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   useEffect(() => {
     if (selectedOperationId) {
       void loadApprovals(selectedOperationId);
@@ -4946,6 +5029,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadContentDrafts(selectedOperationId);
       void loadAssetRequests(selectedOperationId);
       void loadDeliverables(selectedOperationId);
+      void loadExecutionRequests(selectedOperationId);
       void loadLinks(selectedOperationId);
       return;
     }
@@ -4954,8 +5038,9 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setContentDraftsState(emptyState());
     setAssetRequestsState(emptyState());
     setDeliverablesState(emptyState());
+    setExecutionRequestsState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadDeliverables, loadExecutionRequests, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -5400,6 +5485,120 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editOperationExecutionRequest = (executionRequest: JsonRecord) => {
+    const executionRequestId = valueAt(executionRequest, ["id"], "");
+    if (!executionRequestId) {
+      return;
+    }
+    setSelectedExecutionRequestId(executionRequestId);
+    setExecutionDeliverableId(valueAt(executionRequest, ["deliverable_id"], executionDeliverableId));
+    setExecutionRequestType(valueAt(executionRequest, ["execution_type"], executionRequestType));
+    setExecutionRequestMode(valueAt(executionRequest, ["execution_mode"], executionRequestMode));
+    setExecutionRequestTitle(valueAt(executionRequest, ["title"], executionRequestTitle));
+    setExecutionRequestTarget(valueAt(executionRequest, ["execution_target"], ""));
+    setExecutionRequestInputSummary(valueAt(executionRequest, ["input_summary"], ""));
+    setExecutionRunbookDraft(draftListText(executionRequest.runbook));
+    setExecutionReadinessDraft(draftListText(executionRequest.readiness_checks));
+    setExecutionOutputsDraft(draftListText(executionRequest.expected_outputs));
+  };
+
+  const executionRequestPayload = (): JsonRecord => ({
+    deliverable_id: executionDeliverableId,
+    execution_type: executionRequestType,
+    execution_mode: executionRequestMode,
+    title: executionRequestTitle.trim(),
+    execution_target: executionRequestTarget.trim() || undefined,
+    input_summary: executionRequestInputSummary.trim() || undefined,
+    runbook: splitDraftList(executionRunbookDraft).map((item) => ({ step: item })),
+    readiness_checks: splitDraftList(executionReadinessDraft),
+    expected_outputs: splitDraftList(executionOutputsDraft),
+    metadata: { source: "admin_dashboard", phase: "61H" },
+  });
+
+  const createOperationExecutionRequest = async () => {
+    if (!selectedOperationId || !executionDeliverableId) {
+      setActionState({
+        data: null,
+        error: executionRequestCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createExecutionRequest(selectedOperationId, executionRequestPayload(), settings);
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedExecutionRequestId(valueAt(created, ["id"], ""));
+      await loadExecutionRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation execution request create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateOperationExecutionRequest = async () => {
+    if (!selectedOperationId || !selectedExecutionRequestId) {
+      return;
+    }
+    const { deliverable_id: _deliverableId, ...payload } = executionRequestPayload();
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateExecutionRequest(selectedOperationId, selectedExecutionRequestId, payload, settings);
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadExecutionRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation execution request update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateOperationExecutionRequest = async (
+    executionRequestId: string,
+    action: "ready" | "approve" | "reject" | "prepare" | "fail" | "cancel" | "archive",
+  ) => {
+    if (!selectedOperationId || !executionRequestId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyExecutionRequest(selectedOperationId, executionRequestId, "Ready for review from Commercial Ops.", settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveExecutionRequest(selectedOperationId, executionRequestId, "Approved as metadata-only execution request.", settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectExecutionRequest(selectedOperationId, executionRequestId, "Rejected from Commercial Ops.", settings)
+              : action === "prepare"
+                ? await commercialOperationsApi.prepareExecutionRequest(selectedOperationId, executionRequestId, "Prepared for future guarded runtime adapter; no execution occurred.", settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failExecutionRequest(selectedOperationId, executionRequestId, "Failed before future runtime handoff; no execution occurred.", settings)
+                  : action === "cancel"
+                    ? await commercialOperationsApi.cancelExecutionRequest(selectedOperationId, executionRequestId, "Cancelled from Commercial Ops.", settings)
+                    : await commercialOperationsApi.archiveExecutionRequest(selectedOperationId, executionRequestId, "Archived from Commercial Ops.", settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadExecutionRequests(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation execution request action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const createOperationDryRun = async () => {
     if (!selectedOperationId) {
       setActionState({
@@ -5589,6 +5788,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const contentDrafts = contentDraftsState.data || [];
   const assetRequests = assetRequestsState.data || [];
   const deliverables = deliverablesState.data || [];
+  const executionRequests = executionRequestsState.data || [];
+  const packagedDeliverables = deliverables.filter((deliverable) => valueAt(deliverable, ["deliverable_status"], "") === "packaged");
   const approvedContentDrafts = contentDrafts.filter((draft) => valueAt(draft, ["draft_status"], "") === "approved");
   const eligibleDeliverableAssets = assetRequests.filter((assetRequest) => {
     const status = valueAt(assetRequest, ["request_status"], "");
@@ -5613,6 +5814,14 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setDeliverableContentDraftId(nextDraftId);
   }, [approvedContentDrafts, deliverableContentDraftId]);
 
+  useEffect(() => {
+    if (executionDeliverableId && packagedDeliverables.some((deliverable) => valueAt(deliverable, ["id"], "") === executionDeliverableId)) {
+      return;
+    }
+    const nextDeliverableId = packagedDeliverables[0] ? valueAt(packagedDeliverables[0], ["id"], "") : "";
+    setExecutionDeliverableId(nextDeliverableId);
+  }, [packagedDeliverables, executionDeliverableId]);
+
   return (
     <div className="page-stack">
       <section className="commercial-command-center">
@@ -5633,7 +5842,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -6260,6 +6469,177 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{deliverableCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={executionRequestCopy.title} description={executionRequestCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-execution-grid">
+              <label>
+                {executionRequestCopy.deliverableLabel}
+                <select value={executionDeliverableId} onChange={(event) => setExecutionDeliverableId(event.target.value)}>
+                  {packagedDeliverables.length ? null : <option value="">-</option>}
+                  {packagedDeliverables.map((deliverable) => {
+                    const deliverableId = valueAt(deliverable, ["id"], "");
+                    return (
+                      <option value={deliverableId} key={deliverableId}>
+                        {valueAt(deliverable, ["title"])} / {valueAt(deliverable, ["channel"])}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {executionRequestCopy.typeLabel}
+                <select value={executionRequestType} onChange={(event) => setExecutionRequestType(event.target.value)}>
+                  <option value="manual_handoff">manual_handoff</option>
+                  <option value="browser_worker">browser_worker</option>
+                  <option value="openclaw">openclaw</option>
+                  <option value="platform_post">platform_post</option>
+                  <option value="email_send">email_send</option>
+                  <option value="other">other</option>
+                </select>
+              </label>
+              <label>
+                {executionRequestCopy.modeLabel}
+                <select value={executionRequestMode} onChange={(event) => setExecutionRequestMode(event.target.value)}>
+                  <option value="metadata_only">metadata_only</option>
+                  <option value="approval_handoff">approval_handoff</option>
+                  <option value="future_runtime">future_runtime</option>
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={executionRequestTitle} onChange={(event) => setExecutionRequestTitle(event.target.value)} />
+              </label>
+              <label>
+                {executionRequestCopy.targetLabel}
+                <input value={executionRequestTarget} onChange={(event) => setExecutionRequestTarget(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {executionRequestCopy.summaryLabel}
+                <textarea value={executionRequestInputSummary} onChange={(event) => setExecutionRequestInputSummary(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {executionRequestCopy.runbookLabel}
+                <textarea value={executionRunbookDraft} onChange={(event) => setExecutionRunbookDraft(event.target.value)} />
+              </label>
+              <label>
+                {executionRequestCopy.readinessLabel}
+                <textarea value={executionReadinessDraft} onChange={(event) => setExecutionReadinessDraft(event.target.value)} />
+              </label>
+              <label>
+                {executionRequestCopy.outputsLabel}
+                <textarea value={executionOutputsDraft} onChange={(event) => setExecutionOutputsDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createOperationExecutionRequest()}
+                disabled={!executionDeliverableId || !executionRequestTitle.trim() || actionState.loading}
+              >
+                <Send size={15} />
+                {executionRequestCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateOperationExecutionRequest()}
+                disabled={!selectedExecutionRequestId || !executionRequestTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {executionRequestCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={executionRequestsState} />
+            {executionRequestsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {executionRequestsState.updatedAt}</div> : null}
+            {executionRequests.length ? (
+              <div className="commercial-execution-list">
+                {executionRequests.map((executionRequest) => {
+                  const executionRequestId = valueAt(executionRequest, ["id"], "");
+                  const requestStatus = valueAt(executionRequest, ["request_status"], "");
+                  return (
+                    <article className="commercial-execution-item" key={executionRequestId}>
+                      <div>
+                        <strong>{valueAt(executionRequest, ["title"])}</strong>
+                        <span>{valueAt(executionRequest, ["channel"])} / {valueAt(executionRequest, ["execution_type"])} / {valueAt(executionRequest, ["execution_mode"])}</span>
+                        <p>{valueAt(executionRequest, ["input_summary"], valueAt(executionRequest, ["execution_target"], ""))}</p>
+                        <p>{shortJson(executionRequest.handoff_payload, 90)}</p>
+                        <StatusPill value={requestStatus} />
+                      </div>
+                      <div className="commercial-execution-actions">
+                        <button className="ghost-button" onClick={() => editOperationExecutionRequest(executionRequest)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {executionRequestCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(requestStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {executionRequestCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "approve")}
+                          disabled={requestStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {executionRequestCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "reject")}
+                          disabled={requestStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {executionRequestCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "prepare")}
+                          disabled={requestStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {executionRequestCopy.prepareAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "fail")}
+                          disabled={requestStatus !== "approved" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {executionRequestCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "cancel")}
+                          disabled={["prepared", "cancelled", "archived"].includes(requestStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {executionRequestCopy.cancelAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateOperationExecutionRequest(executionRequestId, "archive")}
+                          disabled={requestStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {executionRequestCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{executionRequestCopy.noRequests}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{executionRequestCopy.selectedHint}</div>
         )}
       </Panel>
 

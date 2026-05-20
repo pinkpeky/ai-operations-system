@@ -17,6 +17,7 @@ from app.models.enums import (
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
+    CommercialOperationExecutionRequestStatus,
     CommercialOperationLinkType,
     CommercialOperationPriority,
     CommercialOperationRiskLevel,
@@ -404,4 +405,86 @@ class CommercialOperationDeliverable(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="Deliverable metadata",
+    )
+
+
+class CommercialOperationExecutionRequest(IdTimestampMixin, Base):
+    """Metadata-only monitored execution request for a packaged deliverable."""
+
+    __tablename__ = "commercial_operation_execution_requests"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    deliverable_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_deliverables.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Packaged commercial deliverable ID",
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked Output Library artifact ID",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    execution_type: Mapped[str] = mapped_column(
+        String(64),
+        default="manual_handoff",
+        index=True,
+        nullable=False,
+        comment="manual_handoff / browser_worker / openclaw / platform_post / email_send / other",
+    )
+    execution_mode: Mapped[str] = mapped_column(
+        String(32),
+        default="metadata_only",
+        index=True,
+        nullable=False,
+        comment="metadata_only / approval_handoff / future_runtime",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Execution request title")
+    request_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationExecutionRequestStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / prepared / failed / cancelled / archived",
+    )
+    execution_target: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Future target runtime or account")
+    input_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Operator-facing execution input summary")
+    runbook: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Metadata-only execution runbook")
+    readiness_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Readiness checks")
+    expected_outputs: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected monitored outputs")
+    handoff_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing future runtime handoff payload",
+    )
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Preparation result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Preparation failure reason")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    requested_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Requester user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    prepared_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Preparation user ID")
+    cancelled_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Canceller user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    prepared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Prepared at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Cancelled at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    execution_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Execution request metadata",
     )

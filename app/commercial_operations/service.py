@@ -17,6 +17,7 @@ from app.models.commercial_operation import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationExecutionRequest,
     CommercialOperationLink,
 )
 from app.models.enums import (
@@ -25,6 +26,7 @@ from app.models.enums import (
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
+    CommercialOperationExecutionRequestStatus,
     CommercialOperationStatus,
     OutputArtifactSourceType,
     OutputArtifactStage,
@@ -1350,6 +1352,334 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        deliverable_id: UUID,
+        execution_type: str = "manual_handoff",
+        execution_mode: str = "metadata_only",
+        title: str,
+        execution_target: str | None = None,
+        input_summary: str | None = None,
+        runbook: list[dict[str, Any]] | None = None,
+        readiness_checks: list[str] | None = None,
+        expected_outputs: list[str] | None = None,
+        requested_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable_id,
+        )
+        if deliverable.deliverable_status != CommercialOperationDeliverableStatus.PACKAGED.value:
+            raise ValueError("Only packaged deliverables can create execution requests")
+        clean_title = self._clean_required_text(title, "title")
+        clean_type = self._clean_required_text(execution_type, "execution_type")
+        clean_mode = self._clean_required_text(execution_mode, "execution_mode")
+        clean_checks = self._clean_list(readiness_checks) or [
+            "packaged deliverable is available in Output Library",
+            "human approval required before runtime execution",
+            "no external action executed by this request",
+        ]
+        clean_outputs = self._clean_list(expected_outputs) or [
+            "execution request approved or prepared for future runtime handoff",
+            "future runtime handoff remains traceable to the packaged deliverable",
+        ]
+        clean_runbook = self._clean_execution_runbook(runbook) or [
+            {"step": "review packaged deliverable", "status": "pending"},
+            {"step": "confirm target account or runtime manually", "status": "pending"},
+            {"step": "prepare future monitored execution handoff", "status": "pending"},
+        ]
+        request = CommercialOperationExecutionRequest(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=deliverable.id,
+            output_artifact_id=deliverable.output_artifact_id,
+            step_key=deliverable.step_key,
+            channel=deliverable.channel,
+            execution_type=clean_type,
+            execution_mode=clean_mode,
+            title=clean_title,
+            request_status=CommercialOperationExecutionRequestStatus.DRAFT.value,
+            execution_target=execution_target.strip() if execution_target and execution_target.strip() else None,
+            input_summary=input_summary.strip() if input_summary and input_summary.strip() else deliverable.summary,
+            runbook=clean_runbook,
+            readiness_checks=clean_checks,
+            expected_outputs=clean_outputs,
+            requested_by=requested_by,
+            updated_by=requested_by,
+            execution_metadata=metadata or {},
+        )
+        self.session.add(request)
+        await self.session.flush()
+        request.handoff_payload = self._build_execution_request_handoff_payload(
+            operation=operation,
+            deliverable=deliverable,
+            execution_request=request,
+        )
+        self._apply_execution_request_to_plan(operation, request)
+        await self.session.commit()
+        await self.session.refresh(request)
+        return request
+
+    async def list_execution_requests(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        deliverable_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationExecutionRequest]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationExecutionRequest).where(
+            CommercialOperationExecutionRequest.workspace_id == workspace_id,
+            CommercialOperationExecutionRequest.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationExecutionRequest.request_status == status)
+        if deliverable_id is not None:
+            statement = statement.where(CommercialOperationExecutionRequest.deliverable_id == deliverable_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationExecutionRequest.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+    ) -> CommercialOperationExecutionRequest:
+        result = await self.session.execute(
+            select(CommercialOperationExecutionRequest).where(
+                CommercialOperationExecutionRequest.workspace_id == workspace_id,
+                CommercialOperationExecutionRequest.operation_id == operation_id,
+                CommercialOperationExecutionRequest.id == execution_request_id,
+            )
+        )
+        request = result.scalar_one_or_none()
+        if request is None:
+            raise ValueError("Commercial operation execution request not found in workspace")
+        return request
+
+    async def update_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        request = await self.require_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+        )
+        if request.request_status in {
+            CommercialOperationExecutionRequestStatus.PREPARED.value,
+            CommercialOperationExecutionRequestStatus.CANCELLED.value,
+            CommercialOperationExecutionRequestStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Prepared, cancelled, or archived execution requests cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=request.deliverable_id,
+        )
+        scalar_fields = {"execution_type", "execution_mode", "title", "execution_target", "input_summary"}
+        required_text_fields = {"execution_type", "execution_mode", "title"}
+        for field in scalar_fields:
+            if field in patch:
+                value = patch[field]
+                if value is None and field in required_text_fields:
+                    raise ValueError(f"{field} is required")
+                if isinstance(value, str):
+                    value = value.strip()
+                    if field in required_text_fields and not value:
+                        raise ValueError(f"{field} is required")
+                    if field in {"execution_target", "input_summary"} and not value:
+                        value = None
+                setattr(request, field, value)
+        if "runbook" in patch and patch["runbook"] is not None:
+            request.runbook = self._clean_execution_runbook(patch["runbook"])
+        if "readiness_checks" in patch and patch["readiness_checks"] is not None:
+            request.readiness_checks = self._clean_list(patch["readiness_checks"])
+        if "expected_outputs" in patch and patch["expected_outputs"] is not None:
+            request.expected_outputs = self._clean_list(patch["expected_outputs"])
+        if "metadata" in patch and patch["metadata"] is not None:
+            request.execution_metadata = patch["metadata"] or {}
+        request.updated_by = updated_by
+        request.request_status = CommercialOperationExecutionRequestStatus.DRAFT.value
+        request.approved_by = None
+        request.prepared_by = None
+        request.cancelled_by = None
+        request.approved_at = None
+        request.rejected_at = None
+        request.prepared_at = None
+        request.failed_at = None
+        request.cancelled_at = None
+        request.archived_at = None
+        request.failure_reason = None
+        request.result_summary = None
+        request.reviewer_notes = None
+        request.handoff_payload = self._build_execution_request_handoff_payload(
+            operation=operation,
+            deliverable=deliverable,
+            execution_request=request,
+        )
+        self._apply_execution_request_to_plan(operation, request)
+        await self.session.commit()
+        await self.session.refresh(request)
+        return request
+
+    async def mark_execution_request_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def prepare_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        prepared_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.PREPARED.value,
+            actor_user_id=prepared_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationExecutionRequest:
+        return await self._decide_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+            status=CommercialOperationExecutionRequestStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_link(
         self,
         *,
@@ -1498,6 +1828,22 @@ class CommercialOperationService:
             cleaned["execution_boundary"] = "no ComfyUI job is created in this phase"
             requests.append(cleaned)
         return requests
+
+    def _clean_execution_runbook(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        steps: list[dict[str, Any]] = []
+        for index, item in enumerate(values or [], start=1):
+            if not isinstance(item, dict):
+                continue
+            step_title = str(item.get("step") or item.get("title") or item.get("name") or "").strip()
+            if not step_title:
+                continue
+            cleaned = dict(item)
+            cleaned["step"] = step_title
+            cleaned["status"] = str(cleaned.get("status") or "pending").strip() or "pending"
+            cleaned.setdefault("order", index)
+            cleaned["execution_boundary"] = "metadata-only; no external runtime call"
+            steps.append(cleaned)
+        return steps
 
     def _clean_required_text(self, value: str, field_name: str) -> str:
         cleaned = value.strip()
@@ -1789,6 +2135,115 @@ class CommercialOperationService:
         await self.session.commit()
         await self.session.refresh(deliverable)
         return deliverable
+
+    async def _decide_execution_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationExecutionRequest:
+        request = await self.require_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+        )
+        if request.request_status == CommercialOperationExecutionRequestStatus.ARCHIVED.value:
+            raise ValueError("Archived execution requests cannot be changed")
+        if status == CommercialOperationExecutionRequestStatus.READY_FOR_REVIEW.value and request.request_status not in {
+            CommercialOperationExecutionRequestStatus.DRAFT.value,
+            CommercialOperationExecutionRequestStatus.REJECTED.value,
+            CommercialOperationExecutionRequestStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed execution requests can be marked ready")
+        if status in {
+            CommercialOperationExecutionRequestStatus.APPROVED.value,
+            CommercialOperationExecutionRequestStatus.REJECTED.value,
+        } and request.request_status != CommercialOperationExecutionRequestStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready execution requests can be approved or rejected")
+        if status in {
+            CommercialOperationExecutionRequestStatus.PREPARED.value,
+            CommercialOperationExecutionRequestStatus.FAILED.value,
+        } and request.request_status != CommercialOperationExecutionRequestStatus.APPROVED.value:
+            raise ValueError("Only approved execution requests can be prepared or failed")
+        if status == CommercialOperationExecutionRequestStatus.CANCELLED.value and request.request_status in {
+            CommercialOperationExecutionRequestStatus.PREPARED.value,
+            CommercialOperationExecutionRequestStatus.CANCELLED.value,
+            CommercialOperationExecutionRequestStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Prepared, cancelled, or archived execution requests cannot be cancelled")
+        now = datetime.now(UTC)
+        request.request_status = status
+        request.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        request.result_summary = result_summary.strip() if result_summary and result_summary.strip() else None
+        request.failure_reason = failure_reason.strip() if failure_reason and failure_reason.strip() else None
+        request.updated_by = actor_user_id
+        if status == CommercialOperationExecutionRequestStatus.APPROVED.value:
+            request.approved_by = actor_user_id
+            request.approved_at = now
+            request.rejected_at = None
+            request.prepared_at = None
+            request.failed_at = None
+            request.cancelled_at = None
+            request.archived_at = None
+        elif status == CommercialOperationExecutionRequestStatus.REJECTED.value:
+            request.rejected_at = now
+            request.approved_by = None
+            request.prepared_by = None
+            request.cancelled_by = None
+            request.approved_at = None
+            request.prepared_at = None
+            request.failed_at = None
+            request.cancelled_at = None
+            request.archived_at = None
+        elif status == CommercialOperationExecutionRequestStatus.READY_FOR_REVIEW.value:
+            request.approved_by = None
+            request.prepared_by = None
+            request.cancelled_by = None
+            request.approved_at = None
+            request.rejected_at = None
+            request.prepared_at = None
+            request.failed_at = None
+            request.cancelled_at = None
+            request.archived_at = None
+        elif status == CommercialOperationExecutionRequestStatus.PREPARED.value:
+            request.prepared_by = actor_user_id
+            request.prepared_at = now
+            request.failed_at = None
+            request.cancelled_at = None
+            request.archived_at = None
+        elif status == CommercialOperationExecutionRequestStatus.FAILED.value:
+            request.failed_at = now
+            request.prepared_by = None
+            request.prepared_at = None
+            request.cancelled_at = None
+            request.archived_at = None
+        elif status == CommercialOperationExecutionRequestStatus.CANCELLED.value:
+            request.cancelled_by = actor_user_id
+            request.cancelled_at = now
+            request.archived_at = None
+        elif status == CommercialOperationExecutionRequestStatus.ARCHIVED.value:
+            request.archived_at = now
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        deliverable = await self.require_deliverable(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            deliverable_id=request.deliverable_id,
+        )
+        request.handoff_payload = self._build_execution_request_handoff_payload(
+            operation=operation,
+            deliverable=deliverable,
+            execution_request=request,
+        )
+        self._apply_execution_request_to_plan(operation, request)
+        await self.session.commit()
+        await self.session.refresh(request)
+        return request
 
     async def _decide_content_draft(
         self,
@@ -2100,6 +2555,40 @@ class CommercialOperationService:
             "next_runtime": "future_monitored_execution_request",
         }
 
+    def _build_execution_request_handoff_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        deliverable: CommercialOperationDeliverable,
+        execution_request: CommercialOperationExecutionRequest,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "deliverable_id": str(deliverable.id),
+            "output_artifact_id": str(deliverable.output_artifact_id) if deliverable.output_artifact_id else None,
+            "execution_request_id": str(execution_request.id),
+            "step_key": execution_request.step_key,
+            "channel": execution_request.channel,
+            "execution_type": execution_request.execution_type,
+            "execution_mode": execution_request.execution_mode,
+            "request_status": execution_request.request_status,
+            "execution_target": execution_request.execution_target,
+            "input_summary": execution_request.input_summary,
+            "runbook": execution_request.runbook,
+            "readiness_checks": execution_request.readiness_checks,
+            "expected_outputs": execution_request.expected_outputs,
+            "execution_boundary": "metadata-only execution request; no external runtime call",
+            "next_runtime": "future_guarded_runtime_adapter",
+            "forbidden_actions": [
+                "no publishing",
+                "no real account control",
+                "no ComfyUI job",
+                "no OpenClaw action",
+                "no browser worker action",
+            ],
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -2119,6 +2608,38 @@ class CommercialOperationService:
                     updated["content_draft_decision_at"] = draft.rejected_at.isoformat()
                 elif draft.archived_at is not None:
                     updated["content_draft_decision_at"] = draft.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_execution_request_to_plan(
+        self,
+        operation: CommercialOperation,
+        execution_request: CommercialOperationExecutionRequest,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == execution_request.step_key:
+                updated = dict(step)
+                updated["execution_request_id"] = str(execution_request.id)
+                updated["execution_request_status"] = execution_request.request_status
+                updated["execution_request_type"] = execution_request.execution_type
+                updated["execution_request_mode"] = execution_request.execution_mode
+                if execution_request.execution_target:
+                    updated["execution_request_target"] = execution_request.execution_target
+                if execution_request.cancelled_at is not None:
+                    updated["execution_request_decision_at"] = execution_request.cancelled_at.isoformat()
+                elif execution_request.failed_at is not None:
+                    updated["execution_request_decision_at"] = execution_request.failed_at.isoformat()
+                elif execution_request.prepared_at is not None:
+                    updated["execution_request_decision_at"] = execution_request.prepared_at.isoformat()
+                elif execution_request.rejected_at is not None:
+                    updated["execution_request_decision_at"] = execution_request.rejected_at.isoformat()
+                elif execution_request.approved_at is not None:
+                    updated["execution_request_decision_at"] = execution_request.approved_at.isoformat()
+                elif execution_request.archived_at is not None:
+                    updated["execution_request_decision_at"] = execution_request.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

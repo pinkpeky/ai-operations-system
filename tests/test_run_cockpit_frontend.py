@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation deliverable slice."""
+    """Recovery docs should point to the active commercial operation execution request slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61g-commercial-operation-deliverables" in text or "Commercial Operation Deliverables" in text, path
-        assert "commercial_operation_deliverables" in text or "/deliverables" in text, path
+        assert "phase-61h-commercial-operation-execution-requests" in text or "Commercial Operation Execution Requests" in text, path
+        assert "commercial_operation_execution_requests" in text or "/execution-requests" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61F should be merged and Phase 61G should be the active deliverable slice."""
+    """Phase 61A-61G should be merged and Phase 61H should be the active execution request slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -344,6 +344,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "phase-61g-commercial-operation-deliverables" in phase_61_lines["61G"]
     assert "Commercial Operation Deliverables" in phase_61_lines["61G"]
     assert "#47" in phase_61_lines["61G"]
-    assert "Draft PR" in phase_61_lines["61G"]
+    assert "Merged to main" in phase_61_lines["61G"]
     assert "TBD" not in phase_61_lines["61G"]
     assert "In progress" not in phase_61_lines["61G"]
+
+    assert "61H" in phase_61_lines
+    assert "phase-61h-commercial-operation-execution-requests" in phase_61_lines["61H"]
+    assert "Commercial Operation Execution Requests" in phase_61_lines["61H"]
+    assert "#48" in phase_61_lines["61H"]
+    assert "Draft PR" in phase_61_lines["61H"]
+    assert "TBD" not in phase_61_lines["61H"]
+    assert "In progress" not in phase_61_lines["61H"]

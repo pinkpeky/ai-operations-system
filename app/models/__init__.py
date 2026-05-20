@@ -26,6 +26,7 @@ from app.models.commercial_operation import (
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
+    CommercialOperationExecutionRequest,
     CommercialOperationLink,
 )
 from app.models.conversation import (
@@ -60,6 +61,7 @@ from app.models.enums import (
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
+    CommercialOperationExecutionRequestStatus,
     CommercialOperationPriority,
     CommercialOperationLinkType,
     CommercialOperationRiskLevel,
@@ -198,6 +200,8 @@ __all__ = [
     "CommercialOperationDeliverableStatus",
     "CommercialOperationDryRun",
     "CommercialOperationDryRunStatus",
+    "CommercialOperationExecutionRequest",
+    "CommercialOperationExecutionRequestStatus",
     "CommercialOperationLink",
     "CommercialOperationLinkType",
     "CommercialOperationPriority",

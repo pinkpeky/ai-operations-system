@@ -22,7 +22,9 @@ Phase 61F adds `commercial_operation_asset_requests` and `/api/v1/commercial-ope
 
 Phase 61G adds `commercial_operation_deliverables` and `/api/v1/commercial-operations/{operation_id}/deliverables` so operators can package approved content drafts and approved/prepared asset requests into reviewable commercial handoff deliverables. Creating a deliverable also creates a linked Output Library artifact with `source_type=commercial_operation`; packaging the deliverable moves that artifact into the packaged stage. Deliverable decisions are reflected back into `plan_outline` metadata for operator visibility.
 
-Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, or bypass approval. Phase 61G deliverables and linked Output Library artifacts are metadata-only handoff records; the next runtime step remains a future monitored execution request.
+Phase 61H adds `commercial_operation_execution_requests` and `/api/v1/commercial-operations/{operation_id}/execution-requests` so operators can create metadata-only future runtime handoff requests from packaged deliverables. Execution request decisions are reflected back into `plan_outline` metadata for operator visibility.
+
+Commercial operations still do not publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, control real accounts, or bypass approval. Phase 61H execution requests and handoff payloads are metadata-only records; the next runtime step remains a future guarded runtime adapter.
 
 ## Provider Defaults
 
