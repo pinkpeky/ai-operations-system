@@ -20,6 +20,7 @@ from app.models import (
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
     CommercialOperationExecutionRequest,
+    CommercialOperationExecutionRun,
     CommercialOperationLink,
 )
 
@@ -34,6 +35,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationDeliverable,
         CommercialOperationDryRun,
         CommercialOperationExecutionRequest,
+        CommercialOperationExecutionRun,
         CommercialOperationLink,
     )
     engine = create_async_engine(
@@ -503,6 +505,176 @@ async def test_commercial_operations_api_flow() -> None:
             assert execution_step["execution_request_mode"] == "metadata_only"
             assert execution_step["execution_request_target"] == "newsletter_platform_primary"
 
+            execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs",
+                headers=headers,
+                json={
+                    "execution_request_id": execution_request_id,
+                    "title": "Newsletter metadata run",
+                    "execution_target": "newsletter_platform_primary",
+                    "input_payload": {"segment": "qualified_leads"},
+                    "max_retries": 1,
+                    "operator_notes": "Created for monitored handoff.",
+                    "metadata": {"phase": "61I"},
+                },
+            )
+            assert execution_run.status_code == 201
+            execution_run_body = execution_run.json()
+            execution_run_id = execution_run_body["id"]
+            assert execution_run_body["workspace_id"] == "workspace-commercial-api"
+            assert execution_run_body["operation_id"] == operation_id
+            assert execution_run_body["execution_request_id"] == execution_request_id
+            assert execution_run_body["deliverable_id"] == deliverable_id
+            assert execution_run_body["output_artifact_id"] == output_artifact_id
+            assert execution_run_body["run_status"] == "queued"
+            assert execution_run_body["queued_by"] == "user-commercial-api"
+            assert execution_run_body["input_payload"] == {"segment": "qualified_leads"}
+            assert execution_run_body["runtime_payload"]["execution_boundary"] == (
+                "metadata-only execution run; no external runtime call"
+            )
+            assert execution_run_body["runtime_payload"]["next_runtime"] == "future_guarded_runtime_adapter"
+            assert "no OpenClaw action" in execution_run_body["runtime_payload"]["forbidden_actions"]
+            assert execution_run_body["recovery_plan"]["max_retries"] == 1
+
+            execution_runs = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs",
+                headers=headers,
+            )
+            assert execution_runs.status_code == 200
+            assert [item["id"] for item in execution_runs.json()["items"]] == [execution_run_id]
+
+            hidden_execution_runs = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_execution_runs.status_code == 404
+
+            patched_execution_run = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}",
+                headers=headers,
+                json={
+                    "execution_target": "newsletter_platform_backup",
+                    "input_payload": {"segment": "qualified_leads", "variant": "A"},
+                    "operator_notes": "Updated before start.",
+                },
+            )
+            assert patched_execution_run.status_code == 200
+            assert patched_execution_run.json()["execution_target"] == "newsletter_platform_backup"
+            assert patched_execution_run.json()["input_payload"]["variant"] == "A"
+
+            started_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/start",
+                headers=headers,
+                json={"operator_notes": "Started as metadata-only run."},
+            )
+            assert started_execution_run.status_code == 200
+            assert started_execution_run.json()["run_status"] == "running"
+            assert started_execution_run.json()["started_by"] == "user-commercial-api"
+
+            succeeded_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/succeed",
+                headers=headers,
+                json={
+                    "result_summary": "Operator confirmed handoff result.",
+                    "result_payload": {"published": False, "handoff_complete": True},
+                },
+            )
+            assert succeeded_execution_run.status_code == 200
+            assert succeeded_execution_run.json()["run_status"] == "succeeded"
+            assert succeeded_execution_run.json()["completed_by"] == "user-commercial-api"
+            assert succeeded_execution_run.json()["result_payload"]["handoff_complete"] is True
+
+            fetched_after_execution_run = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}",
+                headers=headers,
+            )
+            assert fetched_after_execution_run.status_code == 200
+            execution_run_step = [
+                step
+                for step in fetched_after_execution_run.json()["plan_outline"]
+                if step["step_key"] == "content_production"
+            ][0]
+            assert execution_run_step["execution_run_id"] == execution_run_id
+            assert execution_run_step["execution_run_status"] == "succeeded"
+            assert execution_run_step["execution_run_target"] == "newsletter_platform_backup"
+
+            fail_after_succeeded_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/fail",
+                headers=headers,
+                json={"failure_reason": "Too late to fail after success."},
+            )
+            assert fail_after_succeeded_execution_run.status_code == 400
+
+            archived_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/archive",
+                headers=headers,
+                json={"operator_notes": "Archived after success."},
+            )
+            assert archived_execution_run.status_code == 200
+            assert archived_execution_run.json()["run_status"] == "archived"
+
+            patch_archived_execution_run = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}",
+                headers=headers,
+                json={"title": "Should not change."},
+            )
+            assert patch_archived_execution_run.status_code == 400
+
+            retry_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs",
+                headers=headers,
+                json={
+                    "execution_request_id": execution_request_id,
+                    "title": "Newsletter retryable metadata run",
+                    "max_retries": 1,
+                    "input_payload": {"segment": "retry"},
+                },
+            )
+            assert retry_execution_run.status_code == 201
+            retry_execution_run_id = retry_execution_run.json()["id"]
+
+            started_retry_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{retry_execution_run_id}/start",
+                headers=headers,
+                json={},
+            )
+            assert started_retry_execution_run.status_code == 200
+            failed_retry_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{retry_execution_run_id}/fail",
+                headers=headers,
+                json={"failure_reason": "Operator target unavailable.", "result_payload": {"retryable": True}},
+            )
+            assert failed_retry_execution_run.status_code == 200
+            assert failed_retry_execution_run.json()["run_status"] == "failed"
+            assert failed_retry_execution_run.json()["failure_reason"] == "Operator target unavailable."
+            assert failed_retry_execution_run.json()["recovery_plan"]["can_retry"] is True
+
+            retried_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{retry_execution_run_id}/retry",
+                headers=headers,
+                json={"operator_notes": "Retry after operator correction."},
+            )
+            assert retried_execution_run.status_code == 200
+            assert retried_execution_run.json()["run_status"] == "retrying"
+            assert retried_execution_run.json()["retry_count"] == 1
+
+            restarted_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{retry_execution_run_id}/start",
+                headers=headers,
+                json={},
+            )
+            assert restarted_execution_run.status_code == 200
+            assert restarted_execution_run.json()["run_status"] == "running"
+
+            cancelled_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs/{retry_execution_run_id}/cancel",
+                headers=headers,
+                json={"operator_notes": "Cancelled after retry start."},
+            )
+            assert cancelled_execution_run.status_code == 200
+            assert cancelled_execution_run.json()["run_status"] == "cancelled"
+            assert cancelled_execution_run.json()["cancelled_by"] == "user-commercial-api"
+
             fail_after_prepared_execution_request = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/execution-requests/{execution_request_id}/fail",
                 headers=headers,
@@ -524,6 +696,16 @@ async def test_commercial_operations_api_flow() -> None:
                 json={"title": "Should not change."},
             )
             assert patch_archived_execution_request.status_code == 400
+
+            invalid_execution_run = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/execution-runs",
+                headers=headers,
+                json={
+                    "execution_request_id": execution_request_id,
+                    "title": "Invalid run from archived request",
+                },
+            )
+            assert invalid_execution_run.status_code == 400
 
             fail_after_packaged_deliverable = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}/fail",

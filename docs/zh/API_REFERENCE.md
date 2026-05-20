@@ -3295,3 +3295,26 @@ API：
 支持的 `request_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`prepared`、`failed`、`cancelled`、`archived`。
 
 边界：执行请求和 handoff payload 只是审阅与未来运行交接记录。它不会发布内容，不会运行 ComfyUI，不会运行 OpenClaw，不会运行 Browser Worker 动作，不会控制真实账号，也不会绕过审批。
+## Phase 61I: 商业运营执行运行记录
+
+状态：进行中。
+
+Phase 61I 在每个商业运营项目下新增 `commercial_operation_execution_runs` 与 `CommercialOperationExecutionRun` 记录。操作人员可以从 prepared 执行请求创建 metadata-only 执行运行记录，再进行编辑、启动、标记成功、标记失败、在重试次数内重试、取消或归档。
+
+API：
+
+- `GET /api/v1/commercial-operations/{operation_id}/execution-runs`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/start`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/succeed`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/retry`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/execution-runs/{execution_run_id}/archive`
+
+主要字段：`operation_id`、`execution_request_id`、`deliverable_id`、`output_artifact_id`、`step_key`、`channel`、`execution_type`、`execution_mode`、`execution_target`、`title`、`run_status`、`input_payload`、`runbook_snapshot`、`readiness_checks`、`expected_outputs`、`runtime_payload`、`result_payload`、`recovery_plan`、`retry_count`、`max_retries`、`result_summary`、`failure_reason`、`operator_notes`、`queued_by`、`started_by`、`completed_by`、`cancelled_by` 和 `metadata`。
+
+支持的 `run_status`：`queued`、`running`、`succeeded`、`failed`、`retrying`、`cancelled`、`archived`。
+
+边界：执行运行记录和 runtime payload 只是审计与恢复记录。它不会发布内容，不会运行 ComfyUI/OpenClaw/Browser Worker，不会控制真实账号，也不会绕过审批。

@@ -17,6 +17,7 @@ from app.models.commercial_operation import (
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
     CommercialOperationExecutionRequest,
+    CommercialOperationExecutionRun,
     CommercialOperationLink,
 )
 
@@ -75,6 +76,15 @@ CommercialOperationExecutionTypeLiteral = Literal[
     "other",
 ]
 CommercialOperationExecutionModeLiteral = Literal["metadata_only", "approval_handoff", "future_runtime"]
+CommercialOperationExecutionRunStatusLiteral = Literal[
+    "queued",
+    "running",
+    "succeeded",
+    "failed",
+    "retrying",
+    "cancelled",
+    "archived",
+]
 CommercialOperationDryRunStatusLiteral = Literal["created", "completed", "failed", "cancelled"]
 CommercialOperationDryRunModeLiteral = Literal["metadata_only", "dry_run"]
 CommercialOperationLinkTypeLiteral = Literal[
@@ -814,6 +824,131 @@ class CommercialOperationExecutionRequestListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationExecutionRequestResponse]
+
+
+class CommercialOperationExecutionRunCreateRequest(BaseModel):
+    """Create a metadata-only execution run monitor record from a prepared request."""
+
+    execution_request_id: UUID
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    execution_target: str | None = Field(default=None, max_length=128)
+    input_payload: dict[str, Any] = Field(default_factory=dict)
+    max_retries: int = Field(default=0, ge=0, le=10)
+    operator_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationExecutionRunUpdateRequest(BaseModel):
+    """Patch a queued or retrying metadata-only execution run record."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    execution_target: str | None = Field(default=None, max_length=128)
+    input_payload: dict[str, Any] | None = None
+    max_retries: int | None = Field(default=None, ge=0, le=10)
+    operator_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationExecutionRunDecisionRequest(BaseModel):
+    """Start, complete, fail, retry, cancel, or archive an execution run."""
+
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    operator_notes: str | None = None
+    result_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationExecutionRunResponse(BaseModel):
+    """Commercial operation execution run response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    execution_request_id: UUID
+    deliverable_id: UUID
+    output_artifact_id: UUID | None
+    step_key: str
+    channel: str
+    execution_type: str
+    execution_mode: str
+    execution_target: str | None
+    title: str
+    run_status: str
+    input_payload: dict[str, Any]
+    runbook_snapshot: list[dict[str, Any]]
+    readiness_checks: list[str]
+    expected_outputs: list[str]
+    runtime_payload: dict[str, Any]
+    result_payload: dict[str, Any]
+    recovery_plan: dict[str, Any]
+    retry_count: int
+    max_retries: int
+    result_summary: str | None
+    failure_reason: str | None
+    operator_notes: str | None
+    queued_by: str | None
+    started_by: str | None
+    completed_by: str | None
+    cancelled_by: str | None
+    queued_at: datetime | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, run: CommercialOperationExecutionRun) -> "CommercialOperationExecutionRunResponse":
+        return cls(
+            id=run.id,
+            workspace_id=run.workspace_id,
+            operation_id=run.operation_id,
+            execution_request_id=run.execution_request_id,
+            deliverable_id=run.deliverable_id,
+            output_artifact_id=run.output_artifact_id,
+            step_key=run.step_key,
+            channel=run.channel,
+            execution_type=run.execution_type,
+            execution_mode=run.execution_mode,
+            execution_target=run.execution_target,
+            title=run.title,
+            run_status=run.run_status,
+            input_payload=run.input_payload,
+            runbook_snapshot=run.runbook_snapshot,
+            readiness_checks=run.readiness_checks,
+            expected_outputs=run.expected_outputs,
+            runtime_payload=run.runtime_payload,
+            result_payload=run.result_payload,
+            recovery_plan=run.recovery_plan,
+            retry_count=run.retry_count,
+            max_retries=run.max_retries,
+            result_summary=run.result_summary,
+            failure_reason=run.failure_reason,
+            operator_notes=run.operator_notes,
+            queued_by=run.queued_by,
+            started_by=run.started_by,
+            completed_by=run.completed_by,
+            cancelled_by=run.cancelled_by,
+            queued_at=run.queued_at,
+            started_at=run.started_at,
+            completed_at=run.completed_at,
+            failed_at=run.failed_at,
+            cancelled_at=run.cancelled_at,
+            archived_at=run.archived_at,
+            metadata=run.run_metadata,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+        )
+
+
+class CommercialOperationExecutionRunListResponse(BaseModel):
+    """Commercial operation execution run list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationExecutionRunResponse]
 
 
 class CommercialOperationLinkCreateRequest(BaseModel):

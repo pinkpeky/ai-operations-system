@@ -18,6 +18,7 @@ from app.models.commercial_operation import (
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
     CommercialOperationExecutionRequest,
+    CommercialOperationExecutionRun,
     CommercialOperationLink,
 )
 from app.models.enums import (
@@ -27,6 +28,7 @@ from app.models.enums import (
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
     CommercialOperationExecutionRequestStatus,
+    CommercialOperationExecutionRunStatus,
     CommercialOperationStatus,
     OutputArtifactSourceType,
     OutputArtifactStage,
@@ -1680,6 +1682,292 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_request_id: UUID,
+        title: str | None = None,
+        execution_target: str | None = None,
+        input_payload: dict[str, Any] | None = None,
+        max_retries: int = 0,
+        operator_notes: str | None = None,
+        queued_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationExecutionRun:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        request = await self.require_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=execution_request_id,
+        )
+        if request.request_status != CommercialOperationExecutionRequestStatus.PREPARED.value:
+            raise ValueError("Only prepared execution requests can create execution runs")
+        clean_title = title.strip() if title and title.strip() else f"Run: {request.title}"
+        run = CommercialOperationExecutionRun(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=request.id,
+            deliverable_id=request.deliverable_id,
+            output_artifact_id=request.output_artifact_id,
+            step_key=request.step_key,
+            channel=request.channel,
+            execution_type=request.execution_type,
+            execution_mode=request.execution_mode,
+            execution_target=(
+                execution_target.strip()
+                if execution_target and execution_target.strip()
+                else request.execution_target
+            ),
+            title=clean_title[:255],
+            run_status=CommercialOperationExecutionRunStatus.QUEUED.value,
+            input_payload=input_payload or {},
+            runbook_snapshot=request.runbook,
+            readiness_checks=request.readiness_checks,
+            expected_outputs=request.expected_outputs,
+            retry_count=0,
+            max_retries=max(0, max_retries),
+            operator_notes=operator_notes.strip() if operator_notes and operator_notes.strip() else None,
+            queued_by=queued_by,
+            queued_at=datetime.now(UTC),
+            run_metadata=metadata or {},
+        )
+        self.session.add(run)
+        await self.session.flush()
+        run.runtime_payload = self._build_execution_run_runtime_payload(
+            operation=operation,
+            execution_request=request,
+            execution_run=run,
+        )
+        run.recovery_plan = self._build_execution_run_recovery_plan(run)
+        self._apply_execution_run_to_plan(operation, run)
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
+
+    async def list_execution_runs(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        execution_request_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationExecutionRun]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationExecutionRun).where(
+            CommercialOperationExecutionRun.workspace_id == workspace_id,
+            CommercialOperationExecutionRun.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationExecutionRun.run_status == status)
+        if execution_request_id is not None:
+            statement = statement.where(CommercialOperationExecutionRun.execution_request_id == execution_request_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationExecutionRun.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+    ) -> CommercialOperationExecutionRun:
+        result = await self.session.execute(
+            select(CommercialOperationExecutionRun).where(
+                CommercialOperationExecutionRun.workspace_id == workspace_id,
+                CommercialOperationExecutionRun.operation_id == operation_id,
+                CommercialOperationExecutionRun.id == execution_run_id,
+            )
+        )
+        run = result.scalar_one_or_none()
+        if run is None:
+            raise ValueError("Commercial operation execution run not found in workspace")
+        return run
+
+    async def update_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationExecutionRun:
+        run = await self.require_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+        )
+        if run.run_status not in {
+            CommercialOperationExecutionRunStatus.QUEUED.value,
+            CommercialOperationExecutionRunStatus.RETRYING.value,
+        }:
+            raise ValueError("Only queued or retrying execution runs can be updated")
+        if "title" in patch and patch["title"] is not None:
+            run.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "execution_target" in patch:
+            value = patch["execution_target"]
+            run.execution_target = value.strip() if isinstance(value, str) and value.strip() else None
+        if "input_payload" in patch and patch["input_payload"] is not None:
+            run.input_payload = patch["input_payload"] or {}
+        if "max_retries" in patch and patch["max_retries"] is not None:
+            run.max_retries = max(0, int(patch["max_retries"]))
+        if "operator_notes" in patch:
+            value = patch["operator_notes"]
+            run.operator_notes = value.strip() if isinstance(value, str) and value.strip() else None
+        if "metadata" in patch and patch["metadata"] is not None:
+            run.run_metadata = patch["metadata"] or {}
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        request = await self.require_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=run.execution_request_id,
+        )
+        run.runtime_payload = self._build_execution_run_runtime_payload(
+            operation=operation,
+            execution_request=request,
+            execution_run=run,
+        )
+        run.recovery_plan = self._build_execution_run_recovery_plan(run)
+        if updated_by is not None:
+            run.run_metadata = {**(run.run_metadata or {}), "updated_by": updated_by}
+        self._apply_execution_run_to_plan(operation, run)
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
+
+    async def start_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        started_by: str | None = None,
+        operator_notes: str | None = None,
+    ) -> CommercialOperationExecutionRun:
+        return await self._decide_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            status=CommercialOperationExecutionRunStatus.RUNNING.value,
+            actor_user_id=started_by,
+            result_summary=None,
+            failure_reason=None,
+            operator_notes=operator_notes,
+            result_payload=None,
+        )
+
+    async def succeed_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        completed_by: str | None = None,
+        result_summary: str | None = None,
+        result_payload: dict[str, Any] | None = None,
+    ) -> CommercialOperationExecutionRun:
+        return await self._decide_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            status=CommercialOperationExecutionRunStatus.SUCCEEDED.value,
+            actor_user_id=completed_by,
+            result_summary=result_summary,
+            failure_reason=None,
+            operator_notes=None,
+            result_payload=result_payload,
+        )
+
+    async def fail_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+        result_payload: dict[str, Any] | None = None,
+    ) -> CommercialOperationExecutionRun:
+        return await self._decide_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            status=CommercialOperationExecutionRunStatus.FAILED.value,
+            actor_user_id=updated_by,
+            result_summary=None,
+            failure_reason=failure_reason,
+            operator_notes=None,
+            result_payload=result_payload,
+        )
+
+    async def retry_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        updated_by: str | None = None,
+        operator_notes: str | None = None,
+    ) -> CommercialOperationExecutionRun:
+        return await self._decide_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            status=CommercialOperationExecutionRunStatus.RETRYING.value,
+            actor_user_id=updated_by,
+            result_summary=None,
+            failure_reason=None,
+            operator_notes=operator_notes,
+            result_payload=None,
+        )
+
+    async def cancel_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        updated_by: str | None = None,
+        operator_notes: str | None = None,
+    ) -> CommercialOperationExecutionRun:
+        return await self._decide_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            status=CommercialOperationExecutionRunStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            result_summary=None,
+            failure_reason=None,
+            operator_notes=operator_notes,
+            result_payload=None,
+        )
+
+    async def archive_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        updated_by: str | None = None,
+        operator_notes: str | None = None,
+    ) -> CommercialOperationExecutionRun:
+        return await self._decide_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            status=CommercialOperationExecutionRunStatus.ARCHIVED.value,
+            actor_user_id=updated_by,
+            result_summary=None,
+            failure_reason=None,
+            operator_notes=operator_notes,
+            result_payload=None,
+        )
+
     async def create_link(
         self,
         *,
@@ -2245,6 +2533,112 @@ class CommercialOperationService:
         await self.session.refresh(request)
         return request
 
+    async def _decide_execution_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_run_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+        operator_notes: str | None,
+        result_payload: dict[str, Any] | None,
+    ) -> CommercialOperationExecutionRun:
+        run = await self.require_execution_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+        )
+        if run.run_status == CommercialOperationExecutionRunStatus.ARCHIVED.value:
+            raise ValueError("Archived execution runs cannot be changed")
+        if status == CommercialOperationExecutionRunStatus.RUNNING.value and run.run_status not in {
+            CommercialOperationExecutionRunStatus.QUEUED.value,
+            CommercialOperationExecutionRunStatus.RETRYING.value,
+        }:
+            raise ValueError("Only queued or retrying execution runs can be started")
+        if status in {
+            CommercialOperationExecutionRunStatus.SUCCEEDED.value,
+            CommercialOperationExecutionRunStatus.FAILED.value,
+        } and run.run_status != CommercialOperationExecutionRunStatus.RUNNING.value:
+            raise ValueError("Only running execution runs can succeed or fail")
+        if status == CommercialOperationExecutionRunStatus.RETRYING.value:
+            if run.run_status != CommercialOperationExecutionRunStatus.FAILED.value:
+                raise ValueError("Only failed execution runs can be retried")
+            if run.retry_count >= run.max_retries:
+                raise ValueError("Execution run retry limit reached")
+        if status == CommercialOperationExecutionRunStatus.CANCELLED.value and run.run_status not in {
+            CommercialOperationExecutionRunStatus.QUEUED.value,
+            CommercialOperationExecutionRunStatus.RUNNING.value,
+            CommercialOperationExecutionRunStatus.RETRYING.value,
+        }:
+            raise ValueError("Only queued, running, or retrying execution runs can be cancelled")
+
+        now = datetime.now(UTC)
+        run.run_status = status
+        if operator_notes is not None:
+            run.operator_notes = operator_notes.strip() if operator_notes.strip() else None
+        if result_summary is not None:
+            run.result_summary = result_summary.strip() if result_summary.strip() else None
+        if failure_reason is not None:
+            run.failure_reason = failure_reason.strip() if failure_reason.strip() else None
+        if result_payload is not None:
+            run.result_payload = result_payload or {}
+
+        if status == CommercialOperationExecutionRunStatus.RUNNING.value:
+            run.started_by = actor_user_id
+            run.started_at = now
+            run.cancelled_by = None
+            run.completed_by = None
+            run.completed_at = None
+            run.cancelled_at = None
+            run.archived_at = None
+            if run.failed_at is not None:
+                run.failed_at = None
+        elif status == CommercialOperationExecutionRunStatus.SUCCEEDED.value:
+            run.completed_by = actor_user_id
+            run.completed_at = now
+            run.failed_at = None
+            run.cancelled_at = None
+            run.archived_at = None
+        elif status == CommercialOperationExecutionRunStatus.FAILED.value:
+            run.failed_at = now
+            run.completed_by = None
+            run.completed_at = None
+            run.cancelled_at = None
+            run.archived_at = None
+        elif status == CommercialOperationExecutionRunStatus.RETRYING.value:
+            run.retry_count += 1
+            run.cancelled_by = None
+            run.cancelled_at = None
+            run.archived_at = None
+        elif status == CommercialOperationExecutionRunStatus.CANCELLED.value:
+            run.cancelled_by = actor_user_id
+            run.cancelled_at = now
+            run.completed_by = None
+            run.completed_at = None
+            run.archived_at = None
+        elif status == CommercialOperationExecutionRunStatus.ARCHIVED.value:
+            run.archived_at = now
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        request = await self.require_execution_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_request_id=run.execution_request_id,
+        )
+        run.runtime_payload = self._build_execution_run_runtime_payload(
+            operation=operation,
+            execution_request=request,
+            execution_run=run,
+        )
+        run.recovery_plan = self._build_execution_run_recovery_plan(run)
+        self._apply_execution_run_to_plan(operation, run)
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
+
     async def _decide_content_draft(
         self,
         *,
@@ -2589,6 +2983,67 @@ class CommercialOperationService:
             ],
         }
 
+    def _build_execution_run_runtime_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        execution_request: CommercialOperationExecutionRequest,
+        execution_run: CommercialOperationExecutionRun,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "execution_request_id": str(execution_request.id),
+            "execution_run_id": str(execution_run.id) if execution_run.id else None,
+            "deliverable_id": str(execution_run.deliverable_id),
+            "output_artifact_id": str(execution_run.output_artifact_id) if execution_run.output_artifact_id else None,
+            "step_key": execution_run.step_key,
+            "channel": execution_run.channel,
+            "execution_type": execution_run.execution_type,
+            "execution_mode": execution_run.execution_mode,
+            "execution_target": execution_run.execution_target,
+            "run_status": execution_run.run_status,
+            "input_payload": execution_run.input_payload,
+            "request_handoff_payload": execution_request.handoff_payload,
+            "runbook_snapshot": execution_run.runbook_snapshot,
+            "readiness_checks": execution_run.readiness_checks,
+            "expected_outputs": execution_run.expected_outputs,
+            "execution_boundary": "metadata-only execution run; no external runtime call",
+            "next_runtime": "future_guarded_runtime_adapter",
+            "forbidden_actions": [
+                "no publishing",
+                "no real account control",
+                "no ComfyUI job",
+                "no OpenClaw action",
+                "no browser worker action",
+            ],
+        }
+
+    def _build_execution_run_recovery_plan(
+        self,
+        execution_run: CommercialOperationExecutionRun,
+    ) -> dict[str, Any]:
+        can_retry = (
+            execution_run.run_status == CommercialOperationExecutionRunStatus.FAILED.value
+            and execution_run.retry_count < execution_run.max_retries
+        )
+        return {
+            "retry_count": execution_run.retry_count,
+            "max_retries": execution_run.max_retries,
+            "can_retry": can_retry,
+            "retry_remaining": max(execution_run.max_retries - execution_run.retry_count, 0),
+            "operator_actions": [
+                "review failure reason and result payload",
+                "adjust input payload, execution target, or operator notes if needed",
+                "retry only after human approval",
+            ],
+            "non_goals": [
+                "does not auto-publish",
+                "does not control real accounts",
+                "does not call ComfyUI, OpenClaw, or browser workers",
+            ],
+        }
+
     def _apply_content_draft_to_plan(
         self,
         operation: CommercialOperation,
@@ -2640,6 +3095,36 @@ class CommercialOperationService:
                     updated["execution_request_decision_at"] = execution_request.approved_at.isoformat()
                 elif execution_request.archived_at is not None:
                     updated["execution_request_decision_at"] = execution_request.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_execution_run_to_plan(
+        self,
+        operation: CommercialOperation,
+        execution_run: CommercialOperationExecutionRun,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == execution_run.step_key:
+                updated = dict(step)
+                updated["execution_run_id"] = str(execution_run.id)
+                updated["execution_run_status"] = execution_run.run_status
+                updated["execution_run_target"] = execution_run.execution_target
+                updated["execution_run_retry_count"] = execution_run.retry_count
+                if execution_run.archived_at is not None:
+                    updated["execution_run_decision_at"] = execution_run.archived_at.isoformat()
+                elif execution_run.cancelled_at is not None:
+                    updated["execution_run_decision_at"] = execution_run.cancelled_at.isoformat()
+                elif execution_run.completed_at is not None:
+                    updated["execution_run_decision_at"] = execution_run.completed_at.isoformat()
+                elif execution_run.failed_at is not None:
+                    updated["execution_run_decision_at"] = execution_run.failed_at.isoformat()
+                elif execution_run.started_at is not None:
+                    updated["execution_run_decision_at"] = execution_run.started_at.isoformat()
+                elif execution_run.queued_at is not None:
+                    updated["execution_run_decision_at"] = execution_run.queued_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

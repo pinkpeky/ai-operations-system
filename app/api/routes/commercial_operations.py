@@ -42,6 +42,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationExecutionRequestListResponse,
     CommercialOperationExecutionRequestResponse,
     CommercialOperationExecutionRequestUpdateRequest,
+    CommercialOperationExecutionRunCreateRequest,
+    CommercialOperationExecutionRunDecisionRequest,
+    CommercialOperationExecutionRunListResponse,
+    CommercialOperationExecutionRunResponse,
+    CommercialOperationExecutionRunUpdateRequest,
     CommercialOperationLinkCreateRequest,
     CommercialOperationLinkListResponse,
     CommercialOperationLinkResponse,
@@ -1556,6 +1561,311 @@ async def archive_commercial_operation_execution_request(
             extra={"operation_id": str(operation_id), "execution_request_id": str(execution_request_id)},
         )
         raise AppError("Commercial operation execution request archive failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/execution-runs", response_model=CommercialOperationExecutionRunResponse, status_code=201)
+async def create_commercial_operation_execution_run(
+    operation_id: UUID,
+    request: CommercialOperationExecutionRunCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Create a metadata-only execution run record from a prepared execution request."""
+
+    try:
+        execution_run = await CommercialOperationService(session).create_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            queued_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run create API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation execution run create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/execution-runs", response_model=CommercialOperationExecutionRunListResponse)
+async def list_commercial_operation_execution_runs(
+    operation_id: UUID,
+    status: str | None = Query(
+        default=None,
+        description="queued / running / succeeded / failed / retrying / cancelled / archived",
+    ),
+    execution_request_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunListResponse:
+    """List metadata-only execution run records for a commercial operation."""
+
+    try:
+        execution_runs = await CommercialOperationService(session).list_execution_runs(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            execution_request_id=execution_request_id,
+            limit=limit,
+        )
+        return CommercialOperationExecutionRunListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationExecutionRunResponse.from_model(item) for item in execution_runs],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run list API failed",
+            extra={"operation_id": str(operation_id)},
+        )
+        raise AppError("Commercial operation execution run list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/execution-runs/{execution_run_id}",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def update_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Patch a queued or retrying metadata-only execution run record."""
+
+    try:
+        execution_run = await CommercialOperationService(session).update_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            updated_by=context.user_id,
+            patch=request.model_dump(exclude_unset=True),
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run update API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-runs/{execution_run_id}/start",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def start_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Mark a metadata-only execution run as running without calling an external runtime."""
+
+    try:
+        execution_run = await CommercialOperationService(session).start_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            started_by=context.user_id,
+            operator_notes=request.operator_notes,
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run start API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run start failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-runs/{execution_run_id}/succeed",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def succeed_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Mark a metadata-only execution run succeeded and record operator results."""
+
+    try:
+        execution_run = await CommercialOperationService(session).succeed_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            completed_by=context.user_id,
+            result_summary=request.result_summary,
+            result_payload=request.result_payload,
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run succeed API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run succeed failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-runs/{execution_run_id}/fail",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def fail_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Mark a metadata-only execution run failed and record recovery context."""
+
+    try:
+        execution_run = await CommercialOperationService(session).fail_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+            result_payload=request.result_payload,
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run fail API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-runs/{execution_run_id}/retry",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def retry_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Move a failed metadata-only execution run into retrying state."""
+
+    try:
+        execution_run = await CommercialOperationService(session).retry_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            updated_by=context.user_id,
+            operator_notes=request.operator_notes,
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run retry API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run retry failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-runs/{execution_run_id}/cancel",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def cancel_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Cancel a queued, running, or retrying metadata-only execution run."""
+
+    try:
+        execution_run = await CommercialOperationService(session).cancel_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            updated_by=context.user_id,
+            operator_notes=request.operator_notes,
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run cancel API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/execution-runs/{execution_run_id}/archive",
+    response_model=CommercialOperationExecutionRunResponse,
+)
+async def archive_commercial_operation_execution_run(
+    operation_id: UUID,
+    execution_run_id: UUID,
+    request: CommercialOperationExecutionRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationExecutionRunResponse:
+    """Archive a metadata-only execution run while preserving the audit trail."""
+
+    try:
+        execution_run = await CommercialOperationService(session).archive_execution_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_run_id=execution_run_id,
+            updated_by=context.user_id,
+            operator_notes=request.operator_notes,
+        )
+        return CommercialOperationExecutionRunResponse.from_model(execution_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation execution run archive API failed",
+            extra={"operation_id": str(operation_id), "execution_run_id": str(execution_run_id)},
+        )
+        raise AppError("Commercial operation execution run archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/links", response_model=CommercialOperationLinkResponse, status_code=201)

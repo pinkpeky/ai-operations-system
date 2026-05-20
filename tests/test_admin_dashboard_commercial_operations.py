@@ -20,13 +20,14 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61H" in text
+    assert "Phase 61I" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
     assert "Asset requests" in text
     assert "Deliverables" in text
     assert "Execution requests" in text
+    assert "Execution runs" in text
     assert "证据与交接" in text
     assert "Evidence and handoff" in text
     assert "不会自动发布" in text
@@ -80,6 +81,15 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.failExecutionRequest" in text
     assert "commercialOperationsApi.cancelExecutionRequest" in text
     assert "commercialOperationsApi.archiveExecutionRequest" in text
+    assert "commercialOperationsApi.executionRuns" in text
+    assert "commercialOperationsApi.createExecutionRun" in text
+    assert "commercialOperationsApi.updateExecutionRun" in text
+    assert "commercialOperationsApi.startExecutionRun" in text
+    assert "commercialOperationsApi.succeedExecutionRun" in text
+    assert "commercialOperationsApi.failExecutionRun" in text
+    assert "commercialOperationsApi.retryExecutionRun" in text
+    assert "commercialOperationsApi.cancelExecutionRun" in text
+    assert "commercialOperationsApi.archiveExecutionRun" in text
     assert "commercialOperationsApi.links" in text
     assert "commercialOperationsApi.createLink" in text
     assert "commercialOperationsApi.deleteLink" in text
@@ -131,6 +141,14 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/cancel" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/start" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/succeed" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/retry" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/links/${encodeURIComponent(linkId)}" in text
     assert 'method: "PATCH"' in text
@@ -172,6 +190,10 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-execution-list",
         ".commercial-execution-item",
         ".commercial-execution-actions",
+        ".commercial-execution-run-grid",
+        ".commercial-execution-run-list",
+        ".commercial-execution-run-item",
+        ".commercial-execution-run-actions",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",
