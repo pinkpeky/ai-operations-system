@@ -1,5 +1,19 @@
 # API 参考
 
+## Phase 61S: 商业运营 ComfyUI 适配器配置
+
+Phase 61S 新增 `commercial_operation_comfyui_adapter_configs` 与 `CommercialOperationComfyUIAdapterConfig` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`。服务器维护人员可以登记 endpoint、queue、workflow 白名单、模型清单、运行边界、维护备注和密钥引用；系统只做 metadata-only 本地校验，不保存密钥值、不请求 ComfyUI、不提交队列。
+
+API：
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/validate`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs/{config_id}/archive`
+
+边界：ComfyUI adapter config 不调用 ComfyUI health/prompt/history/upload/queue 端点，不提交任务，不生成媒体，不发布，不运行 OpenClaw 或 Browser Worker，不控制真实账号，不接入平台分析，不宣称 ROI 归因，也不会绕过审批。ready 配置可以被 ComfyUI preflight 选用，用来预填 endpoint、queue、workflow、模型引用和受控 adapter metadata。
+
 ## Phase 61R: 商业运营 ComfyUI 连接预检
 
 状态：进行中。

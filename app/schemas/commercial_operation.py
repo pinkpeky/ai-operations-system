@@ -13,6 +13,7 @@ from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
+    CommercialOperationComfyUIAdapterConfig,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIPreflight,
     CommercialOperationContentDraft,
@@ -55,6 +56,8 @@ CommercialOperationComfyUIHandoffStatusLiteral = Literal[
     "archived",
 ]
 CommercialOperationComfyUIPreflightStatusLiteral = Literal["draft", "checked", "blocked", "failed", "archived"]
+CommercialOperationComfyUIAdapterConfigStatusLiteral = Literal["draft", "ready", "blocked", "failed", "archived"]
+CommercialOperationComfyUIAdapterAuthModeLiteral = Literal["none", "token_ref", "basic_ref", "custom_ref"]
 CommercialOperationDeliverableStatusLiteral = Literal[
     "draft",
     "ready_for_review",
@@ -804,6 +807,7 @@ class CommercialOperationComfyUIHandoffListResponse(BaseModel):
 class CommercialOperationComfyUIPreflightCreateRequest(BaseModel):
     """Create a metadata-only ComfyUI adapter readiness preflight."""
 
+    adapter_config_id: UUID | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)
     target_url: str | None = Field(default=None, max_length=512)
     queue_name: str | None = Field(default=None, max_length=128)
@@ -817,6 +821,7 @@ class CommercialOperationComfyUIPreflightCreateRequest(BaseModel):
 class CommercialOperationComfyUIPreflightUpdateRequest(BaseModel):
     """Patch a metadata-only ComfyUI preflight and rerun local readiness evaluation."""
 
+    adapter_config_id: UUID | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)
     target_url: str | None = Field(default=None, max_length=512)
     queue_name: str | None = Field(default=None, max_length=128)
@@ -842,6 +847,7 @@ class CommercialOperationComfyUIPreflightResponse(BaseModel):
     workspace_id: str
     operation_id: UUID
     handoff_id: UUID
+    adapter_config_id: UUID | None
     asset_request_id: UUID
     step_key: str
     title: str
@@ -873,6 +879,7 @@ class CommercialOperationComfyUIPreflightResponse(BaseModel):
             workspace_id=preflight.workspace_id,
             operation_id=preflight.operation_id,
             handoff_id=preflight.handoff_id,
+            adapter_config_id=preflight.adapter_config_id,
             asset_request_id=preflight.asset_request_id,
             step_key=preflight.step_key,
             title=preflight.title,
@@ -904,6 +911,122 @@ class CommercialOperationComfyUIPreflightListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIPreflightResponse]
+
+
+class CommercialOperationComfyUIAdapterConfigCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI adapter config for server maintainers."""
+
+    title: str = Field(default="ComfyUI guarded adapter config", min_length=1, max_length=255)
+    target_url: str | None = Field(default=None, max_length=512)
+    auth_mode: CommercialOperationComfyUIAdapterAuthModeLiteral = "none"
+    secret_ref: str | None = Field(default=None, max_length=255)
+    queue_name: str | None = Field(default=None, max_length=128)
+    default_workflow_name: str | None = Field(default=None, max_length=128)
+    allowed_workflows: list[str] = Field(default_factory=list)
+    model_inventory: list[dict[str, Any]] = Field(default_factory=list)
+    runtime_limits: dict[str, Any] = Field(default_factory=dict)
+    maintenance_notes: str | None = None
+    validation_checks: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIAdapterConfigUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI adapter config and rerun local validation."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    target_url: str | None = Field(default=None, max_length=512)
+    auth_mode: CommercialOperationComfyUIAdapterAuthModeLiteral | None = None
+    secret_ref: str | None = Field(default=None, max_length=255)
+    queue_name: str | None = Field(default=None, max_length=128)
+    default_workflow_name: str | None = Field(default=None, max_length=128)
+    allowed_workflows: list[str] | None = None
+    model_inventory: list[dict[str, Any]] | None = None
+    runtime_limits: dict[str, Any] | None = None
+    maintenance_notes: str | None = None
+    validation_checks: list[dict[str, Any]] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIAdapterConfigDecisionRequest(BaseModel):
+    """Validate, fail, or archive a metadata-only ComfyUI adapter config."""
+
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIAdapterConfigResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI adapter config response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    title: str
+    config_status: str
+    target_url: str | None
+    auth_mode: str
+    secret_ref: str | None
+    queue_name: str | None
+    default_workflow_name: str | None
+    allowed_workflows: list[str]
+    model_inventory: list[dict[str, Any]]
+    runtime_limits: dict[str, Any]
+    maintenance_notes: str | None
+    validation_checks: list[dict[str, Any]]
+    config_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    created_by: str | None
+    updated_by: str | None
+    validated_by: str | None
+    archived_by: str | None
+    validated_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        config: CommercialOperationComfyUIAdapterConfig,
+    ) -> "CommercialOperationComfyUIAdapterConfigResponse":
+        return cls(
+            id=config.id,
+            workspace_id=config.workspace_id,
+            operation_id=config.operation_id,
+            title=config.title,
+            config_status=config.config_status,
+            target_url=config.target_url,
+            auth_mode=config.auth_mode,
+            secret_ref=config.secret_ref,
+            queue_name=config.queue_name,
+            default_workflow_name=config.default_workflow_name,
+            allowed_workflows=config.allowed_workflows,
+            model_inventory=config.model_inventory,
+            runtime_limits=config.runtime_limits,
+            maintenance_notes=config.maintenance_notes,
+            validation_checks=config.validation_checks,
+            config_payload=config.config_payload,
+            result_summary=config.result_summary,
+            failure_reason=config.failure_reason,
+            created_by=config.created_by,
+            updated_by=config.updated_by,
+            validated_by=config.validated_by,
+            archived_by=config.archived_by,
+            validated_at=config.validated_at,
+            failed_at=config.failed_at,
+            archived_at=config.archived_at,
+            metadata=config.config_metadata,
+            created_at=config.created_at,
+            updated_at=config.updated_at,
+        )
+
+
+class CommercialOperationComfyUIAdapterConfigListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI adapter config list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIAdapterConfigResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

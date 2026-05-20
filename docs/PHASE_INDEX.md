@@ -10,9 +10,9 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 `main` is the active accepted baseline branch after Phase 56A-56D readiness closures, Phase 57A-59C Run Cockpit product slices, Phase 60A-60G frontend/RAG validation slices, Phase 61A Commercial Operations Foundation, Phase 61B Commercial Operation Evidence & Handoff Links, Phase 61C Commercial Operation Approval Gates, Phase 61D Commercial Operation Safe Dry-Runs, Phase 61E Commercial Operation Content Drafts, Phase 61F Commercial Operation Asset Requests, Phase 61G Commercial Operation Deliverables, Phase 61H Commercial Operation Execution Requests, Phase 61I Commercial Operation Execution Runs, Phase 61J Commercial Operation Results, Phase 61K Commercial Operation Monitoring Observations, Phase 61L Commercial Operation Optimization Decisions, Phase 61M Commercial Operation Evidence Snapshots, Phase 61N Commercial Operation RAG Evidence Generation, Phase 61O Commercial Operation RAG Content Draft Generation, and Phase 61P Commercial Operation RAG Asset Brief Generation.
 
-Current effective phase: Phase 61R Commercial Operation ComfyUI Preflights. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
+Current effective phase: Phase 61S Commercial Operation ComfyUI Adapter Configs. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-61r-commercial-comfyui-preflight`. It stacks after draft PR #57 and adds `/api/v1/commercial-operations/{operation_id}/comfyui-preflights`, which records future ComfyUI endpoint, queue, model, adapter, and workflow readiness for approved or prepared handoffs. It still performs local metadata evaluation only; it does not call ComfyUI, submit queues, generate images/videos, publish, control accounts, execute OpenClaw, call Browser Worker actions, ingest platform analytics, or bypass approval.
+The current fresh branch is `codex/phase-61s-commercial-comfyui-adapter-configs`. It stacks after draft PR #58 and adds `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`, which lets server maintainers record future ComfyUI endpoint, queue, workflow allowlist, model inventory, runtime limits, and secret references for guarded adapter readiness. It still performs local metadata evaluation only; it does not call ComfyUI, submit queues, generate images/videos, publish, control accounts, execute OpenClaw, call Browser Worker actions, store secret values, ingest platform analytics, or bypass approval.
 
 ## Open PR List
 
@@ -75,6 +75,7 @@ The current fresh branch is `codex/phase-61r-commercial-comfyui-preflight`. It s
 | #56 | Phase 61P Commercial Operation RAG Asset Brief Generation | `codex/phase-61p-commercial-rag-asset-briefs` | Merged to main |
 | #57 | Phase 61Q Commercial Operation ComfyUI Handoffs | `codex/phase-61q-commercial-comfyui-handoffs` | Draft PR |
 | #58 | Phase 61R Commercial Operation ComfyUI Preflights | `codex/phase-61r-commercial-comfyui-preflight` | Draft PR |
+| #59 | Phase 61S Commercial Operation ComfyUI Adapter Configs | `codex/phase-61s-commercial-comfyui-adapter-configs` | Draft PR |
 
 ## Phase Timeline Table
 
@@ -177,6 +178,7 @@ The current fresh branch is `codex/phase-61r-commercial-comfyui-preflight`. It s
 | 61P | Commercial Operation RAG Asset Brief Generation | `codex/phase-61p-commercial-rag-asset-briefs` | #56 | Merged to main | `/api/v1/commercial-operations/{operation_id}/asset-requests/generate-rag`, Admin Dashboard RAG asset request action, retrieved chunk source materials, query/search metadata, readiness checks, and draft-only asset request records from existing RAG search without knowledge ingestion, approval bypass, publishing, ComfyUI, OpenClaw, browser worker, or account execution. |
 | 61Q | Commercial Operation ComfyUI Handoffs | `codex/phase-61q-commercial-comfyui-handoffs` | #57 | Draft PR | `commercial_operation_comfyui_handoffs`, `/api/v1/commercial-operations/{operation_id}/comfyui-handoffs`, Admin Dashboard ComfyUI handoffs panel, metadata-only prompt/workflow payloads, readiness checks, lifecycle decisions, and plan-step handoff state without submitting ComfyUI jobs, generating media, publishing, OpenClaw, browser worker, or account execution. |
 | 61R | Commercial Operation ComfyUI Preflights | `codex/phase-61r-commercial-comfyui-preflight` | #58 | Draft PR | `commercial_operation_comfyui_preflights`, `/api/v1/commercial-operations/{operation_id}/comfyui-preflights`, Admin Dashboard ComfyUI preflight panel, endpoint/queue/model/workflow readiness checks, adapter config normalization, and plan-step preflight state without calling ComfyUI, submitting queues, generating media, publishing, OpenClaw, browser worker, or account execution. |
+| 61S | Commercial Operation ComfyUI Adapter Configs | `codex/phase-61s-commercial-comfyui-adapter-configs` | #59 | Draft PR | `commercial_operation_comfyui_adapter_configs`, `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`, Admin Dashboard ComfyUI adapter config panel, endpoint/queue/workflow allowlist/model inventory/runtime-limit/secret-reference validation, optional preflight config selection, and plan-step adapter config state without calling ComfyUI, submitting queues, storing secret values, generating media, publishing, OpenClaw, browser worker, or account execution. |
 
 ## Runtime Evolution
 

@@ -14,6 +14,7 @@ from app.db.base import Base, IdTimestampMixin
 from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
+    CommercialOperationComfyUIAdapterConfigStatus,
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIPreflightStatus,
     CommercialOperationContentDraftStatus,
@@ -453,6 +454,12 @@ class CommercialOperationComfyUIPreflight(IdTimestampMixin, Base):
         nullable=False,
         comment="ComfyUI handoff ID",
     )
+    adapter_config_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_adapter_configs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Optional maintained ComfyUI adapter config snapshot",
+    )
     asset_request_id: Mapped[UUID] = mapped_column(
         ForeignKey("commercial_operation_asset_requests.id", ondelete="RESTRICT"),
         index=True,
@@ -506,6 +513,95 @@ class CommercialOperationComfyUIPreflight(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="ComfyUI preflight metadata",
+    )
+
+
+class CommercialOperationComfyUIAdapterConfig(IdTimestampMixin, Base):
+    """Metadata-only ComfyUI adapter configuration for server maintainers."""
+
+    __tablename__ = "commercial_operation_comfyui_adapter_configs"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Adapter config title")
+    config_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationComfyUIAdapterConfigStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready / blocked / failed / archived",
+    )
+    target_url: Mapped[str | None] = mapped_column(String(512), nullable=True, comment="Future ComfyUI endpoint URL")
+    auth_mode: Mapped[str] = mapped_column(
+        String(32),
+        default="none",
+        index=True,
+        nullable=False,
+        comment="none / token_ref / basic_ref / custom_ref",
+    )
+    secret_ref: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Secret reference only; no secret value is stored",
+    )
+    queue_name: Mapped[str | None] = mapped_column(String(128), nullable=True, comment="Future ComfyUI queue name")
+    default_workflow_name: Mapped[str | None] = mapped_column(
+        String(128),
+        index=True,
+        nullable=True,
+        comment="Default allowed workflow name",
+    )
+    allowed_workflows: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Allowed future workflow names",
+    )
+    model_inventory: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Model/checkpoint inventory for maintenance",
+    )
+    runtime_limits: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Metadata-only runtime limits and disabled execution flags",
+    )
+    maintenance_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Server maintenance notes")
+    validation_checks: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Local validation checks for the adapter config",
+    )
+    config_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing adapter config payload",
+    )
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Validation result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Validation failure reason")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    validated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Validator user ID")
+    archived_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Archiver user ID")
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Validated at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    config_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Adapter config metadata",
     )
 
 

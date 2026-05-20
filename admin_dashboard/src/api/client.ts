@@ -554,6 +554,58 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  comfyuiAdapterConfigs: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs`, {}, settings),
+  createComfyuiAdapterConfig: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateComfyuiAdapterConfig: (operationId: string, configId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  validateComfyuiAdapterConfig: (operationId: string, configId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}/validate`,
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+      settings,
+    ),
+  failComfyuiAdapterConfig: (
+    operationId: string,
+    configId: string,
+    failureReason = "Failed from Commercial Ops adapter config; maintainer review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  archiveComfyuiAdapterConfig: (operationId: string, configId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-configs/${encodeURIComponent(configId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({}),
+      },
+      settings,
+    ),
   deliverables: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/deliverables`, {}, settings),
   createDeliverable: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
