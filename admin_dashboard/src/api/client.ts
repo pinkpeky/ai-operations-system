@@ -1046,6 +1046,94 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  comfyuiRuntimeDryRuns: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs`, {}, settings),
+  createComfyuiRuntimeDryRun: (operationId: string, runtimeGateId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/runtime-dry-runs`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Ready from Commercial Ops; runtime dry-run remains metadata-only." }),
+      },
+      settings,
+    ),
+  approveComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Approved from Commercial Ops; no ComfyUI runtime call will run." }),
+      },
+      settings,
+    ),
+  rejectComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Rejected from Commercial Ops." }),
+      },
+      settings,
+    ),
+  validateComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/validate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: "Validated metadata-only runtime dry-run; no ComfyUI adapter runtime was called." }),
+      },
+      settings,
+    ),
+  failComfyuiRuntimeDryRun: (
+    operationId: string,
+    runtimeDryRunId: string,
+    failureReason = "Failed from Commercial Ops runtime dry-run; maintainer review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  cancelComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Cancelled from Commercial Ops." }),
+      },
+      settings,
+    ),
+  archiveComfyuiRuntimeDryRun: (operationId: string, runtimeDryRunId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Archived from Commercial Ops." }),
+      },
+      settings,
+    ),
   deliverables: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/deliverables`, {}, settings),
   createDeliverable: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

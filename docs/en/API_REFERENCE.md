@@ -4190,3 +4190,24 @@ Endpoints:
 Supported `gate_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `armed`, `disabled`, `failed`, and `archived`.
 
 Boundary: ComfyUI runtime gates are metadata records only. They do not store or resolve secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved gates can be marked armed only as an operator-facing metadata state record; no ComfyUI adapter runtime is enabled.
+
+## Phase 61Y: Commercial Operation ComfyUI Runtime Dry-Runs
+
+Phase 61Y adds `commercial_operation_comfyui_runtime_dry_runs` and `CommercialOperationComfyUIRuntimeDryRun` records below each commercial operation. Operators and server maintainers can create metadata-only runtime dry-run records from armed ComfyUI runtime gates, edit them, send them for review, approve or reject them, mark them validated, mark failures, cancel active dry-runs, or archive their audit trail. These records document future guarded ComfyUI adapter contracts, dry-run request fixtures, expected response contracts, explicit server switch policies, validation checks, operator checklists, and rollback plans without importing or calling a ComfyUI adapter, storing or resolving secret values, calling ComfyUI, submitting prompts, reading queues, uploading files, submitting queues, enabling runtime switches, or generating media.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/runtime-dry-runs`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/validate`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/archive`
+
+Supported `dry_run_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `validated`, `failed`, `cancelled`, and `archived`.
+
+Boundary: ComfyUI runtime dry-runs are metadata records only. They do not import or call ComfyUI adapters, enable runtime server switches, store or resolve secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved dry-runs can be marked validated only as an operator-facing metadata state record; no ComfyUI adapter runtime is enabled.

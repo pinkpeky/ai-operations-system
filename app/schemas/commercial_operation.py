@@ -20,6 +20,7 @@ from app.models.commercial_operation import (
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
+    CommercialOperationComfyUIRuntimeDryRun,
     CommercialOperationComfyUIRuntimeGate,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
@@ -111,6 +112,16 @@ CommercialOperationComfyUIRuntimeGateStatusLiteral = Literal[
     "armed",
     "disabled",
     "failed",
+    "archived",
+]
+CommercialOperationComfyUIRuntimeDryRunStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "validated",
+    "failed",
+    "cancelled",
     "archived",
 ]
 CommercialOperationDeliverableStatusLiteral = Literal[
@@ -1809,6 +1820,157 @@ class CommercialOperationComfyUIRuntimeGateListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIRuntimeGateResponse]
+
+
+class CommercialOperationComfyUIRuntimeDryRunCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI runtime dry-run from an armed runtime gate."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    dry_run_mode: str = Field(default="metadata_only", min_length=1, max_length=32)
+    adapter_contract: dict[str, Any] = Field(default_factory=dict)
+    dry_run_request: dict[str, Any] = Field(default_factory=dict)
+    expected_response: dict[str, Any] = Field(default_factory=dict)
+    runtime_policy: dict[str, Any] = Field(default_factory=dict)
+    validation_checks: list[dict[str, Any]] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    rollback_plan: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIRuntimeDryRunUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI runtime dry-run before validation."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    dry_run_mode: str | None = Field(default=None, min_length=1, max_length=32)
+    adapter_contract: dict[str, Any] | None = None
+    dry_run_request: dict[str, Any] | None = None
+    expected_response: dict[str, Any] | None = None
+    runtime_policy: dict[str, Any] | None = None
+    validation_checks: list[dict[str, Any]] | None = None
+    operator_checklist: list[str] | None = None
+    rollback_plan: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIRuntimeDryRunDecisionRequest(BaseModel):
+    """Review, validate, fail, cancel, or archive a ComfyUI runtime dry-run."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIRuntimeDryRunResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI runtime dry-run response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    runtime_gate_id: UUID
+    adapter_dispatch_id: UUID
+    connection_probe_id: UUID
+    execution_plan_id: UUID
+    job_request_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    dry_run_status: str
+    dry_run_mode: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    adapter_contract: dict[str, Any]
+    dry_run_request: dict[str, Any]
+    expected_response: dict[str, Any]
+    runtime_policy: dict[str, Any]
+    validation_checks: list[dict[str, Any]]
+    operator_checklist: list[str]
+    rollback_plan: dict[str, Any]
+    dry_run_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    planned_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    validated_by: str | None
+    cancelled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    validated_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+    ) -> "CommercialOperationComfyUIRuntimeDryRunResponse":
+        return cls(
+            id=dry_run.id,
+            workspace_id=dry_run.workspace_id,
+            operation_id=dry_run.operation_id,
+            runtime_gate_id=dry_run.runtime_gate_id,
+            adapter_dispatch_id=dry_run.adapter_dispatch_id,
+            connection_probe_id=dry_run.connection_probe_id,
+            execution_plan_id=dry_run.execution_plan_id,
+            job_request_id=dry_run.job_request_id,
+            preflight_id=dry_run.preflight_id,
+            handoff_id=dry_run.handoff_id,
+            adapter_config_id=dry_run.adapter_config_id,
+            asset_request_id=dry_run.asset_request_id,
+            step_key=dry_run.step_key,
+            title=dry_run.title,
+            dry_run_status=dry_run.dry_run_status,
+            dry_run_mode=dry_run.dry_run_mode,
+            target_url=dry_run.target_url,
+            queue_name=dry_run.queue_name,
+            workflow_name=dry_run.workflow_name,
+            adapter_contract=dry_run.adapter_contract,
+            dry_run_request=dry_run.dry_run_request,
+            expected_response=dry_run.expected_response,
+            runtime_policy=dry_run.runtime_policy,
+            validation_checks=dry_run.validation_checks,
+            operator_checklist=dry_run.operator_checklist,
+            rollback_plan=dry_run.rollback_plan,
+            dry_run_payload=dry_run.dry_run_payload,
+            result_summary=dry_run.result_summary,
+            failure_reason=dry_run.failure_reason,
+            reviewer_notes=dry_run.reviewer_notes,
+            planned_by=dry_run.planned_by,
+            updated_by=dry_run.updated_by,
+            approved_by=dry_run.approved_by,
+            validated_by=dry_run.validated_by,
+            cancelled_by=dry_run.cancelled_by,
+            archived_by=dry_run.archived_by,
+            approved_at=dry_run.approved_at,
+            rejected_at=dry_run.rejected_at,
+            validated_at=dry_run.validated_at,
+            failed_at=dry_run.failed_at,
+            cancelled_at=dry_run.cancelled_at,
+            archived_at=dry_run.archived_at,
+            metadata=dry_run.dry_run_metadata,
+            created_at=dry_run.created_at,
+            updated_at=dry_run.updated_at,
+        )
+
+
+class CommercialOperationComfyUIRuntimeDryRunListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI runtime dry-run list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIRuntimeDryRunResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

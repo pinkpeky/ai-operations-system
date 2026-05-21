@@ -126,6 +126,12 @@ def test_migration_continuity_parses_phase_61m_head() -> None:
     assert "revision = \"0055_phase61x_comfyui_gates\"" in phase_61x
     assert "down_revision = \"0054_phase61w_comfyui_dispatches\"" in phase_61x
 
+    phase_61y = (
+        ROOT / "alembic/versions/20260521_0056_phase61y_commercial_operation_comfyui_runtime_dry_runs.py"
+    ).read_text(encoding="utf-8")
+    assert "revision = \"0056_phase61y_comfyui_dryruns\"" in phase_61y
+    assert "down_revision = \"0055_phase61x_comfyui_gates\"" in phase_61y
+
 
 def test_migration_revision_ids_fit_alembic_version_column() -> None:
     for path in (ROOT / "alembic/versions").glob("*.py"):
