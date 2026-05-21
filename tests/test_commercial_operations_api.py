@@ -903,6 +903,111 @@ async def test_commercial_operations_api_flow() -> None:
             assert probed_comfyui_connection_probe.json()["probe_status"] == "probed"
             assert probed_comfyui_connection_probe.json()["probed_by"] == "user-commercial-api"
 
+            comfyui_adapter_dispatch = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{comfyui_connection_probe_id}/adapter-dispatches",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI adapter dispatch",
+                    "dispatch_mode": "future_guarded_dispatch",
+                    "prompt_payload": {"source": "operator", "generation_started": True},
+                    "workflow_payload": {"workflow_validation": "live"},
+                    "queue_payload": {"queue_submission": True, "queue_read": True},
+                    "dispatch_payload": {
+                        "dispatch_mode": "future_guarded_dispatch",
+                        "network_request": True,
+                        "queue_submission": True,
+                        "prompt_submission": True,
+                        "upload_files": True,
+                        "generation_started": True,
+                    },
+                    "guardrails": [
+                        {"key": "operator_owner", "label": "Operator owner assigned", "status": True}
+                    ],
+                    "operator_checklist": ["probe recorded", "approval retained"],
+                    "retry_policy": {"max_attempts": "many", "automatic_retry": True},
+                    "recovery_plan": {"next_steps": ["review dispatch payload"]},
+                    "metadata": {"phase": "61W"},
+                },
+            )
+            assert comfyui_adapter_dispatch.status_code == 201
+            comfyui_adapter_dispatch_body = comfyui_adapter_dispatch.json()
+            comfyui_adapter_dispatch_id = comfyui_adapter_dispatch_body["id"]
+            assert comfyui_adapter_dispatch_body["dispatch_status"] == "draft"
+            assert comfyui_adapter_dispatch_body["connection_probe_id"] == comfyui_connection_probe_id
+            assert comfyui_adapter_dispatch_body["dispatch_mode"] == "metadata_only"
+            assert comfyui_adapter_dispatch_body["dispatch_payload"]["dispatch_mode"] == "metadata_only"
+            assert comfyui_adapter_dispatch_body["dispatch_payload"]["network_request"] is False
+            assert comfyui_adapter_dispatch_body["dispatch_payload"]["queue_submission"] is False
+            assert comfyui_adapter_dispatch_body["dispatch_payload"]["prompt_submission"] is False
+            assert comfyui_adapter_dispatch_body["dispatch_payload"]["upload_files"] is False
+            assert comfyui_adapter_dispatch_body["dispatch_payload"]["generation_started"] is False
+            assert comfyui_adapter_dispatch_body["queue_payload"]["queue_submission"] is False
+            assert comfyui_adapter_dispatch_body["queue_payload"]["queue_read"] is False
+            assert comfyui_adapter_dispatch_body["retry_policy"]["automatic_retry"] is False
+            assert comfyui_adapter_dispatch_body["retry_policy"]["max_attempts"] == 1
+            assert comfyui_adapter_dispatch_body["dispatch_plan_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI adapter dispatch; no ComfyUI HTTP request, prompt submission, upload, queue submission, or media generation occurs"
+            )
+            assert "no ComfyUI prompt submission" in comfyui_adapter_dispatch_body["dispatch_plan_payload"]["forbidden_actions"]
+
+            comfyui_adapter_dispatches = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches",
+                headers=headers,
+            )
+            assert comfyui_adapter_dispatches.status_code == 200
+            assert [item["id"] for item in comfyui_adapter_dispatches.json()["items"]] == [comfyui_adapter_dispatch_id]
+
+            hidden_comfyui_adapter_dispatches = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_adapter_dispatches.status_code == 404
+
+            updated_comfyui_adapter_dispatch = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}",
+                headers=headers,
+                json={
+                    "dispatch_payload": {
+                        "dispatch_mode": "future_guarded_dispatch",
+                        "queue_submission": True,
+                        "prompt_submission": True,
+                        "submit_jobs": True,
+                    },
+                    "operator_checklist": ["probe recorded", "operator reviewed"],
+                },
+            )
+            assert updated_comfyui_adapter_dispatch.status_code == 200
+            assert updated_comfyui_adapter_dispatch.json()["dispatch_status"] == "draft"
+            assert updated_comfyui_adapter_dispatch.json()["dispatch_payload"]["dispatch_mode"] == "metadata_only"
+            assert updated_comfyui_adapter_dispatch.json()["dispatch_payload"]["queue_submission"] is False
+            assert updated_comfyui_adapter_dispatch.json()["dispatch_payload"]["prompt_submission"] is False
+
+            ready_comfyui_adapter_dispatch = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for metadata-only adapter dispatch review."},
+            )
+            assert ready_comfyui_adapter_dispatch.status_code == 200
+            assert ready_comfyui_adapter_dispatch.json()["dispatch_status"] == "ready_for_review"
+
+            approved_comfyui_adapter_dispatch = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved metadata-only adapter dispatch plan."},
+            )
+            assert approved_comfyui_adapter_dispatch.status_code == 200
+            assert approved_comfyui_adapter_dispatch.json()["dispatch_status"] == "approved"
+            assert approved_comfyui_adapter_dispatch.json()["approved_by"] == "user-commercial-api"
+
+            dispatched_comfyui_adapter_dispatch = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}/dispatch",
+                headers=headers,
+                json={"result_summary": "Recorded local adapter dispatch plan; no ComfyUI adapter call occurred."},
+            )
+            assert dispatched_comfyui_adapter_dispatch.status_code == 200
+            assert dispatched_comfyui_adapter_dispatch.json()["dispatch_status"] == "dispatched"
+            assert dispatched_comfyui_adapter_dispatch.json()["dispatched_by"] == "user-commercial-api"
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -935,6 +1040,11 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_connection_probe_status"] == "probed"
             assert comfyui_step["comfyui_connection_probe_execution_plan_id"] == comfyui_execution_plan_id
             assert comfyui_step["comfyui_connection_probe_health_endpoint"] == "/system_stats"
+            assert comfyui_step["comfyui_adapter_dispatch_id"] == comfyui_adapter_dispatch_id
+            assert comfyui_step["comfyui_adapter_dispatch_status"] == "dispatched"
+            assert comfyui_step["comfyui_adapter_dispatch_connection_probe_id"] == comfyui_connection_probe_id
+            assert comfyui_step["comfyui_adapter_dispatch_queue_name"] == "commercial-assets"
+            assert comfyui_step["comfyui_adapter_dispatch_mode"] == "metadata_only"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

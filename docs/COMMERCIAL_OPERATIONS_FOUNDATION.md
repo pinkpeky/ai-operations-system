@@ -1,6 +1,6 @@
 # Commercial Operations Foundation
 
-Updated: 2026-05-20
+Updated: 2026-05-21
 
 ## Phase
 
@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. Phase 61R adds metadata-only ComfyUI connection preflights from approved or prepared handoffs. Phase 61S adds metadata-only ComfyUI adapter config records for server maintainer endpoint, queue, workflow allowlist, model inventory, runtime-limit, maintenance-note, and secret-reference readiness. Phase 61T adds metadata-only ComfyUI job request records so checked preflights can become reviewable future queue payloads with approval, safety checks, output expectations, and recovery guidance. Phase 61U adds metadata-only ComfyUI execution plan records so approved or queued job requests can become reviewable queue simulation plans with execution steps, local checks, operator checklist, and rollback guidance. Phase 61V adds metadata-only ComfyUI connection probe records so approved or simulated execution plans can become reviewable health and queue snapshot plans with route/readiness checks, sanitized probe payloads, and lifecycle state before any real HTTP request or queue read. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. Phase 61R adds metadata-only ComfyUI connection preflights from approved or prepared handoffs. Phase 61S adds metadata-only ComfyUI adapter config records for server maintainer endpoint, queue, workflow allowlist, model inventory, runtime-limit, maintenance-note, and secret-reference readiness. Phase 61T adds metadata-only ComfyUI job request records so checked preflights can become reviewable future queue payloads with approval, safety checks, output expectations, and recovery guidance. Phase 61U adds metadata-only ComfyUI execution plan records so approved or queued job requests can become reviewable queue simulation plans with execution steps, local checks, operator checklist, and rollback guidance. Phase 61V adds metadata-only ComfyUI connection probe records so approved or simulated execution plans can become reviewable health and queue snapshot plans with route/readiness checks, sanitized probe payloads, and lifecycle state before any real HTTP request or queue read. Phase 61W adds metadata-only ComfyUI adapter dispatch records so recorded connection probes can become reviewable guarded dispatch handoffs with prompt/workflow/queue payloads, guardrails, retry policy, recovery plan, and lifecycle state before any real adapter call. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61v-commercial-comfyui-connection-probes
+codex/phase-61w-commercial-comfyui-adapter-dispatches
 ```
 
 ## What This Phase Adds
@@ -30,6 +30,7 @@ codex/phase-61v-commercial-comfyui-connection-probes
 - Database table: `commercial_operation_comfyui_job_requests`.
 - Database table: `commercial_operation_comfyui_execution_plans`.
 - Database table: `commercial_operation_comfyui_connection_probes`.
+- Database table: `commercial_operation_comfyui_adapter_dispatches`.
 - Database table: `commercial_operation_deliverables`.
 - Database table: `commercial_operation_execution_requests`.
 - Database table: `commercial_operation_execution_runs`.
@@ -49,6 +50,7 @@ codex/phase-61v-commercial-comfyui-connection-probes
 - ORM model: `CommercialOperationComfyUIJobRequest`.
 - ORM model: `CommercialOperationComfyUIExecutionPlan`.
 - ORM model: `CommercialOperationComfyUIConnectionProbe`.
+- ORM model: `CommercialOperationComfyUIAdapterDispatch`.
 - ORM model: `CommercialOperationDeliverable`.
 - ORM model: `CommercialOperationExecutionRequest`.
 - ORM model: `CommercialOperationExecutionRun`.
@@ -71,6 +73,7 @@ codex/phase-61v-commercial-comfyui-connection-probes
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-job-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/deliverables`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
@@ -100,6 +103,7 @@ codex/phase-61v-commercial-comfyui-connection-probes
 - Migration: `0051_phase61t_comfyui_jobs`.
 - Migration: `0052_phase61u_comfyui_plans`.
 - Migration: `0053_phase61v_comfyui_probes`.
+- Migration: `0054_phase61w_comfyui_dispatches`.
 
 Each commercial operation stores:
 
@@ -178,6 +182,13 @@ Each commercial operation ComfyUI connection probe stores:
 - target URL, queue name, workflow name, metadata-only probe mode, documented health and queue endpoints, expected routes, readiness checks, sanitized probe payload, metadata-only health snapshot, metadata-only queue snapshot, response schema, probe plan payload, result summary, failure reason, reviewer notes, and metadata;
 - planner, updater, approver, probe marker, canceller, archiver, decision timestamps, probe timestamp, failure timestamp, and cancellation timestamp;
 - `probe_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `probed`, `failed`, `cancelled`, or `archived`.
+
+Each commercial operation ComfyUI adapter dispatch stores:
+
+- workspace, operation, probed connection probe, approved/simulated execution plan, approved/queued job request, checked preflight, linked handoff, optional adapter config, approved/prepared asset request, and plan-step context;
+- target URL, queue name, workflow name, metadata-only dispatch mode, prompt payload, workflow payload, queue payload, sanitized dispatch payload, guardrails, operator checklist, retry policy, recovery plan, dispatch plan payload, result summary, failure reason, reviewer notes, and metadata;
+- planner, updater, approver, dispatch marker, canceller, archiver, decision timestamps, dispatch timestamp, failure timestamp, and cancellation timestamp;
+- `dispatch_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `dispatched`, `failed`, `cancelled`, or `archived`.
 
 Each commercial operation deliverable stores:
 
@@ -294,6 +305,12 @@ Execution plans record the approved/queued job request, checked preflight, linke
 Phase 61V treats ComfyUI Connection Probes as first-class, metadata-only operating records created from approved or simulated ComfyUI execution plans. A probe can be drafted, edited, sent for review, approved, rejected, marked probed, marked failed, cancelled, or archived. Creating or deciding a connection probe writes the latest connection-probe state back to the matching `plan_outline` step.
 
 Connection probes record the approved/simulated execution plan, job request, checked preflight, linked handoff, optional adapter config and asset request, target URL, queue/workflow names, health endpoint, queue endpoint, expected routes, readiness checks, sanitized probe payload, metadata-only health snapshot, metadata-only queue snapshot, response schema, result summary, failure reason, reviewer notes, and operator attribution. The service normalizes probe payloads back to `probe_mode=metadata_only`, `network_probe=false`, `read_only_probe=false`, `queue_submission=false`, `submit_job=false`, `upload_files=false`, `secret_value_present=false`, and `external_calls=disabled` so client input cannot accidentally open live probing. Connection probes do not call ComfyUI, read ComfyUI queues, submit queue jobs, upload files, generate media, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store secret values, or bypass approval. The `probe_plan_payload` is designed for workstation users and server maintainers to review the future health/queue probe shape before any guarded adapter exists.
+
+## ComfyUI Adapter Dispatches
+
+Phase 61W treats ComfyUI Adapter Dispatches as first-class, metadata-only operating records created from probed ComfyUI connection probes. A dispatch can be drafted, edited, sent for review, approved, rejected, marked dispatched, marked failed, cancelled, or archived. Creating or deciding an adapter dispatch writes the latest dispatch state back to the matching `plan_outline` step.
+
+Adapter dispatches record the probed connection probe, approved/simulated execution plan, job request, checked preflight, linked handoff, optional adapter config and asset request, target URL, queue/workflow names, prompt payload, workflow payload, queue payload, sanitized dispatch payload, guardrails, operator checklist, retry policy, recovery plan, result summary, failure reason, reviewer notes, and operator attribution. The service normalizes dispatch payloads back to `dispatch_mode=metadata_only`, `network_request=false`, `queue_submission=false`, `prompt_submission=false`, `submit_job=false`, `upload_files=false`, `generation_started=false`, `secret_value_present=false`, and `external_calls=disabled` so client input cannot accidentally open live dispatch. Adapter dispatches do not call ComfyUI, read ComfyUI queues, submit prompts, submit queue jobs, upload files, generate media, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store secret values, or bypass approval. The `dispatch_plan_payload` is designed for workstation users and server maintainers to review the future guarded adapter dispatch shape before any runtime adapter exists.
 
 ## Deliverables
 
@@ -528,7 +545,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation. Phase 61S is a metadata-only ComfyUI adapter config foundation. Phase 61T is a metadata-only ComfyUI job request foundation. Phase 61U is a metadata-only ComfyUI execution plan foundation. Phase 61V is a metadata-only ComfyUI connection probe foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation. Phase 61S is a metadata-only ComfyUI adapter config foundation. Phase 61T is a metadata-only ComfyUI job request foundation. Phase 61U is a metadata-only ComfyUI execution plan foundation. Phase 61V is a metadata-only ComfyUI connection probe foundation. Phase 61W is a metadata-only ComfyUI adapter dispatch foundation.
 
 It does not publish to social platforms.
 

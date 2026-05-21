@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation ComfyUI connection probe slice."""
+    """Recovery docs should point to the active commercial operation ComfyUI adapter dispatch slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61v-commercial-comfyui-connection-probes" in text or "Commercial Operation ComfyUI Connection Probes" in text, path
-        assert "/comfyui-connection-probes" in text or "ComfyUI connection probe" in text, path
+        assert "phase-61w-commercial-comfyui-adapter-dispatches" in text or "Commercial Operation ComfyUI Adapter Dispatches" in text, path
+        assert "/comfyui-adapter-dispatches" in text or "ComfyUI adapter dispatch" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 61V should be the active ComfyUI connection probe slice."""
+    """Phase 61A-61P should be merged and Phase 61W should be the active ComfyUI adapter dispatch slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -471,3 +471,11 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_61_lines["61V"]
     assert "TBD" not in phase_61_lines["61V"]
     assert "In progress" not in phase_61_lines["61V"]
+
+    assert "61W" in phase_61_lines
+    assert "phase-61w-commercial-comfyui-adapter-dispatches" in phase_61_lines["61W"]
+    assert "Commercial Operation ComfyUI Adapter Dispatches" in phase_61_lines["61W"]
+    assert "#63" in phase_61_lines["61W"]
+    assert "Draft PR" in phase_61_lines["61W"]
+    assert "TBD" not in phase_61_lines["61W"]
+    assert "In progress" not in phase_61_lines["61W"]

@@ -32,6 +32,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIAdapterConfigListResponse,
     CommercialOperationComfyUIAdapterConfigResponse,
     CommercialOperationComfyUIAdapterConfigUpdateRequest,
+    CommercialOperationComfyUIAdapterDispatchCreateRequest,
+    CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    CommercialOperationComfyUIAdapterDispatchListResponse,
+    CommercialOperationComfyUIAdapterDispatchResponse,
+    CommercialOperationComfyUIAdapterDispatchUpdateRequest,
     CommercialOperationComfyUIConnectionProbeCreateRequest,
     CommercialOperationComfyUIConnectionProbeDecisionRequest,
     CommercialOperationComfyUIConnectionProbeListResponse,
@@ -3211,6 +3216,343 @@ async def archive_commercial_operation_comfyui_connection_probe(
             extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
         )
         raise AppError("Commercial operation ComfyUI connection probe archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/adapter-dispatches",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Create a metadata-only ComfyUI adapter dispatch from a probed connection probe."""
+
+    try:
+        dispatch = await CommercialOperationService(session).create_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            planned_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch create API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-adapter-dispatches", response_model=CommercialOperationComfyUIAdapterDispatchListResponse)
+async def list_commercial_operation_comfyui_adapter_dispatches(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / dispatched / failed / cancelled / archived"),
+    connection_probe_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchListResponse:
+    """List metadata-only ComfyUI adapter dispatches for a commercial operation."""
+
+    try:
+        dispatches = await CommercialOperationService(session).list_comfyui_adapter_dispatches(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            connection_probe_id=connection_probe_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIAdapterDispatchListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIAdapterDispatchResponse.from_model(item) for item in dispatches],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI adapter dispatch list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI adapter dispatch list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def update_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Patch a metadata-only ComfyUI adapter dispatch before dispatch recording."""
+
+    try:
+        dispatch = await CommercialOperationService(session).update_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch update API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/ready",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def ready_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Mark a metadata-only ComfyUI adapter dispatch ready for review."""
+
+    try:
+        dispatch = await CommercialOperationService(session).mark_comfyui_adapter_dispatch_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch ready API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/approve",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def approve_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Approve a metadata-only ComfyUI adapter dispatch without calling ComfyUI."""
+
+    try:
+        dispatch = await CommercialOperationService(session).approve_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch approve API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/reject",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def reject_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Reject a metadata-only ComfyUI adapter dispatch without calling ComfyUI."""
+
+    try:
+        dispatch = await CommercialOperationService(session).reject_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch reject API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/dispatch",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def dispatch_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Record a metadata-only ComfyUI adapter dispatch; no adapter call occurs."""
+
+    try:
+        dispatch = await CommercialOperationService(session).dispatch_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            dispatched_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch record API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch record failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/fail",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def fail_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Mark a ComfyUI adapter dispatch failed without external execution."""
+
+    try:
+        dispatch = await CommercialOperationService(session).fail_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch fail API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/cancel",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def cancel_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Cancel a metadata-only ComfyUI adapter dispatch."""
+
+    try:
+        dispatch = await CommercialOperationService(session).cancel_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch cancel API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/archive",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def archive_commercial_operation_comfyui_adapter_dispatch(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIAdapterDispatchDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Archive a ComfyUI adapter dispatch without deleting its audit trail."""
+
+    try:
+        dispatch = await CommercialOperationService(session).archive_comfyui_adapter_dispatch(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI adapter dispatch archive API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI adapter dispatch archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

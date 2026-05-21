@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIAdapterDispatch,
     CommercialOperationComfyUIConnectionProbe,
     CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
@@ -87,6 +88,16 @@ CommercialOperationComfyUIConnectionProbeStatusLiteral = Literal[
     "approved",
     "rejected",
     "probed",
+    "failed",
+    "cancelled",
+    "archived",
+]
+CommercialOperationComfyUIAdapterDispatchStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "dispatched",
     "failed",
     "cancelled",
     "archived",
@@ -1483,6 +1494,157 @@ class CommercialOperationComfyUIConnectionProbeListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIConnectionProbeResponse]
+
+
+class CommercialOperationComfyUIAdapterDispatchCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI adapter dispatch from a probed connection probe."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    dispatch_mode: str = Field(default="metadata_only", min_length=1, max_length=32)
+    prompt_payload: dict[str, Any] = Field(default_factory=dict)
+    workflow_payload: dict[str, Any] = Field(default_factory=dict)
+    queue_payload: dict[str, Any] = Field(default_factory=dict)
+    dispatch_payload: dict[str, Any] = Field(default_factory=dict)
+    guardrails: list[dict[str, Any]] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    retry_policy: dict[str, Any] = Field(default_factory=dict)
+    recovery_plan: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIAdapterDispatchUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI adapter dispatch before dispatch recording."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    dispatch_mode: str | None = Field(default=None, min_length=1, max_length=32)
+    prompt_payload: dict[str, Any] | None = None
+    workflow_payload: dict[str, Any] | None = None
+    queue_payload: dict[str, Any] | None = None
+    dispatch_payload: dict[str, Any] | None = None
+    guardrails: list[dict[str, Any]] | None = None
+    operator_checklist: list[str] | None = None
+    retry_policy: dict[str, Any] | None = None
+    recovery_plan: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIAdapterDispatchDecisionRequest(BaseModel):
+    """Review, dispatch, fail, cancel, or archive a ComfyUI adapter dispatch."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIAdapterDispatchResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI adapter dispatch response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    connection_probe_id: UUID
+    execution_plan_id: UUID
+    job_request_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    dispatch_status: str
+    dispatch_mode: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    prompt_payload: dict[str, Any]
+    workflow_payload: dict[str, Any]
+    queue_payload: dict[str, Any]
+    dispatch_payload: dict[str, Any]
+    guardrails: list[dict[str, Any]]
+    operator_checklist: list[str]
+    retry_policy: dict[str, Any]
+    recovery_plan: dict[str, Any]
+    dispatch_plan_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    planned_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    dispatched_by: str | None
+    cancelled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    dispatched_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> "CommercialOperationComfyUIAdapterDispatchResponse":
+        return cls(
+            id=dispatch.id,
+            workspace_id=dispatch.workspace_id,
+            operation_id=dispatch.operation_id,
+            connection_probe_id=dispatch.connection_probe_id,
+            execution_plan_id=dispatch.execution_plan_id,
+            job_request_id=dispatch.job_request_id,
+            preflight_id=dispatch.preflight_id,
+            handoff_id=dispatch.handoff_id,
+            adapter_config_id=dispatch.adapter_config_id,
+            asset_request_id=dispatch.asset_request_id,
+            step_key=dispatch.step_key,
+            title=dispatch.title,
+            dispatch_status=dispatch.dispatch_status,
+            dispatch_mode=dispatch.dispatch_mode,
+            target_url=dispatch.target_url,
+            queue_name=dispatch.queue_name,
+            workflow_name=dispatch.workflow_name,
+            prompt_payload=dispatch.prompt_payload,
+            workflow_payload=dispatch.workflow_payload,
+            queue_payload=dispatch.queue_payload,
+            dispatch_payload=dispatch.dispatch_payload,
+            guardrails=dispatch.guardrails,
+            operator_checklist=dispatch.operator_checklist,
+            retry_policy=dispatch.retry_policy,
+            recovery_plan=dispatch.recovery_plan,
+            dispatch_plan_payload=dispatch.dispatch_plan_payload,
+            result_summary=dispatch.result_summary,
+            failure_reason=dispatch.failure_reason,
+            reviewer_notes=dispatch.reviewer_notes,
+            planned_by=dispatch.planned_by,
+            updated_by=dispatch.updated_by,
+            approved_by=dispatch.approved_by,
+            dispatched_by=dispatch.dispatched_by,
+            cancelled_by=dispatch.cancelled_by,
+            archived_by=dispatch.archived_by,
+            approved_at=dispatch.approved_at,
+            rejected_at=dispatch.rejected_at,
+            dispatched_at=dispatch.dispatched_at,
+            failed_at=dispatch.failed_at,
+            cancelled_at=dispatch.cancelled_at,
+            archived_at=dispatch.archived_at,
+            metadata=dispatch.dispatch_metadata,
+            created_at=dispatch.created_at,
+            updated_at=dispatch.updated_at,
+        )
+
+
+class CommercialOperationComfyUIAdapterDispatchListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI adapter dispatch list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIAdapterDispatchResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):
