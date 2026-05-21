@@ -10,7 +10,12 @@ from urllib.parse import urlparse, urlunparse
 from urllib.request import Request, urlopen
 
 from app.core.config import Settings, get_settings
-from app.schemas.comfyui_runtime import ComfyUIRuntimeCapabilitiesResponse, ComfyUIRuntimeHealthResponse
+from app.schemas.comfyui_runtime import (
+    ComfyUIRuntimeCapabilitiesResponse,
+    ComfyUIRuntimeDiagnosticCheck,
+    ComfyUIRuntimeDiagnosticsResponse,
+    ComfyUIRuntimeHealthResponse,
+)
 
 
 COMFYUI_RUNTIME_READ_ONLY_ACTION = "call_comfyui_system_stats_read_only"
@@ -230,6 +235,164 @@ class ComfyUIRuntimeService:
                 "contract_mode": "guarded_adapter_contract",
                 "runtime_calls_enabled": False,
                 "read_only_probe_ready": read_only_probe_ready,
+            },
+        )
+
+    def diagnostics(self, *, workspace_id: str | None = None) -> ComfyUIRuntimeDiagnosticsResponse:
+        """Return no-network readiness diagnostics for the guarded runtime gates."""
+
+        provider = self.settings.comfyui_runtime_provider.strip().lower() or "disabled"
+        parsed = urlparse(self.settings.comfyui_runtime_base_url)
+        host = (parsed.hostname or "").lower()
+        allowed_hosts = sorted(self.settings.comfyui_runtime_allowed_host_set)
+        allowed_health_paths = sorted(self.settings.comfyui_runtime_allowed_health_path_set)
+        health_path = self._normalize_path(self.settings.comfyui_runtime_health_path)
+        scheme_allowed = parsed.scheme in {"http", "https"}
+        host_allowed = bool(host and host in self.settings.comfyui_runtime_allowed_host_set)
+        health_path_allowed = health_path in self.settings.comfyui_runtime_allowed_health_path_set
+
+        checks: list[ComfyUIRuntimeDiagnosticCheck] = []
+        blocking_reasons: list[str] = []
+        recommended_actions: list[str] = []
+
+        def add_check(
+            *,
+            key: str,
+            passed: bool,
+            label: str,
+            detail: str,
+            current_value: Any,
+            expected_value: Any,
+            remediation: str | None,
+            required: bool = True,
+        ) -> None:
+            status = "pass" if passed else "blocked" if required else "warning"
+            checks.append(
+                ComfyUIRuntimeDiagnosticCheck(
+                    key=key,
+                    status=status,
+                    label=label,
+                    detail=detail,
+                    current_value=current_value,
+                    expected_value=expected_value,
+                    remediation=remediation,
+                )
+            )
+            if required and not passed:
+                blocking_reasons.append(f"{key}: {detail}")
+                if remediation and remediation not in recommended_actions:
+                    recommended_actions.append(remediation)
+
+        add_check(
+            key="provider_guarded",
+            passed=provider == "guarded",
+            label="Runtime provider",
+            detail=f"Current provider is {provider}; guarded provider is required before any ComfyUI probe.",
+            current_value=provider,
+            expected_value="guarded",
+            remediation="Set COMFYUI_RUNTIME_PROVIDER=guarded after the maintainer approves guarded probing.",
+        )
+        add_check(
+            key="runtime_enabled",
+            passed=self.settings.comfyui_runtime_enabled,
+            label="Runtime enable switch",
+            detail="COMFYUI_RUNTIME_ENABLED must be true before read-only probe readiness.",
+            current_value=self.settings.comfyui_runtime_enabled,
+            expected_value=True,
+            remediation="Set COMFYUI_RUNTIME_ENABLED=true only for the reviewed ComfyUI host.",
+        )
+        add_check(
+            key="network_gate",
+            passed=self.settings.comfyui_runtime_allow_network,
+            label="Network gate",
+            detail="COMFYUI_RUNTIME_ALLOW_NETWORK must be true before the service may contact ComfyUI.",
+            current_value=self.settings.comfyui_runtime_allow_network,
+            expected_value=True,
+            remediation="Set COMFYUI_RUNTIME_ALLOW_NETWORK=true after host and path allowlists are reviewed.",
+        )
+        add_check(
+            key="base_url_scheme",
+            passed=scheme_allowed,
+            label="Base URL scheme",
+            detail="COMFYUI_RUNTIME_BASE_URL must use http or https.",
+            current_value=parsed.scheme or None,
+            expected_value=["http", "https"],
+            remediation="Set COMFYUI_RUNTIME_BASE_URL to an http or https ComfyUI endpoint.",
+        )
+        add_check(
+            key="base_url_host_allowlist",
+            passed=host_allowed,
+            label="Host allowlist",
+            detail=f"Base URL host {host or '<missing>'} must be present in COMFYUI_RUNTIME_ALLOWED_HOSTS.",
+            current_value=host or None,
+            expected_value=allowed_hosts,
+            remediation="Add the ComfyUI host to COMFYUI_RUNTIME_ALLOWED_HOSTS.",
+        )
+        add_check(
+            key="read_only_probe_gate",
+            passed=self.settings.comfyui_runtime_read_only_probe_enabled,
+            label="Read-only probe gate",
+            detail="COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED must be true before GET /system_stats is attempted.",
+            current_value=self.settings.comfyui_runtime_read_only_probe_enabled,
+            expected_value=True,
+            remediation="Set COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=true only after provider, network, host, and path gates pass.",
+        )
+        add_check(
+            key="health_path_allowlist",
+            passed=health_path_allowed,
+            label="Health path allowlist",
+            detail=f"Health path {health_path} must be present in COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS.",
+            current_value=health_path,
+            expected_value=allowed_health_paths,
+            remediation="Set COMFYUI_RUNTIME_HEALTH_PATH to an entry in COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS, normally /system_stats.",
+        )
+        add_check(
+            key="execution_boundary",
+            passed=True,
+            label="Execution boundary",
+            detail="Prompt submission, queue operations, uploads, media generation, secrets, and switch mutation remain disabled.",
+            current_value=False,
+            expected_value=False,
+            remediation=None,
+            required=False,
+        )
+
+        read_only_probe_ready = all(check.status == "pass" for check in checks if check.key != "execution_boundary")
+        readiness_status = "ready_for_read_only_probe" if read_only_probe_ready else "blocked"
+
+        return ComfyUIRuntimeDiagnosticsResponse(
+            provider=provider,
+            enabled=self.settings.comfyui_runtime_enabled,
+            guarded=True,
+            network_allowed=self.settings.comfyui_runtime_allow_network,
+            read_only_probe_enabled=self.settings.comfyui_runtime_read_only_probe_enabled,
+            base_url=self.settings.comfyui_runtime_base_url,
+            parsed_host=host or None,
+            scheme_allowed=scheme_allowed,
+            host_allowed=host_allowed,
+            allowed_hosts=allowed_hosts,
+            health_path=health_path,
+            health_path_allowed=health_path_allowed,
+            allowed_health_paths=allowed_health_paths,
+            read_only_probe_ready=read_only_probe_ready,
+            external_request_attempted=False,
+            runtime_calls_enabled=False,
+            readiness_status=readiness_status,
+            blocking_reasons=blocking_reasons,
+            recommended_actions=recommended_actions,
+            diagnostics=checks,
+            forbidden_actions=self._disabled_actions(read_only_probe_ready=read_only_probe_ready),
+            workspace_id=workspace_id,
+            raw={
+                "phase": "62C",
+                "contract_mode": "guarded_readiness_diagnostics",
+                "no_network_call_performed": True,
+                "read_only_probe_ready": read_only_probe_ready,
+                "parsed_host": host,
+                "scheme_allowed": scheme_allowed,
+                "host_allowed": host_allowed,
+                "health_path_allowed": health_path_allowed,
+                "disabled_actions": self._disabled_actions(read_only_probe_ready=read_only_probe_ready),
             },
         )
 

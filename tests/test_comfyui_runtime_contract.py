@@ -38,6 +38,66 @@ def test_comfyui_runtime_contract_is_disabled_by_default() -> None:
     assert "contract_read" in capabilities.available_actions
 
 
+def test_comfyui_runtime_diagnostics_are_no_network_by_default() -> None:
+    """Diagnostics should explain blocked readiness without touching ComfyUI."""
+
+    calls: list[tuple[str, float]] = []
+    diagnostics = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {},
+    ).diagnostics(workspace_id="workspace-comfyui")
+
+    assert diagnostics.success is True
+    assert diagnostics.provider == "disabled"
+    assert diagnostics.readiness_status == "blocked"
+    assert diagnostics.read_only_probe_ready is False
+    assert diagnostics.external_request_attempted is False
+    assert diagnostics.runtime_calls_enabled is False
+    assert diagnostics.raw["no_network_call_performed"] is True
+    assert calls == []
+    assert any("provider_guarded" in reason for reason in diagnostics.blocking_reasons)
+    assert any("COMFYUI_RUNTIME_PROVIDER=guarded" in action for action in diagnostics.recommended_actions)
+    assert {check.key for check in diagnostics.diagnostics} >= {
+        "provider_guarded",
+        "runtime_enabled",
+        "network_gate",
+        "base_url_scheme",
+        "base_url_host_allowlist",
+        "read_only_probe_gate",
+        "health_path_allowlist",
+        "execution_boundary",
+    }
+
+
+def test_comfyui_runtime_diagnostics_report_ready_without_probe_call() -> None:
+    """Readiness diagnostics should not run the live read-only probe."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+    )
+    calls: list[tuple[str, float]] = []
+    diagnostics = ComfyUIRuntimeService(
+        settings=settings,
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {"status_code": 200},
+    ).diagnostics(workspace_id="workspace-comfyui")
+
+    assert diagnostics.provider == "guarded"
+    assert diagnostics.readiness_status == "ready_for_read_only_probe"
+    assert diagnostics.read_only_probe_ready is True
+    assert diagnostics.blocking_reasons == []
+    assert diagnostics.recommended_actions == []
+    assert diagnostics.external_request_attempted is False
+    assert diagnostics.raw["no_network_call_performed"] is True
+    assert calls == []
+    assert all(check.status == "pass" for check in diagnostics.diagnostics)
+    assert "call_comfyui_system_stats_read_only" not in diagnostics.forbidden_actions
+
+
 def test_comfyui_runtime_contract_normalizes_guarded_config_without_calling_network() -> None:
     """Guarded settings still need the explicit read-only probe switch before network calls."""
 
@@ -184,6 +244,7 @@ async def test_comfyui_runtime_contract_api(monkeypatch) -> None:  # type: ignor
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         health = await client.get("/api/v1/comfyui-runtime/health", headers=headers)
         capabilities = await client.get("/api/v1/comfyui-runtime/capabilities", headers=headers)
+        diagnostics = await client.get("/api/v1/comfyui-runtime/diagnostics", headers=headers)
 
     assert health.status_code == 200
     assert health.json()["workspace_id"] == "workspace-comfyui-api"
@@ -191,3 +252,8 @@ async def test_comfyui_runtime_contract_api(monkeypatch) -> None:  # type: ignor
     assert health.json()["read_only_probe_attempted"] is False
     assert capabilities.status_code == 200
     assert "submit_prompt" in capabilities.json()["disabled_actions"]
+    assert diagnostics.status_code == 200
+    assert diagnostics.json()["workspace_id"] == "workspace-comfyui-api"
+    assert diagnostics.json()["external_request_attempted"] is False
+    assert diagnostics.json()["readiness_status"] == "blocked"
+    assert "provider_guarded" in diagnostics.json()["diagnostics"][0]["key"]

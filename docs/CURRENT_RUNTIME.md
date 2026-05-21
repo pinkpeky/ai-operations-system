@@ -1,6 +1,6 @@
 # Current Runtime
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 This document records the current real runtime defaults for `E:\ai-operations-system`. Values are based on `app/core/config.py`, `.env.example`, and `docker-compose.yml`.
 
@@ -64,7 +64,9 @@ Phase 62A adds a disabled-by-default ComfyUI runtime adapter contract: `GET /api
 
 Phase 62B adds a guarded read-only ComfyUI health probe on top of the Phase 62A contract. The health endpoint still performs no network request by default. It attempts exactly one `GET /system_stats` request only when `COMFYUI_RUNTIME_PROVIDER=guarded`, `COMFYUI_RUNTIME_ENABLED=true`, `COMFYUI_RUNTIME_ALLOW_NETWORK=true`, `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=true`, the base URL host is in `COMFYUI_RUNTIME_ALLOWED_HOSTS`, and the health path is in `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS`. The probe reports `read_only_probe_enabled`, `read_only_probe_attempted`, `health_path`, `allowed_health_paths`, `probe_status_code`, and `probe_latency_ms`; it still does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, or resolve secrets.
 
-Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, import or call ComfyUI adapters, call ComfyUI execution endpoints, read ComfyUI queues, upload files to ComfyUI, submit ComfyUI queues, enable runtime server switches, store or resolve ComfyUI secret values, generate media, control real accounts, ingest platform analytics, claim ROI attribution, upload knowledge through generated evidence snapshots, content drafts, or asset briefs, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, Phase 61L optimization decisions, Phase 61M evidence snapshots, Phase 61N generated RAG evidence snapshots, Phase 61O generated RAG content drafts, Phase 61P generated RAG asset briefs, Phase 61Q ComfyUI handoffs, Phase 61R ComfyUI preflights, Phase 61S ComfyUI adapter configs, Phase 61T ComfyUI job requests, Phase 61U ComfyUI execution plans, Phase 61V ComfyUI connection probes, Phase 61W ComfyUI adapter dispatches, Phase 61X ComfyUI runtime gates, Phase 61Y ComfyUI runtime dry-runs, Phase 61Z ComfyUI runtime activations, Phase 62A ComfyUI runtime adapter contract endpoints, and Phase 62B guarded read-only probe metadata are guarded records or disabled/explicitly-gated contract surfaces; the next runtime step remains future adapter execution planning and later monitored analytics adapters.
+Phase 62C adds `GET /api/v1/comfyui-runtime/diagnostics`, a no-network readiness report for server maintainers. It returns `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, `external_request_attempted=false`, `runtime_calls_enabled=false`, and per-gate checks for `provider_guarded`, `runtime_enabled`, `network_gate`, `base_url_scheme`, `base_url_host_allowlist`, `read_only_probe_gate`, `health_path_allowlist`, and `execution_boundary`. This endpoint never calls ComfyUI; it only explains whether the guarded Phase 62B read-only probe would be ready if an operator refreshed health.
+
+Commercial operations still do not auto-optimize, publish, execute OpenClaw actions, run Browser Worker actions, run ComfyUI jobs, import or call ComfyUI adapters, call ComfyUI execution endpoints, read ComfyUI queues, upload files to ComfyUI, submit ComfyUI queues, enable runtime server switches, store or resolve ComfyUI secret values, generate media, control real accounts, ingest platform analytics, claim ROI attribution, upload knowledge through generated evidence snapshots, content drafts, or asset briefs, or bypass approval. Phase 61H execution requests, Phase 61I execution runs, Phase 61J results, Phase 61K monitoring observations, Phase 61L optimization decisions, Phase 61M evidence snapshots, Phase 61N generated RAG evidence snapshots, Phase 61O generated RAG content drafts, Phase 61P generated RAG asset briefs, Phase 61Q ComfyUI handoffs, Phase 61R ComfyUI preflights, Phase 61S ComfyUI adapter configs, Phase 61T ComfyUI job requests, Phase 61U ComfyUI execution plans, Phase 61V ComfyUI connection probes, Phase 61W ComfyUI adapter dispatches, Phase 61X ComfyUI runtime gates, Phase 61Y ComfyUI runtime dry-runs, Phase 61Z ComfyUI runtime activations, Phase 62A ComfyUI runtime adapter contract endpoints, Phase 62B guarded read-only probe metadata, and Phase 62C runtime diagnostics are guarded records or disabled/explicitly-gated contract surfaces; the next runtime step remains future adapter execution planning and later monitored analytics adapters.
 
 ## Provider Defaults
 
@@ -116,15 +118,15 @@ Commercial operations still do not auto-optimize, publish, execute OpenClaw acti
 | `OPENCLAW_PROVIDER` | `mock` | OpenClaw worker adapter provider. Current default is mock only. |
 | `OPENCLAW_ENABLED` | `True` | Enables the OpenClaw adapter foundation APIs and tool. |
 | `OPENCLAW_ACTION_TIMEOUT_SECONDS` | `60.0` | Timeout for OpenClaw worker runtime calls. |
-| `COMFYUI_RUNTIME_PROVIDER` | `disabled` | ComfyUI runtime adapter provider. Phase 62B default is disabled. |
+| `COMFYUI_RUNTIME_PROVIDER` | `disabled` | ComfyUI runtime adapter provider. Phase 62C default is disabled. |
 | `COMFYUI_RUNTIME_ENABLED` | `False` | Master switch for future ComfyUI runtime adapter work. Current default blocks runtime calls. |
 | `COMFYUI_RUNTIME_BASE_URL` | `http://127.0.0.1:8188` | Guarded ComfyUI base URL, reported by default and used only by the explicit read-only probe gate. |
 | `COMFYUI_RUNTIME_TIMEOUT_SECONDS` | `30.0` | ComfyUI read-only probe timeout when every explicit gate is enabled. |
 | `COMFYUI_RUNTIME_ALLOW_NETWORK` | `False` | Explicit network-call gate. Current default prevents external requests. |
 | `COMFYUI_RUNTIME_ALLOWED_HOSTS` | `127.0.0.1,localhost` | Host allowlist required before the read-only health probe can be attempted. |
-| `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED` | `False` | Final explicit gate for the Phase 62B `GET /system_stats` read-only health probe. |
+| `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED` | `False` | Final explicit gate for the Phase 62B `GET /system_stats` read-only health probe; Phase 62C diagnostics reports whether this gate blocks readiness. |
 | `COMFYUI_RUNTIME_HEALTH_PATH` | `/system_stats` | Read-only ComfyUI health path candidate. It must also be listed in `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS`. |
-| `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS` | `/system_stats` | Exact path allowlist for Phase 62B read-only health probes. |
+| `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS` | `/system_stats` | Exact path allowlist for Phase 62B read-only health probes; Phase 62C diagnostics reports health path allowlist failures without network calls. |
 
 ## Search Defaults
 

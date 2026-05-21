@@ -4655,7 +4655,7 @@ function CommercialOperationsPage({
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径和禁用动作。Phase 62B 只有显式打开只读探测开关后才会请求 /system_stats；不会提交 prompt、读取队列、上传文件或生成媒体。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因和禁用动作。Phase 62C 新增无网络诊断；只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
           runtimeRefresh: "刷新适配器状态",
           runtimeCapabilities: "能力与护栏",
         }
@@ -4669,7 +4669,7 @@ function CommercialOperationsPage({
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, and disabled actions. Phase 62B only calls /system_stats when every explicit read-only probe gate is enabled; it does not submit prompts, read queues, upload files, or generate media.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, and disabled actions. Phase 62C adds no-network diagnostics; /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
           runtimeRefresh: "Refresh adapter status",
           runtimeCapabilities: "Capabilities and guardrails",
         };
@@ -5921,8 +5921,12 @@ function CommercialOperationsPage({
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [health, capabilities] = await Promise.all([comfyuiRuntimeApi.health(settings), comfyuiRuntimeApi.capabilities(settings)]);
-      setComfyuiRuntimeAdapterState({ data: { health, capabilities }, error: null, loading: false, updatedAt: nowLabel() });
+      const [health, capabilities, diagnostics] = await Promise.all([
+        comfyuiRuntimeApi.health(settings),
+        comfyuiRuntimeApi.capabilities(settings),
+        comfyuiRuntimeApi.diagnostics(settings),
+      ]);
+      setComfyuiRuntimeAdapterState({ data: { health, capabilities, diagnostics }, error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
       setComfyuiRuntimeAdapterState({
         data: null,
@@ -9780,6 +9784,11 @@ function CommercialOperationsPage({
             <Field label="runtime_calls_enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["runtime_calls_enabled"], "false")} />} />
             <Field label="read_only_probe_enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["read_only_probe_enabled"], "false")} />} />
             <Field label="read_only_probe_attempted" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["read_only_probe_attempted"], "false")} />} />
+            <Field label="readiness_status" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord, ["readiness_status"], "blocked")} />} />
+            <Field label="read_only_probe_ready" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord, ["read_only_probe_ready"], "false")} />} />
+            <Field label="diagnostic_blockers" value={shortJson((comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord | undefined)?.blocking_reasons, 180)} />
+            <Field label="recommended_actions" value={shortJson((comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord | undefined)?.recommended_actions, 180)} />
+            <Field label="diagnostic_checks" value={shortJson((comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord | undefined)?.diagnostics, 220)} />
             <Field label="health_path" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["health_path"], "-")} />
             <Field label="allowed_health_paths" value={shortJson((comfyuiRuntimeAdapterState.data?.health as JsonRecord | undefined)?.allowed_health_paths, 120)} />
             <Field label="probe_status_code" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["probe_status_code"], "-")} />

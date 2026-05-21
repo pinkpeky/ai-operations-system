@@ -43,6 +43,7 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/commercial-operations",
         "/comfyui-runtime/health",
         "/comfyui-runtime/capabilities",
+        "/comfyui-runtime/diagnostics",
         "/commercial-operations/${encodeURIComponent(operationId)}",
         "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft",
         "/commercial-operations/${encodeURIComponent(operationId)}/approvals",
