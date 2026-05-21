@@ -518,5 +518,7 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "ComfyUI Runtime Adapter Contract" in phase_62_lines["62A"]
     assert "/api/v1/comfyui-runtime/health" in phase_62_lines["62A"]
     assert "/api/v1/comfyui-runtime/capabilities" in phase_62_lines["62A"]
-    assert "Pending PR" in phase_62_lines["62A"] or "Draft PR" in phase_62_lines["62A"]
+    assert "#67" in phase_62_lines["62A"]
+    assert "Draft PR" in phase_62_lines["62A"]
+    assert "TBD" not in phase_62_lines["62A"]
     assert "In progress" not in phase_62_lines["62A"]
