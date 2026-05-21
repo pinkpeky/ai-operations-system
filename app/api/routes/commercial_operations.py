@@ -67,6 +67,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIRuntimeGateListResponse,
     CommercialOperationComfyUIRuntimeGateResponse,
     CommercialOperationComfyUIRuntimeGateUpdateRequest,
+    CommercialOperationComfyUIRuntimeDryRunCreateRequest,
+    CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    CommercialOperationComfyUIRuntimeDryRunListResponse,
+    CommercialOperationComfyUIRuntimeDryRunResponse,
+    CommercialOperationComfyUIRuntimeDryRunUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
     CommercialOperationContentDraftGenerateRequest,
@@ -3895,6 +3900,343 @@ async def archive_commercial_operation_comfyui_runtime_gate(
             extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
         )
         raise AppError("Commercial operation ComfyUI runtime gate archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/runtime-dry-runs",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Create a metadata-only ComfyUI runtime dry-run from an armed runtime gate."""
+
+    try:
+        dry_run = await CommercialOperationService(session).create_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            planned_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run create API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-runtime-dry-runs", response_model=CommercialOperationComfyUIRuntimeDryRunListResponse)
+async def list_commercial_operation_comfyui_runtime_dry_runs(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / validated / failed / cancelled / archived"),
+    runtime_gate_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunListResponse:
+    """List metadata-only ComfyUI runtime dry-runs for a commercial operation."""
+
+    try:
+        dry_runs = await CommercialOperationService(session).list_comfyui_runtime_dry_runs(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            runtime_gate_id=runtime_gate_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIRuntimeDryRunResponse.from_model(item) for item in dry_runs],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI runtime dry-run list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI runtime dry-run list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def update_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Patch a metadata-only ComfyUI runtime dry-run before validation."""
+
+    try:
+        dry_run = await CommercialOperationService(session).update_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run update API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/ready",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def ready_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Mark a metadata-only ComfyUI runtime dry-run ready for review."""
+
+    try:
+        dry_run = await CommercialOperationService(session).mark_comfyui_runtime_dry_run_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run ready API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/approve",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def approve_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Approve a metadata-only ComfyUI runtime dry-run without enabling runtime calls."""
+
+    try:
+        dry_run = await CommercialOperationService(session).approve_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run approve API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/reject",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def reject_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Reject a metadata-only ComfyUI runtime dry-run."""
+
+    try:
+        dry_run = await CommercialOperationService(session).reject_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run reject API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/validate",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def validate_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Validate a metadata-only ComfyUI runtime dry-run; no adapter runtime call occurs."""
+
+    try:
+        dry_run = await CommercialOperationService(session).validate_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            validated_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run validate API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run validate failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/fail",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def fail_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Mark a ComfyUI runtime dry-run failed without calling ComfyUI."""
+
+    try:
+        dry_run = await CommercialOperationService(session).fail_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run fail API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/cancel",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def cancel_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Cancel a metadata-only ComfyUI runtime dry-run."""
+
+    try:
+        dry_run = await CommercialOperationService(session).cancel_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run cancel API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/archive",
+    response_model=CommercialOperationComfyUIRuntimeDryRunResponse,
+)
+async def archive_commercial_operation_comfyui_runtime_dry_run(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeDryRunDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeDryRunResponse:
+    """Archive a ComfyUI runtime dry-run without deleting its audit trail."""
+
+    try:
+        dry_run = await CommercialOperationService(session).archive_comfyui_runtime_dry_run(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeDryRunResponse.from_model(dry_run)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime dry-run archive API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime dry-run archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

@@ -36,6 +36,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61V",
         "Phase 61W",
         "Phase 61X",
+        "Phase 61Y",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -50,6 +51,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "commercial_operation_comfyui_connection_probes",
         "commercial_operation_comfyui_adapter_dispatches",
         "commercial_operation_comfyui_runtime_gates",
+        "commercial_operation_comfyui_runtime_dry_runs",
         "commercial_operation_deliverables",
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
@@ -71,6 +73,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationComfyUIConnectionProbe",
         "CommercialOperationComfyUIAdapterDispatch",
         "CommercialOperationComfyUIRuntimeGate",
+        "CommercialOperationComfyUIRuntimeDryRun",
         "CommercialOperationDeliverable",
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
@@ -94,6 +97,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes",
         "/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches",
         "/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates",
+        "/api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -117,6 +121,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Connection Probes",
         "ComfyUI Adapter Dispatches",
         "ComfyUI Runtime Gates",
+        "ComfyUI Runtime Dry-Runs",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -134,7 +139,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61x_commercial_operation_comfyui_runtime_gates() -> None:
+def test_recovery_docs_point_to_phase_61y_commercial_operation_comfyui_runtime_dry_runs() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -147,6 +152,6 @@ def test_recovery_docs_point_to_phase_61x_commercial_operation_comfyui_runtime_g
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61X" in text or "61X" in text, relative
+        assert "Phase 61Y" in text or "61Y" in text, relative
         assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "/comfyui-runtime-gates" in text or "ComfyUI runtime gate" in text, relative
+        assert "/comfyui-runtime-dry-runs" in text or "ComfyUI runtime dry-run" in text, relative

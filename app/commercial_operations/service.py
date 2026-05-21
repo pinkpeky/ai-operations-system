@@ -21,6 +21,7 @@ from app.models.commercial_operation import (
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
+    CommercialOperationComfyUIRuntimeDryRun,
     CommercialOperationComfyUIRuntimeGate,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
@@ -43,6 +44,7 @@ from app.models.enums import (
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIJobRequestStatus,
     CommercialOperationComfyUIPreflightStatus,
+    CommercialOperationComfyUIRuntimeDryRunStatus,
     CommercialOperationComfyUIRuntimeGateStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
@@ -4256,6 +4258,475 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        title: str | None = None,
+        dry_run_mode: str = "metadata_only",
+        adapter_contract: dict[str, Any] | None = None,
+        dry_run_request: dict[str, Any] | None = None,
+        expected_response: dict[str, Any] | None = None,
+        runtime_policy: dict[str, Any] | None = None,
+        validation_checks: list[dict[str, Any]] | None = None,
+        operator_checklist: list[str] | None = None,
+        rollback_plan: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        planned_by: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        gate = await self.require_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+        )
+        if gate.gate_status != CommercialOperationComfyUIRuntimeGateStatus.ARMED.value:
+            raise ValueError("Only armed ComfyUI runtime gates can create runtime dry-runs")
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=gate.adapter_dispatch_id,
+        )
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=gate.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=gate.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=gate.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=gate.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=gate.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        clean_contract = self._build_comfyui_runtime_dry_run_adapter_contract(
+            adapter_contract=adapter_contract,
+            gate=gate,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        clean_request = self._build_comfyui_runtime_dry_run_request(
+            dry_run_request=dry_run_request,
+            dry_run_mode=dry_run_mode,
+            gate=gate,
+            dispatch=dispatch,
+        )
+        clean_expected_response = self._build_comfyui_runtime_dry_run_expected_response(
+            expected_response=expected_response,
+        )
+        clean_policy = self._build_comfyui_runtime_dry_run_policy(
+            runtime_policy=runtime_policy,
+            gate=gate,
+            dry_run_status=CommercialOperationComfyUIRuntimeDryRunStatus.DRAFT.value,
+        )
+        clean_operator_checklist = self._clean_list(operator_checklist) or [
+            "runtime gate is armed as metadata-only control",
+            "server switch remains disabled during dry-run validation",
+            "no ComfyUI HTTP request, queue read, upload, or generation is executed",
+        ]
+        clean_rollback_plan = self._build_comfyui_runtime_dry_run_rollback_plan(
+            rollback_plan=rollback_plan,
+            dry_run_status=CommercialOperationComfyUIRuntimeDryRunStatus.DRAFT.value,
+            failure_reason=None,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_runtime_dry_run(
+            gate=gate,
+            adapter_config=adapter_config,
+            adapter_contract=clean_contract,
+            dry_run_request=clean_request,
+            expected_response=clean_expected_response,
+            runtime_policy=clean_policy,
+            validation_checks=validation_checks,
+            operator_checklist=clean_operator_checklist,
+            rollback_plan=clean_rollback_plan,
+        )
+        dry_run = CommercialOperationComfyUIRuntimeDryRun(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=gate.id,
+            adapter_dispatch_id=gate.adapter_dispatch_id,
+            connection_probe_id=gate.connection_probe_id,
+            execution_plan_id=gate.execution_plan_id,
+            job_request_id=gate.job_request_id,
+            preflight_id=gate.preflight_id,
+            handoff_id=gate.handoff_id,
+            adapter_config_id=gate.adapter_config_id,
+            asset_request_id=gate.asset_request_id,
+            step_key=gate.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI runtime dry-run: {gate.title}"
+            )[:255],
+            dry_run_status=CommercialOperationComfyUIRuntimeDryRunStatus.DRAFT.value,
+            dry_run_mode="metadata_only",
+            target_url=gate.target_url,
+            queue_name=gate.queue_name,
+            workflow_name=gate.workflow_name,
+            adapter_contract=clean_contract,
+            dry_run_request=clean_request,
+            expected_response=clean_expected_response,
+            runtime_policy=clean_policy,
+            validation_checks=checks,
+            operator_checklist=clean_operator_checklist,
+            rollback_plan=clean_rollback_plan,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            planned_by=planned_by,
+            updated_by=planned_by,
+            dry_run_metadata=metadata or {},
+        )
+        self.session.add(dry_run)
+        await self.session.flush()
+        dry_run.dry_run_payload = self._build_comfyui_runtime_dry_run_payload(
+            operation=operation,
+            gate=gate,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            dry_run=dry_run,
+        )
+        self._apply_comfyui_runtime_dry_run_to_plan(operation, dry_run)
+        await self.session.commit()
+        await self.session.refresh(dry_run)
+        return dry_run
+
+    async def list_comfyui_runtime_dry_runs(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        runtime_gate_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIRuntimeDryRun]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIRuntimeDryRun).where(
+            CommercialOperationComfyUIRuntimeDryRun.workspace_id == workspace_id,
+            CommercialOperationComfyUIRuntimeDryRun.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIRuntimeDryRun.dry_run_status == status)
+        if runtime_gate_id is not None:
+            statement = statement.where(CommercialOperationComfyUIRuntimeDryRun.runtime_gate_id == runtime_gate_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIRuntimeDryRun.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIRuntimeDryRun).where(
+                CommercialOperationComfyUIRuntimeDryRun.workspace_id == workspace_id,
+                CommercialOperationComfyUIRuntimeDryRun.operation_id == operation_id,
+                CommercialOperationComfyUIRuntimeDryRun.id == runtime_dry_run_id,
+            )
+        )
+        dry_run = result.scalar_one_or_none()
+        if dry_run is None:
+            raise ValueError("Commercial operation ComfyUI runtime dry-run not found in workspace")
+        return dry_run
+
+    async def update_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        dry_run = await self.require_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+        )
+        if dry_run.dry_run_status in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.CANCELLED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Validated, cancelled, or archived ComfyUI runtime dry-runs cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config = (
+            await self._load_comfyui_runtime_dry_run_context(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                dry_run=dry_run,
+            )
+        )
+        if "title" in patch and patch["title"] is not None:
+            dry_run.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "adapter_contract" in patch and patch["adapter_contract"] is not None:
+            dry_run.adapter_contract = self._build_comfyui_runtime_dry_run_adapter_contract(
+                adapter_contract=patch["adapter_contract"],
+                gate=gate,
+                dispatch=dispatch,
+                adapter_config=adapter_config,
+            )
+        if "dry_run_request" in patch and patch["dry_run_request"] is not None:
+            dry_run.dry_run_request = self._build_comfyui_runtime_dry_run_request(
+                dry_run_request=patch["dry_run_request"],
+                dry_run_mode=patch.get("dry_run_mode") or dry_run.dry_run_mode,
+                gate=gate,
+                dispatch=dispatch,
+            )
+        if "expected_response" in patch and patch["expected_response"] is not None:
+            dry_run.expected_response = self._build_comfyui_runtime_dry_run_expected_response(
+                expected_response=patch["expected_response"],
+            )
+        if "runtime_policy" in patch and patch["runtime_policy"] is not None:
+            dry_run.runtime_policy = self._build_comfyui_runtime_dry_run_policy(
+                runtime_policy=patch["runtime_policy"],
+                gate=gate,
+                dry_run_status=dry_run.dry_run_status,
+            )
+        if "operator_checklist" in patch and patch["operator_checklist"] is not None:
+            dry_run.operator_checklist = self._clean_list(patch["operator_checklist"])
+        if "rollback_plan" in patch and patch["rollback_plan"] is not None:
+            dry_run.rollback_plan = self._build_comfyui_runtime_dry_run_rollback_plan(
+                rollback_plan=patch["rollback_plan"],
+                dry_run_status=dry_run.dry_run_status,
+                failure_reason=dry_run.failure_reason,
+            )
+        for field in ("result_summary", "failure_reason", "reviewer_notes"):
+            if field in patch:
+                value = patch[field]
+                setattr(dry_run, field, value.strip() if isinstance(value, str) and value.strip() else None)
+        if "metadata" in patch and patch["metadata"] is not None:
+            dry_run.dry_run_metadata = patch["metadata"] or {}
+        dry_run.adapter_contract = self._build_comfyui_runtime_dry_run_adapter_contract(
+            adapter_contract=dry_run.adapter_contract,
+            gate=gate,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        dry_run.dry_run_request = self._build_comfyui_runtime_dry_run_request(
+            dry_run_request=dry_run.dry_run_request,
+            dry_run_mode=dry_run.dry_run_mode,
+            gate=gate,
+            dispatch=dispatch,
+        )
+        dry_run.expected_response = self._build_comfyui_runtime_dry_run_expected_response(
+            expected_response=dry_run.expected_response,
+        )
+        dry_run.runtime_policy = self._build_comfyui_runtime_dry_run_policy(
+            runtime_policy=dry_run.runtime_policy,
+            gate=gate,
+            dry_run_status=dry_run.dry_run_status,
+        )
+        dry_run.rollback_plan = self._build_comfyui_runtime_dry_run_rollback_plan(
+            rollback_plan=dry_run.rollback_plan,
+            dry_run_status=dry_run.dry_run_status,
+            failure_reason=dry_run.failure_reason,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_runtime_dry_run(
+            gate=gate,
+            adapter_config=adapter_config,
+            adapter_contract=dry_run.adapter_contract,
+            dry_run_request=dry_run.dry_run_request,
+            expected_response=dry_run.expected_response,
+            runtime_policy=dry_run.runtime_policy,
+            validation_checks=patch.get("validation_checks", dry_run.validation_checks),
+            operator_checklist=dry_run.operator_checklist,
+            rollback_plan=dry_run.rollback_plan,
+        )
+        dry_run.dry_run_mode = "metadata_only"
+        dry_run.validation_checks = checks
+        dry_run.result_summary = result_summary if dry_run.failure_reason is None else dry_run.result_summary
+        if failure_reason and dry_run.dry_run_status in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value,
+        }:
+            dry_run.failure_reason = failure_reason
+        dry_run.updated_by = updated_by
+        dry_run.dry_run_payload = self._build_comfyui_runtime_dry_run_payload(
+            operation=operation,
+            gate=gate,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            dry_run=dry_run,
+        )
+        self._apply_comfyui_runtime_dry_run_to_plan(operation, dry_run)
+        await self.session.commit()
+        await self.session.refresh(dry_run)
+        return dry_run
+
+    async def mark_comfyui_runtime_dry_run_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def validate_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        validated_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value,
+            actor_user_id=validated_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        archived_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        return await self._decide_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            status=CommercialOperationComfyUIRuntimeDryRunStatus.ARCHIVED.value,
+            actor_user_id=archived_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_deliverable(
         self,
         *,
@@ -7731,6 +8202,195 @@ class CommercialOperationService:
         await self.session.refresh(gate)
         return gate
 
+    async def _decide_comfyui_runtime_dry_run(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIRuntimeDryRun:
+        dry_run = await self.require_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+        )
+        if dry_run.dry_run_status == CommercialOperationComfyUIRuntimeDryRunStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI runtime dry-runs cannot be changed")
+        if status == CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value and dry_run.dry_run_status not in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.DRAFT.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.REJECTED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI runtime dry-runs can be marked ready")
+        if status in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.REJECTED.value,
+        } and dry_run.dry_run_status != CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI runtime dry-runs can be approved or rejected")
+        if status == CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value and dry_run.dry_run_status != (
+            CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value
+        ):
+            raise ValueError("Only approved ComfyUI runtime dry-runs can be validated")
+        if status == CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value and dry_run.dry_run_status not in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value,
+        }:
+            raise ValueError("Only approved or validated ComfyUI runtime dry-runs can be failed")
+        if status == CommercialOperationComfyUIRuntimeDryRunStatus.CANCELLED.value and dry_run.dry_run_status not in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.DRAFT.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, ready, approved, or failed ComfyUI runtime dry-runs can be cancelled")
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config = (
+            await self._load_comfyui_runtime_dry_run_context(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                dry_run=dry_run,
+            )
+        )
+        dry_run.adapter_contract = self._build_comfyui_runtime_dry_run_adapter_contract(
+            adapter_contract=dry_run.adapter_contract,
+            gate=gate,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        dry_run.dry_run_request = self._build_comfyui_runtime_dry_run_request(
+            dry_run_request=dry_run.dry_run_request,
+            dry_run_mode=dry_run.dry_run_mode,
+            gate=gate,
+            dispatch=dispatch,
+        )
+        dry_run.expected_response = self._build_comfyui_runtime_dry_run_expected_response(
+            expected_response=dry_run.expected_response,
+        )
+        dry_run.runtime_policy = self._build_comfyui_runtime_dry_run_policy(
+            runtime_policy=dry_run.runtime_policy,
+            gate=gate,
+            dry_run_status=status,
+        )
+        dry_run.rollback_plan = self._build_comfyui_runtime_dry_run_rollback_plan(
+            rollback_plan=dry_run.rollback_plan,
+            dry_run_status=status,
+            failure_reason=failure_reason or dry_run.failure_reason,
+        )
+        checks, evaluated_summary, evaluated_failure = self._evaluate_comfyui_runtime_dry_run(
+            gate=gate,
+            adapter_config=adapter_config,
+            adapter_contract=dry_run.adapter_contract,
+            dry_run_request=dry_run.dry_run_request,
+            expected_response=dry_run.expected_response,
+            runtime_policy=dry_run.runtime_policy,
+            validation_checks=dry_run.validation_checks,
+            operator_checklist=dry_run.operator_checklist,
+            rollback_plan=dry_run.rollback_plan,
+        )
+        if status in {
+            CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value,
+        } and evaluated_failure:
+            raise ValueError(f"ComfyUI runtime dry-run is blocked: {evaluated_failure}")
+
+        now = datetime.now(UTC)
+        dry_run.dry_run_status = status
+        dry_run.dry_run_mode = "metadata_only"
+        dry_run.validation_checks = checks
+        dry_run.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        dry_run.result_summary = (
+            result_summary.strip()
+            if result_summary and result_summary.strip()
+            else evaluated_summary
+            if status != CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value
+            else None
+        )
+        dry_run.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else evaluated_failure
+            if status == CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value
+            else None
+        )
+        dry_run.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIRuntimeDryRunStatus.READY_FOR_REVIEW.value:
+            dry_run.approved_by = None
+            dry_run.validated_by = None
+            dry_run.cancelled_by = None
+            dry_run.approved_at = None
+            dry_run.rejected_at = None
+            dry_run.validated_at = None
+            dry_run.failed_at = None
+            dry_run.cancelled_at = None
+            dry_run.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeDryRunStatus.APPROVED.value:
+            dry_run.approved_by = actor_user_id
+            dry_run.approved_at = now
+            dry_run.rejected_at = None
+            dry_run.validated_at = None
+            dry_run.failed_at = None
+            dry_run.cancelled_at = None
+            dry_run.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeDryRunStatus.REJECTED.value:
+            dry_run.rejected_at = now
+            dry_run.approved_by = None
+            dry_run.validated_by = None
+            dry_run.approved_at = None
+            dry_run.validated_at = None
+            dry_run.failed_at = None
+            dry_run.cancelled_at = None
+            dry_run.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value:
+            dry_run.validated_by = actor_user_id
+            dry_run.validated_at = now
+            dry_run.failed_at = None
+            dry_run.cancelled_at = None
+            dry_run.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value:
+            dry_run.failed_at = now
+            dry_run.cancelled_at = None
+            dry_run.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeDryRunStatus.CANCELLED.value:
+            dry_run.cancelled_by = actor_user_id
+            dry_run.cancelled_at = now
+            dry_run.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeDryRunStatus.ARCHIVED.value:
+            dry_run.archived_by = actor_user_id
+            dry_run.archived_at = now
+        dry_run.runtime_policy = self._build_comfyui_runtime_dry_run_policy(
+            runtime_policy=dry_run.runtime_policy,
+            gate=gate,
+            dry_run_status=dry_run.dry_run_status,
+        )
+        dry_run.rollback_plan = self._build_comfyui_runtime_dry_run_rollback_plan(
+            rollback_plan=dry_run.rollback_plan,
+            dry_run_status=dry_run.dry_run_status,
+            failure_reason=dry_run.failure_reason,
+        )
+        dry_run.dry_run_payload = self._build_comfyui_runtime_dry_run_payload(
+            operation=operation,
+            gate=gate,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            dry_run=dry_run,
+        )
+        self._apply_comfyui_runtime_dry_run_to_plan(operation, dry_run)
+        await self.session.commit()
+        await self.session.refresh(dry_run)
+        return dry_run
+
     async def _decide_deliverable(
         self,
         *,
@@ -10430,6 +11090,389 @@ class CommercialOperationService:
             ],
         }
 
+    async def _load_comfyui_runtime_dry_run_context(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+    ) -> tuple[
+        CommercialOperationComfyUIRuntimeGate,
+        CommercialOperationComfyUIAdapterDispatch,
+        CommercialOperationComfyUIConnectionProbe,
+        CommercialOperationComfyUIExecutionPlan,
+        CommercialOperationComfyUIJobRequest,
+        CommercialOperationComfyUIPreflight,
+        CommercialOperationComfyUIHandoff,
+        CommercialOperationComfyUIAdapterConfig | None,
+    ]:
+        gate = await self.require_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=dry_run.runtime_gate_id,
+        )
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=dry_run.adapter_dispatch_id,
+        )
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=dry_run.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=dry_run.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=dry_run.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=dry_run.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=dry_run.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        return gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config
+
+    def _build_comfyui_runtime_dry_run_adapter_contract(
+        self,
+        *,
+        adapter_contract: dict[str, Any] | None,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        contract = adapter_contract.copy() if isinstance(adapter_contract, dict) else {}
+        for key in ("secret_value", "token", "api_key", "password", "authorization"):
+            contract.pop(key, None)
+        contract.update(
+            {
+                "runtime_gate_id": str(gate.id),
+                "runtime_gate_status": gate.gate_status,
+                "adapter_dispatch_id": str(dispatch.id),
+                "adapter_dispatch_status": dispatch.dispatch_status,
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "target_url": gate.target_url,
+                "queue_name": gate.queue_name,
+                "workflow_name": gate.workflow_name,
+                "adapter_kind": "future_guarded_comfyui_runtime_adapter",
+                "contract_mode": "metadata_only",
+                "secret_ref": adapter_config.secret_ref if adapter_config else gate.secret_policy.get("secret_ref"),
+                "secret_value_present": False,
+                "secret_lookup_enabled": False,
+                "execution_boundary": "adapter contract only; no ComfyUI runtime adapter is imported or called",
+            }
+        )
+        return contract
+
+    def _build_comfyui_runtime_dry_run_request(
+        self,
+        *,
+        dry_run_request: dict[str, Any] | None,
+        dry_run_mode: str,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> dict[str, Any]:
+        request = dry_run_request.copy() if isinstance(dry_run_request, dict) else {}
+        request.update(
+            {
+                "dry_run_mode": "metadata_only",
+                "requested_dry_run_mode": str(dry_run_mode or "metadata_only").strip() or "metadata_only",
+                "runtime_gate_id": str(gate.id),
+                "adapter_dispatch_id": str(dispatch.id),
+                "target_url": gate.target_url,
+                "queue_name": gate.queue_name,
+                "workflow_name": gate.workflow_name,
+                "prompt_payload": dispatch.prompt_payload,
+                "workflow_payload": dispatch.workflow_payload,
+                "queue_payload": dispatch.queue_payload,
+                "adapter_call_executed": False,
+                "network_request": False,
+                "queue_read": False,
+                "queue_submission": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "execution_boundary": "metadata-only dry-run request; no ComfyUI request, queue read, upload, or generation occurs",
+            }
+        )
+        return request
+
+    def _build_comfyui_runtime_dry_run_expected_response(
+        self,
+        *,
+        expected_response: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        response = expected_response.copy() if isinstance(expected_response, dict) else {}
+        response.update(
+            {
+                "response_source": "synthetic_contract",
+                "expected_status": "not_sent",
+                "http_status_expected": None,
+                "queue_job_id_expected": None,
+                "generated_media_expected": False,
+                "artifact_upload_expected": False,
+                "history_read_expected": False,
+                "response_fixture_only": True,
+                "execution_boundary": "expected response contract only; no ComfyUI response is fetched",
+            }
+        )
+        return response
+
+    def _build_comfyui_runtime_dry_run_policy(
+        self,
+        *,
+        runtime_policy: dict[str, Any] | None,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        dry_run_status: str,
+    ) -> dict[str, Any]:
+        policy = runtime_policy.copy() if isinstance(runtime_policy, dict) else {}
+        policy.update(
+            {
+                "dry_run_status": dry_run_status,
+                "runtime_gate_status": gate.gate_status,
+                "explicit_server_switch_required": True,
+                "server_switch_name": "COMFYUI_RUNTIME_ENABLED",
+                "server_switch_enabled": False,
+                "adapter_runtime_enabled": False,
+                "runtime_calls_enabled": False,
+                "allow_network_requests": False,
+                "http_client_enabled": False,
+                "queue_read": False,
+                "queue_submission": False,
+                "submit_job": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "manual_validation_only": True,
+                "approval_bypass_allowed": False,
+                "execution_boundary": "dry-run policy only; live ComfyUI runtime remains disabled",
+            }
+        )
+        return policy
+
+    def _build_comfyui_runtime_dry_run_rollback_plan(
+        self,
+        *,
+        rollback_plan: dict[str, Any] | None,
+        dry_run_status: str,
+        failure_reason: str | None,
+    ) -> dict[str, Any]:
+        plan = rollback_plan.copy() if isinstance(rollback_plan, dict) else {}
+        next_steps = plan.get("next_steps")
+        if not isinstance(next_steps, list) or not next_steps:
+            next_steps = [
+                "keep COMFYUI_RUNTIME_ENABLED disabled",
+                "disable or fail the runtime gate before adapter code changes",
+                "review runtime dry-run contract and dispatch payload with the server maintainer",
+            ]
+        plan.update(
+            {
+                "dry_run_status": dry_run_status,
+                "failure_reason": failure_reason,
+                "disable_runtime_switch": True,
+                "rollback_required": dry_run_status
+                in {
+                    CommercialOperationComfyUIRuntimeDryRunStatus.FAILED.value,
+                    CommercialOperationComfyUIRuntimeDryRunStatus.CANCELLED.value,
+                },
+                "next_steps": next_steps,
+                "execution_boundary": "rollback guidance only; no ComfyUI queue cancellation or runtime mutation is executed",
+            }
+        )
+        return plan
+
+    def _evaluate_comfyui_runtime_dry_run(
+        self,
+        *,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        adapter_contract: dict[str, Any],
+        dry_run_request: dict[str, Any],
+        expected_response: dict[str, Any],
+        runtime_policy: dict[str, Any],
+        validation_checks: list[dict[str, Any]] | None,
+        operator_checklist: list[str],
+        rollback_plan: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], str, str | None]:
+        generated_checks = [
+            {
+                "key": "runtime_gate_armed",
+                "label": "Runtime gate is armed",
+                "status": gate.gate_status == CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+                "severity": "blocker",
+                "message": "Runtime dry-runs require an armed metadata-only runtime gate.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_config_ready",
+                "label": "Maintained adapter config is ready",
+                "status": adapter_config is not None
+                and adapter_config.config_status == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "Runtime dry-runs require a ready maintained adapter config.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_contract_metadata_only",
+                "label": "Adapter contract is metadata-only",
+                "status": adapter_contract.get("contract_mode") == "metadata_only"
+                and adapter_contract.get("secret_value_present") is False
+                and adapter_contract.get("secret_lookup_enabled") is False,
+                "severity": "blocker",
+                "message": "Runtime dry-runs cannot import adapters or store/resolve secret values.",
+                "source": "system",
+            },
+            {
+                "key": "dry_run_request_not_sent",
+                "label": "Dry-run request is not sent",
+                "status": dry_run_request.get("dry_run_mode") == "metadata_only"
+                and dry_run_request.get("adapter_call_executed") is False
+                and dry_run_request.get("network_request") is False
+                and dry_run_request.get("queue_submission") is False
+                and dry_run_request.get("upload_files") is False,
+                "severity": "blocker",
+                "message": "Runtime dry-runs can only record request metadata in this phase.",
+                "source": "system",
+            },
+            {
+                "key": "expected_response_fixture_only",
+                "label": "Expected response is a fixture contract",
+                "status": expected_response.get("response_fixture_only") is True
+                and expected_response.get("queue_job_id_expected") is None
+                and expected_response.get("generated_media_expected") is False,
+                "severity": "blocker",
+                "message": "Runtime dry-runs cannot fetch ComfyUI responses or expect generated media.",
+                "source": "system",
+            },
+            {
+                "key": "runtime_policy_switch_closed",
+                "label": "Runtime server switch remains disabled",
+                "status": runtime_policy.get("explicit_server_switch_required") is True
+                and runtime_policy.get("server_switch_enabled") is False
+                and runtime_policy.get("runtime_calls_enabled") is False
+                and runtime_policy.get("http_client_enabled") is False
+                and runtime_policy.get("approval_bypass_allowed") is False,
+                "severity": "blocker",
+                "message": "The explicit server runtime switch must remain disabled in this phase.",
+                "source": "system",
+            },
+            {
+                "key": "operator_checklist_present",
+                "label": "Operator checklist is present",
+                "status": bool(operator_checklist),
+                "severity": "blocker",
+                "message": "Runtime dry-runs need an operator checklist.",
+                "source": "system",
+            },
+            {
+                "key": "rollback_plan_present",
+                "label": "Rollback plan is present",
+                "status": bool(rollback_plan.get("next_steps")),
+                "severity": "blocker",
+                "message": "Runtime dry-runs need switch-disable and rollback guidance.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(validation_checks):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, "ComfyUI runtime dry-run is blocked; maintainer action is required.", labels
+        return (
+            merged_checks,
+            "ComfyUI runtime dry-run is validated as metadata-only adapter contract; no ComfyUI call occurred.",
+            None,
+        )
+
+    def _build_comfyui_runtime_dry_run_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        probe: CommercialOperationComfyUIConnectionProbe,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "runtime_dry_run_id": str(dry_run.id) if dry_run.id else None,
+            "runtime_gate_id": str(gate.id),
+            "runtime_gate_status": gate.gate_status,
+            "adapter_dispatch_id": str(dispatch.id),
+            "adapter_dispatch_status": dispatch.dispatch_status,
+            "connection_probe_id": str(probe.id),
+            "execution_plan_id": str(execution_plan.id),
+            "job_request_id": str(job_request.id),
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "adapter_config_status": adapter_config.config_status if adapter_config else None,
+            "asset_request_id": str(handoff.asset_request_id),
+            "step_key": dry_run.step_key,
+            "title": dry_run.title,
+            "target_url": dry_run.target_url,
+            "queue_name": dry_run.queue_name,
+            "workflow_name": dry_run.workflow_name,
+            "dry_run_status": dry_run.dry_run_status,
+            "dry_run_mode": "metadata_only",
+            "adapter_contract": dry_run.adapter_contract,
+            "dry_run_request": dry_run.dry_run_request,
+            "expected_response": dry_run.expected_response,
+            "runtime_policy": dry_run.runtime_policy,
+            "validation_checks": dry_run.validation_checks,
+            "operator_checklist": dry_run.operator_checklist,
+            "rollback_plan": dry_run.rollback_plan,
+            "result_summary": dry_run.result_summary,
+            "failure_reason": dry_run.failure_reason,
+            "runtime_calls_enabled": False,
+            "adapter_call_executed": False,
+            "server_switch_enabled": False,
+            "execution_boundary": "metadata-only ComfyUI runtime dry-run; no ComfyUI adapter import, HTTP request, queue read, queue submission, upload, or media generation occurs",
+            "next_runtime": "future_explicitly_enabled_comfyui_runtime_adapter",
+            "forbidden_actions": [
+                "no ComfyUI adapter import",
+                "no ComfyUI HTTP request",
+                "no ComfyUI prompt submission",
+                "no ComfyUI queue read",
+                "no ComfyUI queue submission",
+                "no file upload to ComfyUI",
+                "no image/video generation",
+                "no secret value storage or lookup",
+                "no runtime switch enablement",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -11408,6 +12451,39 @@ class CommercialOperationService:
                     updated["comfyui_runtime_gate_decision_at"] = gate.failed_at.isoformat()
                 elif gate.archived_at is not None:
                     updated["comfyui_runtime_gate_decision_at"] = gate.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_runtime_dry_run_to_plan(
+        self,
+        operation: CommercialOperation,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == dry_run.step_key:
+                updated = dict(step)
+                updated["comfyui_runtime_dry_run_id"] = str(dry_run.id)
+                updated["comfyui_runtime_dry_run_status"] = dry_run.dry_run_status
+                updated["comfyui_runtime_dry_run_gate_id"] = str(dry_run.runtime_gate_id)
+                updated["comfyui_runtime_dry_run_target_url"] = dry_run.target_url
+                updated["comfyui_runtime_dry_run_queue_name"] = dry_run.queue_name
+                updated["comfyui_runtime_dry_run_workflow_name"] = dry_run.workflow_name
+                updated["comfyui_runtime_dry_run_mode"] = dry_run.dry_run_mode
+                if dry_run.validated_at is not None:
+                    updated["comfyui_runtime_dry_run_decision_at"] = dry_run.validated_at.isoformat()
+                elif dry_run.approved_at is not None:
+                    updated["comfyui_runtime_dry_run_decision_at"] = dry_run.approved_at.isoformat()
+                elif dry_run.rejected_at is not None:
+                    updated["comfyui_runtime_dry_run_decision_at"] = dry_run.rejected_at.isoformat()
+                elif dry_run.failed_at is not None:
+                    updated["comfyui_runtime_dry_run_decision_at"] = dry_run.failed_at.isoformat()
+                elif dry_run.cancelled_at is not None:
+                    updated["comfyui_runtime_dry_run_decision_at"] = dry_run.cancelled_at.isoformat()
+                elif dry_run.archived_at is not None:
+                    updated["comfyui_runtime_dry_run_decision_at"] = dry_run.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

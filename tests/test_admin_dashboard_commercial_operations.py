@@ -20,7 +20,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61X" in text
+    assert "Phase 61Y" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -33,6 +33,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "ComfyUI connection probes" in text
     assert "ComfyUI adapter dispatches" in text
     assert "ComfyUI runtime gates" in text
+    assert "ComfyUI runtime dry-runs" in text
     assert "Deliverables" in text
     assert "Evidence snapshots" in text
     assert "Execution requests" in text
@@ -147,6 +148,16 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.failComfyuiRuntimeGate" in text
     assert "commercialOperationsApi.disableComfyuiRuntimeGate" in text
     assert "commercialOperationsApi.archiveComfyuiRuntimeGate" in text
+    assert "commercialOperationsApi.comfyuiRuntimeDryRuns" in text
+    assert "commercialOperationsApi.createComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.updateComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.readyComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.approveComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.rejectComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.validateComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.failComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.cancelComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.archiveComfyuiRuntimeDryRun" in text
     assert "commercialOperationsApi.deliverables" in text
     assert "commercialOperationsApi.createDeliverable" in text
     assert "commercialOperationsApi.updateDeliverable" in text
@@ -313,6 +324,16 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/disable" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/runtime-dry-runs" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/validate" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready" in text
