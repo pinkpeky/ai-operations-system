@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61Y",
+    boundaryTitle: "Phase 61Z",
     boundaryBody: "商业运营 ComfyUI 运行门禁：从已记录调度创建服务器维护人员可审查的运行开关、网络边界、队列策略、密钥引用和回滚记录；当前仍不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不发布、不控制账号。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61Y",
-    boundaryBody: "Commercial operation ComfyUI runtime dry-runs: create reviewable adapter contract, request fixture, expected response, server switch, and rollback records from armed runtime gates while keeping ComfyUI calls, queue reads/submissions, uploads, media generation, publishing, and account control disabled.",
+    boundaryTitle: "Phase 61Z",
+    boundaryBody: "Commercial operation ComfyUI runtime activations: create reviewable metadata-only activation requests from validated dry-runs while keeping adapter imports/calls, ComfyUI HTTP, queue reads/submissions, uploads, media generation, runtime switch enablement, publishing, and account control disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -5182,6 +5182,60 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresGate: "Arm one ComfyUI runtime gate first.",
           noDryRuns: "No ComfyUI runtime dry-runs yet.",
         };
+  const comfyuiRuntimeActivationCopy =
+    language === "zh-CN"
+      ? {
+          title: "ComfyUI 运行启用请求",
+          description: "从已验证的运行干运行创建服务器维护交接记录。这里只保存启用请求、开关审计、运行护栏和回滚方案，不会启用开关、读取环境、请求 ComfyUI 或调用适配器。",
+          dryRunLabel: "已验证干运行",
+          modeLabel: "启用模式",
+          switchLabel: "服务器开关",
+          requestLabel: "启用请求 JSON",
+          switchAuditLabel: "开关审计 JSON",
+          guardrailsLabel: "运行护栏 JSON",
+          validationChecksLabel: "启用检查 JSON",
+          checklistLabel: "操作清单",
+          rollbackPlanLabel: "回滚方案 JSON",
+          createAction: "创建启用请求",
+          saveAction: "保存启用请求",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          scheduleAction: "排期",
+          failAction: "失败",
+          cancelAction: "取消",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并将至少一个 ComfyUI 运行干运行标记为已验证。",
+          requiresDryRun: "先记录一个已验证的 ComfyUI 运行干运行。",
+          noActivations: "暂无 ComfyUI 运行启用请求。",
+        }
+      : {
+          title: "ComfyUI runtime activations",
+          description: "Create reviewable maintainer handoff records from validated runtime dry-runs. This stores activation request, switch audit, guardrails, and rollback metadata only; it does not enable switches, read environments, call adapters, or call ComfyUI.",
+          dryRunLabel: "Validated runtime dry-run",
+          modeLabel: "Activation mode",
+          switchLabel: "Server switch",
+          requestLabel: "Activation request JSON",
+          switchAuditLabel: "Switch audit JSON",
+          guardrailsLabel: "Runtime guardrails JSON",
+          validationChecksLabel: "Activation checks JSON",
+          checklistLabel: "Operator checklist",
+          rollbackPlanLabel: "Rollback plan JSON",
+          createAction: "Create activation",
+          saveAction: "Save activation",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          scheduleAction: "Schedule",
+          failAction: "Fail",
+          cancelAction: "Cancel",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and validate at least one ComfyUI runtime dry-run first.",
+          requiresDryRun: "Validate one ComfyUI runtime dry-run first.",
+          noActivations: "No ComfyUI runtime activations yet.",
+        };
   const deliverableCopy =
     language === "zh-CN"
       ? {
@@ -5537,6 +5591,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiAdapterDispatchesState, setComfyuiAdapterDispatchesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiRuntimeGatesState, setComfyuiRuntimeGatesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiRuntimeDryRunsState, setComfyuiRuntimeDryRunsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [comfyuiRuntimeActivationsState, setComfyuiRuntimeActivationsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [evidenceSnapshotsState, setEvidenceSnapshotsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -5696,6 +5751,17 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiRuntimeDryRunChecksDraft, setComfyuiRuntimeDryRunChecksDraft] = useState("[]");
   const [comfyuiRuntimeDryRunChecklistDraft, setComfyuiRuntimeDryRunChecklistDraft] = useState("runtime gate armed, server switch disabled, no ComfyUI adapter call");
   const [comfyuiRuntimeDryRunRollbackDraft, setComfyuiRuntimeDryRunRollbackDraft] = useState('{"next_steps":["keep COMFYUI_RUNTIME_ENABLED disabled","review dry-run contract"]}');
+  const [selectedComfyuiRuntimeActivationId, setSelectedComfyuiRuntimeActivationId] = useState("");
+  const [comfyuiRuntimeActivationDryRunId, setComfyuiRuntimeActivationDryRunId] = useState("");
+  const [comfyuiRuntimeActivationTitle, setComfyuiRuntimeActivationTitle] = useState(language === "zh-CN" ? "ComfyUI 运行启用请求" : "ComfyUI runtime activation request");
+  const [comfyuiRuntimeActivationMode, setComfyuiRuntimeActivationMode] = useState("metadata_only");
+  const [comfyuiRuntimeActivationSwitchName, setComfyuiRuntimeActivationSwitchName] = useState("COMFYUI_RUNTIME_ENABLED");
+  const [comfyuiRuntimeActivationRequestDraft, setComfyuiRuntimeActivationRequestDraft] = useState('{"activation_mode":"metadata_only","activation_executed":false,"server_switch_enabled":false}');
+  const [comfyuiRuntimeActivationSwitchAuditDraft, setComfyuiRuntimeActivationSwitchAuditDraft] = useState('{"server_switch_enabled":false,"switch_mutation_executed":false,"runtime_config_written":false}');
+  const [comfyuiRuntimeActivationGuardrailsDraft, setComfyuiRuntimeActivationGuardrailsDraft] = useState('{"explicit_manual_cutover_required":true,"runtime_calls_enabled":false,"approval_bypass_allowed":false}');
+  const [comfyuiRuntimeActivationChecksDraft, setComfyuiRuntimeActivationChecksDraft] = useState("[]");
+  const [comfyuiRuntimeActivationChecklistDraft, setComfyuiRuntimeActivationChecklistDraft] = useState("validated dry-run reviewed, server maintainer named, rollback owner named");
+  const [comfyuiRuntimeActivationRollbackDraft, setComfyuiRuntimeActivationRollbackDraft] = useState('{"next_steps":["keep COMFYUI_RUNTIME_ENABLED disabled","schedule maintainer review"]}');
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -6112,6 +6178,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadComfyuiRuntimeActivations = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setComfyuiRuntimeActivationsState(emptyState());
+        return;
+      }
+      setComfyuiRuntimeActivationsState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.comfyuiRuntimeActivations(operationId, settings);
+        setComfyuiRuntimeActivationsState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setComfyuiRuntimeActivationsState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime activations API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadDeliverables = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -6281,6 +6369,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadComfyuiAdapterDispatches(selectedOperationId);
       void loadComfyuiRuntimeGates(selectedOperationId);
       void loadComfyuiRuntimeDryRuns(selectedOperationId);
+      void loadComfyuiRuntimeActivations(selectedOperationId);
       void loadDeliverables(selectedOperationId);
       void loadEvidenceSnapshots(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
@@ -6304,6 +6393,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setComfyuiAdapterDispatchesState(emptyState());
     setComfyuiRuntimeGatesState(emptyState());
     setComfyuiRuntimeDryRunsState(emptyState());
+    setComfyuiRuntimeActivationsState(emptyState());
     setDeliverablesState(emptyState());
     setEvidenceSnapshotsState(emptyState());
     setExecutionRequestsState(emptyState());
@@ -6312,7 +6402,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadComfyuiRuntimeDryRuns, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadComfyuiRuntimeDryRuns, loadComfyuiRuntimeActivations, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -7811,6 +7901,130 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editComfyuiRuntimeActivation = (activation: JsonRecord) => {
+    const runtimeActivationId = valueAt(activation, ["id"], "");
+    if (!runtimeActivationId) {
+      return;
+    }
+    setSelectedComfyuiRuntimeActivationId(runtimeActivationId);
+    setComfyuiRuntimeActivationDryRunId(valueAt(activation, ["runtime_dry_run_id"], comfyuiRuntimeActivationDryRunId));
+    setComfyuiRuntimeActivationTitle(valueAt(activation, ["title"], comfyuiRuntimeActivationTitle));
+    setComfyuiRuntimeActivationMode(valueAt(activation, ["activation_mode"], "metadata_only"));
+    setComfyuiRuntimeActivationSwitchName(valueAt(activation, ["server_switch_name"], "COMFYUI_RUNTIME_ENABLED"));
+    setComfyuiRuntimeActivationRequestDraft(JSON.stringify((activation.activation_request as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeActivationSwitchAuditDraft(JSON.stringify((activation.switch_audit as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeActivationGuardrailsDraft(JSON.stringify((activation.runtime_guardrails as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeActivationChecksDraft(JSON.stringify((activation.validation_checks as JsonRecord[]) || [], null, 2));
+    setComfyuiRuntimeActivationChecklistDraft(draftListText(activation.operator_checklist));
+    setComfyuiRuntimeActivationRollbackDraft(JSON.stringify((activation.rollback_plan as JsonRecord) || {}, null, 2));
+  };
+
+  const comfyuiRuntimeActivationPayload = (): JsonRecord => ({
+    title: comfyuiRuntimeActivationTitle.trim() || "ComfyUI runtime activation request",
+    activation_mode: comfyuiRuntimeActivationMode.trim() || "metadata_only",
+    server_switch_name: comfyuiRuntimeActivationSwitchName.trim() || "COMFYUI_RUNTIME_ENABLED",
+    activation_request: parseJsonRecordDraft(comfyuiRuntimeActivationRequestDraft),
+    switch_audit: parseJsonRecordDraft(comfyuiRuntimeActivationSwitchAuditDraft),
+    runtime_guardrails: parseJsonRecordDraft(comfyuiRuntimeActivationGuardrailsDraft),
+    validation_checks: parseJsonArrayDraft(comfyuiRuntimeActivationChecksDraft),
+    operator_checklist: splitDraftList(comfyuiRuntimeActivationChecklistDraft),
+    rollback_plan: parseJsonRecordDraft(comfyuiRuntimeActivationRollbackDraft),
+    metadata: { source: "admin_dashboard", phase: "61Z", activation_mode: "metadata_only" },
+  });
+
+  const createComfyuiRuntimeActivation = async () => {
+    if (!selectedOperationId || !comfyuiRuntimeActivationDryRunId) {
+      setActionState({
+        data: null,
+        error: comfyuiRuntimeActivationCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createComfyuiRuntimeActivation(
+        selectedOperationId,
+        comfyuiRuntimeActivationDryRunId,
+        comfyuiRuntimeActivationPayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedComfyuiRuntimeActivationId(valueAt(created, ["id"], ""));
+      await loadComfyuiRuntimeActivations(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime activation create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateComfyuiRuntimeActivation = async () => {
+    if (!selectedOperationId || !selectedComfyuiRuntimeActivationId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateComfyuiRuntimeActivation(
+        selectedOperationId,
+        selectedComfyuiRuntimeActivationId,
+        comfyuiRuntimeActivationPayload(),
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiRuntimeActivations(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime activation update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateComfyuiRuntimeActivation = async (
+    runtimeActivationId: string,
+    action: "ready" | "approve" | "reject" | "schedule" | "fail" | "cancel" | "archive",
+  ) => {
+    if (!selectedOperationId || !runtimeActivationId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, settings)
+              : action === "schedule"
+                ? await commercialOperationsApi.scheduleComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, "Failed during metadata-only ComfyUI runtime activation review; maintainer action required.", settings)
+                  : action === "cancel"
+                    ? await commercialOperationsApi.cancelComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, settings)
+                    : await commercialOperationsApi.archiveComfyuiRuntimeActivation(selectedOperationId, runtimeActivationId, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiRuntimeActivations(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime activation action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const editOperationDeliverable = (deliverable: JsonRecord) => {
     const deliverableId = valueAt(deliverable, ["id"], "");
     if (!deliverableId) {
@@ -8891,6 +9105,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const comfyuiRuntimeGates = comfyuiRuntimeGatesState.data || [];
   const actionableComfyuiRuntimeGates = comfyuiRuntimeGates.filter((gate) => valueAt(gate, ["gate_status"], "") === "armed");
   const comfyuiRuntimeDryRuns = comfyuiRuntimeDryRunsState.data || [];
+  const actionableComfyuiRuntimeDryRuns = comfyuiRuntimeDryRuns.filter((dryRun) => valueAt(dryRun, ["dry_run_status"], "") === "validated");
+  const comfyuiRuntimeActivations = comfyuiRuntimeActivationsState.data || [];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -9172,6 +9388,55 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, [actionableComfyuiRuntimeGates, comfyuiRuntimeDryRunGateId, selectedComfyuiRuntimeDryRunId]);
 
   useEffect(() => {
+    if (comfyuiRuntimeActivationDryRunId && actionableComfyuiRuntimeDryRuns.some((dryRun) => valueAt(dryRun, ["id"], "") === comfyuiRuntimeActivationDryRunId)) {
+      return;
+    }
+    const nextDryRun = actionableComfyuiRuntimeDryRuns[0];
+    const nextDryRunId = nextDryRun ? valueAt(nextDryRun, ["id"], "") : "";
+    setComfyuiRuntimeActivationDryRunId(nextDryRunId);
+    if (nextDryRun && !selectedComfyuiRuntimeActivationId) {
+      setComfyuiRuntimeActivationTitle(`${valueAt(nextDryRun, ["title"], "ComfyUI runtime dry-run")} activation`);
+      setComfyuiRuntimeActivationRequestDraft(
+        JSON.stringify(
+          {
+            activation_mode: "metadata_only",
+            runtime_dry_run_id: nextDryRunId,
+            activation_executed: false,
+            server_switch_enabled: false,
+            adapter_call_executed: false,
+          },
+          null,
+          2,
+        ),
+      );
+      setComfyuiRuntimeActivationSwitchAuditDraft(
+        JSON.stringify(
+          {
+            server_switch_name: "COMFYUI_RUNTIME_ENABLED",
+            current_state: "disabled",
+            switch_mutation_executed: false,
+            runtime_config_written: false,
+          },
+          null,
+          2,
+        ),
+      );
+      setComfyuiRuntimeActivationGuardrailsDraft(
+        JSON.stringify(
+          {
+            explicit_manual_cutover_required: true,
+            maintenance_window_required: true,
+            runtime_calls_enabled: false,
+            approval_bypass_allowed: false,
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }, [actionableComfyuiRuntimeDryRuns, comfyuiRuntimeActivationDryRunId, selectedComfyuiRuntimeActivationId]);
+
+  useEffect(() => {
     if (deliverableContentDraftId && approvedContentDrafts.some((draft) => valueAt(draft, ["id"], "") === deliverableContentDraftId)) {
       return;
     }
@@ -9275,7 +9540,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -11184,6 +11449,173 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{comfyuiRuntimeDryRunCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={comfyuiRuntimeActivationCopy.title} description={comfyuiRuntimeActivationCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-asset-grid">
+              <label>
+                {comfyuiRuntimeActivationCopy.dryRunLabel}
+                <select value={comfyuiRuntimeActivationDryRunId} onChange={(event) => setComfyuiRuntimeActivationDryRunId(event.target.value)}>
+                  {actionableComfyuiRuntimeDryRuns.length ? null : <option value="">{comfyuiRuntimeActivationCopy.requiresDryRun}</option>}
+                  {actionableComfyuiRuntimeDryRuns.map((dryRun) => {
+                    const runtimeDryRunId = valueAt(dryRun, ["id"], "");
+                    return (
+                      <option value={runtimeDryRunId} key={runtimeDryRunId}>
+                        {valueAt(dryRun, ["title"])} / {valueAt(dryRun, ["dry_run_status"], "-")} / {valueAt(dryRun, ["workflow_name"], "-")}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={comfyuiRuntimeActivationTitle} onChange={(event) => setComfyuiRuntimeActivationTitle(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeActivationCopy.modeLabel}
+                <select value={comfyuiRuntimeActivationMode} onChange={(event) => setComfyuiRuntimeActivationMode(event.target.value)}>
+                  <option value="metadata_only">metadata_only</option>
+                  <option value="future_manual_cutover">future_manual_cutover</option>
+                </select>
+              </label>
+              <label>
+                {comfyuiRuntimeActivationCopy.switchLabel}
+                <input value={comfyuiRuntimeActivationSwitchName} onChange={(event) => setComfyuiRuntimeActivationSwitchName(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeActivationCopy.requestLabel}
+                <textarea value={comfyuiRuntimeActivationRequestDraft} onChange={(event) => setComfyuiRuntimeActivationRequestDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeActivationCopy.switchAuditLabel}
+                <textarea value={comfyuiRuntimeActivationSwitchAuditDraft} onChange={(event) => setComfyuiRuntimeActivationSwitchAuditDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeActivationCopy.guardrailsLabel}
+                <textarea value={comfyuiRuntimeActivationGuardrailsDraft} onChange={(event) => setComfyuiRuntimeActivationGuardrailsDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeActivationCopy.validationChecksLabel}
+                <textarea value={comfyuiRuntimeActivationChecksDraft} onChange={(event) => setComfyuiRuntimeActivationChecksDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeActivationCopy.checklistLabel}
+                <textarea value={comfyuiRuntimeActivationChecklistDraft} onChange={(event) => setComfyuiRuntimeActivationChecklistDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeActivationCopy.rollbackPlanLabel}
+                <textarea value={comfyuiRuntimeActivationRollbackDraft} onChange={(event) => setComfyuiRuntimeActivationRollbackDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createComfyuiRuntimeActivation()}
+                disabled={!comfyuiRuntimeActivationDryRunId || !comfyuiRuntimeActivationTitle.trim() || actionState.loading}
+              >
+                <PlayCircle size={15} />
+                {comfyuiRuntimeActivationCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateComfyuiRuntimeActivation()}
+                disabled={!selectedComfyuiRuntimeActivationId || !comfyuiRuntimeActivationTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {comfyuiRuntimeActivationCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={comfyuiRuntimeActivationsState} />
+            {comfyuiRuntimeActivationsState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiRuntimeActivationsState.updatedAt}</div> : null}
+            {comfyuiRuntimeActivations.length ? (
+              <div className="commercial-asset-list">
+                {comfyuiRuntimeActivations.map((activation) => {
+                  const runtimeActivationId = valueAt(activation, ["id"], "");
+                  const activationStatus = valueAt(activation, ["activation_status"], "");
+                  return (
+                    <article className="commercial-asset-item" key={runtimeActivationId}>
+                      <div>
+                        <strong>{valueAt(activation, ["title"])}</strong>
+                        <span>{valueAt(activation, ["server_switch_name"], "-")} / {valueAt(activation, ["queue_name"], "-")} / {valueAt(activation, ["workflow_name"], "-")}</span>
+                        <p>{shortJson(activation.validation_checks, 90)}</p>
+                        <p>{shortJson(activation.activation_payload, 90)}</p>
+                        <StatusPill value={activationStatus} />
+                      </div>
+                      <div className="commercial-asset-actions">
+                        <button className="ghost-button" onClick={() => editComfyuiRuntimeActivation(activation)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {comfyuiRuntimeActivationCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(activationStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiRuntimeActivationCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "approve")}
+                          disabled={activationStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiRuntimeActivationCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "reject")}
+                          disabled={activationStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeActivationCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "schedule")}
+                          disabled={activationStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {comfyuiRuntimeActivationCopy.scheduleAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "fail")}
+                          disabled={!["approved", "scheduled"].includes(activationStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeActivationCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "cancel")}
+                          disabled={!["draft", "ready_for_review", "approved", "failed"].includes(activationStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeActivationCopy.cancelAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeActivation(runtimeActivationId, "archive")}
+                          disabled={activationStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeActivationCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{actionableComfyuiRuntimeDryRuns.length ? comfyuiRuntimeActivationCopy.noActivations : comfyuiRuntimeActivationCopy.requiresDryRun}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{comfyuiRuntimeActivationCopy.selectedHint}</div>
         )}
       </Panel>
 

@@ -4211,3 +4211,24 @@ Endpoints:
 Supported `dry_run_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `validated`, `failed`, `cancelled`, and `archived`.
 
 Boundary: ComfyUI runtime dry-runs are metadata records only. They do not import or call ComfyUI adapters, enable runtime server switches, store or resolve secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved dry-runs can be marked validated only as an operator-facing metadata state record; no ComfyUI adapter runtime is enabled.
+
+## Phase 61Z: Commercial Operation ComfyUI Runtime Activations
+
+Phase 61Z adds `commercial_operation_comfyui_runtime_activations` and `CommercialOperationComfyUIRuntimeActivation` records below each commercial operation. Operators and server maintainers can create metadata-only runtime activation records from validated ComfyUI runtime dry-runs, edit them, send them for review, approve or reject them, schedule metadata-only activation handoffs, mark failures, cancel active activation requests, or archive their audit trail. These records document future guarded ComfyUI activation requests, switch audits, runtime guardrails, validation checks, operator checklists, and rollback plans without importing or calling a ComfyUI adapter, storing or resolving secret values, calling ComfyUI, submitting prompts, reading queues, uploading files, submitting queues, enabling runtime switches, or generating media.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/runtime-activations`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/schedule`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/archive`
+
+Supported `activation_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `scheduled`, `failed`, `cancelled`, and `archived`.
+
+Boundary: ComfyUI runtime activations are metadata records only. They do not import or call ComfyUI adapters, enable runtime server switches, mutate runtime configuration, read environment state, store or resolve secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved activations can be scheduled only as an operator-facing metadata state record; no ComfyUI adapter runtime is enabled.
