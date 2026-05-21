@@ -3647,6 +3647,7 @@ Endpoints:
 
 - `GET /api/v1/comfyui-runtime/health`
 - `GET /api/v1/comfyui-runtime/capabilities`
+- `GET /api/v1/comfyui-runtime/diagnostics`
 
 默认配置：
 
@@ -3675,5 +3676,13 @@ Endpoints:
 Health response 会返回 `read_only_probe_enabled`、`read_only_probe_attempted`、`health_path`、`allowed_health_paths`、`probe_status_code` 和 `probe_latency_ms`。
 
 边界：Phase 62B 只允许受控只读健康检查，不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、启用 runtime switch、修改 runtime configuration、读取 environment state 或解析 secret value。
+
+## Phase 62C: ComfyUI Runtime Diagnostics
+
+Phase 62C 增加 `GET /api/v1/comfyui-runtime/diagnostics`，这是给服务器维护人员使用的无网络诊断报告。该接口永远不请求 ComfyUI，只返回 `readiness_status`、`blocking_reasons`、`recommended_actions`、`read_only_probe_ready`、`external_request_attempted=false` 和 `runtime_calls_enabled=false`。
+
+诊断检查包括 `provider_guarded`、`runtime_enabled`、`network_gate`、`base_url_scheme`、`base_url_host_allowlist`、`read_only_probe_gate`、`health_path_allowlist` 和 `execution_boundary`。
+
+边界：Phase 62C 只解释 guarded runtime 是否就绪，不会 import adapter、请求 ComfyUI、提交 prompt、读取队列、提交队列、上传文件、生成媒体、启用 runtime switch、修改 runtime configuration、读取 environment state 或解析 secret value。
 
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。

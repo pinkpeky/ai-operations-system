@@ -4241,6 +4241,7 @@ Endpoints:
 
 - `GET /api/v1/comfyui-runtime/health`
 - `GET /api/v1/comfyui-runtime/capabilities`
+- `GET /api/v1/comfyui-runtime/diagnostics`
 
 Default configuration:
 
@@ -4271,3 +4272,11 @@ Additional default configuration:
 Health responses include `read_only_probe_enabled`, `read_only_probe_attempted`, `health_path`, `allowed_health_paths`, `probe_status_code`, and `probe_latency_ms`.
 
 Boundary: Phase 62B is a guarded read-only health check only. It does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.
+
+## Phase 62C: ComfyUI Runtime Diagnostics
+
+Phase 62C adds `GET /api/v1/comfyui-runtime/diagnostics`, a no-network readiness report for server maintainers. The diagnostics endpoint never calls ComfyUI. It reports `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, `external_request_attempted=false`, and `runtime_calls_enabled=false`.
+
+Diagnostic checks include `provider_guarded`, `runtime_enabled`, `network_gate`, `base_url_scheme`, `base_url_host_allowlist`, `read_only_probe_gate`, `health_path_allowlist`, and `execution_boundary`.
+
+Boundary: Phase 62C only explains guarded runtime readiness. It does not import adapters, call ComfyUI, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.

@@ -1909,6 +1909,7 @@ export const openclawApi = {
 export const comfyuiRuntimeApi = {
   health: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/health", {}, settings),
   capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/capabilities", {}, settings),
+  diagnostics: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/diagnostics", {}, settings),
 };
 
 export const auditApi = {

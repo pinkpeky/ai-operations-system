@@ -52,3 +52,44 @@ class ComfyUIRuntimeCapabilitiesResponse(BaseModel):
     required_configuration: list[str] = Field(default_factory=list)
     workspace_id: str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeDiagnosticCheck(BaseModel):
+    """One no-network readiness check for the guarded ComfyUI runtime."""
+
+    key: str
+    status: str
+    label: str
+    detail: str
+    current_value: Any = None
+    expected_value: Any = None
+    remediation: str | None = None
+
+
+class ComfyUIRuntimeDiagnosticsResponse(BaseModel):
+    """No-network ComfyUI runtime readiness diagnostics for operators."""
+
+    success: bool = True
+    provider: str
+    enabled: bool
+    guarded: bool = True
+    network_allowed: bool = False
+    read_only_probe_enabled: bool = False
+    base_url: str
+    parsed_host: str | None = None
+    scheme_allowed: bool = False
+    host_allowed: bool = False
+    allowed_hosts: list[str] = Field(default_factory=list)
+    health_path: str
+    health_path_allowed: bool = False
+    allowed_health_paths: list[str] = Field(default_factory=list)
+    read_only_probe_ready: bool = False
+    external_request_attempted: bool = False
+    runtime_calls_enabled: bool = False
+    readiness_status: str
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    diagnostics: list[ComfyUIRuntimeDiagnosticCheck] = Field(default_factory=list)
+    forbidden_actions: list[str] = Field(default_factory=list)
+    workspace_id: str | None = None
+    raw: dict[str, Any] = Field(default_factory=dict)

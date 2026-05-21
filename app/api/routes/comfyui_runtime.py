@@ -10,7 +10,11 @@ from app.comfyui_runtime import ComfyUIRuntimeService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
-from app.schemas.comfyui_runtime import ComfyUIRuntimeCapabilitiesResponse, ComfyUIRuntimeHealthResponse
+from app.schemas.comfyui_runtime import (
+    ComfyUIRuntimeCapabilitiesResponse,
+    ComfyUIRuntimeDiagnosticsResponse,
+    ComfyUIRuntimeHealthResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,3 +47,17 @@ async def get_comfyui_runtime_capabilities(
     except Exception as exc:
         logger.exception("ComfyUI runtime capabilities API failed")
         raise AppError("ComfyUI runtime capabilities failed", status_code=500) from exc
+
+
+@router.get("/diagnostics", response_model=ComfyUIRuntimeDiagnosticsResponse)
+async def get_comfyui_runtime_diagnostics(
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+) -> ComfyUIRuntimeDiagnosticsResponse:
+    """Return no-network ComfyUI runtime readiness diagnostics."""
+
+    try:
+        return ComfyUIRuntimeService(settings=settings).diagnostics(workspace_id=context.workspace_id)
+    except Exception as exc:
+        logger.exception("ComfyUI runtime diagnostics API failed")
+        raise AppError("ComfyUI runtime diagnostics failed", status_code=500) from exc
