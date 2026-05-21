@@ -1906,6 +1906,11 @@ export const openclawApi = {
   capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/openclaw/capabilities", {}, settings),
 };
 
+export const comfyuiRuntimeApi = {
+  health: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/health", {}, settings),
+  capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/capabilities", {}, settings),
+};
+
 export const auditApi = {
   list: (
     filters: { eventType?: string; success?: string; targetType?: string },

@@ -14,6 +14,7 @@ from app.api.routes.browser import router as browser_router
 from app.api.routes.browser_runtime import router as browser_runtime_router
 from app.api.routes.browser_workers import router as browser_workers_router
 from app.api.routes.browser_workers import runtime_router as browser_worker_runtime_router
+from app.api.routes.comfyui_runtime import router as comfyui_runtime_router
 from app.api.routes.commercial_operations import router as commercial_operations_router
 from app.api.routes.conversation_approvals import router as conversation_approvals_router
 from app.api.routes.conversation_playbooks import router as conversation_playbooks_router
@@ -64,6 +65,7 @@ def create_api_router() -> APIRouter:
         router.include_router(browser_runtime_router)
         router.include_router(browser_workers_router)
         router.include_router(browser_worker_runtime_router)
+        router.include_router(comfyui_runtime_router)
         router.include_router(commercial_operations_router)
         router.include_router(conversation_approvals_router)
         router.include_router(conversation_playbooks_router)

@@ -4232,3 +4232,23 @@ Endpoints:
 Supported `activation_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `scheduled`, `failed`, `cancelled`, and `archived`.
 
 Boundary: ComfyUI runtime activations are metadata records only. They do not import or call ComfyUI adapters, enable runtime server switches, mutate runtime configuration, read environment state, store or resolve secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved activations can be scheduled only as an operator-facing metadata state record; no ComfyUI adapter runtime is enabled.
+
+## Phase 62A: ComfyUI Runtime Adapter Contract
+
+Phase 62A adds disabled-by-default ComfyUI runtime adapter contract endpoints. Operators and server maintainers can inspect provider, switch, base URL, timeout, allowed hosts, disabled actions, required configuration, and guardrails before any future live adapter work. These endpoints do not import adapters, call ComfyUI, read queues, submit prompts, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.
+
+Endpoints:
+
+- `GET /api/v1/comfyui-runtime/health`
+- `GET /api/v1/comfyui-runtime/capabilities`
+
+Default configuration:
+
+- `COMFYUI_RUNTIME_PROVIDER=disabled`
+- `COMFYUI_RUNTIME_ENABLED=False`
+- `COMFYUI_RUNTIME_BASE_URL=http://127.0.0.1:8188`
+- `COMFYUI_RUNTIME_TIMEOUT_SECONDS=30.0`
+- `COMFYUI_RUNTIME_ALLOW_NETWORK=False`
+- `COMFYUI_RUNTIME_ALLOWED_HOSTS=127.0.0.1,localhost`
+
+Boundary: Phase 62A is a contract and visibility layer only. Even when guarded settings are supplied, the health endpoint reports readiness metadata without attempting a network request. Runtime calls, queue reads/submissions, prompt submission, uploads, media generation, runtime switch enablement, and secret resolution remain disabled.

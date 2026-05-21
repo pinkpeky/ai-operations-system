@@ -27,6 +27,9 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
     assert "Phase 61Z" in text
+    assert "Runtime adapter contract" in text
+    assert "comfyuiRuntimeApi.health" in text
+    assert "comfyuiRuntimeApi.capabilities" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -245,7 +248,10 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     text = CLIENT.read_text(encoding="utf-8")
 
     assert "export const commercialOperationsApi" in text
+    assert "export const comfyuiRuntimeApi" in text
     assert "/commercial-operations" in text
+    assert "/comfyui-runtime/health" in text
+    assert "/comfyui-runtime/capabilities" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals" in text
