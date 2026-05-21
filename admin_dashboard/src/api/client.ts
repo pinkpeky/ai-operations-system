@@ -782,6 +782,94 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  comfyuiConnectionProbes: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes`, {}, settings),
+  createComfyuiConnectionProbe: (operationId: string, executionPlanId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/connection-probes`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Ready from Commercial Ops; connection probe remains metadata-only." }),
+      },
+      settings,
+    ),
+  approveComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Approved from Commercial Ops; no ComfyUI HTTP probe will run." }),
+      },
+      settings,
+    ),
+  rejectComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Rejected from Commercial Ops." }),
+      },
+      settings,
+    ),
+  probeComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/probe`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: "Recorded metadata-only connection probe plan; no ComfyUI HTTP call occurred." }),
+      },
+      settings,
+    ),
+  failComfyuiConnectionProbe: (
+    operationId: string,
+    connectionProbeId: string,
+    failureReason = "Failed from Commercial Ops connection probe; maintainer review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  cancelComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Cancelled from Commercial Ops." }),
+      },
+      settings,
+    ),
+  archiveComfyuiConnectionProbe: (operationId: string, connectionProbeId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-connection-probes/${encodeURIComponent(connectionProbeId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Archived from Commercial Ops." }),
+      },
+      settings,
+    ),
   deliverables: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/deliverables`, {}, settings),
   createDeliverable: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

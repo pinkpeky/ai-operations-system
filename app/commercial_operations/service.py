@@ -15,6 +15,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIConnectionProbe,
     CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
@@ -34,6 +35,7 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIAdapterConfigStatus,
+    CommercialOperationComfyUIConnectionProbeStatus,
     CommercialOperationComfyUIExecutionPlanStatus,
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIJobRequestStatus,
@@ -2785,6 +2787,453 @@ class CommercialOperationService:
             operation_id=operation_id,
             execution_plan_id=execution_plan_id,
             status=CommercialOperationComfyUIExecutionPlanStatus.ARCHIVED.value,
+            actor_user_id=archived_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def create_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        title: str | None = None,
+        probe_mode: str = "metadata_only",
+        health_endpoint: str = "/system_stats",
+        queue_endpoint: str = "/queue",
+        expected_routes: list[str] | None = None,
+        readiness_checks: list[dict[str, Any]] | None = None,
+        probe_payload: dict[str, Any] | None = None,
+        health_snapshot: dict[str, Any] | None = None,
+        queue_snapshot: dict[str, Any] | None = None,
+        response_schema: dict[str, Any] | None = None,
+        planned_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+        )
+        if execution_plan.plan_status not in {
+            CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+        }:
+            raise ValueError("ComfyUI connection probes require an approved or simulated execution plan")
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=execution_plan.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=execution_plan.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=execution_plan.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        clean_health_endpoint = self._clean_comfyui_probe_endpoint(health_endpoint, default="/system_stats")
+        clean_queue_endpoint = self._clean_comfyui_probe_endpoint(queue_endpoint, default="/queue")
+        clean_expected_routes = self._clean_comfyui_probe_routes(expected_routes) or [clean_health_endpoint, clean_queue_endpoint]
+        clean_probe_payload = self._normalize_comfyui_connection_probe_payload(
+            probe_payload=probe_payload,
+            probe_mode=probe_mode,
+            health_endpoint=clean_health_endpoint,
+            queue_endpoint=clean_queue_endpoint,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            adapter_config=adapter_config,
+        )
+        clean_health_snapshot = self._build_comfyui_connection_health_snapshot(
+            health_snapshot=health_snapshot,
+            execution_plan=execution_plan,
+            adapter_config=adapter_config,
+        )
+        clean_queue_snapshot = self._build_comfyui_connection_queue_snapshot(
+            queue_snapshot=queue_snapshot,
+            execution_plan=execution_plan,
+            job_request=job_request,
+        )
+        clean_response_schema = self._build_comfyui_connection_response_schema(response_schema=response_schema)
+        checks, result_summary, failure_reason = self._evaluate_comfyui_connection_probe(
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            adapter_config=adapter_config,
+            expected_routes=clean_expected_routes,
+            probe_payload=clean_probe_payload,
+            readiness_checks=readiness_checks,
+        )
+        probe = CommercialOperationComfyUIConnectionProbe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan.id,
+            job_request_id=execution_plan.job_request_id,
+            preflight_id=execution_plan.preflight_id,
+            handoff_id=execution_plan.handoff_id,
+            adapter_config_id=execution_plan.adapter_config_id,
+            asset_request_id=execution_plan.asset_request_id,
+            step_key=execution_plan.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI connection probe: {execution_plan.title}"
+            )[:255],
+            probe_status=CommercialOperationComfyUIConnectionProbeStatus.DRAFT.value,
+            target_url=execution_plan.target_url,
+            queue_name=execution_plan.queue_name,
+            workflow_name=execution_plan.workflow_name,
+            probe_mode="metadata_only",
+            health_endpoint=clean_health_endpoint,
+            queue_endpoint=clean_queue_endpoint,
+            expected_routes=clean_expected_routes,
+            readiness_checks=checks,
+            probe_payload=clean_probe_payload,
+            health_snapshot=clean_health_snapshot,
+            queue_snapshot=clean_queue_snapshot,
+            response_schema=clean_response_schema,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            planned_by=planned_by,
+            updated_by=planned_by,
+            probe_metadata=metadata or {},
+        )
+        self.session.add(probe)
+        await self.session.flush()
+        probe.probe_plan_payload = self._build_comfyui_connection_probe_plan_payload(
+            operation=operation,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            probe=probe,
+        )
+        self._apply_comfyui_connection_probe_to_plan(operation, probe)
+        await self.session.commit()
+        await self.session.refresh(probe)
+        return probe
+
+    async def list_comfyui_connection_probes(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        execution_plan_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIConnectionProbe]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIConnectionProbe).where(
+            CommercialOperationComfyUIConnectionProbe.workspace_id == workspace_id,
+            CommercialOperationComfyUIConnectionProbe.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIConnectionProbe.probe_status == status)
+        if execution_plan_id is not None:
+            statement = statement.where(CommercialOperationComfyUIConnectionProbe.execution_plan_id == execution_plan_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIConnectionProbe.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIConnectionProbe).where(
+                CommercialOperationComfyUIConnectionProbe.workspace_id == workspace_id,
+                CommercialOperationComfyUIConnectionProbe.operation_id == operation_id,
+                CommercialOperationComfyUIConnectionProbe.id == connection_probe_id,
+            )
+        )
+        probe = result.scalar_one_or_none()
+        if probe is None:
+            raise ValueError("Commercial operation ComfyUI connection probe not found in workspace")
+        return probe
+
+    async def update_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+        )
+        if probe.probe_status in {
+            CommercialOperationComfyUIConnectionProbeStatus.PROBED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.CANCELLED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Probed, cancelled, or archived ComfyUI connection probes cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=probe.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=probe.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=probe.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=probe.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        if "title" in patch and patch["title"] is not None:
+            probe.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "health_endpoint" in patch and patch["health_endpoint"] is not None:
+            probe.health_endpoint = self._clean_comfyui_probe_endpoint(patch["health_endpoint"], default="/system_stats")
+        if "queue_endpoint" in patch and patch["queue_endpoint"] is not None:
+            probe.queue_endpoint = self._clean_comfyui_probe_endpoint(patch["queue_endpoint"], default="/queue")
+        if "expected_routes" in patch and patch["expected_routes"] is not None:
+            probe.expected_routes = self._clean_comfyui_probe_routes(patch["expected_routes"]) or [probe.health_endpoint, probe.queue_endpoint]
+        if "probe_payload" in patch and patch["probe_payload"] is not None:
+            probe.probe_payload = self._normalize_comfyui_connection_probe_payload(
+                probe_payload=patch["probe_payload"],
+                probe_mode=patch.get("probe_mode") or probe.probe_mode,
+                health_endpoint=probe.health_endpoint,
+                queue_endpoint=probe.queue_endpoint,
+                execution_plan=execution_plan,
+                job_request=job_request,
+                adapter_config=adapter_config,
+            )
+        if "health_snapshot" in patch and patch["health_snapshot"] is not None:
+            probe.health_snapshot = self._build_comfyui_connection_health_snapshot(
+                health_snapshot=patch["health_snapshot"],
+                execution_plan=execution_plan,
+                adapter_config=adapter_config,
+            )
+        if "queue_snapshot" in patch and patch["queue_snapshot"] is not None:
+            probe.queue_snapshot = self._build_comfyui_connection_queue_snapshot(
+                queue_snapshot=patch["queue_snapshot"],
+                execution_plan=execution_plan,
+                job_request=job_request,
+            )
+        if "response_schema" in patch and patch["response_schema"] is not None:
+            probe.response_schema = self._build_comfyui_connection_response_schema(response_schema=patch["response_schema"])
+        for field in ("result_summary", "failure_reason", "reviewer_notes"):
+            if field in patch:
+                value = patch[field]
+                setattr(probe, field, value.strip() if isinstance(value, str) and value.strip() else None)
+        if "metadata" in patch and patch["metadata"] is not None:
+            probe.probe_metadata = patch["metadata"] or {}
+        if not probe.expected_routes:
+            probe.expected_routes = [probe.health_endpoint, probe.queue_endpoint]
+        if "probe_payload" not in patch:
+            probe.probe_payload = self._normalize_comfyui_connection_probe_payload(
+                probe_payload=probe.probe_payload,
+                probe_mode=probe.probe_mode,
+                health_endpoint=probe.health_endpoint,
+                queue_endpoint=probe.queue_endpoint,
+                execution_plan=execution_plan,
+                job_request=job_request,
+                adapter_config=adapter_config,
+            )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_connection_probe(
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            adapter_config=adapter_config,
+            expected_routes=probe.expected_routes,
+            probe_payload=probe.probe_payload,
+            readiness_checks=patch.get("readiness_checks") if "readiness_checks" in patch else probe.readiness_checks,
+        )
+        probe.readiness_checks = checks
+        probe.result_summary = result_summary
+        probe.failure_reason = failure_reason
+        probe.probe_status = CommercialOperationComfyUIConnectionProbeStatus.DRAFT.value
+        probe.updated_by = updated_by
+        probe.approved_by = None
+        probe.probed_by = None
+        probe.cancelled_by = None
+        probe.approved_at = None
+        probe.rejected_at = None
+        probe.probed_at = None
+        probe.failed_at = None
+        probe.cancelled_at = None
+        probe.archived_at = None
+        probe.probe_plan_payload = self._build_comfyui_connection_probe_plan_payload(
+            operation=operation,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            probe=probe,
+        )
+        self._apply_comfyui_connection_probe_to_plan(operation, probe)
+        await self.session.commit()
+        await self.session.refresh(probe)
+        return probe
+
+    async def mark_comfyui_connection_probe_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def probe_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        probed_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.PROBED.value,
+            actor_user_id=probed_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        archived_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        return await self._decide_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            status=CommercialOperationComfyUIConnectionProbeStatus.ARCHIVED.value,
             actor_user_id=archived_by,
             reviewer_notes=reviewer_notes,
             result_summary=None,
@@ -5673,6 +6122,190 @@ class CommercialOperationService:
         await self.session.refresh(plan)
         return plan
 
+    async def _decide_comfyui_connection_probe(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIConnectionProbe:
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+        )
+        if probe.probe_status == CommercialOperationComfyUIConnectionProbeStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI connection probes cannot be changed")
+        if status == CommercialOperationComfyUIConnectionProbeStatus.READY_FOR_REVIEW.value and probe.probe_status not in {
+            CommercialOperationComfyUIConnectionProbeStatus.DRAFT.value,
+            CommercialOperationComfyUIConnectionProbeStatus.REJECTED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI connection probes can be marked ready")
+        if status in {
+            CommercialOperationComfyUIConnectionProbeStatus.APPROVED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.REJECTED.value,
+        } and probe.probe_status != CommercialOperationComfyUIConnectionProbeStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI connection probes can be approved or rejected")
+        if status == CommercialOperationComfyUIConnectionProbeStatus.PROBED.value and probe.probe_status != (
+            CommercialOperationComfyUIConnectionProbeStatus.APPROVED.value
+        ):
+            raise ValueError("Only approved ComfyUI connection probes can be marked probed")
+        if status == CommercialOperationComfyUIConnectionProbeStatus.FAILED.value and probe.probe_status not in {
+            CommercialOperationComfyUIConnectionProbeStatus.APPROVED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.PROBED.value,
+        }:
+            raise ValueError("Only approved or probed ComfyUI connection probes can be failed")
+        if status == CommercialOperationComfyUIConnectionProbeStatus.CANCELLED.value and probe.probe_status in {
+            CommercialOperationComfyUIConnectionProbeStatus.PROBED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.CANCELLED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.ARCHIVED.value,
+        }:
+            raise ValueError("ComfyUI connection probe is already terminal")
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=probe.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=probe.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=probe.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=probe.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        probe.probe_payload = self._normalize_comfyui_connection_probe_payload(
+            probe_payload=probe.probe_payload,
+            probe_mode=probe.probe_mode,
+            health_endpoint=probe.health_endpoint,
+            queue_endpoint=probe.queue_endpoint,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            adapter_config=adapter_config,
+        )
+        probe.health_snapshot = self._build_comfyui_connection_health_snapshot(
+            health_snapshot=probe.health_snapshot,
+            execution_plan=execution_plan,
+            adapter_config=adapter_config,
+        )
+        probe.queue_snapshot = self._build_comfyui_connection_queue_snapshot(
+            queue_snapshot=probe.queue_snapshot,
+            execution_plan=execution_plan,
+            job_request=job_request,
+        )
+        checks, evaluated_summary, evaluated_failure = self._evaluate_comfyui_connection_probe(
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            adapter_config=adapter_config,
+            expected_routes=probe.expected_routes,
+            probe_payload=probe.probe_payload,
+            readiness_checks=probe.readiness_checks,
+        )
+        if status in {
+            CommercialOperationComfyUIConnectionProbeStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIConnectionProbeStatus.APPROVED.value,
+            CommercialOperationComfyUIConnectionProbeStatus.PROBED.value,
+        } and evaluated_failure:
+            raise ValueError(f"ComfyUI connection probe is blocked: {evaluated_failure}")
+
+        now = datetime.now(UTC)
+        probe.probe_status = status
+        probe.readiness_checks = checks
+        probe.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        probe.result_summary = (
+            result_summary.strip()
+            if result_summary and result_summary.strip()
+            else evaluated_summary
+            if status != CommercialOperationComfyUIConnectionProbeStatus.FAILED.value
+            else None
+        )
+        probe.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else evaluated_failure
+            if status == CommercialOperationComfyUIConnectionProbeStatus.FAILED.value
+            else None
+        )
+        probe.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIConnectionProbeStatus.READY_FOR_REVIEW.value:
+            probe.approved_by = None
+            probe.probed_by = None
+            probe.cancelled_by = None
+            probe.approved_at = None
+            probe.rejected_at = None
+            probe.probed_at = None
+            probe.failed_at = None
+            probe.cancelled_at = None
+            probe.archived_at = None
+        elif status == CommercialOperationComfyUIConnectionProbeStatus.APPROVED.value:
+            probe.approved_by = actor_user_id
+            probe.approved_at = now
+            probe.rejected_at = None
+            probe.probed_at = None
+            probe.failed_at = None
+            probe.cancelled_at = None
+            probe.archived_at = None
+        elif status == CommercialOperationComfyUIConnectionProbeStatus.REJECTED.value:
+            probe.rejected_at = now
+            probe.approved_by = None
+            probe.probed_by = None
+            probe.approved_at = None
+            probe.probed_at = None
+            probe.failed_at = None
+            probe.cancelled_at = None
+            probe.archived_at = None
+        elif status == CommercialOperationComfyUIConnectionProbeStatus.PROBED.value:
+            probe.probed_by = actor_user_id
+            probe.probed_at = now
+            probe.failed_at = None
+            probe.cancelled_at = None
+            probe.archived_at = None
+        elif status == CommercialOperationComfyUIConnectionProbeStatus.FAILED.value:
+            probe.failed_at = now
+            probe.cancelled_at = None
+            probe.archived_at = None
+        elif status == CommercialOperationComfyUIConnectionProbeStatus.CANCELLED.value:
+            probe.cancelled_by = actor_user_id
+            probe.cancelled_at = now
+            probe.archived_at = None
+        elif status == CommercialOperationComfyUIConnectionProbeStatus.ARCHIVED.value:
+            probe.archived_by = actor_user_id
+            probe.archived_at = now
+        probe.probe_plan_payload = self._build_comfyui_connection_probe_plan_payload(
+            operation=operation,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            probe=probe,
+        )
+        self._apply_comfyui_connection_probe_to_plan(operation, probe)
+        await self.session.commit()
+        await self.session.refresh(probe)
+        return probe
+
     async def _decide_deliverable(
         self,
         *,
@@ -7404,6 +8037,291 @@ class CommercialOperationService:
             ],
         }
 
+    def _clean_comfyui_probe_endpoint(self, value: Any, *, default: str) -> str:
+        endpoint = str(value or "").strip() or default
+        if not endpoint.startswith("/"):
+            endpoint = f"/{endpoint}"
+        return endpoint[:128]
+
+    def _clean_comfyui_probe_routes(self, value: Any) -> list[str]:
+        routes = self._clean_list(value)
+        return [self._clean_comfyui_probe_endpoint(route, default="/") for route in routes]
+
+    def _normalize_comfyui_connection_probe_payload(
+        self,
+        *,
+        probe_payload: dict[str, Any] | None,
+        probe_mode: str,
+        health_endpoint: str,
+        queue_endpoint: str,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        payload = probe_payload.copy() if isinstance(probe_payload, dict) else {}
+        payload.update(
+            {
+                "adapter": "future_guarded_comfyui_adapter",
+                "probe_mode": "metadata_only",
+                "requested_probe_mode": str(probe_mode or "metadata_only").strip() or "metadata_only",
+                "connection_mode": "metadata_only",
+                "http_method": "GET",
+                "health_endpoint": health_endpoint,
+                "queue_endpoint": queue_endpoint,
+                "network_probe": False,
+                "read_only_probe": False,
+                "queue_submission": False,
+                "submit_job": False,
+                "submit_jobs": False,
+                "upload_files": False,
+                "external_calls": "disabled",
+                "dry_run_only": True,
+                "execution_plan_id": str(execution_plan.id),
+                "job_request_id": str(job_request.id),
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "target_url": execution_plan.target_url,
+                "queue_name": execution_plan.queue_name,
+                "workflow_name": execution_plan.workflow_name,
+                "secret_ref": adapter_config.secret_ref if adapter_config else None,
+                "secret_value_present": False,
+            }
+        )
+        return payload
+
+    def _build_comfyui_connection_health_snapshot(
+        self,
+        *,
+        health_snapshot: dict[str, Any] | None,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        snapshot = health_snapshot.copy() if isinstance(health_snapshot, dict) else {}
+        snapshot.update(
+            {
+                "source": "metadata_only",
+                "network_call_executed": False,
+                "reachable": "not_measured",
+                "target_url": execution_plan.target_url,
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "auth_mode": adapter_config.auth_mode if adapter_config else None,
+                "secret_ref_only": bool(adapter_config and adapter_config.secret_ref),
+                "execution_boundary": "metadata-only health snapshot; no ComfyUI HTTP request occurs",
+            }
+        )
+        return snapshot
+
+    def _build_comfyui_connection_queue_snapshot(
+        self,
+        *,
+        queue_snapshot: dict[str, Any] | None,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+    ) -> dict[str, Any]:
+        snapshot = queue_snapshot.copy() if isinstance(queue_snapshot, dict) else {}
+        snapshot.update(
+            {
+                "source": "metadata_only",
+                "network_call_executed": False,
+                "queue_observed": False,
+                "queue_name": execution_plan.queue_name,
+                "workflow_name": execution_plan.workflow_name,
+                "job_request_status": job_request.job_status,
+                "pending_count": None,
+                "running_count": None,
+                "history_count": None,
+                "execution_boundary": "metadata-only queue snapshot; no ComfyUI queue read or submission occurs",
+            }
+        )
+        return snapshot
+
+    def _build_comfyui_connection_response_schema(
+        self,
+        *,
+        response_schema: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        schema = response_schema.copy() if isinstance(response_schema, dict) else {}
+        schema.update(
+            {
+                "health_response": schema.get("health_response")
+                or {
+                    "type": "object",
+                    "expected_keys": ["system", "devices"],
+                    "source": "future_read_only_probe",
+                },
+                "queue_response": schema.get("queue_response")
+                or {
+                    "type": "object",
+                    "expected_keys": ["queue_running", "queue_pending"],
+                    "source": "future_read_only_probe",
+                },
+                "schema_mode": "documentation_only",
+                "execution_boundary": "schema only; no response is fetched in this phase",
+            }
+        )
+        return schema
+
+    def _evaluate_comfyui_connection_probe(
+        self,
+        *,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        expected_routes: list[str],
+        probe_payload: dict[str, Any],
+        readiness_checks: list[dict[str, Any]] | None,
+    ) -> tuple[list[dict[str, Any]], str, str | None]:
+        generated_checks = [
+            {
+                "key": "execution_plan_approved_or_simulated",
+                "label": "Execution plan is approved or simulated",
+                "status": execution_plan.plan_status
+                in {
+                    CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+                    CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+                },
+                "severity": "blocker",
+                "message": "Connection probes require an approved or simulated ComfyUI execution plan.",
+                "source": "system",
+            },
+            {
+                "key": "job_request_approved_or_queued",
+                "label": "Job request remains approved or queued",
+                "status": job_request.job_status
+                in {
+                    CommercialOperationComfyUIJobRequestStatus.APPROVED.value,
+                    CommercialOperationComfyUIJobRequestStatus.QUEUED.value,
+                },
+                "severity": "blocker",
+                "message": "Connection probes must trace to an approved or queued job request.",
+                "source": "system",
+            },
+            {
+                "key": "preflight_checked",
+                "label": "ComfyUI preflight is checked",
+                "status": preflight.preflight_status == CommercialOperationComfyUIPreflightStatus.CHECKED.value,
+                "severity": "blocker",
+                "message": "The source preflight must remain checked.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_config_ready",
+                "label": "Maintained adapter config is ready",
+                "status": adapter_config is not None
+                and adapter_config.config_status == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "Connection probes require a ready maintained adapter config.",
+                "source": "system",
+            },
+            {
+                "key": "target_url_present",
+                "label": "Target URL is configured",
+                "status": bool(execution_plan.target_url),
+                "severity": "blocker",
+                "message": "A target URL is required before a future read-only probe can be reviewed.",
+                "source": "system",
+            },
+            {
+                "key": "read_only_routes_documented",
+                "label": "Read-only routes are documented",
+                "status": bool(expected_routes) and all(str(route).startswith("/") for route in expected_routes),
+                "severity": "blocker",
+                "message": "Expected health and queue routes must be documented as relative read-only paths.",
+                "source": "system",
+            },
+            {
+                "key": "metadata_only_probe_boundary",
+                "label": "Metadata-only probe boundary is active",
+                "status": probe_payload.get("probe_mode") == "metadata_only"
+                and probe_payload.get("network_probe") is False
+                and probe_payload.get("read_only_probe") is False
+                and probe_payload.get("queue_submission") is False
+                and probe_payload.get("submit_job") is False
+                and probe_payload.get("submit_jobs") is False
+                and probe_payload.get("upload_files") is False
+                and probe_payload.get("external_calls") == "disabled",
+                "severity": "blocker",
+                "message": "This phase only records a probe plan and must not call ComfyUI.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(readiness_checks):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, "ComfyUI connection probe is blocked; maintainer action is required.", labels
+        return (
+            merged_checks,
+            "ComfyUI connection probe is ready as a metadata-only read-only probe plan; no HTTP request occurred.",
+            None,
+        )
+
+    def _build_comfyui_connection_probe_plan_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        probe: CommercialOperationComfyUIConnectionProbe,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "connection_probe_id": str(probe.id) if probe.id else None,
+            "probe_status": probe.probe_status,
+            "execution_plan_id": str(execution_plan.id),
+            "execution_plan_status": execution_plan.plan_status,
+            "job_request_id": str(job_request.id),
+            "job_request_status": job_request.job_status,
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "adapter_config_status": adapter_config.config_status if adapter_config else None,
+            "asset_request_id": str(handoff.asset_request_id),
+            "step_key": probe.step_key,
+            "title": probe.title,
+            "target_url": probe.target_url,
+            "queue_name": probe.queue_name,
+            "workflow_name": probe.workflow_name,
+            "probe_mode": "metadata_only",
+            "health_endpoint": probe.health_endpoint,
+            "queue_endpoint": probe.queue_endpoint,
+            "expected_routes": probe.expected_routes,
+            "readiness_checks": probe.readiness_checks,
+            "probe_payload": probe.probe_payload,
+            "health_snapshot": probe.health_snapshot,
+            "queue_snapshot": probe.queue_snapshot,
+            "response_schema": probe.response_schema,
+            "result_summary": probe.result_summary,
+            "failure_reason": probe.failure_reason,
+            "execution_boundary": "metadata-only ComfyUI connection probe; no ComfyUI HTTP request, queue read, upload, or submission occurs",
+            "next_runtime": "future_guarded_read_only_comfyui_adapter",
+            "forbidden_actions": [
+                "no ComfyUI HTTP request",
+                "no read-only queue probe",
+                "no ComfyUI queue submission",
+                "no file upload to ComfyUI",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no secret value storage",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -8282,6 +9200,40 @@ class CommercialOperationService:
                     updated["comfyui_execution_plan_decision_at"] = plan.cancelled_at.isoformat()
                 elif plan.archived_at is not None:
                     updated["comfyui_execution_plan_decision_at"] = plan.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_connection_probe_to_plan(
+        self,
+        operation: CommercialOperation,
+        probe: CommercialOperationComfyUIConnectionProbe,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == probe.step_key:
+                updated = dict(step)
+                updated["comfyui_connection_probe_id"] = str(probe.id)
+                updated["comfyui_connection_probe_status"] = probe.probe_status
+                updated["comfyui_connection_probe_execution_plan_id"] = str(probe.execution_plan_id)
+                updated["comfyui_connection_probe_target_url"] = probe.target_url
+                updated["comfyui_connection_probe_queue_name"] = probe.queue_name
+                updated["comfyui_connection_probe_health_endpoint"] = probe.health_endpoint
+                updated["comfyui_connection_probe_queue_endpoint"] = probe.queue_endpoint
+                updated["comfyui_connection_probe_mode"] = probe.probe_mode
+                if probe.probed_at is not None:
+                    updated["comfyui_connection_probe_decision_at"] = probe.probed_at.isoformat()
+                elif probe.approved_at is not None:
+                    updated["comfyui_connection_probe_decision_at"] = probe.approved_at.isoformat()
+                elif probe.rejected_at is not None:
+                    updated["comfyui_connection_probe_decision_at"] = probe.rejected_at.isoformat()
+                elif probe.failed_at is not None:
+                    updated["comfyui_connection_probe_decision_at"] = probe.failed_at.isoformat()
+                elif probe.cancelled_at is not None:
+                    updated["comfyui_connection_probe_decision_at"] = probe.cancelled_at.isoformat()
+                elif probe.archived_at is not None:
+                    updated["comfyui_connection_probe_decision_at"] = probe.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

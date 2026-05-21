@@ -4127,3 +4127,24 @@ Endpoints:
 Supported `plan_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `simulated`, `failed`, `cancelled`, and `archived`.
 
 Boundary: ComfyUI execution plans are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved plans can be simulated only as an operator-facing local metadata state record; no ComfyUI queue submission occurs.
+
+## Phase 61V: Commercial Operation ComfyUI Connection Probes
+
+Phase 61V adds `commercial_operation_comfyui_connection_probes` and `CommercialOperationComfyUIConnectionProbe` records below each commercial operation. Operators can create metadata-only connection probe records from approved or simulated ComfyUI execution plans, edit them, send them for review, approve or reject them, mark them probed, mark failures, cancel active probes, or archive their audit trail. These records document future guarded ComfyUI health and queue snapshot probes, route expectations, readiness checks, sanitized probe payloads, metadata-only health snapshots, metadata-only queue snapshots, and response schemas without storing secret values, calling ComfyUI, reading queues, uploading files, submitting queues, or generating media.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/connection-probes`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/probe`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/archive`
+
+Supported `probe_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `probed`, `failed`, `cancelled`, and `archived`.
+
+Boundary: ComfyUI connection probes are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved probes can be marked probed only as an operator-facing metadata state record; no ComfyUI HTTP request or read-only queue probe occurs.

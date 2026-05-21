@@ -3542,3 +3542,21 @@ API:
 边界：ComfyUI execution plan 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved plan 的 simulate 状态只是人工操作记录，不代表真实队列提交。
 
 边界：ComfyUI job request 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved request 的 queued 状态只是人工操作记录，不代表真实队列提交。
+## Phase 61V: 商业运营 ComfyUI 连接探测
+
+Phase 61V 新增 `commercial_operation_comfyui_connection_probes` 与 `CommercialOperationComfyUIConnectionProbe` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes`。操作人员可以从 approved 或 simulated ComfyUI execution plan 创建 metadata-only connection probe，编辑、送审、批准、驳回、标记 probed、标记 failed、取消或归档。该记录用于保存未来受控 ComfyUI health/queue snapshot probe 方案、route 期望、readiness checks、sanitized probe payload、metadata-only health snapshot、metadata-only queue snapshot 与 response schema；系统不会保存密钥值、不会请求 ComfyUI、不会读取队列、不会上传文件、不会提交队列、不会生成媒体。
+
+API:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/connection-probes`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/probe`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/archive`
+
+边界：ComfyUI connection probe 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved probe 的 `probe` 状态只是人工操作记录，不代表真实 HTTP 请求或 read-only queue probe。

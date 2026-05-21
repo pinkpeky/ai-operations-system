@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIConnectionProbe,
     CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
@@ -76,6 +77,16 @@ CommercialOperationComfyUIExecutionPlanStatusLiteral = Literal[
     "approved",
     "rejected",
     "simulated",
+    "failed",
+    "cancelled",
+    "archived",
+]
+CommercialOperationComfyUIConnectionProbeStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "probed",
     "failed",
     "cancelled",
     "archived",
@@ -1323,6 +1334,155 @@ class CommercialOperationComfyUIExecutionPlanListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIExecutionPlanResponse]
+
+
+class CommercialOperationComfyUIConnectionProbeCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI connection probe from an execution plan."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    probe_mode: str = Field(default="metadata_only", min_length=1, max_length=32)
+    health_endpoint: str = Field(default="/system_stats", min_length=1, max_length=128)
+    queue_endpoint: str = Field(default="/queue", min_length=1, max_length=128)
+    expected_routes: list[str] = Field(default_factory=list)
+    readiness_checks: list[dict[str, Any]] = Field(default_factory=list)
+    probe_payload: dict[str, Any] = Field(default_factory=dict)
+    health_snapshot: dict[str, Any] = Field(default_factory=dict)
+    queue_snapshot: dict[str, Any] = Field(default_factory=dict)
+    response_schema: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIConnectionProbeUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI connection probe before probe recording."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    probe_mode: str | None = Field(default=None, min_length=1, max_length=32)
+    health_endpoint: str | None = Field(default=None, min_length=1, max_length=128)
+    queue_endpoint: str | None = Field(default=None, min_length=1, max_length=128)
+    expected_routes: list[str] | None = None
+    readiness_checks: list[dict[str, Any]] | None = None
+    probe_payload: dict[str, Any] | None = None
+    health_snapshot: dict[str, Any] | None = None
+    queue_snapshot: dict[str, Any] | None = None
+    response_schema: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIConnectionProbeDecisionRequest(BaseModel):
+    """Review, probe, fail, cancel, or archive a ComfyUI connection probe."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIConnectionProbeResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI connection probe response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    execution_plan_id: UUID
+    job_request_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    probe_status: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    probe_mode: str
+    health_endpoint: str
+    queue_endpoint: str
+    expected_routes: list[str]
+    readiness_checks: list[dict[str, Any]]
+    probe_payload: dict[str, Any]
+    health_snapshot: dict[str, Any]
+    queue_snapshot: dict[str, Any]
+    response_schema: dict[str, Any]
+    probe_plan_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    planned_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    probed_by: str | None
+    cancelled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    probed_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        probe: CommercialOperationComfyUIConnectionProbe,
+    ) -> "CommercialOperationComfyUIConnectionProbeResponse":
+        return cls(
+            id=probe.id,
+            workspace_id=probe.workspace_id,
+            operation_id=probe.operation_id,
+            execution_plan_id=probe.execution_plan_id,
+            job_request_id=probe.job_request_id,
+            preflight_id=probe.preflight_id,
+            handoff_id=probe.handoff_id,
+            adapter_config_id=probe.adapter_config_id,
+            asset_request_id=probe.asset_request_id,
+            step_key=probe.step_key,
+            title=probe.title,
+            probe_status=probe.probe_status,
+            target_url=probe.target_url,
+            queue_name=probe.queue_name,
+            workflow_name=probe.workflow_name,
+            probe_mode=probe.probe_mode,
+            health_endpoint=probe.health_endpoint,
+            queue_endpoint=probe.queue_endpoint,
+            expected_routes=probe.expected_routes,
+            readiness_checks=probe.readiness_checks,
+            probe_payload=probe.probe_payload,
+            health_snapshot=probe.health_snapshot,
+            queue_snapshot=probe.queue_snapshot,
+            response_schema=probe.response_schema,
+            probe_plan_payload=probe.probe_plan_payload,
+            result_summary=probe.result_summary,
+            failure_reason=probe.failure_reason,
+            reviewer_notes=probe.reviewer_notes,
+            planned_by=probe.planned_by,
+            updated_by=probe.updated_by,
+            approved_by=probe.approved_by,
+            probed_by=probe.probed_by,
+            cancelled_by=probe.cancelled_by,
+            archived_by=probe.archived_by,
+            approved_at=probe.approved_at,
+            rejected_at=probe.rejected_at,
+            probed_at=probe.probed_at,
+            failed_at=probe.failed_at,
+            cancelled_at=probe.cancelled_at,
+            archived_at=probe.archived_at,
+            metadata=probe.probe_metadata,
+            created_at=probe.created_at,
+            updated_at=probe.updated_at,
+        )
+
+
+class CommercialOperationComfyUIConnectionProbeListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI connection probe list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIConnectionProbeResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

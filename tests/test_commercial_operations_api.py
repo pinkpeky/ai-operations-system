@@ -17,6 +17,7 @@ from app.models import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIConnectionProbe,
     CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
@@ -43,6 +44,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationApproval,
         CommercialOperationAssetRequest,
         CommercialOperationComfyUIAdapterConfig,
+        CommercialOperationComfyUIConnectionProbe,
         CommercialOperationComfyUIExecutionPlan,
         CommercialOperationComfyUIHandoff,
         CommercialOperationComfyUIJobRequest,
@@ -802,6 +804,105 @@ async def test_commercial_operations_api_flow() -> None:
             assert simulated_comfyui_execution_plan.json()["plan_status"] == "simulated"
             assert simulated_comfyui_execution_plan.json()["simulated_by"] == "user-commercial-api"
 
+            comfyui_connection_probe = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{comfyui_execution_plan_id}/connection-probes",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI connection probe",
+                    "probe_mode": "future_read_only_probe",
+                    "health_endpoint": "system_stats",
+                    "queue_endpoint": "/queue",
+                    "expected_routes": ["/system_stats", "/queue"],
+                    "readiness_checks": [
+                        {"key": "maintainer_window", "label": "Maintainer window confirmed", "status": True}
+                    ],
+                    "probe_payload": {
+                        "probe_mode": "future_read_only_probe",
+                        "network_probe": True,
+                        "read_only_probe": True,
+                        "queue_submission": True,
+                    },
+                    "health_snapshot": {"reachable": True},
+                    "queue_snapshot": {"queue_observed": True},
+                    "response_schema": {"health_response": {"expected_keys": ["system"]}},
+                    "metadata": {"phase": "61V"},
+                },
+            )
+            assert comfyui_connection_probe.status_code == 201
+            comfyui_connection_probe_body = comfyui_connection_probe.json()
+            comfyui_connection_probe_id = comfyui_connection_probe_body["id"]
+            assert comfyui_connection_probe_body["probe_status"] == "draft"
+            assert comfyui_connection_probe_body["execution_plan_id"] == comfyui_execution_plan_id
+            assert comfyui_connection_probe_body["health_endpoint"] == "/system_stats"
+            assert comfyui_connection_probe_body["probe_payload"]["probe_mode"] == "metadata_only"
+            assert comfyui_connection_probe_body["probe_payload"]["network_probe"] is False
+            assert comfyui_connection_probe_body["probe_payload"]["read_only_probe"] is False
+            assert comfyui_connection_probe_body["probe_payload"]["queue_submission"] is False
+            assert comfyui_connection_probe_body["health_snapshot"]["network_call_executed"] is False
+            assert comfyui_connection_probe_body["queue_snapshot"]["queue_observed"] is False
+            assert comfyui_connection_probe_body["probe_plan_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI connection probe; no ComfyUI HTTP request, queue read, upload, or submission occurs"
+            )
+            assert "no read-only queue probe" in comfyui_connection_probe_body["probe_plan_payload"]["forbidden_actions"]
+
+            comfyui_connection_probes = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes",
+                headers=headers,
+            )
+            assert comfyui_connection_probes.status_code == 200
+            assert [item["id"] for item in comfyui_connection_probes.json()["items"]] == [comfyui_connection_probe_id]
+
+            hidden_comfyui_connection_probes = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_connection_probes.status_code == 404
+
+            updated_comfyui_connection_probe = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{comfyui_connection_probe_id}",
+                headers=headers,
+                json={
+                    "probe_payload": {
+                        "probe_mode": "future_read_only_probe",
+                        "network_probe": True,
+                        "read_only_probe": True,
+                        "submit_jobs": True,
+                    },
+                    "expected_routes": ["system_stats", "/queue"],
+                },
+            )
+            assert updated_comfyui_connection_probe.status_code == 200
+            assert updated_comfyui_connection_probe.json()["probe_status"] == "draft"
+            assert updated_comfyui_connection_probe.json()["probe_payload"]["probe_mode"] == "metadata_only"
+            assert updated_comfyui_connection_probe.json()["probe_payload"]["network_probe"] is False
+            assert updated_comfyui_connection_probe.json()["probe_payload"]["read_only_probe"] is False
+
+            ready_comfyui_connection_probe = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{comfyui_connection_probe_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for metadata-only connection probe review."},
+            )
+            assert ready_comfyui_connection_probe.status_code == 200
+            assert ready_comfyui_connection_probe.json()["probe_status"] == "ready_for_review"
+
+            approved_comfyui_connection_probe = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{comfyui_connection_probe_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved metadata-only probe plan."},
+            )
+            assert approved_comfyui_connection_probe.status_code == 200
+            assert approved_comfyui_connection_probe.json()["probe_status"] == "approved"
+            assert approved_comfyui_connection_probe.json()["approved_by"] == "user-commercial-api"
+
+            probed_comfyui_connection_probe = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{comfyui_connection_probe_id}/probe",
+                headers=headers,
+                json={"result_summary": "Recorded local connection probe plan; no ComfyUI HTTP request occurred."},
+            )
+            assert probed_comfyui_connection_probe.status_code == 200
+            assert probed_comfyui_connection_probe.json()["probe_status"] == "probed"
+            assert probed_comfyui_connection_probe.json()["probed_by"] == "user-commercial-api"
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -830,6 +931,10 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_execution_plan_status"] == "simulated"
             assert comfyui_step["comfyui_execution_plan_job_request_id"] == comfyui_job_request_id
             assert comfyui_step["comfyui_execution_plan_queue_name"] == "commercial-assets"
+            assert comfyui_step["comfyui_connection_probe_id"] == comfyui_connection_probe_id
+            assert comfyui_step["comfyui_connection_probe_status"] == "probed"
+            assert comfyui_step["comfyui_connection_probe_execution_plan_id"] == comfyui_execution_plan_id
+            assert comfyui_step["comfyui_connection_probe_health_endpoint"] == "/system_stats"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

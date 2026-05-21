@@ -463,8 +463,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61U",
-    boundaryBody: "商业运营 ComfyUI 执行预案：把已批准或已排队的 job request 转为可审查的队列模拟预案，保留执行步骤、模拟检查、操作清单和回滚指引；当前仍不请求 ComfyUI、不上传文件、不提交队列、不生成媒体、不发布、不控制账号。",
+    boundaryTitle: "Phase 61V",
+    boundaryBody: "商业运营 ComfyUI 连接探测：从已批准或已模拟的执行预案创建受控健康检查和只读队列快照记录；当前仍不请求 ComfyUI、不读取队列、不上传文件、不提交任务、不生成媒体、不发布、不控制账号。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61U",
-    boundaryBody: "Commercial operation ComfyUI execution plans: prepare metadata-only queue simulation plans from approved or queued job requests while keeping ComfyUI calls, uploads, queue submission, media generation, publishing, and account control disabled.",
+    boundaryTitle: "Phase 61V",
+    boundaryBody: "Commercial operation ComfyUI connection probes: prepare metadata-only health-check and read-only queue snapshot records from approved or simulated execution plans while keeping ComfyUI calls, queue reads, uploads, job submission, media generation, publishing, and account control disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4960,6 +4960,62 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresJobRequest: "Approve or queue one ComfyUI job request first.",
           noPlans: "No ComfyUI execution plans yet.",
         };
+  const comfyuiProbeCopy =
+    language === "zh-CN"
+      ? {
+          title: "ComfyUI 连接探测",
+          description: "从已批准或已模拟的执行预案创建受控连接探测记录，准备健康端点和只读队列快照计划；当前只保存元数据，不请求 ComfyUI、不读取队列、不提交任务。",
+          executionPlanLabel: "已批准/已模拟执行预案",
+          modeLabel: "探测模式",
+          healthEndpointLabel: "健康端点",
+          queueEndpointLabel: "队列端点",
+          routesLabel: "只读路由",
+          checksLabel: "准备检查 JSON",
+          payloadLabel: "探测 payload JSON",
+          healthSnapshotLabel: "健康快照 JSON",
+          queueSnapshotLabel: "队列快照 JSON",
+          schemaLabel: "响应结构 JSON",
+          createAction: "创建连接探测",
+          saveAction: "保存连接探测",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          probeAction: "记录探测",
+          failAction: "失败",
+          cancelAction: "取消",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并批准或模拟至少一个 ComfyUI 执行预案。",
+          requiresExecutionPlan: "先批准或模拟一个 ComfyUI 执行预案。",
+          noProbes: "暂无 ComfyUI 连接探测。",
+        }
+      : {
+          title: "ComfyUI connection probes",
+          description: "Prepare controlled connection health and read-only queue snapshot records from approved or simulated execution plans. This stores metadata only; it does not call ComfyUI, read queues, upload files, or submit jobs.",
+          executionPlanLabel: "Approved/simulated execution plan",
+          modeLabel: "Probe mode",
+          healthEndpointLabel: "Health endpoint",
+          queueEndpointLabel: "Queue endpoint",
+          routesLabel: "Read-only routes",
+          checksLabel: "Readiness checks JSON",
+          payloadLabel: "Probe payload JSON",
+          healthSnapshotLabel: "Health snapshot JSON",
+          queueSnapshotLabel: "Queue snapshot JSON",
+          schemaLabel: "Response schema JSON",
+          createAction: "Create connection probe",
+          saveAction: "Save connection probe",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          probeAction: "Record probe",
+          failAction: "Fail",
+          cancelAction: "Cancel",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and approve or simulate at least one ComfyUI execution plan first.",
+          requiresExecutionPlan: "Approve or simulate one ComfyUI execution plan first.",
+          noProbes: "No ComfyUI connection probes yet.",
+        };
   const deliverableCopy =
     language === "zh-CN"
       ? {
@@ -5311,6 +5367,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiAdapterConfigsState, setComfyuiAdapterConfigsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiJobRequestsState, setComfyuiJobRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiExecutionPlansState, setComfyuiExecutionPlansState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [comfyuiConnectionProbesState, setComfyuiConnectionProbesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [evidenceSnapshotsState, setEvidenceSnapshotsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -5423,6 +5480,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiExecutionChecklistDraft, setComfyuiExecutionChecklistDraft] = useState("approval still valid, adapter disabled, rollback owner confirmed");
   const [comfyuiExecutionSimulationPayloadDraft, setComfyuiExecutionSimulationPayloadDraft] = useState('{"execution_mode":"metadata_only","queue_submission":false,"upload_files":false}');
   const [comfyuiExecutionRollbackDraft, setComfyuiExecutionRollbackDraft] = useState('{"next_steps":["review execution plan","adjust queue payload shape"]}');
+  const [selectedComfyuiConnectionProbeId, setSelectedComfyuiConnectionProbeId] = useState("");
+  const [comfyuiProbeExecutionPlanId, setComfyuiProbeExecutionPlanId] = useState("");
+  const [comfyuiProbeTitle, setComfyuiProbeTitle] = useState(language === "zh-CN" ? "ComfyUI 连接探测" : "ComfyUI connection probe");
+  const [comfyuiProbeMode, setComfyuiProbeMode] = useState("metadata_only");
+  const [comfyuiProbeHealthEndpoint, setComfyuiProbeHealthEndpoint] = useState("/system_stats");
+  const [comfyuiProbeQueueEndpoint, setComfyuiProbeQueueEndpoint] = useState("/queue");
+  const [comfyuiProbeRoutesDraft, setComfyuiProbeRoutesDraft] = useState("/system_stats, /queue");
+  const [comfyuiProbeChecksDraft, setComfyuiProbeChecksDraft] = useState("[]");
+  const [comfyuiProbePayloadDraft, setComfyuiProbePayloadDraft] = useState('{"probe_mode":"metadata_only","network_probe":false,"read_only_probe":false}');
+  const [comfyuiProbeHealthSnapshotDraft, setComfyuiProbeHealthSnapshotDraft] = useState('{"source":"metadata_only","reachable":"not_measured"}');
+  const [comfyuiProbeQueueSnapshotDraft, setComfyuiProbeQueueSnapshotDraft] = useState('{"source":"metadata_only","queue_observed":false}');
+  const [comfyuiProbeSchemaDraft, setComfyuiProbeSchemaDraft] = useState('{"health_response":{"expected_keys":["system","devices"]},"queue_response":{"expected_keys":["queue_running","queue_pending"]}}');
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -5751,6 +5820,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadComfyuiConnectionProbes = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setComfyuiConnectionProbesState(emptyState());
+        return;
+      }
+      setComfyuiConnectionProbesState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.comfyuiConnectionProbes(operationId, settings);
+        setComfyuiConnectionProbesState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setComfyuiConnectionProbesState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation ComfyUI connection probes API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadDeliverables = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -5916,6 +6007,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadComfyuiAdapterConfigs(selectedOperationId);
       void loadComfyuiJobRequests(selectedOperationId);
       void loadComfyuiExecutionPlans(selectedOperationId);
+      void loadComfyuiConnectionProbes(selectedOperationId);
       void loadDeliverables(selectedOperationId);
       void loadEvidenceSnapshots(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
@@ -5935,6 +6027,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setComfyuiAdapterConfigsState(emptyState());
     setComfyuiJobRequestsState(emptyState());
     setComfyuiExecutionPlansState(emptyState());
+    setComfyuiConnectionProbesState(emptyState());
     setDeliverablesState(emptyState());
     setEvidenceSnapshotsState(emptyState());
     setExecutionRequestsState(emptyState());
@@ -5943,7 +6036,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -6934,6 +7027,132 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation ComfyUI execution plan action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const editComfyuiConnectionProbe = (probe: JsonRecord) => {
+    const connectionProbeId = valueAt(probe, ["id"], "");
+    if (!connectionProbeId) {
+      return;
+    }
+    setSelectedComfyuiConnectionProbeId(connectionProbeId);
+    setComfyuiProbeExecutionPlanId(valueAt(probe, ["execution_plan_id"], comfyuiProbeExecutionPlanId));
+    setComfyuiProbeTitle(valueAt(probe, ["title"], comfyuiProbeTitle));
+    setComfyuiProbeMode(valueAt(probe, ["probe_mode"], "metadata_only"));
+    setComfyuiProbeHealthEndpoint(valueAt(probe, ["health_endpoint"], "/system_stats"));
+    setComfyuiProbeQueueEndpoint(valueAt(probe, ["queue_endpoint"], "/queue"));
+    setComfyuiProbeRoutesDraft(draftListText(probe.expected_routes));
+    setComfyuiProbeChecksDraft(JSON.stringify((probe.readiness_checks as JsonRecord[]) || [], null, 2));
+    setComfyuiProbePayloadDraft(JSON.stringify((probe.probe_payload as JsonRecord) || {}, null, 2));
+    setComfyuiProbeHealthSnapshotDraft(JSON.stringify((probe.health_snapshot as JsonRecord) || {}, null, 2));
+    setComfyuiProbeQueueSnapshotDraft(JSON.stringify((probe.queue_snapshot as JsonRecord) || {}, null, 2));
+    setComfyuiProbeSchemaDraft(JSON.stringify((probe.response_schema as JsonRecord) || {}, null, 2));
+  };
+
+  const comfyuiConnectionProbePayload = (): JsonRecord => ({
+    title: comfyuiProbeTitle.trim() || "ComfyUI connection probe",
+    probe_mode: comfyuiProbeMode.trim() || "metadata_only",
+    health_endpoint: comfyuiProbeHealthEndpoint.trim() || "/system_stats",
+    queue_endpoint: comfyuiProbeQueueEndpoint.trim() || "/queue",
+    expected_routes: splitDraftList(comfyuiProbeRoutesDraft),
+    readiness_checks: parseJsonArrayDraft(comfyuiProbeChecksDraft),
+    probe_payload: parseJsonRecordDraft(comfyuiProbePayloadDraft),
+    health_snapshot: parseJsonRecordDraft(comfyuiProbeHealthSnapshotDraft),
+    queue_snapshot: parseJsonRecordDraft(comfyuiProbeQueueSnapshotDraft),
+    response_schema: parseJsonRecordDraft(comfyuiProbeSchemaDraft),
+    metadata: { source: "admin_dashboard", phase: "61V", probe_mode: "metadata_only" },
+  });
+
+  const createComfyuiConnectionProbe = async () => {
+    if (!selectedOperationId || !comfyuiProbeExecutionPlanId) {
+      setActionState({
+        data: null,
+        error: comfyuiProbeCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createComfyuiConnectionProbe(
+        selectedOperationId,
+        comfyuiProbeExecutionPlanId,
+        comfyuiConnectionProbePayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedComfyuiConnectionProbeId(valueAt(created, ["id"], ""));
+      await loadComfyuiConnectionProbes(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI connection probe create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateComfyuiConnectionProbe = async () => {
+    if (!selectedOperationId || !selectedComfyuiConnectionProbeId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateComfyuiConnectionProbe(
+        selectedOperationId,
+        selectedComfyuiConnectionProbeId,
+        comfyuiConnectionProbePayload(),
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiConnectionProbes(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI connection probe update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateComfyuiConnectionProbe = async (
+    connectionProbeId: string,
+    action: "ready" | "approve" | "reject" | "probe" | "fail" | "cancel" | "archive",
+  ) => {
+    if (!selectedOperationId || !connectionProbeId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyComfyuiConnectionProbe(selectedOperationId, connectionProbeId, settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveComfyuiConnectionProbe(selectedOperationId, connectionProbeId, settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectComfyuiConnectionProbe(selectedOperationId, connectionProbeId, settings)
+              : action === "probe"
+                ? await commercialOperationsApi.probeComfyuiConnectionProbe(selectedOperationId, connectionProbeId, settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failComfyuiConnectionProbe(selectedOperationId, connectionProbeId, "Failed during metadata-only ComfyUI connection probe review; maintainer action required.", settings)
+                  : action === "cancel"
+                    ? await commercialOperationsApi.cancelComfyuiConnectionProbe(selectedOperationId, connectionProbeId, settings)
+                    : await commercialOperationsApi.archiveComfyuiConnectionProbe(selectedOperationId, connectionProbeId, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiConnectionProbes(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI connection probe action unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -8012,6 +8231,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const comfyuiJobRequests = comfyuiJobRequestsState.data || [];
   const actionableComfyuiJobRequests = comfyuiJobRequests.filter((jobRequest) => ["approved", "queued"].includes(valueAt(jobRequest, ["job_status"], "")));
   const comfyuiExecutionPlans = comfyuiExecutionPlansState.data || [];
+  const actionableComfyuiExecutionPlans = comfyuiExecutionPlans.filter((plan) => ["approved", "simulated"].includes(valueAt(plan, ["plan_status"], "")));
+  const comfyuiConnectionProbes = comfyuiConnectionProbesState.data || [];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -8160,6 +8381,31 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, [actionableComfyuiJobRequests, comfyuiExecutionJobRequestId, selectedComfyuiExecutionPlanId]);
 
   useEffect(() => {
+    if (comfyuiProbeExecutionPlanId && actionableComfyuiExecutionPlans.some((plan) => valueAt(plan, ["id"], "") === comfyuiProbeExecutionPlanId)) {
+      return;
+    }
+    const nextPlan = actionableComfyuiExecutionPlans[0];
+    const nextPlanId = nextPlan ? valueAt(nextPlan, ["id"], "") : "";
+    setComfyuiProbeExecutionPlanId(nextPlanId);
+    if (nextPlan && !selectedComfyuiConnectionProbeId) {
+      setComfyuiProbeTitle(`${valueAt(nextPlan, ["title"], "ComfyUI execution plan")} connection probe`);
+      setComfyuiProbePayloadDraft(
+        JSON.stringify(
+          {
+            probe_mode: "metadata_only",
+            network_probe: false,
+            read_only_probe: false,
+            queue_name: valueAt(nextPlan, ["queue_name"], ""),
+            workflow_name: valueAt(nextPlan, ["workflow_name"], ""),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }, [actionableComfyuiExecutionPlans, comfyuiProbeExecutionPlanId, selectedComfyuiConnectionProbeId]);
+
+  useEffect(() => {
     if (deliverableContentDraftId && approvedContentDrafts.some((draft) => valueAt(draft, ["id"], "") === deliverableContentDraftId)) {
       return;
     }
@@ -8263,7 +8509,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -9492,6 +9738,177 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{comfyuiExecutionCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={comfyuiProbeCopy.title} description={comfyuiProbeCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-asset-grid">
+              <label>
+                {comfyuiProbeCopy.executionPlanLabel}
+                <select value={comfyuiProbeExecutionPlanId} onChange={(event) => setComfyuiProbeExecutionPlanId(event.target.value)}>
+                  {actionableComfyuiExecutionPlans.length ? null : <option value="">{comfyuiProbeCopy.requiresExecutionPlan}</option>}
+                  {actionableComfyuiExecutionPlans.map((executionPlan) => {
+                    const executionPlanId = valueAt(executionPlan, ["id"], "");
+                    return (
+                      <option value={executionPlanId} key={executionPlanId}>
+                        {valueAt(executionPlan, ["title"])} / {valueAt(executionPlan, ["plan_status"], "-")} / {valueAt(executionPlan, ["workflow_name"], "-")}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={comfyuiProbeTitle} onChange={(event) => setComfyuiProbeTitle(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiProbeCopy.modeLabel}
+                <select value={comfyuiProbeMode} onChange={(event) => setComfyuiProbeMode(event.target.value)}>
+                  <option value="metadata_only">metadata_only</option>
+                  <option value="future_read_only_probe">future_read_only_probe</option>
+                </select>
+              </label>
+              <label>
+                {comfyuiProbeCopy.healthEndpointLabel}
+                <input value={comfyuiProbeHealthEndpoint} onChange={(event) => setComfyuiProbeHealthEndpoint(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiProbeCopy.queueEndpointLabel}
+                <input value={comfyuiProbeQueueEndpoint} onChange={(event) => setComfyuiProbeQueueEndpoint(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiProbeCopy.routesLabel}
+                <textarea value={comfyuiProbeRoutesDraft} onChange={(event) => setComfyuiProbeRoutesDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiProbeCopy.checksLabel}
+                <textarea value={comfyuiProbeChecksDraft} onChange={(event) => setComfyuiProbeChecksDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiProbeCopy.payloadLabel}
+                <textarea value={comfyuiProbePayloadDraft} onChange={(event) => setComfyuiProbePayloadDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiProbeCopy.healthSnapshotLabel}
+                <textarea value={comfyuiProbeHealthSnapshotDraft} onChange={(event) => setComfyuiProbeHealthSnapshotDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiProbeCopy.queueSnapshotLabel}
+                <textarea value={comfyuiProbeQueueSnapshotDraft} onChange={(event) => setComfyuiProbeQueueSnapshotDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiProbeCopy.schemaLabel}
+                <textarea value={comfyuiProbeSchemaDraft} onChange={(event) => setComfyuiProbeSchemaDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createComfyuiConnectionProbe()}
+                disabled={!comfyuiProbeExecutionPlanId || !comfyuiProbeTitle.trim() || actionState.loading}
+              >
+                <Send size={15} />
+                {comfyuiProbeCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateComfyuiConnectionProbe()}
+                disabled={!selectedComfyuiConnectionProbeId || !comfyuiProbeTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {comfyuiProbeCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={comfyuiConnectionProbesState} />
+            {comfyuiConnectionProbesState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiConnectionProbesState.updatedAt}</div> : null}
+            {comfyuiConnectionProbes.length ? (
+              <div className="commercial-asset-list">
+                {comfyuiConnectionProbes.map((probe) => {
+                  const connectionProbeId = valueAt(probe, ["id"], "");
+                  const probeStatus = valueAt(probe, ["probe_status"], "");
+                  return (
+                    <article className="commercial-asset-item" key={connectionProbeId}>
+                      <div>
+                        <strong>{valueAt(probe, ["title"])}</strong>
+                        <span>{valueAt(probe, ["target_url"], "-")} / {valueAt(probe, ["health_endpoint"], "-")} / {valueAt(probe, ["queue_endpoint"], "-")}</span>
+                        <p>{shortJson(probe.readiness_checks, 90)}</p>
+                        <p>{shortJson(probe.probe_plan_payload, 90)}</p>
+                        <StatusPill value={probeStatus} />
+                      </div>
+                      <div className="commercial-asset-actions">
+                        <button className="ghost-button" onClick={() => editComfyuiConnectionProbe(probe)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {comfyuiProbeCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(probeStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiProbeCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "approve")}
+                          disabled={probeStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiProbeCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "reject")}
+                          disabled={probeStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiProbeCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "probe")}
+                          disabled={probeStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {comfyuiProbeCopy.probeAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "fail")}
+                          disabled={probeStatus !== "approved" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiProbeCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "cancel")}
+                          disabled={["cancelled", "archived"].includes(probeStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiProbeCopy.cancelAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiConnectionProbe(connectionProbeId, "archive")}
+                          disabled={probeStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiProbeCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{actionableComfyuiExecutionPlans.length ? comfyuiProbeCopy.noProbes : comfyuiProbeCopy.requiresExecutionPlan}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{comfyuiProbeCopy.selectedHint}</div>
         )}
       </Panel>
 

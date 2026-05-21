@@ -2,19 +2,19 @@
 
 ## Current Active Branch
 
-`codex/phase-61u-commercial-comfyui-execution-plans`
+`codex/phase-61v-commercial-comfyui-connection-probes`
 
 `main` is the Phase 55 stable baseline after PR #17 merged the Phase 43-55 Combined Release Candidate and after the post-merge stabilization branch landed. PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`; PR #1 and PR #15 are closed as superseded after verification. Phase 56 was reverted and is not active. Phase 56A-56D readiness work has also landed on `main`, adding CI gates, required-check documentation, release readiness artifacts, and scheduled server Docker smoke. Phase 57A-57D, Phase 58A-58E, Phase 59A-59C, Phase 60A-60G, and Phase 61A-61P have landed on `main`, adding the Admin Dashboard Run Cockpit, guarded cockpit actions, operator controls, deep links, refresh UX, Playbooks context, Output Library context handoff, Phase 58 closeout, Run Cockpit search density, workflow handoff into Workflows and Replay Center, workflow focus/provenance, the frontend language foundation, the Overview role entry, the Conversations operator console, the RAG Documents knowledge console, RAG knowledge maintenance controls, Replay Center workflow observability simplification, RAG live validation guidance, the Commercial Ops project center, commercial operation evidence/handoff links, commercial operation approval gates, commercial operation safe dry-runs, commercial operation content drafts, commercial operation asset requests, commercial operation deliverables, commercial operation execution requests, commercial operation execution runs, commercial operation results, commercial operation monitoring observations, commercial operation optimization decisions, commercial operation evidence snapshots, commercial operation RAG evidence generation, commercial operation RAG content draft generation, and commercial operation RAG asset brief generation.
 
-Current effective phase: Phase 61U Commercial Operation ComfyUI Execution Plans. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
+Current effective phase: Phase 61V Commercial Operation ComfyUI Connection Probes. The old reverted Phase 56 branch remains inactive and is not a valid continuation point.
 
 ## Current Recommended Next Phase
 
-Readiness and PR cleanup are complete. PR #57 is the draft Phase 61Q commercial ComfyUI handoff slice, PR #58 is the draft Phase 61R commercial ComfyUI preflight slice, PR #59 is the draft Phase 61S commercial ComfyUI adapter config slice, and PR #60 is the draft Phase 61T commercial ComfyUI job request slice. The current step is stacked product development on metadata-only ComfyUI execution plan records created from approved or queued job requests.
+Readiness and PR cleanup are complete. PR #57 is the draft Phase 61Q commercial ComfyUI handoff slice, PR #58 is the draft Phase 61R commercial ComfyUI preflight slice, PR #59 is the draft Phase 61S commercial ComfyUI adapter config slice, PR #60 is the draft Phase 61T commercial ComfyUI job request slice, and PR #61 is the draft Phase 61U commercial ComfyUI execution plan slice. The current step is stacked product development on metadata-only ComfyUI connection probe records created from approved or simulated execution plans.
 
 Post-merge stabilization tracking lives in `docs/POST_MERGE_STABILIZATION.md`. That document records the migrated server toolchain state, Docker/WSL repair status, stabilization branch/remote discipline, browser runtime screenshot fix, PR #1 disposition, and verification gates.
 
-The next active branch is `codex/phase-61u-commercial-comfyui-execution-plans`. Its scope is adding `commercial_operation_comfyui_execution_plans`, `/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans`, approved-or-queued-job-request-to-execution-plan creation, local simulation-check evaluation, queue payload normalization, operator checklists, rollback guidance, plan-step execution plan state, and an Admin Dashboard panel for creating and reviewing metadata-only ComfyUI execution plans. It still creates traceable records only; it does not call ComfyUI, submit queues, upload files to ComfyUI, generate images/videos, store secret values, upload or ingest new knowledge files, auto-approve assets, auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, ingest platform analytics, claim ROI attribution, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
+The next active branch is `codex/phase-61v-commercial-comfyui-connection-probes`. Its scope is adding `commercial_operation_comfyui_connection_probes`, `/api/v1/commercial-operations/{operation_id}/comfyui-connection-probes`, approved-or-simulated-execution-plan-to-connection-probe creation, metadata-only health and queue snapshot planning, local readiness evaluation, route normalization, plan-step connection probe state, and an Admin Dashboard panel for creating and reviewing metadata-only ComfyUI connection probes. It still creates traceable records only; it does not call ComfyUI, read ComfyUI queues, submit queues, upload files to ComfyUI, generate images/videos, store secret values, upload or ingest new knowledge files, auto-approve assets, auto-publish, control real accounts, execute OpenClaw actions, run Browser Worker actions, ingest platform analytics, claim ROI attribution, or bypass approval. CI readiness tracking lives in `docs/CI_READINESS_GATES.md`; branch protection guidance lives in `docs/BRANCH_PROTECTION.md`; scheduled smoke guidance lives in `docs/SCHEDULED_SMOKE.md`; run cockpit guidance lives in `docs/RUN_COCKPIT_FOUNDATION.md`.
 
 ## PR State
 
@@ -80,8 +80,9 @@ The next active branch is `codex/phase-61u-commercial-comfyui-execution-plans`. 
 | #59 | Phase 61S Commercial Operation ComfyUI Adapter Configs | `codex/phase-61s-commercial-comfyui-adapter-configs` | Draft PR |
 | #60 | Phase 61T Commercial Operation ComfyUI Job Requests | `codex/phase-61t-commercial-comfyui-job-requests` | Draft PR |
 | #61 | Phase 61U Commercial Operation ComfyUI Execution Plans | `codex/phase-61u-commercial-comfyui-execution-plans` | Draft PR |
+| #62 | Phase 61V Commercial Operation ComfyUI Connection Probes | `codex/phase-61v-commercial-comfyui-connection-probes` | Draft PR |
 
-PR #57 is open as a draft from `codex/phase-61q-commercial-comfyui-handoffs`; PR #58 is open as a draft from `codex/phase-61r-commercial-comfyui-preflight`; PR #59 is open as a draft from `codex/phase-61s-commercial-comfyui-adapter-configs`; PR #60 is open as a draft from `codex/phase-61t-commercial-comfyui-job-requests`; Phase 61U is the current stacked development slice and will open as PR #61 from `codex/phase-61u-commercial-comfyui-execution-plans`.
+PR #57 is open as a draft from `codex/phase-61q-commercial-comfyui-handoffs`; PR #58 is open as a draft from `codex/phase-61r-commercial-comfyui-preflight`; PR #59 is open as a draft from `codex/phase-61s-commercial-comfyui-adapter-configs`; PR #60 is open as a draft from `codex/phase-61t-commercial-comfyui-job-requests`; PR #61 is open as a draft from `codex/phase-61u-commercial-comfyui-execution-plans`; Phase 61V is the current stacked development slice and will open as PR #62 from `codex/phase-61v-commercial-comfyui-connection-probes`.
 
 ## Current Architecture State
 
@@ -116,6 +117,7 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 - Phase 61S adds ComfyUI adapter config records so server maintainers can carry endpoint, queue, workflow allowlist, model inventory, runtime limits, maintenance notes, and secret references toward a future guarded adapter before any ComfyUI API call, queue submission, secret value storage, media generation, publishing, or account control exists.
 - Phase 61T adds ComfyUI job request records so checked preflights can become reviewable future queue payloads with safety checks, output expectations, lifecycle decisions, and recovery guidance before any ComfyUI API call, queue submission, file upload, media generation, publishing, or account control exists.
 - Phase 61U adds ComfyUI execution plan records so approved or queued job requests can become reviewable metadata-only queue simulation plans with execution steps, local checks, operator checklists, rollback guidance, lifecycle decisions, and plan-step execution-plan state before any ComfyUI API call, queue submission, file upload, media generation, publishing, or account control exists.
+- Phase 61V adds ComfyUI connection probe records so approved or simulated execution plans can become reviewable metadata-only health and queue snapshot plans with route normalization, readiness checks, lifecycle decisions, and plan-step connection-probe state before any ComfyUI HTTP request, queue read, queue submission, file upload, media generation, publishing, or account control exists.
 
 ## Current Deployment State
 
@@ -163,8 +165,8 @@ The system is an AI operations runtime with FastAPI, PostgreSQL, Redis, Qdrant, 
 
 ## Recommended Next Steps
 
-1. Finish the Phase 61U commercial ComfyUI execution plan backend/API/frontend/docs slice.
+1. Finish the Phase 61V commercial ComfyUI connection probe backend/API/frontend/docs slice.
 2. Run backend, frontend, docs, migration, and browser verification gates.
-3. Open PR #61 as a draft from `codex/phase-61u-commercial-comfyui-execution-plans`.
+3. Open PR #62 as a draft from `codex/phase-61v-commercial-comfyui-connection-probes`.
 4. Keep Docker compose running only while manual inspection is useful; otherwise shut it down cleanly with `docker compose -f docker-compose.yml down`.
 5. After this slice, continue toward guarded ComfyUI/OpenClaw adapters, richer knowledge upload ergonomics, monitoring metrics, failure recovery, and commercial result reporting.
