@@ -32,6 +32,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIAdapterConfigListResponse,
     CommercialOperationComfyUIAdapterConfigResponse,
     CommercialOperationComfyUIAdapterConfigUpdateRequest,
+    CommercialOperationComfyUIConnectionProbeCreateRequest,
+    CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    CommercialOperationComfyUIConnectionProbeListResponse,
+    CommercialOperationComfyUIConnectionProbeResponse,
+    CommercialOperationComfyUIConnectionProbeUpdateRequest,
     CommercialOperationComfyUIExecutionPlanCreateRequest,
     CommercialOperationComfyUIExecutionPlanDecisionRequest,
     CommercialOperationComfyUIExecutionPlanListResponse,
@@ -2869,6 +2874,343 @@ async def archive_commercial_operation_comfyui_execution_plan(
             extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
         )
         raise AppError("Commercial operation ComfyUI execution plan archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/connection-probes",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Create a metadata-only ComfyUI connection probe from an execution plan."""
+
+    try:
+        probe = await CommercialOperationService(session).create_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            planned_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe create API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-connection-probes", response_model=CommercialOperationComfyUIConnectionProbeListResponse)
+async def list_commercial_operation_comfyui_connection_probes(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / probed / failed / cancelled / archived"),
+    execution_plan_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeListResponse:
+    """List metadata-only ComfyUI connection probes for a commercial operation."""
+
+    try:
+        probes = await CommercialOperationService(session).list_comfyui_connection_probes(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            execution_plan_id=execution_plan_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIConnectionProbeListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIConnectionProbeResponse.from_model(item) for item in probes],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI connection probe list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI connection probe list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def update_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Patch a metadata-only ComfyUI connection probe before probe recording."""
+
+    try:
+        probe = await CommercialOperationService(session).update_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe update API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/ready",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def ready_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Mark a metadata-only ComfyUI connection probe ready for review."""
+
+    try:
+        probe = await CommercialOperationService(session).mark_comfyui_connection_probe_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe ready API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/approve",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def approve_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Approve a metadata-only ComfyUI connection probe without calling ComfyUI."""
+
+    try:
+        probe = await CommercialOperationService(session).approve_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe approve API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/reject",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def reject_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Reject a metadata-only ComfyUI connection probe without calling ComfyUI."""
+
+    try:
+        probe = await CommercialOperationService(session).reject_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe reject API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/probe",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def probe_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Record a metadata-only ComfyUI connection probe; no HTTP call occurs."""
+
+    try:
+        probe = await CommercialOperationService(session).probe_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            probed_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe record API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe record failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/fail",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def fail_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Mark a ComfyUI connection probe failed without external execution."""
+
+    try:
+        probe = await CommercialOperationService(session).fail_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe fail API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/cancel",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def cancel_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Cancel a metadata-only ComfyUI connection probe."""
+
+    try:
+        probe = await CommercialOperationService(session).cancel_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe cancel API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-connection-probes/{connection_probe_id}/archive",
+    response_model=CommercialOperationComfyUIConnectionProbeResponse,
+)
+async def archive_commercial_operation_comfyui_connection_probe(
+    operation_id: UUID,
+    connection_probe_id: UUID,
+    request: CommercialOperationComfyUIConnectionProbeDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIConnectionProbeResponse:
+    """Archive a ComfyUI connection probe without deleting its audit trail."""
+
+    try:
+        probe = await CommercialOperationService(session).archive_comfyui_connection_probe(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIConnectionProbeResponse.from_model(probe)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI connection probe archive API failed",
+            extra={"operation_id": str(operation_id), "connection_probe_id": str(connection_probe_id)},
+        )
+        raise AppError("Commercial operation ComfyUI connection probe archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

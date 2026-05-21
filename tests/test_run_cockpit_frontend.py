@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation ComfyUI execution plan slice."""
+    """Recovery docs should point to the active commercial operation ComfyUI connection probe slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61u-commercial-comfyui-execution-plans" in text or "Commercial Operation ComfyUI Execution Plans" in text, path
-        assert "/comfyui-execution-plans" in text or "ComfyUI execution plan" in text, path
+        assert "phase-61v-commercial-comfyui-connection-probes" in text or "Commercial Operation ComfyUI Connection Probes" in text, path
+        assert "/comfyui-connection-probes" in text or "ComfyUI connection probe" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 61U should be the active ComfyUI execution plan slice."""
+    """Phase 61A-61P should be merged and Phase 61V should be the active ComfyUI connection probe slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -463,3 +463,11 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_61_lines["61U"]
     assert "TBD" not in phase_61_lines["61U"]
     assert "In progress" not in phase_61_lines["61U"]
+
+    assert "61V" in phase_61_lines
+    assert "phase-61v-commercial-comfyui-connection-probes" in phase_61_lines["61V"]
+    assert "Commercial Operation ComfyUI Connection Probes" in phase_61_lines["61V"]
+    assert "#62" in phase_61_lines["61V"]
+    assert "Draft PR" in phase_61_lines["61V"]
+    assert "TBD" not in phase_61_lines["61V"]
+    assert "In progress" not in phase_61_lines["61V"]

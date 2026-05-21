@@ -15,6 +15,7 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIAdapterConfigStatus,
+    CommercialOperationComfyUIConnectionProbeStatus,
     CommercialOperationComfyUIExecutionPlanStatus,
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIJobRequestStatus,
@@ -824,6 +825,111 @@ class CommercialOperationComfyUIExecutionPlan(IdTimestampMixin, Base):
         default=dict,
         nullable=False,
         comment="ComfyUI execution plan metadata",
+    )
+
+
+class CommercialOperationComfyUIConnectionProbe(IdTimestampMixin, Base):
+    """Metadata-only ComfyUI connection probe and read-only queue snapshot plan."""
+
+    __tablename__ = "commercial_operation_comfyui_connection_probes"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    execution_plan_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_execution_plans.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Approved or simulated ComfyUI execution plan ID",
+    )
+    job_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_job_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="ComfyUI job request ID snapshot",
+    )
+    preflight_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_preflights.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Checked ComfyUI preflight ID",
+    )
+    handoff_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_handoffs.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="ComfyUI handoff ID",
+    )
+    adapter_config_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_comfyui_adapter_configs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Linked maintained ComfyUI adapter config ID",
+    )
+    asset_request_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_asset_requests.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+        comment="Source asset request ID snapshot",
+    )
+    step_key: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Plan step key")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="ComfyUI connection probe title")
+    probe_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationComfyUIConnectionProbeStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / probed / failed / cancelled / archived",
+    )
+    target_url: Mapped[str | None] = mapped_column(String(512), nullable=True, comment="Future ComfyUI endpoint URL")
+    queue_name: Mapped[str | None] = mapped_column(String(128), nullable=True, comment="Future ComfyUI queue name")
+    workflow_name: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="ComfyUI workflow name")
+    probe_mode: Mapped[str] = mapped_column(
+        String(32),
+        default="metadata_only",
+        index=True,
+        nullable=False,
+        comment="metadata_only / future_read_only_probe",
+    )
+    health_endpoint: Mapped[str] = mapped_column(String(128), default="/system_stats", nullable=False, comment="Future read-only health endpoint")
+    queue_endpoint: Mapped[str] = mapped_column(String(128), default="/queue", nullable=False, comment="Future read-only queue endpoint")
+    expected_routes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Expected read-only routes")
+    readiness_checks: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Local probe readiness checks")
+    probe_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Metadata-only probe request payload")
+    health_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Metadata-only health snapshot")
+    queue_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Metadata-only queue snapshot")
+    response_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Expected future response schema")
+    probe_plan_payload: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Non-executing ComfyUI connection probe payload",
+    )
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Probe result summary")
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Failure or blocker reason")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    planned_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Planner user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    probed_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Probe recorder user ID")
+    cancelled_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Canceller user ID")
+    archived_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Archiver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    probed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Probed at")
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Failed at")
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Cancelled at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    probe_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="ComfyUI connection probe metadata",
     )
 
 
