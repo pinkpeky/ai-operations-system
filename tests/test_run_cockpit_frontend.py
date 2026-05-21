@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active ComfyUI runtime adapter contract slice."""
+    """Recovery docs should point to the active ComfyUI guarded read-only probe slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,10 +130,10 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-62a-comfyui-runtime-adapter-contract" in text or "ComfyUI Runtime Adapter Contract" in text, path
+        assert "phase-62b-comfyui-guarded-readonly-probe" in text or "ComfyUI Guarded Read-Only Probe" in text, path
         assert "/comfyui-runtime/health" in text, path
         assert "/comfyui-runtime/capabilities" in text, path
-        assert "COMFYUI_RUNTIME_" in text or "ComfyUIRuntimeService" in text, path
+        assert "COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED" in text or "ComfyUIRuntimeService" in text, path
         assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
 
@@ -162,7 +162,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 62A should be the active ComfyUI contract slice."""
+    """Phase 61A-61P should be merged and Phase 62B should be the active ComfyUI probe slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -522,3 +522,13 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_62_lines["62A"]
     assert "TBD" not in phase_62_lines["62A"]
     assert "In progress" not in phase_62_lines["62A"]
+
+    assert "62B" in phase_62_lines
+    assert "phase-62b-comfyui-guarded-readonly-probe" in phase_62_lines["62B"]
+    assert "ComfyUI Guarded Read-Only Probe" in phase_62_lines["62B"]
+    assert "COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED" in phase_62_lines["62B"]
+    assert "COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS" in phase_62_lines["62B"]
+    assert "#68" in phase_62_lines["62B"]
+    assert "Draft PR" in phase_62_lines["62B"]
+    assert "TBD" not in phase_62_lines["62B"]
+    assert "In progress" not in phase_62_lines["62B"]

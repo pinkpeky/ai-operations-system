@@ -28,6 +28,11 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial operations center" in text
     assert "Phase 61Z" in text
     assert "Runtime adapter contract" in text
+    assert "Phase 62B" in text
+    assert "read_only_probe_enabled" in text
+    assert "read_only_probe_attempted" in text
+    assert "allowed_health_paths" in text
+    assert "probe_latency_ms" in text
     assert "comfyuiRuntimeApi.health" in text
     assert "comfyuiRuntimeApi.capabilities" in text
     assert "Approval gates" in text

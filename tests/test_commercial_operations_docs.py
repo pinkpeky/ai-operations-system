@@ -39,6 +39,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61Y",
         "Phase 61Z",
         "Phase 62A",
+        "Phase 62B",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -134,6 +135,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Runtime Dry-Runs",
         "ComfyUI Runtime Activations",
         "ComfyUI Runtime Adapter Contract",
+        "ComfyUI Guarded Read-Only Probe",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -151,7 +153,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_62a_comfyui_runtime_adapter_contract() -> None:
+def test_recovery_docs_point_to_phase_62b_comfyui_guarded_readonly_probe() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -164,7 +166,8 @@ def test_recovery_docs_point_to_phase_62a_comfyui_runtime_adapter_contract() -> 
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 62A" in text or "62A" in text, relative
-        assert "ComfyUI Runtime Adapter Contract" in text or "comfyui-runtime" in text, relative
+        assert "Phase 62B" in text or "62B" in text, relative
+        assert "ComfyUI Guarded Read-Only Probe" in text or "read-only" in text, relative
         assert "/comfyui-runtime/health" in text, relative
         assert "/comfyui-runtime/capabilities" in text, relative
+        assert "COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED" in text or "read_only_probe" in text, relative

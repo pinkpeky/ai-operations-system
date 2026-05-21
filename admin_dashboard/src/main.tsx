@@ -4655,7 +4655,7 @@ function CommercialOperationsPage({
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist 和禁用动作。Phase 62A 只做契约自检，不会请求 ComfyUI。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径和禁用动作。Phase 62B 只有显式打开只读探测开关后才会请求 /system_stats；不会提交 prompt、读取队列、上传文件或生成媒体。",
           runtimeRefresh: "刷新适配器状态",
           runtimeCapabilities: "能力与护栏",
         }
@@ -4669,7 +4669,7 @@ function CommercialOperationsPage({
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, and disabled actions. Phase 62A performs contract checks only; it does not call ComfyUI.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, and disabled actions. Phase 62B only calls /system_stats when every explicit read-only probe gate is enabled; it does not submit prompts, read queues, upload files, or generate media.",
           runtimeRefresh: "Refresh adapter status",
           runtimeCapabilities: "Capabilities and guardrails",
         };
@@ -9778,6 +9778,12 @@ function CommercialOperationsPage({
             <Field label="enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["enabled"], "false")} />} />
             <Field label="network_allowed" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["network_allowed"], "false")} />} />
             <Field label="runtime_calls_enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["runtime_calls_enabled"], "false")} />} />
+            <Field label="read_only_probe_enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["read_only_probe_enabled"], "false")} />} />
+            <Field label="read_only_probe_attempted" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["read_only_probe_attempted"], "false")} />} />
+            <Field label="health_path" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["health_path"], "-")} />
+            <Field label="allowed_health_paths" value={shortJson((comfyuiRuntimeAdapterState.data?.health as JsonRecord | undefined)?.allowed_health_paths, 120)} />
+            <Field label="probe_status_code" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["probe_status_code"], "-")} />
+            <Field label="probe_latency_ms" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["probe_latency_ms"], "-")} />
             <Field label="base_url" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["base_url"], "-")} />
             <Field label="allowed_hosts" value={shortJson((comfyuiRuntimeAdapterState.data?.health as JsonRecord | undefined)?.allowed_hosts, 120)} />
             <Field label="error" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["error"], "-")} />
