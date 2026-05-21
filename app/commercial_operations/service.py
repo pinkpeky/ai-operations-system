@@ -21,6 +21,7 @@ from app.models.commercial_operation import (
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
+    CommercialOperationComfyUIRuntimeActivation,
     CommercialOperationComfyUIRuntimeDryRun,
     CommercialOperationComfyUIRuntimeGate,
     CommercialOperationContentDraft,
@@ -44,6 +45,7 @@ from app.models.enums import (
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIJobRequestStatus,
     CommercialOperationComfyUIPreflightStatus,
+    CommercialOperationComfyUIRuntimeActivationStatus,
     CommercialOperationComfyUIRuntimeDryRunStatus,
     CommercialOperationComfyUIRuntimeGateStatus,
     CommercialOperationContentDraftStatus,
@@ -4727,6 +4729,454 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_dry_run_id: UUID,
+        title: str | None = None,
+        activation_mode: str = "metadata_only",
+        server_switch_name: str = "COMFYUI_RUNTIME_ENABLED",
+        activation_request: dict[str, Any] | None = None,
+        switch_audit: dict[str, Any] | None = None,
+        runtime_guardrails: dict[str, Any] | None = None,
+        validation_checks: list[dict[str, Any]] | None = None,
+        operator_checklist: list[str] | None = None,
+        rollback_plan: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        planned_by: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dry_run = await self.require_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+        )
+        if dry_run.dry_run_status != CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value:
+            raise ValueError("Only validated ComfyUI runtime dry-runs can create runtime activation requests")
+        gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config = (
+            await self._load_comfyui_runtime_dry_run_context(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                dry_run=dry_run,
+            )
+        )
+        clean_switch_name = self._clean_required_text(server_switch_name, "server_switch_name")[:128]
+        clean_request = self._build_comfyui_runtime_activation_request(
+            activation_request=activation_request,
+            activation_mode=activation_mode,
+            server_switch_name=clean_switch_name,
+            dry_run=dry_run,
+            gate=gate,
+            dispatch=dispatch,
+        )
+        clean_switch_audit = self._build_comfyui_runtime_activation_switch_audit(
+            switch_audit=switch_audit,
+            server_switch_name=clean_switch_name,
+            activation_status=CommercialOperationComfyUIRuntimeActivationStatus.DRAFT.value,
+            dry_run=dry_run,
+        )
+        clean_guardrails = self._build_comfyui_runtime_activation_guardrails(
+            runtime_guardrails=runtime_guardrails,
+            server_switch_name=clean_switch_name,
+            activation_status=CommercialOperationComfyUIRuntimeActivationStatus.DRAFT.value,
+        )
+        clean_operator_checklist = self._clean_list(operator_checklist) or [
+            "validated runtime dry-run reviewed by workstation operator",
+            "server maintainer confirms switch remains disabled before manual cutover",
+            "rollback owner and maintenance window are documented",
+        ]
+        clean_rollback_plan = self._build_comfyui_runtime_activation_rollback_plan(
+            rollback_plan=rollback_plan,
+            activation_status=CommercialOperationComfyUIRuntimeActivationStatus.DRAFT.value,
+            server_switch_name=clean_switch_name,
+            failure_reason=None,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_runtime_activation(
+            dry_run=dry_run,
+            gate=gate,
+            adapter_config=adapter_config,
+            activation_request=clean_request,
+            switch_audit=clean_switch_audit,
+            runtime_guardrails=clean_guardrails,
+            validation_checks=validation_checks,
+            operator_checklist=clean_operator_checklist,
+            rollback_plan=clean_rollback_plan,
+        )
+        activation = CommercialOperationComfyUIRuntimeActivation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=dry_run.id,
+            runtime_gate_id=dry_run.runtime_gate_id,
+            adapter_dispatch_id=dry_run.adapter_dispatch_id,
+            connection_probe_id=dry_run.connection_probe_id,
+            execution_plan_id=dry_run.execution_plan_id,
+            job_request_id=dry_run.job_request_id,
+            preflight_id=dry_run.preflight_id,
+            handoff_id=dry_run.handoff_id,
+            adapter_config_id=dry_run.adapter_config_id,
+            asset_request_id=dry_run.asset_request_id,
+            step_key=dry_run.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI runtime activation request: {dry_run.title}"
+            )[:255],
+            activation_status=CommercialOperationComfyUIRuntimeActivationStatus.DRAFT.value,
+            activation_mode="metadata_only",
+            target_url=dry_run.target_url,
+            queue_name=dry_run.queue_name,
+            workflow_name=dry_run.workflow_name,
+            server_switch_name=clean_switch_name,
+            activation_request=clean_request,
+            switch_audit=clean_switch_audit,
+            runtime_guardrails=clean_guardrails,
+            validation_checks=checks,
+            operator_checklist=clean_operator_checklist,
+            rollback_plan=clean_rollback_plan,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            planned_by=planned_by,
+            updated_by=planned_by,
+            activation_metadata=metadata or {},
+        )
+        self.session.add(activation)
+        await self.session.flush()
+        activation.activation_payload = self._build_comfyui_runtime_activation_payload(
+            operation=operation,
+            dry_run=dry_run,
+            gate=gate,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            activation=activation,
+        )
+        self._apply_comfyui_runtime_activation_to_plan(operation, activation)
+        await self.session.commit()
+        await self.session.refresh(activation)
+        return activation
+
+    async def list_comfyui_runtime_activations(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        runtime_dry_run_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIRuntimeActivation]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIRuntimeActivation).where(
+            CommercialOperationComfyUIRuntimeActivation.workspace_id == workspace_id,
+            CommercialOperationComfyUIRuntimeActivation.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIRuntimeActivation.activation_status == status)
+        if runtime_dry_run_id is not None:
+            statement = statement.where(
+                CommercialOperationComfyUIRuntimeActivation.runtime_dry_run_id == runtime_dry_run_id
+            )
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIRuntimeActivation.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIRuntimeActivation).where(
+                CommercialOperationComfyUIRuntimeActivation.workspace_id == workspace_id,
+                CommercialOperationComfyUIRuntimeActivation.operation_id == operation_id,
+                CommercialOperationComfyUIRuntimeActivation.id == runtime_activation_id,
+            )
+        )
+        activation = result.scalar_one_or_none()
+        if activation is None:
+            raise ValueError("Commercial operation ComfyUI runtime activation not found in workspace")
+        return activation
+
+    async def update_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        activation = await self.require_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+        )
+        if activation.activation_status in {
+            CommercialOperationComfyUIRuntimeActivationStatus.SCHEDULED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.CANCELLED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Scheduled, cancelled, or archived ComfyUI runtime activations cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dry_run, gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config = (
+            await self._load_comfyui_runtime_activation_context(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                activation=activation,
+            )
+        )
+        if "title" in patch and patch["title"] is not None:
+            activation.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "server_switch_name" in patch and patch["server_switch_name"] is not None:
+            activation.server_switch_name = self._clean_required_text(patch["server_switch_name"], "server_switch_name")[:128]
+        if "activation_request" in patch and patch["activation_request"] is not None:
+            activation.activation_request = self._build_comfyui_runtime_activation_request(
+                activation_request=patch["activation_request"],
+                activation_mode=patch.get("activation_mode") or activation.activation_mode,
+                server_switch_name=activation.server_switch_name,
+                dry_run=dry_run,
+                gate=gate,
+                dispatch=dispatch,
+            )
+        if "switch_audit" in patch and patch["switch_audit"] is not None:
+            activation.switch_audit = self._build_comfyui_runtime_activation_switch_audit(
+                switch_audit=patch["switch_audit"],
+                server_switch_name=activation.server_switch_name,
+                activation_status=activation.activation_status,
+                dry_run=dry_run,
+            )
+        if "runtime_guardrails" in patch and patch["runtime_guardrails"] is not None:
+            activation.runtime_guardrails = self._build_comfyui_runtime_activation_guardrails(
+                runtime_guardrails=patch["runtime_guardrails"],
+                server_switch_name=activation.server_switch_name,
+                activation_status=activation.activation_status,
+            )
+        if "operator_checklist" in patch and patch["operator_checklist"] is not None:
+            activation.operator_checklist = self._clean_list(patch["operator_checklist"])
+        if "rollback_plan" in patch and patch["rollback_plan"] is not None:
+            activation.rollback_plan = self._build_comfyui_runtime_activation_rollback_plan(
+                rollback_plan=patch["rollback_plan"],
+                activation_status=activation.activation_status,
+                server_switch_name=activation.server_switch_name,
+                failure_reason=activation.failure_reason,
+            )
+        for field in ("result_summary", "failure_reason", "reviewer_notes"):
+            if field in patch:
+                value = patch[field]
+                setattr(activation, field, value.strip() if isinstance(value, str) and value.strip() else None)
+        if "metadata" in patch and patch["metadata"] is not None:
+            activation.activation_metadata = patch["metadata"] or {}
+        activation.activation_mode = "metadata_only"
+        activation.activation_request = self._build_comfyui_runtime_activation_request(
+            activation_request=activation.activation_request,
+            activation_mode=activation.activation_mode,
+            server_switch_name=activation.server_switch_name,
+            dry_run=dry_run,
+            gate=gate,
+            dispatch=dispatch,
+        )
+        activation.switch_audit = self._build_comfyui_runtime_activation_switch_audit(
+            switch_audit=activation.switch_audit,
+            server_switch_name=activation.server_switch_name,
+            activation_status=activation.activation_status,
+            dry_run=dry_run,
+        )
+        activation.runtime_guardrails = self._build_comfyui_runtime_activation_guardrails(
+            runtime_guardrails=activation.runtime_guardrails,
+            server_switch_name=activation.server_switch_name,
+            activation_status=activation.activation_status,
+        )
+        activation.rollback_plan = self._build_comfyui_runtime_activation_rollback_plan(
+            rollback_plan=activation.rollback_plan,
+            activation_status=activation.activation_status,
+            server_switch_name=activation.server_switch_name,
+            failure_reason=activation.failure_reason,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_runtime_activation(
+            dry_run=dry_run,
+            gate=gate,
+            adapter_config=adapter_config,
+            activation_request=activation.activation_request,
+            switch_audit=activation.switch_audit,
+            runtime_guardrails=activation.runtime_guardrails,
+            validation_checks=patch.get("validation_checks", activation.validation_checks),
+            operator_checklist=activation.operator_checklist,
+            rollback_plan=activation.rollback_plan,
+        )
+        activation.validation_checks = checks
+        activation.result_summary = result_summary if activation.failure_reason is None else activation.result_summary
+        if failure_reason and activation.activation_status in {
+            CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value,
+        }:
+            activation.failure_reason = failure_reason
+        activation.updated_by = updated_by
+        activation.activation_payload = self._build_comfyui_runtime_activation_payload(
+            operation=operation,
+            dry_run=dry_run,
+            gate=gate,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            activation=activation,
+        )
+        self._apply_comfyui_runtime_activation_to_plan(operation, activation)
+        await self.session.commit()
+        await self.session.refresh(activation)
+        return activation
+
+    async def mark_comfyui_runtime_activation_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def schedule_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        scheduled_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.SCHEDULED.value,
+            actor_user_id=scheduled_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        archived_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        return await self._decide_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            status=CommercialOperationComfyUIRuntimeActivationStatus.ARCHIVED.value,
+            actor_user_id=archived_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_deliverable(
         self,
         *,
@@ -8391,6 +8841,203 @@ class CommercialOperationService:
         await self.session.refresh(dry_run)
         return dry_run
 
+    async def _decide_comfyui_runtime_activation(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_activation_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIRuntimeActivation:
+        activation = await self.require_comfyui_runtime_activation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+        )
+        if activation.activation_status == CommercialOperationComfyUIRuntimeActivationStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI runtime activations cannot be changed")
+        if status == CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value and activation.activation_status not in {
+            CommercialOperationComfyUIRuntimeActivationStatus.DRAFT.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.REJECTED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI runtime activations can be marked ready")
+        if status in {
+            CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.REJECTED.value,
+        } and activation.activation_status != CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI runtime activations can be approved or rejected")
+        if status == CommercialOperationComfyUIRuntimeActivationStatus.SCHEDULED.value and activation.activation_status != (
+            CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value
+        ):
+            raise ValueError("Only approved ComfyUI runtime activations can be scheduled")
+        if status == CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value and activation.activation_status not in {
+            CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.SCHEDULED.value,
+        }:
+            raise ValueError("Only approved or scheduled ComfyUI runtime activations can be failed")
+        if status == CommercialOperationComfyUIRuntimeActivationStatus.CANCELLED.value and activation.activation_status not in {
+            CommercialOperationComfyUIRuntimeActivationStatus.DRAFT.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, ready, approved, or failed ComfyUI runtime activations can be cancelled")
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dry_run, gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config = (
+            await self._load_comfyui_runtime_activation_context(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                activation=activation,
+            )
+        )
+        activation.activation_request = self._build_comfyui_runtime_activation_request(
+            activation_request=activation.activation_request,
+            activation_mode=activation.activation_mode,
+            server_switch_name=activation.server_switch_name,
+            dry_run=dry_run,
+            gate=gate,
+            dispatch=dispatch,
+        )
+        activation.switch_audit = self._build_comfyui_runtime_activation_switch_audit(
+            switch_audit=activation.switch_audit,
+            server_switch_name=activation.server_switch_name,
+            activation_status=status,
+            dry_run=dry_run,
+        )
+        activation.runtime_guardrails = self._build_comfyui_runtime_activation_guardrails(
+            runtime_guardrails=activation.runtime_guardrails,
+            server_switch_name=activation.server_switch_name,
+            activation_status=status,
+        )
+        activation.rollback_plan = self._build_comfyui_runtime_activation_rollback_plan(
+            rollback_plan=activation.rollback_plan,
+            activation_status=status,
+            server_switch_name=activation.server_switch_name,
+            failure_reason=failure_reason or activation.failure_reason,
+        )
+        checks, evaluated_summary, evaluated_failure = self._evaluate_comfyui_runtime_activation(
+            dry_run=dry_run,
+            gate=gate,
+            adapter_config=adapter_config,
+            activation_request=activation.activation_request,
+            switch_audit=activation.switch_audit,
+            runtime_guardrails=activation.runtime_guardrails,
+            validation_checks=activation.validation_checks,
+            operator_checklist=activation.operator_checklist,
+            rollback_plan=activation.rollback_plan,
+        )
+        if status in {
+            CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeActivationStatus.SCHEDULED.value,
+        } and evaluated_failure:
+            raise ValueError(f"ComfyUI runtime activation is blocked: {evaluated_failure}")
+
+        now = datetime.now(UTC)
+        activation.activation_status = status
+        activation.activation_mode = "metadata_only"
+        activation.validation_checks = checks
+        activation.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        activation.result_summary = (
+            result_summary.strip()
+            if result_summary and result_summary.strip()
+            else evaluated_summary
+            if status != CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value
+            else None
+        )
+        activation.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else evaluated_failure
+            if status == CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value
+            else None
+        )
+        activation.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIRuntimeActivationStatus.READY_FOR_REVIEW.value:
+            activation.approved_by = None
+            activation.scheduled_by = None
+            activation.cancelled_by = None
+            activation.approved_at = None
+            activation.rejected_at = None
+            activation.scheduled_at = None
+            activation.failed_at = None
+            activation.cancelled_at = None
+            activation.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeActivationStatus.APPROVED.value:
+            activation.approved_by = actor_user_id
+            activation.approved_at = now
+            activation.rejected_at = None
+            activation.scheduled_at = None
+            activation.failed_at = None
+            activation.cancelled_at = None
+            activation.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeActivationStatus.REJECTED.value:
+            activation.rejected_at = now
+            activation.approved_by = None
+            activation.scheduled_by = None
+            activation.approved_at = None
+            activation.scheduled_at = None
+            activation.failed_at = None
+            activation.cancelled_at = None
+            activation.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeActivationStatus.SCHEDULED.value:
+            activation.scheduled_by = actor_user_id
+            activation.scheduled_at = now
+            activation.failed_at = None
+            activation.cancelled_at = None
+            activation.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeActivationStatus.FAILED.value:
+            activation.failed_at = now
+            activation.cancelled_at = None
+            activation.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeActivationStatus.CANCELLED.value:
+            activation.cancelled_by = actor_user_id
+            activation.cancelled_at = now
+            activation.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeActivationStatus.ARCHIVED.value:
+            activation.archived_by = actor_user_id
+            activation.archived_at = now
+        activation.switch_audit = self._build_comfyui_runtime_activation_switch_audit(
+            switch_audit=activation.switch_audit,
+            server_switch_name=activation.server_switch_name,
+            activation_status=activation.activation_status,
+            dry_run=dry_run,
+        )
+        activation.runtime_guardrails = self._build_comfyui_runtime_activation_guardrails(
+            runtime_guardrails=activation.runtime_guardrails,
+            server_switch_name=activation.server_switch_name,
+            activation_status=activation.activation_status,
+        )
+        activation.rollback_plan = self._build_comfyui_runtime_activation_rollback_plan(
+            rollback_plan=activation.rollback_plan,
+            activation_status=activation.activation_status,
+            server_switch_name=activation.server_switch_name,
+            failure_reason=activation.failure_reason,
+        )
+        activation.activation_payload = self._build_comfyui_runtime_activation_payload(
+            operation=operation,
+            dry_run=dry_run,
+            gate=gate,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            activation=activation,
+        )
+        self._apply_comfyui_runtime_activation_to_plan(operation, activation)
+        await self.session.commit()
+        await self.session.refresh(activation)
+        return activation
+
     async def _decide_deliverable(
         self,
         *,
@@ -11473,6 +12120,368 @@ class CommercialOperationService:
             ],
         }
 
+    async def _load_comfyui_runtime_activation_context(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        activation: CommercialOperationComfyUIRuntimeActivation,
+    ) -> tuple[
+        CommercialOperationComfyUIRuntimeDryRun,
+        CommercialOperationComfyUIRuntimeGate,
+        CommercialOperationComfyUIAdapterDispatch,
+        CommercialOperationComfyUIConnectionProbe,
+        CommercialOperationComfyUIExecutionPlan,
+        CommercialOperationComfyUIJobRequest,
+        CommercialOperationComfyUIPreflight,
+        CommercialOperationComfyUIHandoff,
+        CommercialOperationComfyUIAdapterConfig | None,
+    ]:
+        dry_run = await self.require_comfyui_runtime_dry_run(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=activation.runtime_dry_run_id,
+        )
+        gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config = (
+            await self._load_comfyui_runtime_dry_run_context(
+                workspace_id=workspace_id,
+                operation_id=operation_id,
+                dry_run=dry_run,
+            )
+        )
+        return dry_run, gate, dispatch, probe, execution_plan, job_request, preflight, handoff, adapter_config
+
+    def _build_comfyui_runtime_activation_request(
+        self,
+        *,
+        activation_request: dict[str, Any] | None,
+        activation_mode: str,
+        server_switch_name: str,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> dict[str, Any]:
+        request = activation_request.copy() if isinstance(activation_request, dict) else {}
+        for key in ("secret_value", "token", "api_key", "password", "authorization"):
+            request.pop(key, None)
+        request.update(
+            {
+                "activation_mode": "metadata_only",
+                "requested_activation_mode": str(activation_mode or "metadata_only").strip() or "metadata_only",
+                "runtime_dry_run_id": str(dry_run.id),
+                "runtime_dry_run_status": dry_run.dry_run_status,
+                "runtime_gate_id": str(gate.id),
+                "runtime_gate_status": gate.gate_status,
+                "adapter_dispatch_id": str(dispatch.id),
+                "adapter_dispatch_status": dispatch.dispatch_status,
+                "server_switch_name": server_switch_name,
+                "requested_target_state": "future_manual_cutover_pending",
+                "target_url": dry_run.target_url,
+                "queue_name": dry_run.queue_name,
+                "workflow_name": dry_run.workflow_name,
+                "adapter_contract": dry_run.adapter_contract,
+                "dry_run_request": dry_run.dry_run_request,
+                "expected_response": dry_run.expected_response,
+                "activation_executed": False,
+                "adapter_import_executed": False,
+                "adapter_call_executed": False,
+                "server_switch_enabled": False,
+                "network_request": False,
+                "queue_read": False,
+                "queue_submission": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "secret_value_present": False,
+                "secret_lookup_enabled": False,
+                "approval_bypass_allowed": False,
+                "execution_boundary": "activation request only; no ComfyUI runtime switch or adapter call is executed",
+            }
+        )
+        return request
+
+    def _build_comfyui_runtime_activation_switch_audit(
+        self,
+        *,
+        switch_audit: dict[str, Any] | None,
+        server_switch_name: str,
+        activation_status: str,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+    ) -> dict[str, Any]:
+        audit = switch_audit.copy() if isinstance(switch_audit, dict) else {}
+        audit.update(
+            {
+                "activation_status": activation_status,
+                "runtime_dry_run_id": str(dry_run.id),
+                "runtime_dry_run_status": dry_run.dry_run_status,
+                "server_switch_name": server_switch_name,
+                "current_state": "disabled",
+                "requested_state": "disabled_until_manual_cutover",
+                "server_switch_enabled": False,
+                "switch_mutation_executed": False,
+                "runtime_config_written": False,
+                "environment_updated": False,
+                "actual_environment_read": False,
+                "change_ticket_required": True,
+                "manual_maintainer_action_required": True,
+                "execution_boundary": "server switch audit only; no environment value is read or changed",
+            }
+        )
+        return audit
+
+    def _build_comfyui_runtime_activation_guardrails(
+        self,
+        *,
+        runtime_guardrails: dict[str, Any] | None,
+        server_switch_name: str,
+        activation_status: str,
+    ) -> dict[str, Any]:
+        guardrails = runtime_guardrails.copy() if isinstance(runtime_guardrails, dict) else {}
+        guardrails.update(
+            {
+                "activation_status": activation_status,
+                "server_switch_name": server_switch_name,
+                "explicit_manual_cutover_required": True,
+                "maintenance_window_required": True,
+                "rollback_owner_required": True,
+                "two_person_review_required": True,
+                "runtime_calls_enabled": False,
+                "adapter_runtime_enabled": False,
+                "http_client_enabled": False,
+                "allow_network_requests": False,
+                "queue_read": False,
+                "queue_submission": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "secret_lookup_enabled": False,
+                "approval_bypass_allowed": False,
+                "execution_boundary": "activation guardrails only; live ComfyUI runtime remains disabled",
+            }
+        )
+        return guardrails
+
+    def _build_comfyui_runtime_activation_rollback_plan(
+        self,
+        *,
+        rollback_plan: dict[str, Any] | None,
+        activation_status: str,
+        server_switch_name: str,
+        failure_reason: str | None,
+    ) -> dict[str, Any]:
+        plan = rollback_plan.copy() if isinstance(rollback_plan, dict) else {}
+        next_steps = plan.get("next_steps")
+        if not isinstance(next_steps, list) or not next_steps:
+            next_steps = [
+                f"keep {server_switch_name} disabled until a future manual runtime cutover phase",
+                "pause activation if validation evidence changes",
+                "disable or fail the runtime gate before any adapter code change",
+                "record maintainer rollback owner and maintenance window before runtime enablement",
+            ]
+        plan.update(
+            {
+                "activation_status": activation_status,
+                "server_switch_name": server_switch_name,
+                "failure_reason": failure_reason,
+                "disable_runtime_switch": True,
+                "rollback_required": True,
+                "switch_disable_verified": False,
+                "next_steps": next_steps,
+                "execution_boundary": "rollback guidance only; no ComfyUI queue cancellation or runtime mutation is executed",
+            }
+        )
+        return plan
+
+    def _evaluate_comfyui_runtime_activation(
+        self,
+        *,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        activation_request: dict[str, Any],
+        switch_audit: dict[str, Any],
+        runtime_guardrails: dict[str, Any],
+        validation_checks: list[dict[str, Any]] | None,
+        operator_checklist: list[str],
+        rollback_plan: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], str, str | None]:
+        generated_checks = [
+            {
+                "key": "runtime_dry_run_validated",
+                "label": "Runtime dry-run is validated",
+                "status": dry_run.dry_run_status == CommercialOperationComfyUIRuntimeDryRunStatus.VALIDATED.value,
+                "severity": "blocker",
+                "message": "Runtime activation requests require a validated metadata-only runtime dry-run.",
+                "source": "system",
+            },
+            {
+                "key": "runtime_gate_armed",
+                "label": "Runtime gate remains armed",
+                "status": gate.gate_status == CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+                "severity": "blocker",
+                "message": "Runtime activation requests require the source runtime gate to remain armed.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_config_ready",
+                "label": "Maintained adapter config is ready",
+                "status": adapter_config is not None
+                and adapter_config.config_status == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "Runtime activation requests require a ready maintained adapter config.",
+                "source": "system",
+            },
+            {
+                "key": "activation_request_metadata_only",
+                "label": "Activation request is metadata-only",
+                "status": activation_request.get("activation_mode") == "metadata_only"
+                and activation_request.get("activation_executed") is False
+                and activation_request.get("adapter_import_executed") is False
+                and activation_request.get("adapter_call_executed") is False
+                and activation_request.get("network_request") is False
+                and activation_request.get("queue_submission") is False
+                and activation_request.get("upload_files") is False
+                and activation_request.get("server_switch_enabled") is False
+                and activation_request.get("secret_value_present") is False
+                and activation_request.get("secret_lookup_enabled") is False,
+                "severity": "blocker",
+                "message": "Runtime activation requests cannot execute adapters, mutate switches, call ComfyUI, or store/resolve secrets.",
+                "source": "system",
+            },
+            {
+                "key": "switch_audit_no_mutation",
+                "label": "Server switch audit records no mutation",
+                "status": switch_audit.get("server_switch_enabled") is False
+                and switch_audit.get("switch_mutation_executed") is False
+                and switch_audit.get("runtime_config_written") is False
+                and switch_audit.get("environment_updated") is False
+                and switch_audit.get("actual_environment_read") is False,
+                "severity": "blocker",
+                "message": "Phase 61Z records switch audit metadata only; it cannot read or mutate the server environment.",
+                "source": "system",
+            },
+            {
+                "key": "runtime_guardrails_closed",
+                "label": "Runtime guardrails keep execution closed",
+                "status": runtime_guardrails.get("explicit_manual_cutover_required") is True
+                and runtime_guardrails.get("runtime_calls_enabled") is False
+                and runtime_guardrails.get("adapter_runtime_enabled") is False
+                and runtime_guardrails.get("http_client_enabled") is False
+                and runtime_guardrails.get("queue_read") is False
+                and runtime_guardrails.get("queue_submission") is False
+                and runtime_guardrails.get("approval_bypass_allowed") is False,
+                "severity": "blocker",
+                "message": "Runtime activation guardrails must keep live execution disabled.",
+                "source": "system",
+            },
+            {
+                "key": "operator_checklist_present",
+                "label": "Operator checklist is present",
+                "status": bool(operator_checklist),
+                "severity": "blocker",
+                "message": "Runtime activation requests need a workstation and server-maintainer checklist.",
+                "source": "system",
+            },
+            {
+                "key": "rollback_plan_present",
+                "label": "Rollback plan is present",
+                "status": bool(rollback_plan.get("next_steps")) and rollback_plan.get("disable_runtime_switch") is True,
+                "severity": "blocker",
+                "message": "Runtime activation requests need switch-disable and rollback guidance.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(validation_checks):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, "ComfyUI runtime activation is blocked; maintainer action is required.", labels
+        return (
+            merged_checks,
+            "ComfyUI runtime activation request is scheduled as metadata-only maintainer handoff; no runtime switch was enabled.",
+            None,
+        )
+
+    def _build_comfyui_runtime_activation_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        dry_run: CommercialOperationComfyUIRuntimeDryRun,
+        gate: CommercialOperationComfyUIRuntimeGate,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        probe: CommercialOperationComfyUIConnectionProbe,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        activation: CommercialOperationComfyUIRuntimeActivation,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "runtime_activation_id": str(activation.id) if activation.id else None,
+            "runtime_dry_run_id": str(dry_run.id),
+            "runtime_dry_run_status": dry_run.dry_run_status,
+            "runtime_gate_id": str(gate.id),
+            "runtime_gate_status": gate.gate_status,
+            "adapter_dispatch_id": str(dispatch.id),
+            "adapter_dispatch_status": dispatch.dispatch_status,
+            "connection_probe_id": str(probe.id),
+            "execution_plan_id": str(execution_plan.id),
+            "job_request_id": str(job_request.id),
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "adapter_config_status": adapter_config.config_status if adapter_config else None,
+            "asset_request_id": str(handoff.asset_request_id),
+            "step_key": activation.step_key,
+            "title": activation.title,
+            "target_url": activation.target_url,
+            "queue_name": activation.queue_name,
+            "workflow_name": activation.workflow_name,
+            "activation_status": activation.activation_status,
+            "activation_mode": "metadata_only",
+            "server_switch_name": activation.server_switch_name,
+            "activation_request": activation.activation_request,
+            "switch_audit": activation.switch_audit,
+            "runtime_guardrails": activation.runtime_guardrails,
+            "validation_checks": activation.validation_checks,
+            "operator_checklist": activation.operator_checklist,
+            "rollback_plan": activation.rollback_plan,
+            "result_summary": activation.result_summary,
+            "failure_reason": activation.failure_reason,
+            "server_switch_enabled": False,
+            "activation_executed": False,
+            "adapter_import_executed": False,
+            "adapter_call_executed": False,
+            "runtime_calls_enabled": False,
+            "execution_boundary": "metadata-only ComfyUI runtime activation request; no adapter import, server switch enablement, HTTP request, queue read, queue submission, upload, or media generation occurs",
+            "next_runtime": "future_manual_comfyui_runtime_cutover",
+            "forbidden_actions": [
+                "no ComfyUI adapter import",
+                "no ComfyUI adapter call",
+                "no server switch enablement",
+                "no environment read or write",
+                "no ComfyUI HTTP request",
+                "no ComfyUI prompt submission",
+                "no ComfyUI queue read",
+                "no ComfyUI queue submission",
+                "no file upload to ComfyUI",
+                "no image/video generation",
+                "no secret value storage or lookup",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -12484,6 +13493,41 @@ class CommercialOperationService:
                     updated["comfyui_runtime_dry_run_decision_at"] = dry_run.cancelled_at.isoformat()
                 elif dry_run.archived_at is not None:
                     updated["comfyui_runtime_dry_run_decision_at"] = dry_run.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_runtime_activation_to_plan(
+        self,
+        operation: CommercialOperation,
+        activation: CommercialOperationComfyUIRuntimeActivation,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == activation.step_key:
+                updated = dict(step)
+                updated["comfyui_runtime_activation_id"] = str(activation.id)
+                updated["comfyui_runtime_activation_status"] = activation.activation_status
+                updated["comfyui_runtime_activation_dry_run_id"] = str(activation.runtime_dry_run_id)
+                updated["comfyui_runtime_activation_gate_id"] = str(activation.runtime_gate_id)
+                updated["comfyui_runtime_activation_target_url"] = activation.target_url
+                updated["comfyui_runtime_activation_queue_name"] = activation.queue_name
+                updated["comfyui_runtime_activation_workflow_name"] = activation.workflow_name
+                updated["comfyui_runtime_activation_mode"] = activation.activation_mode
+                updated["comfyui_runtime_activation_server_switch"] = activation.server_switch_name
+                if activation.scheduled_at is not None:
+                    updated["comfyui_runtime_activation_decision_at"] = activation.scheduled_at.isoformat()
+                elif activation.approved_at is not None:
+                    updated["comfyui_runtime_activation_decision_at"] = activation.approved_at.isoformat()
+                elif activation.rejected_at is not None:
+                    updated["comfyui_runtime_activation_decision_at"] = activation.rejected_at.isoformat()
+                elif activation.failed_at is not None:
+                    updated["comfyui_runtime_activation_decision_at"] = activation.failed_at.isoformat()
+                elif activation.cancelled_at is not None:
+                    updated["comfyui_runtime_activation_decision_at"] = activation.cancelled_at.isoformat()
+                elif activation.archived_at is not None:
+                    updated["comfyui_runtime_activation_decision_at"] = activation.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

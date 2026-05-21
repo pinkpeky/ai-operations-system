@@ -3617,3 +3617,24 @@ Endpoints:
 支持的 `dry_run_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`validated`、`failed`、`cancelled`、`archived`。
 
 边界：ComfyUI runtime dry-run 只是元数据记录。它不会 import 或调用 ComfyUI adapter，不会启用 runtime server switch，不会保存或解析密钥值，不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会提交 prompt，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved dry-run 的 `validate` 状态只是人工操作记录，不代表真实 adapter runtime 已启用。
+
+## Phase 61Z: 商业运营 ComfyUI Runtime Activations
+
+Phase 61Z 新增 `commercial_operation_comfyui_runtime_activations` 与 `CommercialOperationComfyUIRuntimeActivation` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations`。操作人员和服务器维护人员可以从 validated ComfyUI runtime dry-run 创建 metadata-only runtime activation，编辑、送审、批准、驳回、标记 scheduled、标记 failed、取消或归档。该记录用于保存未来受控 ComfyUI activation request、switch audit、runtime guardrails、validation checks、operator checklist 与 rollback plan；系统不会 import 或调用 ComfyUI adapter、不会保存或解析密钥值、不会请求 ComfyUI、不会提交 prompt、不会读取队列、不会上传文件、不会提交队列、不会启用 runtime switch、不会生成媒体。
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/runtime-activations`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/schedule`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/archive`
+
+支持的 `activation_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`scheduled`、`failed`、`cancelled`、`archived`。
+
+边界：ComfyUI runtime activation 只是元数据记录。它不会 import 或调用 ComfyUI adapter，不会启用 runtime server switch，不会修改 runtime configuration，不会读取 environment state，不会保存或解析密钥值，不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会提交 prompt，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved activation 的 `schedule` 状态只是人工操作记录，不代表真实 adapter runtime 已启用。

@@ -72,6 +72,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIRuntimeDryRunListResponse,
     CommercialOperationComfyUIRuntimeDryRunResponse,
     CommercialOperationComfyUIRuntimeDryRunUpdateRequest,
+    CommercialOperationComfyUIRuntimeActivationCreateRequest,
+    CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    CommercialOperationComfyUIRuntimeActivationListResponse,
+    CommercialOperationComfyUIRuntimeActivationResponse,
+    CommercialOperationComfyUIRuntimeActivationUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
     CommercialOperationContentDraftGenerateRequest,
@@ -4237,6 +4242,346 @@ async def archive_commercial_operation_comfyui_runtime_dry_run(
             extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
         )
         raise AppError("Commercial operation ComfyUI runtime dry-run archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-dry-runs/{runtime_dry_run_id}/runtime-activations",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_dry_run_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Create a metadata-only ComfyUI runtime activation request from a validated dry-run."""
+
+    try:
+        activation = await CommercialOperationService(session).create_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_dry_run_id=runtime_dry_run_id,
+            planned_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation create API failed",
+            extra={"operation_id": str(operation_id), "runtime_dry_run_id": str(runtime_dry_run_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation create failed", status_code=500) from exc
+
+
+@router.get(
+    "/{operation_id}/comfyui-runtime-activations",
+    response_model=CommercialOperationComfyUIRuntimeActivationListResponse,
+)
+async def list_commercial_operation_comfyui_runtime_activations(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / scheduled / failed / cancelled / archived"),
+    runtime_dry_run_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationListResponse:
+    """List metadata-only ComfyUI runtime activation requests for a commercial operation."""
+
+    try:
+        activations = await CommercialOperationService(session).list_comfyui_runtime_activations(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            runtime_dry_run_id=runtime_dry_run_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIRuntimeActivationListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIRuntimeActivationResponse.from_model(item) for item in activations],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI runtime activation list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI runtime activation list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def update_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Patch a metadata-only ComfyUI runtime activation request before scheduling."""
+
+    try:
+        activation = await CommercialOperationService(session).update_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation update API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/ready",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def ready_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Mark a metadata-only ComfyUI runtime activation request ready for review."""
+
+    try:
+        activation = await CommercialOperationService(session).mark_comfyui_runtime_activation_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation ready API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/approve",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def approve_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Approve a metadata-only ComfyUI runtime activation request without enabling runtime calls."""
+
+    try:
+        activation = await CommercialOperationService(session).approve_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation approve API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/reject",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def reject_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Reject a metadata-only ComfyUI runtime activation request."""
+
+    try:
+        activation = await CommercialOperationService(session).reject_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation reject API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/schedule",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def schedule_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Schedule a metadata-only ComfyUI runtime activation handoff without enabling the switch."""
+
+    try:
+        activation = await CommercialOperationService(session).schedule_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            scheduled_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation schedule API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation schedule failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/fail",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def fail_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Mark a ComfyUI runtime activation request failed without external action."""
+
+    try:
+        activation = await CommercialOperationService(session).fail_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation fail API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/cancel",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def cancel_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Cancel a metadata-only ComfyUI runtime activation request."""
+
+    try:
+        activation = await CommercialOperationService(session).cancel_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation cancel API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-activations/{runtime_activation_id}/archive",
+    response_model=CommercialOperationComfyUIRuntimeActivationResponse,
+)
+async def archive_commercial_operation_comfyui_runtime_activation(
+    operation_id: UUID,
+    runtime_activation_id: UUID,
+    request: CommercialOperationComfyUIRuntimeActivationDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeActivationResponse:
+    """Archive a ComfyUI runtime activation request without deleting its audit trail."""
+
+    try:
+        activation = await CommercialOperationService(session).archive_comfyui_runtime_activation(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_activation_id=runtime_activation_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeActivationResponse.from_model(activation)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime activation archive API failed",
+            extra={"operation_id": str(operation_id), "runtime_activation_id": str(runtime_activation_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime activation archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

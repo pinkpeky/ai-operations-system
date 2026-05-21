@@ -15,12 +15,18 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     text = MAIN.read_text(encoding="utf-8")
 
     assert '"commercial-operations"' in text
+    assert '"comfyui-operations"' in text
     assert "CommercialOperationsPage" in text
+    assert 'surface="comfyui"' in text
+    assert "isComfyuiPage" in text
     assert "商业运营" in text
     assert "Commercial Ops" in text
+    assert "ComfyUI Ops" in text
+    assert "ComfyUI 运行工作台" in text
+    assert "Open ComfyUI tab" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61Y" in text
+    assert "Phase 61Z" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -34,6 +40,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "ComfyUI adapter dispatches" in text
     assert "ComfyUI runtime gates" in text
     assert "ComfyUI runtime dry-runs" in text
+    assert "ComfyUI runtime activations" in text
     assert "Deliverables" in text
     assert "Evidence snapshots" in text
     assert "Execution requests" in text
@@ -158,6 +165,16 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.failComfyuiRuntimeDryRun" in text
     assert "commercialOperationsApi.cancelComfyuiRuntimeDryRun" in text
     assert "commercialOperationsApi.archiveComfyuiRuntimeDryRun" in text
+    assert "commercialOperationsApi.comfyuiRuntimeActivations" in text
+    assert "commercialOperationsApi.createComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.updateComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.readyComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.approveComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.rejectComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.scheduleComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.failComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.cancelComfyuiRuntimeActivation" in text
+    assert "commercialOperationsApi.archiveComfyuiRuntimeActivation" in text
     assert "commercialOperationsApi.deliverables" in text
     assert "commercialOperationsApi.createDeliverable" in text
     assert "commercialOperationsApi.updateDeliverable" in text
@@ -334,6 +351,16 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/cancel" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/runtime-activations" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/schedule" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready" in text

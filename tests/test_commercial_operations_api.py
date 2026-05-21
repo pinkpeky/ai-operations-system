@@ -1239,6 +1239,134 @@ async def test_commercial_operations_api_flow() -> None:
             assert validated_comfyui_runtime_dry_run.json()["dry_run_status"] == "validated"
             assert validated_comfyui_runtime_dry_run.json()["validated_by"] == "user-commercial-api"
 
+            comfyui_runtime_activation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs/{comfyui_runtime_dry_run_id}/runtime-activations",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI runtime activation request",
+                    "activation_mode": "future_manual_cutover",
+                    "server_switch_name": "COMFYUI_RUNTIME_ENABLED",
+                    "activation_request": {
+                        "activation_executed": True,
+                        "adapter_import_executed": True,
+                        "adapter_call_executed": True,
+                        "server_switch_enabled": True,
+                        "network_request": True,
+                        "queue_submission": True,
+                        "upload_files": True,
+                        "secret_value": "do-not-store",
+                    },
+                    "switch_audit": {
+                        "server_switch_enabled": True,
+                        "switch_mutation_executed": True,
+                        "runtime_config_written": True,
+                        "environment_updated": True,
+                    },
+                    "runtime_guardrails": {
+                        "runtime_calls_enabled": True,
+                        "adapter_runtime_enabled": True,
+                        "http_client_enabled": True,
+                        "approval_bypass_allowed": True,
+                    },
+                    "validation_checks": [
+                        {"key": "change_ticket_named", "label": "Change ticket named", "status": True}
+                    ],
+                    "operator_checklist": ["validated dry-run reviewed", "server maintainer named"],
+                    "rollback_plan": {"next_steps": ["keep COMFYUI_RUNTIME_ENABLED disabled"]},
+                    "metadata": {"phase": "61Z"},
+                },
+            )
+            assert comfyui_runtime_activation.status_code == 201
+            comfyui_runtime_activation_body = comfyui_runtime_activation.json()
+            comfyui_runtime_activation_id = comfyui_runtime_activation_body["id"]
+            assert comfyui_runtime_activation_body["activation_status"] == "draft"
+            assert comfyui_runtime_activation_body["runtime_dry_run_id"] == comfyui_runtime_dry_run_id
+            assert comfyui_runtime_activation_body["runtime_gate_id"] == comfyui_runtime_gate_id
+            assert comfyui_runtime_activation_body["activation_mode"] == "metadata_only"
+            assert comfyui_runtime_activation_body["activation_request"]["activation_executed"] is False
+            assert comfyui_runtime_activation_body["activation_request"]["adapter_import_executed"] is False
+            assert comfyui_runtime_activation_body["activation_request"]["adapter_call_executed"] is False
+            assert comfyui_runtime_activation_body["activation_request"]["server_switch_enabled"] is False
+            assert comfyui_runtime_activation_body["activation_request"]["network_request"] is False
+            assert comfyui_runtime_activation_body["activation_request"]["queue_submission"] is False
+            assert "secret_value" not in comfyui_runtime_activation_body["activation_request"]
+            assert comfyui_runtime_activation_body["activation_request"]["secret_value_present"] is False
+            assert comfyui_runtime_activation_body["activation_request"]["secret_lookup_enabled"] is False
+            assert comfyui_runtime_activation_body["switch_audit"]["server_switch_enabled"] is False
+            assert comfyui_runtime_activation_body["switch_audit"]["switch_mutation_executed"] is False
+            assert comfyui_runtime_activation_body["switch_audit"]["runtime_config_written"] is False
+            assert comfyui_runtime_activation_body["switch_audit"]["environment_updated"] is False
+            assert comfyui_runtime_activation_body["runtime_guardrails"]["runtime_calls_enabled"] is False
+            assert comfyui_runtime_activation_body["runtime_guardrails"]["adapter_runtime_enabled"] is False
+            assert comfyui_runtime_activation_body["runtime_guardrails"]["approval_bypass_allowed"] is False
+            assert comfyui_runtime_activation_body["activation_payload"]["server_switch_enabled"] is False
+            assert comfyui_runtime_activation_body["activation_payload"]["activation_executed"] is False
+            assert comfyui_runtime_activation_body["activation_payload"]["adapter_import_executed"] is False
+            assert comfyui_runtime_activation_body["activation_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI runtime activation request; no adapter import, server switch enablement, HTTP request, queue read, queue submission, upload, or media generation occurs"
+            )
+            assert "no server switch enablement" in comfyui_runtime_activation_body["activation_payload"]["forbidden_actions"]
+
+            comfyui_runtime_activations = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations",
+                headers=headers,
+            )
+            assert comfyui_runtime_activations.status_code == 200
+            assert [item["id"] for item in comfyui_runtime_activations.json()["items"]] == [comfyui_runtime_activation_id]
+
+            hidden_comfyui_runtime_activations = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_runtime_activations.status_code == 404
+
+            updated_comfyui_runtime_activation = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{comfyui_runtime_activation_id}",
+                headers=headers,
+                json={
+                    "activation_request": {"adapter_call_executed": True, "network_request": True},
+                    "switch_audit": {"switch_mutation_executed": True, "environment_updated": True},
+                    "runtime_guardrails": {"runtime_calls_enabled": True, "approval_bypass_allowed": True},
+                    "operator_checklist": [
+                        "validated dry-run reviewed",
+                        "server maintainer named",
+                        "rollback owner named",
+                    ],
+                },
+            )
+            assert updated_comfyui_runtime_activation.status_code == 200
+            assert updated_comfyui_runtime_activation.json()["activation_status"] == "draft"
+            assert updated_comfyui_runtime_activation.json()["activation_request"]["adapter_call_executed"] is False
+            assert updated_comfyui_runtime_activation.json()["switch_audit"]["switch_mutation_executed"] is False
+            assert updated_comfyui_runtime_activation.json()["runtime_guardrails"]["runtime_calls_enabled"] is False
+
+            ready_comfyui_runtime_activation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{comfyui_runtime_activation_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for metadata-only runtime activation review."},
+            )
+            assert ready_comfyui_runtime_activation.status_code == 200
+            assert ready_comfyui_runtime_activation.json()["activation_status"] == "ready_for_review"
+
+            approved_comfyui_runtime_activation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{comfyui_runtime_activation_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved activation handoff without enabling ComfyUI."},
+            )
+            assert approved_comfyui_runtime_activation.status_code == 200
+            assert approved_comfyui_runtime_activation.json()["activation_status"] == "approved"
+            assert approved_comfyui_runtime_activation.json()["approved_by"] == "user-commercial-api"
+
+            scheduled_comfyui_runtime_activation = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{comfyui_runtime_activation_id}/schedule",
+                headers=headers,
+                json={"result_summary": "Scheduled metadata-only activation handoff; runtime switch remains disabled."},
+            )
+            assert scheduled_comfyui_runtime_activation.status_code == 200
+            assert scheduled_comfyui_runtime_activation.json()["activation_status"] == "scheduled"
+            assert scheduled_comfyui_runtime_activation.json()["scheduled_by"] == "user-commercial-api"
+            assert scheduled_comfyui_runtime_activation.json()["switch_audit"]["server_switch_enabled"] is False
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -1286,6 +1414,13 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_runtime_dry_run_gate_id"] == comfyui_runtime_gate_id
             assert comfyui_step["comfyui_runtime_dry_run_queue_name"] == "commercial-assets"
             assert comfyui_step["comfyui_runtime_dry_run_mode"] == "metadata_only"
+            assert comfyui_step["comfyui_runtime_activation_id"] == comfyui_runtime_activation_id
+            assert comfyui_step["comfyui_runtime_activation_status"] == "scheduled"
+            assert comfyui_step["comfyui_runtime_activation_dry_run_id"] == comfyui_runtime_dry_run_id
+            assert comfyui_step["comfyui_runtime_activation_gate_id"] == comfyui_runtime_gate_id
+            assert comfyui_step["comfyui_runtime_activation_queue_name"] == "commercial-assets"
+            assert comfyui_step["comfyui_runtime_activation_mode"] == "metadata_only"
+            assert comfyui_step["comfyui_runtime_activation_server_switch"] == "COMFYUI_RUNTIME_ENABLED"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

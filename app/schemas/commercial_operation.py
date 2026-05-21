@@ -20,6 +20,7 @@ from app.models.commercial_operation import (
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
+    CommercialOperationComfyUIRuntimeActivation,
     CommercialOperationComfyUIRuntimeDryRun,
     CommercialOperationComfyUIRuntimeGate,
     CommercialOperationContentDraft,
@@ -120,6 +121,16 @@ CommercialOperationComfyUIRuntimeDryRunStatusLiteral = Literal[
     "approved",
     "rejected",
     "validated",
+    "failed",
+    "cancelled",
+    "archived",
+]
+CommercialOperationComfyUIRuntimeActivationStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "scheduled",
     "failed",
     "cancelled",
     "archived",
@@ -1971,6 +1982,159 @@ class CommercialOperationComfyUIRuntimeDryRunListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIRuntimeDryRunResponse]
+
+
+class CommercialOperationComfyUIRuntimeActivationCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI runtime activation request from a validated dry-run."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    activation_mode: str = Field(default="metadata_only", min_length=1, max_length=32)
+    server_switch_name: str = Field(default="COMFYUI_RUNTIME_ENABLED", min_length=1, max_length=128)
+    activation_request: dict[str, Any] = Field(default_factory=dict)
+    switch_audit: dict[str, Any] = Field(default_factory=dict)
+    runtime_guardrails: dict[str, Any] = Field(default_factory=dict)
+    validation_checks: list[dict[str, Any]] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    rollback_plan: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIRuntimeActivationUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI runtime activation request before scheduling."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    activation_mode: str | None = Field(default=None, min_length=1, max_length=32)
+    server_switch_name: str | None = Field(default=None, min_length=1, max_length=128)
+    activation_request: dict[str, Any] | None = None
+    switch_audit: dict[str, Any] | None = None
+    runtime_guardrails: dict[str, Any] | None = None
+    validation_checks: list[dict[str, Any]] | None = None
+    operator_checklist: list[str] | None = None
+    rollback_plan: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIRuntimeActivationDecisionRequest(BaseModel):
+    """Review, schedule, fail, cancel, or archive a ComfyUI runtime activation request."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIRuntimeActivationResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI runtime activation response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    runtime_dry_run_id: UUID
+    runtime_gate_id: UUID
+    adapter_dispatch_id: UUID
+    connection_probe_id: UUID
+    execution_plan_id: UUID
+    job_request_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    activation_status: str
+    activation_mode: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    server_switch_name: str
+    activation_request: dict[str, Any]
+    switch_audit: dict[str, Any]
+    runtime_guardrails: dict[str, Any]
+    validation_checks: list[dict[str, Any]]
+    operator_checklist: list[str]
+    rollback_plan: dict[str, Any]
+    activation_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    planned_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    scheduled_by: str | None
+    cancelled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    scheduled_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        activation: CommercialOperationComfyUIRuntimeActivation,
+    ) -> "CommercialOperationComfyUIRuntimeActivationResponse":
+        return cls(
+            id=activation.id,
+            workspace_id=activation.workspace_id,
+            operation_id=activation.operation_id,
+            runtime_dry_run_id=activation.runtime_dry_run_id,
+            runtime_gate_id=activation.runtime_gate_id,
+            adapter_dispatch_id=activation.adapter_dispatch_id,
+            connection_probe_id=activation.connection_probe_id,
+            execution_plan_id=activation.execution_plan_id,
+            job_request_id=activation.job_request_id,
+            preflight_id=activation.preflight_id,
+            handoff_id=activation.handoff_id,
+            adapter_config_id=activation.adapter_config_id,
+            asset_request_id=activation.asset_request_id,
+            step_key=activation.step_key,
+            title=activation.title,
+            activation_status=activation.activation_status,
+            activation_mode=activation.activation_mode,
+            target_url=activation.target_url,
+            queue_name=activation.queue_name,
+            workflow_name=activation.workflow_name,
+            server_switch_name=activation.server_switch_name,
+            activation_request=activation.activation_request,
+            switch_audit=activation.switch_audit,
+            runtime_guardrails=activation.runtime_guardrails,
+            validation_checks=activation.validation_checks,
+            operator_checklist=activation.operator_checklist,
+            rollback_plan=activation.rollback_plan,
+            activation_payload=activation.activation_payload,
+            result_summary=activation.result_summary,
+            failure_reason=activation.failure_reason,
+            reviewer_notes=activation.reviewer_notes,
+            planned_by=activation.planned_by,
+            updated_by=activation.updated_by,
+            approved_by=activation.approved_by,
+            scheduled_by=activation.scheduled_by,
+            cancelled_by=activation.cancelled_by,
+            archived_by=activation.archived_by,
+            approved_at=activation.approved_at,
+            rejected_at=activation.rejected_at,
+            scheduled_at=activation.scheduled_at,
+            failed_at=activation.failed_at,
+            cancelled_at=activation.cancelled_at,
+            archived_at=activation.archived_at,
+            metadata=activation.activation_metadata,
+            created_at=activation.created_at,
+            updated_at=activation.updated_at,
+        )
+
+
+class CommercialOperationComfyUIRuntimeActivationListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI runtime activation list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIRuntimeActivationResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

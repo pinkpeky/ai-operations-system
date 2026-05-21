@@ -1134,6 +1134,94 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  comfyuiRuntimeActivations: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations`, {}, settings),
+  createComfyuiRuntimeActivation: (operationId: string, runtimeDryRunId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-dry-runs/${encodeURIComponent(runtimeDryRunId)}/runtime-activations`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Ready from Commercial Ops; runtime activation remains metadata-only." }),
+      },
+      settings,
+    ),
+  approveComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Approved from Commercial Ops; no runtime switch is enabled." }),
+      },
+      settings,
+    ),
+  rejectComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Rejected from Commercial Ops." }),
+      },
+      settings,
+    ),
+  scheduleComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/schedule`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: "Scheduled metadata-only activation handoff; runtime switch remains disabled." }),
+      },
+      settings,
+    ),
+  failComfyuiRuntimeActivation: (
+    operationId: string,
+    runtimeActivationId: string,
+    failureReason = "Failed from Commercial Ops runtime activation; maintainer review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  cancelComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/cancel`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Cancelled from Commercial Ops." }),
+      },
+      settings,
+    ),
+  archiveComfyuiRuntimeActivation: (operationId: string, runtimeActivationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-activations/${encodeURIComponent(runtimeActivationId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Archived from Commercial Ops." }),
+      },
+      settings,
+    ),
   deliverables: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/deliverables`, {}, settings),
   createDeliverable: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
