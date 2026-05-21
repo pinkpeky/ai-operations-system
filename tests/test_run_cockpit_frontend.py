@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation ComfyUI runtime activation slice."""
+    """Recovery docs should point to the active ComfyUI runtime adapter contract slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,10 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61z-commercial-comfyui-runtime-activations" in text or "Commercial Operation ComfyUI Runtime Activations" in text, path
-        assert "/comfyui-runtime-activations" in text or "ComfyUI runtime activation" in text, path
+        assert "phase-62a-comfyui-runtime-adapter-contract" in text or "ComfyUI Runtime Adapter Contract" in text, path
+        assert "/comfyui-runtime/health" in text, path
+        assert "/comfyui-runtime/capabilities" in text, path
+        assert "COMFYUI_RUNTIME_" in text or "ComfyUIRuntimeService" in text, path
         assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
 
@@ -160,7 +162,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 61Z should be the active ComfyUI runtime activation slice."""
+    """Phase 61A-61P should be merged and Phase 62A should be the active ComfyUI contract slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -504,3 +506,19 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_61_lines["61Z"]
     assert "TBD" not in phase_61_lines["61Z"]
     assert "In progress" not in phase_61_lines["61Z"]
+
+    phase_62_lines = {
+        line.split("|")[1].strip(): line
+        for line in text.splitlines()
+        if line.startswith("| 62")
+    }
+
+    assert "62A" in phase_62_lines
+    assert "phase-62a-comfyui-runtime-adapter-contract" in phase_62_lines["62A"]
+    assert "ComfyUI Runtime Adapter Contract" in phase_62_lines["62A"]
+    assert "/api/v1/comfyui-runtime/health" in phase_62_lines["62A"]
+    assert "/api/v1/comfyui-runtime/capabilities" in phase_62_lines["62A"]
+    assert "#67" in phase_62_lines["62A"]
+    assert "Draft PR" in phase_62_lines["62A"]
+    assert "TBD" not in phase_62_lines["62A"]
+    assert "In progress" not in phase_62_lines["62A"]

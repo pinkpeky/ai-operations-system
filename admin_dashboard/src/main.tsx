@@ -36,6 +36,7 @@ import {
   AdminSettings,
   auditApi,
   browserRuntimeApi,
+  comfyuiRuntimeApi,
   commercialOperationsApi,
   healthApi,
   JsonRecord,
@@ -4653,6 +4654,10 @@ function CommercialOperationsPage({
           entryDescription: "ComfyUI 交接、预检、任务请求、执行预案、连接探测、运行门禁、干运行和启用请求已移到独立页签，避免商业运营主流程过长。",
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
+          runtimeTitle: "运行适配器契约",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist 和禁用动作。Phase 62A 只做契约自检，不会请求 ComfyUI。",
+          runtimeRefresh: "刷新适配器状态",
+          runtimeCapabilities: "能力与护栏",
         }
       : {
           title: "ComfyUI operations workspace",
@@ -4663,6 +4668,10 @@ function CommercialOperationsPage({
           entryDescription: "ComfyUI handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests now live in their own tab so Commercial Ops stays focused.",
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
+          runtimeTitle: "Runtime adapter contract",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, and disabled actions. Phase 62A performs contract checks only; it does not call ComfyUI.",
+          runtimeRefresh: "Refresh adapter status",
+          runtimeCapabilities: "Capabilities and guardrails",
         };
   const contentCopy =
     language === "zh-CN"
@@ -5881,6 +5890,7 @@ function CommercialOperationsPage({
   const [linkTitle, setLinkTitle] = useState(language === "zh-CN" ? "需求沟通记录" : "Goal intake record");
   const [linkSummary, setLinkSummary] = useState("");
   const [linkSourceName, setLinkSourceName] = useState("admin_dashboard");
+  const [comfyuiRuntimeAdapterState, setComfyuiRuntimeAdapterState] = useState<AsyncState<JsonRecord>>(emptyState());
 
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -5907,6 +5917,27 @@ function CommercialOperationsPage({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadComfyuiRuntimeAdapter = useCallback(async () => {
+    setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [health, capabilities] = await Promise.all([comfyuiRuntimeApi.health(settings), comfyuiRuntimeApi.capabilities(settings)]);
+      setComfyuiRuntimeAdapterState({ data: { health, capabilities }, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setComfyuiRuntimeAdapterState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI runtime adapter contract unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    if (isComfyuiPage) {
+      void loadComfyuiRuntimeAdapter();
+    }
+  }, [isComfyuiPage, loadComfyuiRuntimeAdapter]);
 
   const selectedOperationId = selectedOperation ? valueAt(selectedOperation, ["id"], "") : "";
 
@@ -9737,6 +9768,27 @@ function CommercialOperationsPage({
           ]}
         />
       </Panel>
+
+      {isComfyuiPage ? (
+        <Panel title={comfyuiSurfaceCopy.runtimeTitle} description={comfyuiSurfaceCopy.runtimeDescription} action={<RefreshButton onClick={loadComfyuiRuntimeAdapter} />}>
+          <LoadNotice state={comfyuiRuntimeAdapterState} />
+          {comfyuiRuntimeAdapterState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiRuntimeAdapterState.updatedAt}</div> : null}
+          <div className="commercial-detail-grid">
+            <Field label="provider" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["provider"], "disabled")} />
+            <Field label="enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["enabled"], "false")} />} />
+            <Field label="network_allowed" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["network_allowed"], "false")} />} />
+            <Field label="runtime_calls_enabled" value={<StatusPill value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["runtime_calls_enabled"], "false")} />} />
+            <Field label="base_url" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["base_url"], "-")} />
+            <Field label="allowed_hosts" value={shortJson((comfyuiRuntimeAdapterState.data?.health as JsonRecord | undefined)?.allowed_hosts, 120)} />
+            <Field label="error" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["error"], "-")} />
+            <Field label={comfyuiSurfaceCopy.runtimeCapabilities} value={shortJson((comfyuiRuntimeAdapterState.data?.capabilities as JsonRecord | undefined)?.guardrails, 180)} />
+          </div>
+          <button className="ghost-button" onClick={() => void loadComfyuiRuntimeAdapter()} disabled={comfyuiRuntimeAdapterState.loading}>
+            <RefreshCcw size={15} />
+            {comfyuiSurfaceCopy.runtimeRefresh}
+          </button>
+        </Panel>
+      ) : null}
 
       {!isComfyuiPage ? (
         <Panel title={comfyuiSurfaceCopy.entryTitle} description={comfyuiSurfaceCopy.entryDescription}>

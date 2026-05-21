@@ -38,6 +38,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 61X",
         "Phase 61Y",
         "Phase 61Z",
+        "Phase 62A",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -84,6 +85,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationMonitoringObservation",
         "CommercialOperationOptimizationDecision",
         "CommercialOperationEvidenceSnapshot",
+        "ComfyUIRuntimeService",
         "/api/v1/commercial-operations",
         "/api/v1/commercial-operations/{operation_id}/links",
         "/api/v1/commercial-operations/{operation_id}/approvals",
@@ -102,6 +104,8 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates",
         "/api/v1/commercial-operations/{operation_id}/comfyui-runtime-dry-runs",
         "/api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations",
+        "/api/v1/comfyui-runtime/health",
+        "/api/v1/comfyui-runtime/capabilities",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -129,6 +133,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Runtime Gates",
         "ComfyUI Runtime Dry-Runs",
         "ComfyUI Runtime Activations",
+        "ComfyUI Runtime Adapter Contract",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -146,7 +151,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_61z_commercial_operation_comfyui_runtime_activations() -> None:
+def test_recovery_docs_point_to_phase_62a_comfyui_runtime_adapter_contract() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -159,6 +164,7 @@ def test_recovery_docs_point_to_phase_61z_commercial_operation_comfyui_runtime_a
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 61Z" in text or "61Z" in text, relative
-        assert "commercial-operations" in text or "commercial_operations" in text, relative
-        assert "/comfyui-runtime-activations" in text or "ComfyUI runtime activation" in text, relative
+        assert "Phase 62A" in text or "62A" in text, relative
+        assert "ComfyUI Runtime Adapter Contract" in text or "comfyui-runtime" in text, relative
+        assert "/comfyui-runtime/health" in text, relative
+        assert "/comfyui-runtime/capabilities" in text, relative

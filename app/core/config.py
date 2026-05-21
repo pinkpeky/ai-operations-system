@@ -196,6 +196,12 @@ class Settings(BaseSettings):
     openclaw_provider: str = Field(default="mock", alias="OPENCLAW_PROVIDER")
     openclaw_enabled: bool = Field(default=True, alias="OPENCLAW_ENABLED")
     openclaw_action_timeout_seconds: float = Field(default=60.0, ge=1.0, le=600.0, alias="OPENCLAW_ACTION_TIMEOUT_SECONDS")
+    comfyui_runtime_provider: str = Field(default="disabled", alias="COMFYUI_RUNTIME_PROVIDER")
+    comfyui_runtime_enabled: bool = Field(default=False, alias="COMFYUI_RUNTIME_ENABLED")
+    comfyui_runtime_base_url: str = Field(default="http://127.0.0.1:8188", alias="COMFYUI_RUNTIME_BASE_URL")
+    comfyui_runtime_timeout_seconds: float = Field(default=30.0, ge=1.0, le=600.0, alias="COMFYUI_RUNTIME_TIMEOUT_SECONDS")
+    comfyui_runtime_allow_network: bool = Field(default=False, alias="COMFYUI_RUNTIME_ALLOW_NETWORK")
+    comfyui_runtime_allowed_hosts: str = Field(default="127.0.0.1,localhost", alias="COMFYUI_RUNTIME_ALLOWED_HOSTS")
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:
@@ -208,6 +214,12 @@ class Settings(BaseSettings):
         """Parse browser blocked-domain policy from CSV config."""
 
         return {item.strip().lower() for item in self.browser_blocked_domains.split(",") if item.strip()}
+
+    @property
+    def comfyui_runtime_allowed_host_set(self) -> set[str]:
+        """Parse ComfyUI runtime host allowlist from CSV config."""
+
+        return {item.strip().lower() for item in self.comfyui_runtime_allowed_hosts.split(",") if item.strip()}
 
     @property
     def allowed_file_type_set(self) -> set[str]:

@@ -3638,3 +3638,23 @@ Endpoints:
 支持的 `activation_status`：`draft`、`ready_for_review`、`approved`、`rejected`、`scheduled`、`failed`、`cancelled`、`archived`。
 
 边界：ComfyUI runtime activation 只是元数据记录。它不会 import 或调用 ComfyUI adapter，不会启用 runtime server switch，不会修改 runtime configuration，不会读取 environment state，不会保存或解析密钥值，不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会提交 prompt，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved activation 的 `schedule` 状态只是人工操作记录，不代表真实 adapter runtime 已启用。
+
+## Phase 62A: ComfyUI Runtime Adapter Contract
+
+Phase 62A 新增默认禁用的 ComfyUI runtime adapter contract 端点。操作人员和服务器维护人员可以查看 provider、启用开关、base URL、timeout、allowed hosts、禁用动作、必需配置和护栏，再决定未来是否进入真实 live adapter 工作。这些端点不会 import adapter、不会请求 ComfyUI、不会读取队列、不会提交 prompt、不会上传文件、不会生成媒体、不会启用 runtime switch、不会修改 runtime configuration、不会读取 environment state，也不会解析密钥值。
+
+Endpoints:
+
+- `GET /api/v1/comfyui-runtime/health`
+- `GET /api/v1/comfyui-runtime/capabilities`
+
+默认配置：
+
+- `COMFYUI_RUNTIME_PROVIDER=disabled`
+- `COMFYUI_RUNTIME_ENABLED=False`
+- `COMFYUI_RUNTIME_BASE_URL=http://127.0.0.1:8188`
+- `COMFYUI_RUNTIME_TIMEOUT_SECONDS=30.0`
+- `COMFYUI_RUNTIME_ALLOW_NETWORK=False`
+- `COMFYUI_RUNTIME_ALLOWED_HOSTS=127.0.0.1,localhost`
+
+边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。
