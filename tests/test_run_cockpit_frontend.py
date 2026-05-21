@@ -132,6 +132,7 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
         text = path.read_text(encoding="utf-8")
         assert "phase-61z-commercial-comfyui-runtime-activations" in text or "Commercial Operation ComfyUI Runtime Activations" in text, path
         assert "/comfyui-runtime-activations" in text or "ComfyUI runtime activation" in text, path
+        assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:

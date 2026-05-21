@@ -111,6 +111,8 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/commercial-operations/{operation_id}/evidence-snapshots",
         "/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag",
         "Admin Dashboard",
+        "Admin Dashboard ComfyUI page",
+        "?page=comfyui-operations",
         "Evidence",
         "handoff",
         "Approval",

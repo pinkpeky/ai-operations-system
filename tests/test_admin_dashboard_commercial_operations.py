@@ -15,9 +15,15 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     text = MAIN.read_text(encoding="utf-8")
 
     assert '"commercial-operations"' in text
+    assert '"comfyui-operations"' in text
     assert "CommercialOperationsPage" in text
+    assert 'surface="comfyui"' in text
+    assert "isComfyuiPage" in text
     assert "商业运营" in text
     assert "Commercial Ops" in text
+    assert "ComfyUI Ops" in text
+    assert "ComfyUI 运行工作台" in text
+    assert "Open ComfyUI tab" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
     assert "Phase 61Z" in text

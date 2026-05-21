@@ -88,6 +88,7 @@ type PageKey =
   | "overview"
   | "run-cockpit"
   | "commercial-operations"
+  | "comfyui-operations"
   | "workers"
   | "browser-runtime"
   | "conversations"
@@ -394,6 +395,7 @@ const pages: PageDefinition[] = [
   { key: "overview", label: "Overview", icon: <LayoutDashboard size={18} /> },
   { key: "run-cockpit", label: "Run Cockpit", icon: <Crosshair size={18} /> },
   { key: "commercial-operations", label: "Commercial Ops", icon: <Target size={18} /> },
+  { key: "comfyui-operations", label: "ComfyUI Ops", icon: <Sparkles size={18} /> },
   { key: "workers", label: "Workers", icon: <Server size={18} /> },
   { key: "browser-runtime", label: "Browser Runtime", icon: <MonitorCheck size={18} /> },
   { key: "conversations", label: "Conversations", icon: <MessageSquareText size={18} /> },
@@ -419,6 +421,7 @@ const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
     overview: "总览",
     "run-cockpit": "运行驾驶舱",
     "commercial-operations": "商业运营",
+    "comfyui-operations": "ComfyUI 运行",
     workers: "Worker 管理",
     "browser-runtime": "浏览器运行时",
     conversations: "对话",
@@ -439,6 +442,7 @@ const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
     overview: "Overview",
     "run-cockpit": "Run Cockpit",
     "commercial-operations": "Commercial Ops",
+    "comfyui-operations": "ComfyUI Ops",
     workers: "Workers",
     "browser-runtime": "Browser Runtime",
     conversations: "Conversations",
@@ -464,7 +468,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
     boundaryTitle: "Phase 61Z",
-    boundaryBody: "商业运营 ComfyUI 运行门禁：从已记录调度创建服务器维护人员可审查的运行开关、网络边界、队列策略、密钥引用和回滚记录；当前仍不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不发布、不控制账号。",
+    boundaryBody: "商业运营 ComfyUI 运行启用请求：从已验证干运行创建服务器维护人员可审查的启用请求、开关审计、运行护栏和回滚记录；当前仍不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不启用开关、不发布、不控制账号。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -1328,6 +1332,7 @@ function OverviewPage({
     persona === "workstation"
       ? [
           { page: "commercial-operations", title: language === "zh-CN" ? "创建商业运营项目" : "Create commercial operation", detail: language === "zh-CN" ? "把运营目标转成计划、知识集合、审批和执行入口。" : "Turn a business goal into plan, knowledge, approval, and execution entry points." },
+          { page: "comfyui-operations", title: language === "zh-CN" ? "ComfyUI 素材运行" : "ComfyUI asset runtime", detail: language === "zh-CN" ? "集中处理素材交接、预检、运行门禁和启用交接。" : "Handle asset handoffs, preflights, runtime gates, and activation handoffs in one place." },
           { page: "run-cockpit", title: t("operatorOpenCockpit"), detail: t("operatorOpenCockpitDetail") },
           { page: "conversations", title: t("operatorConversations"), detail: t("operatorConversationsDetail") },
           { page: "playbooks", title: t("operatorPlaybooks"), detail: t("operatorPlaybooksDetail") },
@@ -4386,7 +4391,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61R",
+    phaseLabel: "Phase 61Z",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4464,7 +4469,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61R",
+    phaseLabel: "Phase 61Z",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4622,8 +4627,43 @@ function parseJsonArrayDraft(value: string): JsonRecord[] {
   return parsed.filter((item): item is JsonRecord => Boolean(item) && typeof item === "object" && !Array.isArray(item));
 }
 
-function CommercialOperationsPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
+type CommercialOperationsSurface = "commercial" | "comfyui";
+
+function CommercialOperationsPage({
+  settings,
+  language,
+  onNavigate,
+  surface = "commercial",
+}: {
+  settings: AdminSettings;
+  language: UiLanguage;
+  onNavigate?: (page: PageKey, target?: DeepLinkTarget) => void;
+  surface?: CommercialOperationsSurface;
+}) {
   const copy = commercialOperationCopy[language];
+  const isComfyuiPage = surface === "comfyui";
+  const comfyuiSurfaceCopy =
+    language === "zh-CN"
+      ? {
+          title: "ComfyUI 运行工作台",
+          description: "把 ComfyUI 素材交接、预检、任务请求、执行预案、连接探测、运行门禁、干运行和启用请求集中到独立页签。",
+          summary: "当前仍只保存可审阅元数据，不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不启用运行开关。",
+          flow: ["选择项目", "素材交接", "连接预检", "任务请求", "运行门禁", "启用交接"],
+          entryTitle: "ComfyUI 素材运行",
+          entryDescription: "ComfyUI 交接、预检、任务请求、执行预案、连接探测、运行门禁、干运行和启用请求已移到独立页签，避免商业运营主流程过长。",
+          openAction: "打开 ComfyUI 页签",
+          actionResultTitle: "ComfyUI 操作结果",
+        }
+      : {
+          title: "ComfyUI operations workspace",
+          description: "Keep ComfyUI asset handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests in a dedicated tab.",
+          summary: "This still stores reviewable metadata only. It does not call ComfyUI, submit queues, upload files, generate media, or enable runtime switches.",
+          flow: ["Select operation", "Asset handoff", "Preflight", "Job request", "Runtime gate", "Activation handoff"],
+          entryTitle: "ComfyUI asset runtime",
+          entryDescription: "ComfyUI handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests now live in their own tab so Commercial Ops stays focused.",
+          openAction: "Open ComfyUI tab",
+          actionResultTitle: "ComfyUI action result",
+        };
   const contentCopy =
     language === "zh-CN"
       ? {
@@ -9136,6 +9176,19 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const eligibleComfyuiAssets = assetRequests.filter((assetRequest) => ["approved", "prepared"].includes(valueAt(assetRequest, ["request_status"], "")));
   const eligibleComfyuiHandoffs = comfyuiHandoffs.filter((handoff) => ["approved", "prepared"].includes(valueAt(handoff, ["handoff_status"], "")));
   const links = linksState.data || [];
+  const commercialStepDetail = `${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`;
+  const comfyuiStepDetail = `${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length}`;
+  const comfyuiRecordCount =
+    comfyuiHandoffs.length +
+    comfyuiAdapterConfigs.length +
+    comfyuiPreflights.length +
+    comfyuiJobRequests.length +
+    comfyuiExecutionPlans.length +
+    comfyuiConnectionProbes.length +
+    comfyuiAdapterDispatches.length +
+    comfyuiRuntimeGates.length +
+    comfyuiRuntimeDryRuns.length +
+    comfyuiRuntimeActivations.length;
 
   useEffect(() => {
     const approved = (approvalsState.data || []).filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
@@ -9525,12 +9578,12 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       <section className="commercial-command-center">
         <div>
           <p className="section-eyebrow">{copy.connection}: {settings.aiServerUrl} / {copy.phaseLabel}</p>
-          <h2>{copy.title}</h2>
-          <p>{copy.description}</p>
-          <p>{copy.summary}</p>
+          <h2>{isComfyuiPage ? comfyuiSurfaceCopy.title : copy.title}</h2>
+          <p>{isComfyuiPage ? comfyuiSurfaceCopy.description : copy.description}</p>
+          <p>{isComfyuiPage ? comfyuiSurfaceCopy.summary : copy.summary}</p>
         </div>
-        <div className="commercial-flow-grid" aria-label={copy.title}>
-          {copy.flow.map((item) => (
+        <div className="commercial-flow-grid" aria-label={isComfyuiPage ? comfyuiSurfaceCopy.title : copy.title}>
+          {(isComfyuiPage ? comfyuiSurfaceCopy.flow : copy.flow).map((item) => (
             <span key={item}>{item}</span>
           ))}
         </div>
@@ -9540,76 +9593,83 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(isComfyuiPage ? comfyuiRecordCount : planStepCount)} detail={isComfyuiPage ? comfyuiStepDetail : commercialStepDetail} icon={<BarChart3 size={20} />} />
       </div>
 
-      <div className="commercial-grid">
-        <Panel title={copy.createTitle} description={copy.createDescription}>
-          <div className="commercial-form-grid">
-            <label>
-              {copy.titleLabel}
-              <input value={title} onChange={(event) => setTitle(event.target.value)} />
-            </label>
-            <label>
-              {copy.audienceLabel}
-              <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} />
-            </label>
-            <label className="commercial-wide-label">
-              {copy.objectiveLabel}
-              <textarea value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={copy.objectivePlaceholder} />
-            </label>
-            <label>
-              {copy.channelsLabel}
-              <input value={channelsDraft} onChange={(event) => setChannelsDraft(event.target.value)} />
-            </label>
-            <label>
-              {copy.metricsLabel}
-              <input value={metricsDraft} onChange={(event) => setMetricsDraft(event.target.value)} />
-            </label>
-            <label>
-              {copy.collectionLabel}
-              <input value={knowledgeCollection} onChange={(event) => setKnowledgeCollection(event.target.value)} />
-            </label>
-            <label>
-              {copy.priorityLabel}
-              <select value={priority} onChange={(event) => setPriority(event.target.value as "low" | "normal" | "high")}>
-                <option value="low">low</option>
-                <option value="normal">normal</option>
-                <option value="high">high</option>
-              </select>
-            </label>
-            <label>
-              {copy.riskLabel}
-              <select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value as "low" | "medium" | "high")}>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
-            </label>
-            <label>
-              {copy.budgetLabel}
-              <input value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} placeholder="optional" />
-            </label>
-            <label>
-              {copy.currencyLabel}
-              <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
-            </label>
-            <label className="commercial-wide-label">
-              {copy.constraintsLabel}
-              <textarea value={constraintsDraft} onChange={(event) => setConstraintsDraft(event.target.value)} />
-            </label>
-          </div>
-          <button className="primary-button" onClick={() => void createOperation()} disabled={!title.trim() || !objective.trim() || actionState.loading}>
-            <Target size={15} />
-            {copy.createAction}
-          </button>
-        </Panel>
+      {!isComfyuiPage ? (
+        <div className="commercial-grid">
+          <Panel title={copy.createTitle} description={copy.createDescription}>
+            <div className="commercial-form-grid">
+              <label>
+                {copy.titleLabel}
+                <input value={title} onChange={(event) => setTitle(event.target.value)} />
+              </label>
+              <label>
+                {copy.audienceLabel}
+                <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {copy.objectiveLabel}
+                <textarea value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={copy.objectivePlaceholder} />
+              </label>
+              <label>
+                {copy.channelsLabel}
+                <input value={channelsDraft} onChange={(event) => setChannelsDraft(event.target.value)} />
+              </label>
+              <label>
+                {copy.metricsLabel}
+                <input value={metricsDraft} onChange={(event) => setMetricsDraft(event.target.value)} />
+              </label>
+              <label>
+                {copy.collectionLabel}
+                <input value={knowledgeCollection} onChange={(event) => setKnowledgeCollection(event.target.value)} />
+              </label>
+              <label>
+                {copy.priorityLabel}
+                <select value={priority} onChange={(event) => setPriority(event.target.value as "low" | "normal" | "high")}>
+                  <option value="low">low</option>
+                  <option value="normal">normal</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label>
+                {copy.riskLabel}
+                <select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value as "low" | "medium" | "high")}>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label>
+                {copy.budgetLabel}
+                <input value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} placeholder="optional" />
+              </label>
+              <label>
+                {copy.currencyLabel}
+                <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {copy.constraintsLabel}
+                <textarea value={constraintsDraft} onChange={(event) => setConstraintsDraft(event.target.value)} />
+              </label>
+            </div>
+            <button className="primary-button" onClick={() => void createOperation()} disabled={!title.trim() || !objective.trim() || actionState.loading}>
+              <Target size={15} />
+              {copy.createAction}
+            </button>
+          </Panel>
 
-        <Panel title={copy.actionResult} description={actionState.updatedAt ? `${textFor(language, "lastUpdated")}: ${actionState.updatedAt}` : undefined}>
+          <Panel title={copy.actionResult} description={actionState.updatedAt ? `${textFor(language, "lastUpdated")}: ${actionState.updatedAt}` : undefined}>
+            <LoadNotice state={actionState} />
+            <JsonPreview value={actionState.data || { status: "no action yet" }} />
+          </Panel>
+        </div>
+      ) : (
+        <Panel title={comfyuiSurfaceCopy.actionResultTitle} description={actionState.updatedAt ? `${textFor(language, "lastUpdated")}: ${actionState.updatedAt}` : undefined}>
           <LoadNotice state={actionState} />
           <JsonPreview value={actionState.data || { status: "no action yet" }} />
         </Panel>
-      </div>
+      )}
 
       <Panel title={copy.listTitle} action={<RefreshButton onClick={load} />}>
         <LoadNotice state={state} />
@@ -9678,6 +9738,25 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         />
       </Panel>
 
+      {!isComfyuiPage ? (
+        <Panel title={comfyuiSurfaceCopy.entryTitle} description={comfyuiSurfaceCopy.entryDescription}>
+          <div className="commercial-detail-grid">
+            <Field label={comfyuiCopy.title} value={String(comfyuiHandoffs.length)} />
+            <Field label={comfyuiPreflightCopy.title} value={String(comfyuiPreflights.length)} />
+            <Field label={comfyuiJobCopy.title} value={String(comfyuiJobRequests.length)} />
+            <Field label={comfyuiRuntimeGateCopy.title} value={String(comfyuiRuntimeGates.length)} />
+            <Field label={comfyuiRuntimeDryRunCopy.title} value={String(comfyuiRuntimeDryRuns.length)} />
+            <Field label={comfyuiRuntimeActivationCopy.title} value={String(comfyuiRuntimeActivations.length)} />
+          </div>
+          <button className="primary-button" onClick={() => onNavigate?.("comfyui-operations")}>
+            <Sparkles size={15} />
+            {comfyuiSurfaceCopy.openAction}
+          </button>
+        </Panel>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <>
       <Panel title={contentCopy.title} description={contentCopy.description}>
         {selectedOperation ? (
           <>
@@ -10047,6 +10126,11 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         )}
       </Panel>
 
+        </>
+      ) : null}
+
+      {isComfyuiPage ? (
+        <>
       <Panel title={comfyuiCopy.title} description={comfyuiCopy.description}>
         {selectedOperation ? (
           <>
@@ -11619,6 +11703,11 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         )}
       </Panel>
 
+        </>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <>
       <Panel title={deliverableCopy.title} description={deliverableCopy.description}>
         {selectedOperation ? (
           <>
@@ -13029,6 +13118,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           <div className="empty-table">{copy.linksSelectedHint}</div>
         )}
       </Panel>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -13693,13 +13784,14 @@ function App() {
               </select>
             </label>
             <StatusPill value={t("foundationMode")} />
-            <StatusPill value={activePage === "run-cockpit" || activePage === "commercial-operations" ? t("operatorMode") : t("readOnlyMode")} />
+            <StatusPill value={activePage === "run-cockpit" || activePage === "commercial-operations" || activePage === "comfyui-operations" ? t("operatorMode") : t("readOnlyMode")} />
           </div>
         </header>
         <div className="content">
           {activePage === "overview" ? <OverviewPage settings={settings} language={language} onNavigate={navigate} /> : null}
           {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} language={language} /> : null}
-          {activePage === "commercial-operations" ? <CommercialOperationsPage settings={settings} language={language} /> : null}
+          {activePage === "commercial-operations" ? <CommercialOperationsPage settings={settings} language={language} onNavigate={navigate} /> : null}
+          {activePage === "comfyui-operations" ? <CommercialOperationsPage settings={settings} language={language} onNavigate={navigate} surface="comfyui" /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} language={language} /> : null}

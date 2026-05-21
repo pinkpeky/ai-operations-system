@@ -92,6 +92,7 @@ codex/phase-61z-commercial-comfyui-runtime-activations
 - API route group: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots`.
 - RAG generation route: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag`.
 - Admin Dashboard page: `?page=commercial-operations`.
+- Admin Dashboard ComfyUI page: `?page=comfyui-operations`.
 - API client: `commercialOperationsApi`.
 - Migration: `0035_phase61a_commercial_ops`.
 - Migration: `0036_phase61b_commercial_links`.
@@ -633,6 +634,8 @@ DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}
 ```
 
 All routes are workspace-scoped through `X-Workspace-Id`. A record created in one workspace is not visible from another workspace.
+
+Admin Dashboard separates the operator surfaces: `?page=commercial-operations` keeps the goal, plan, content, asset request, approval, delivery, execution, result, monitoring, optimization, evidence, dry-run, and link workflow concise, while `?page=comfyui-operations` hosts the ComfyUI handoff, preflight, adapter config, job request, execution plan, connection probe, adapter dispatch, runtime gate, runtime dry-run, and runtime activation controls for the selected operation.
 
 ## Safety Boundary
 
