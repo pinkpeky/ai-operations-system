@@ -199,6 +199,19 @@ class CommercialOperationComfyUIAdapterDispatchStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationComfyUIRuntimeGateStatus(StrEnum):
+    """Commercial operation ComfyUI runtime gate lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARMED = "armed"
+    DISABLED = "disabled"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
 class CommercialOperationDeliverableStatus(StrEnum):
     """Commercial operation deliverable lifecycle status."""
 

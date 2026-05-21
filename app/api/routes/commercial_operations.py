@@ -62,6 +62,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIPreflightListResponse,
     CommercialOperationComfyUIPreflightResponse,
     CommercialOperationComfyUIPreflightUpdateRequest,
+    CommercialOperationComfyUIRuntimeGateCreateRequest,
+    CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    CommercialOperationComfyUIRuntimeGateListResponse,
+    CommercialOperationComfyUIRuntimeGateResponse,
+    CommercialOperationComfyUIRuntimeGateUpdateRequest,
     CommercialOperationContentDraftCreateRequest,
     CommercialOperationContentDraftDecisionRequest,
     CommercialOperationContentDraftGenerateRequest,
@@ -3553,6 +3558,343 @@ async def archive_commercial_operation_comfyui_adapter_dispatch(
             extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
         )
         raise AppError("Commercial operation ComfyUI adapter dispatch archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/runtime-gates",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Create a metadata-only ComfyUI runtime gate from a recorded adapter dispatch."""
+
+    try:
+        gate = await CommercialOperationService(session).create_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            planned_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate create API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-runtime-gates", response_model=CommercialOperationComfyUIRuntimeGateListResponse)
+async def list_commercial_operation_comfyui_runtime_gates(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / armed / disabled / failed / archived"),
+    adapter_dispatch_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateListResponse:
+    """List metadata-only ComfyUI runtime gates for a commercial operation."""
+
+    try:
+        gates = await CommercialOperationService(session).list_comfyui_runtime_gates(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            adapter_dispatch_id=adapter_dispatch_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIRuntimeGateListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIRuntimeGateResponse.from_model(item) for item in gates],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI runtime gate list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI runtime gate list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def update_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Patch a metadata-only ComfyUI runtime gate before arming."""
+
+    try:
+        gate = await CommercialOperationService(session).update_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate update API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/ready",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def ready_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Mark a metadata-only ComfyUI runtime gate ready for review."""
+
+    try:
+        gate = await CommercialOperationService(session).mark_comfyui_runtime_gate_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate ready API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/approve",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def approve_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Approve a metadata-only ComfyUI runtime gate without enabling runtime calls."""
+
+    try:
+        gate = await CommercialOperationService(session).approve_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate approve API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/reject",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def reject_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Reject a metadata-only ComfyUI runtime gate."""
+
+    try:
+        gate = await CommercialOperationService(session).reject_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate reject API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/arm",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def arm_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Arm a metadata-only ComfyUI runtime gate; no adapter runtime call occurs."""
+
+    try:
+        gate = await CommercialOperationService(session).arm_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            armed_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate arm API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate arm failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/fail",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def fail_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Mark a ComfyUI runtime gate failed without calling ComfyUI."""
+
+    try:
+        gate = await CommercialOperationService(session).fail_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate fail API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/disable",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def disable_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Disable a metadata-only ComfyUI runtime gate."""
+
+    try:
+        gate = await CommercialOperationService(session).disable_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate disable API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate disable failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/archive",
+    response_model=CommercialOperationComfyUIRuntimeGateResponse,
+)
+async def archive_commercial_operation_comfyui_runtime_gate(
+    operation_id: UUID,
+    runtime_gate_id: UUID,
+    request: CommercialOperationComfyUIRuntimeGateDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIRuntimeGateResponse:
+    """Archive a ComfyUI runtime gate without deleting its audit trail."""
+
+    try:
+        gate = await CommercialOperationService(session).archive_comfyui_runtime_gate(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIRuntimeGateResponse.from_model(gate)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime gate archive API failed",
+            extra={"operation_id": str(operation_id), "runtime_gate_id": str(runtime_gate_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime gate archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

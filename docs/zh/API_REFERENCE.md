@@ -3578,3 +3578,21 @@ Phase 61W 新增 `commercial_operation_comfyui_adapter_dispatches` 与 `Commerci
 - `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/archive`
 
 边界：ComfyUI adapter dispatch 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会提交 prompt，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved dispatch 的 `dispatch` 状态只是人工操作记录，不代表真实 adapter 调用或 queue submission。
+## Phase 61X: 商业运营 ComfyUI 运行门禁
+
+Phase 61X 新增 `commercial_operation_comfyui_runtime_gates` 与 `CommercialOperationComfyUIRuntimeGate` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates`。操作人员和服务器维护人员可以从 dispatched ComfyUI adapter dispatch 创建 metadata-only runtime gate，编辑、送审、批准、驳回、标记 armed、标记 failed、禁用或归档。该记录用于保存未来受控 ComfyUI runtime cutover 的运行开关、网络策略、队列策略、密钥引用策略、审批策略、validation checks、operator checklist 与 rollback plan；系统不会保存或解析密钥值、不会请求 ComfyUI、不会提交 prompt、不会读取队列、不会上传文件、不会提交队列、不会生成媒体。
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/runtime-gates`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/arm`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/disable`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/archive`
+
+边界：ComfyUI runtime gate 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会提交 prompt，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会保存或解析密钥值，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved gate 的 `arm` 状态只是人工操作记录，不代表真实 adapter runtime 已启用。

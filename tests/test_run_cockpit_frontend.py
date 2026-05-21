@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active commercial operation ComfyUI adapter dispatch slice."""
+    """Recovery docs should point to the active commercial operation ComfyUI runtime gate slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,8 +130,8 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-61w-commercial-comfyui-adapter-dispatches" in text or "Commercial Operation ComfyUI Adapter Dispatches" in text, path
-        assert "/comfyui-adapter-dispatches" in text or "ComfyUI adapter dispatch" in text, path
+        assert "phase-61x-commercial-comfyui-runtime-gates" in text or "Commercial Operation ComfyUI Runtime Gates" in text, path
+        assert "/comfyui-runtime-gates" in text or "ComfyUI runtime gate" in text, path
 
 
 def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
@@ -159,7 +159,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 61W should be the active ComfyUI adapter dispatch slice."""
+    """Phase 61A-61P should be merged and Phase 61X should be the active ComfyUI runtime gate slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -479,3 +479,11 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_61_lines["61W"]
     assert "TBD" not in phase_61_lines["61W"]
     assert "In progress" not in phase_61_lines["61W"]
+
+    assert "61X" in phase_61_lines
+    assert "phase-61x-commercial-comfyui-runtime-gates" in phase_61_lines["61X"]
+    assert "Commercial Operation ComfyUI Runtime Gates" in phase_61_lines["61X"]
+    assert "#64" in phase_61_lines["61X"]
+    assert "Draft PR" in phase_61_lines["61X"]
+    assert "TBD" not in phase_61_lines["61X"]
+    assert "In progress" not in phase_61_lines["61X"]
