@@ -1008,6 +1008,120 @@ async def test_commercial_operations_api_flow() -> None:
             assert dispatched_comfyui_adapter_dispatch.json()["dispatch_status"] == "dispatched"
             assert dispatched_comfyui_adapter_dispatch.json()["dispatched_by"] == "user-commercial-api"
 
+            comfyui_runtime_gate = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}/runtime-gates",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI runtime gate",
+                    "runtime_mode": "future_guarded_runtime",
+                    "environment_payload": {
+                        "runtime_calls_enabled": True,
+                        "adapter_runtime_enabled": True,
+                    },
+                    "network_policy": {
+                        "allow_network_requests": True,
+                        "http_client_enabled": True,
+                        "queue_read": True,
+                    },
+                    "queue_policy": {
+                        "queue_submission": True,
+                        "submit_job": True,
+                        "submit_jobs": True,
+                    },
+                    "secret_policy": {
+                        "secret_value": "do-not-store",
+                        "api_key": "do-not-store",
+                    },
+                    "approval_policy": {
+                        "approval_bypass_allowed": True,
+                        "auto_execute": True,
+                    },
+                    "validation_checks": [
+                        {"key": "operator_owner", "label": "Operator owner assigned", "status": True}
+                    ],
+                    "operator_checklist": ["dispatch recorded", "server maintainer reviewed"],
+                    "rollback_plan": {"next_steps": ["disable runtime gate before adapter changes"]},
+                    "metadata": {"phase": "61X"},
+                },
+            )
+            assert comfyui_runtime_gate.status_code == 201
+            comfyui_runtime_gate_body = comfyui_runtime_gate.json()
+            comfyui_runtime_gate_id = comfyui_runtime_gate_body["id"]
+            assert comfyui_runtime_gate_body["gate_status"] == "draft"
+            assert comfyui_runtime_gate_body["adapter_dispatch_id"] == comfyui_adapter_dispatch_id
+            assert comfyui_runtime_gate_body["runtime_mode"] == "metadata_only"
+            assert comfyui_runtime_gate_body["environment_payload"]["runtime_calls_enabled"] is False
+            assert comfyui_runtime_gate_body["environment_payload"]["adapter_runtime_enabled"] is False
+            assert comfyui_runtime_gate_body["network_policy"]["allow_network_requests"] is False
+            assert comfyui_runtime_gate_body["network_policy"]["http_client_enabled"] is False
+            assert comfyui_runtime_gate_body["queue_policy"]["queue_submission"] is False
+            assert comfyui_runtime_gate_body["queue_policy"]["submit_job"] is False
+            assert comfyui_runtime_gate_body["secret_policy"]["secret_value_present"] is False
+            assert "secret_value" not in comfyui_runtime_gate_body["secret_policy"]
+            assert "api_key" not in comfyui_runtime_gate_body["secret_policy"]
+            assert comfyui_runtime_gate_body["approval_policy"]["approval_required"] is True
+            assert comfyui_runtime_gate_body["approval_policy"]["approval_bypass_allowed"] is False
+            assert comfyui_runtime_gate_body["gate_payload"]["runtime_calls_enabled"] is False
+            assert comfyui_runtime_gate_body["gate_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI runtime gate; no ComfyUI HTTP request, prompt submission, queue submission, upload, or media generation occurs"
+            )
+            assert "no ComfyUI queue read" in comfyui_runtime_gate_body["gate_payload"]["forbidden_actions"]
+
+            comfyui_runtime_gates = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates",
+                headers=headers,
+            )
+            assert comfyui_runtime_gates.status_code == 200
+            assert [item["id"] for item in comfyui_runtime_gates.json()["items"]] == [comfyui_runtime_gate_id]
+
+            hidden_comfyui_runtime_gates = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_runtime_gates.status_code == 404
+
+            updated_comfyui_runtime_gate = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{comfyui_runtime_gate_id}",
+                headers=headers,
+                json={
+                    "network_policy": {"allow_network_requests": True, "http_client_enabled": True},
+                    "queue_policy": {"queue_submission": True, "submit_job": True},
+                    "approval_policy": {"approval_bypass_allowed": True},
+                    "operator_checklist": ["dispatch recorded", "server maintainer reviewed", "rollback owner named"],
+                },
+            )
+            assert updated_comfyui_runtime_gate.status_code == 200
+            assert updated_comfyui_runtime_gate.json()["gate_status"] == "draft"
+            assert updated_comfyui_runtime_gate.json()["network_policy"]["allow_network_requests"] is False
+            assert updated_comfyui_runtime_gate.json()["queue_policy"]["queue_submission"] is False
+            assert updated_comfyui_runtime_gate.json()["approval_policy"]["approval_bypass_allowed"] is False
+
+            ready_comfyui_runtime_gate = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{comfyui_runtime_gate_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for metadata-only runtime gate review."},
+            )
+            assert ready_comfyui_runtime_gate.status_code == 200
+            assert ready_comfyui_runtime_gate.json()["gate_status"] == "ready_for_review"
+
+            approved_comfyui_runtime_gate = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{comfyui_runtime_gate_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved runtime gate without enabling ComfyUI."},
+            )
+            assert approved_comfyui_runtime_gate.status_code == 200
+            assert approved_comfyui_runtime_gate.json()["gate_status"] == "approved"
+            assert approved_comfyui_runtime_gate.json()["approved_by"] == "user-commercial-api"
+
+            armed_comfyui_runtime_gate = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{comfyui_runtime_gate_id}/arm",
+                headers=headers,
+                json={"result_summary": "Armed local runtime gate record; no ComfyUI adapter runtime was enabled."},
+            )
+            assert armed_comfyui_runtime_gate.status_code == 200
+            assert armed_comfyui_runtime_gate.json()["gate_status"] == "armed"
+            assert armed_comfyui_runtime_gate.json()["armed_by"] == "user-commercial-api"
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -1045,6 +1159,11 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_adapter_dispatch_connection_probe_id"] == comfyui_connection_probe_id
             assert comfyui_step["comfyui_adapter_dispatch_queue_name"] == "commercial-assets"
             assert comfyui_step["comfyui_adapter_dispatch_mode"] == "metadata_only"
+            assert comfyui_step["comfyui_runtime_gate_id"] == comfyui_runtime_gate_id
+            assert comfyui_step["comfyui_runtime_gate_status"] == "armed"
+            assert comfyui_step["comfyui_runtime_gate_adapter_dispatch_id"] == comfyui_adapter_dispatch_id
+            assert comfyui_step["comfyui_runtime_gate_queue_name"] == "commercial-assets"
+            assert comfyui_step["comfyui_runtime_gate_mode"] == "metadata_only"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

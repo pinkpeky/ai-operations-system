@@ -958,6 +958,94 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  comfyuiRuntimeGates: (operationId: string, settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates`, {}, settings),
+  createComfyuiRuntimeGate: (operationId: string, adapterDispatchId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/runtime-gates`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  updateComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Ready from Commercial Ops; runtime gate remains metadata-only." }),
+      },
+      settings,
+    ),
+  approveComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Approved from Commercial Ops; no ComfyUI runtime call will run." }),
+      },
+      settings,
+    ),
+  rejectComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Rejected from Commercial Ops." }),
+      },
+      settings,
+    ),
+  armComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/arm`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: "Armed metadata-only runtime gate; no ComfyUI adapter runtime was enabled." }),
+      },
+      settings,
+    ),
+  failComfyuiRuntimeGate: (
+    operationId: string,
+    runtimeGateId: string,
+    failureReason = "Failed from Commercial Ops runtime gate; maintainer review required.",
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({ failure_reason: failureReason }),
+      },
+      settings,
+    ),
+  disableComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/disable`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Disabled from Commercial Ops." }),
+      },
+      settings,
+    ),
+  archiveComfyuiRuntimeGate: (operationId: string, runtimeGateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-runtime-gates/${encodeURIComponent(runtimeGateId)}/archive`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: "Archived from Commercial Ops." }),
+      },
+      settings,
+    ),
   deliverables: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/deliverables`, {}, settings),
   createDeliverable: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

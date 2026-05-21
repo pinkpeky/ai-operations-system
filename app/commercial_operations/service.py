@@ -21,6 +21,7 @@ from app.models.commercial_operation import (
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
+    CommercialOperationComfyUIRuntimeGate,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -42,6 +43,7 @@ from app.models.enums import (
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIJobRequestStatus,
     CommercialOperationComfyUIPreflightStatus,
+    CommercialOperationComfyUIRuntimeGateStatus,
     CommercialOperationContentDraftStatus,
     CommercialOperationDeliverableStatus,
     CommercialOperationDryRunStatus,
@@ -3741,6 +3743,519 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        title: str | None = None,
+        runtime_mode: str = "metadata_only",
+        environment_payload: dict[str, Any] | None = None,
+        network_policy: dict[str, Any] | None = None,
+        queue_policy: dict[str, Any] | None = None,
+        secret_policy: dict[str, Any] | None = None,
+        approval_policy: dict[str, Any] | None = None,
+        validation_checks: list[dict[str, Any]] | None = None,
+        operator_checklist: list[str] | None = None,
+        rollback_plan: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        planned_by: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+        )
+        if dispatch.dispatch_status != CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value:
+            raise ValueError("Only dispatched ComfyUI adapter dispatches can create runtime gates")
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=dispatch.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=dispatch.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=dispatch.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=dispatch.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=dispatch.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        clean_environment_payload = self._build_comfyui_runtime_gate_environment_payload(
+            environment_payload=environment_payload,
+            runtime_mode=runtime_mode,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        clean_network_policy = self._build_comfyui_runtime_gate_network_policy(
+            network_policy=network_policy,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        clean_queue_policy = self._build_comfyui_runtime_gate_queue_policy(
+            queue_policy=queue_policy,
+            dispatch=dispatch,
+        )
+        clean_secret_policy = self._build_comfyui_runtime_gate_secret_policy(
+            secret_policy=secret_policy,
+            adapter_config=adapter_config,
+        )
+        clean_approval_policy = self._build_comfyui_runtime_gate_approval_policy(
+            approval_policy=approval_policy,
+            gate_status=CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value,
+        )
+        clean_operator_checklist = self._clean_list(operator_checklist) or [
+            "adapter dispatch recorded",
+            "server maintainer approval required before any live adapter is implemented",
+            "runtime gate remains metadata-only",
+        ]
+        clean_rollback_plan = self._build_comfyui_runtime_gate_rollback_plan(
+            rollback_plan=rollback_plan,
+            gate_status=CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value,
+            failure_reason=None,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_runtime_gate(
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+            environment_payload=clean_environment_payload,
+            network_policy=clean_network_policy,
+            queue_policy=clean_queue_policy,
+            secret_policy=clean_secret_policy,
+            approval_policy=clean_approval_policy,
+            validation_checks=validation_checks,
+            operator_checklist=clean_operator_checklist,
+            rollback_plan=clean_rollback_plan,
+        )
+        gate = CommercialOperationComfyUIRuntimeGate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=dispatch.id,
+            connection_probe_id=dispatch.connection_probe_id,
+            execution_plan_id=dispatch.execution_plan_id,
+            job_request_id=dispatch.job_request_id,
+            preflight_id=dispatch.preflight_id,
+            handoff_id=dispatch.handoff_id,
+            adapter_config_id=dispatch.adapter_config_id,
+            asset_request_id=dispatch.asset_request_id,
+            step_key=dispatch.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI runtime gate: {dispatch.title}"
+            )[:255],
+            gate_status=CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value,
+            runtime_mode="metadata_only",
+            target_url=dispatch.target_url,
+            queue_name=dispatch.queue_name,
+            workflow_name=dispatch.workflow_name,
+            environment_payload=clean_environment_payload,
+            network_policy=clean_network_policy,
+            queue_policy=clean_queue_policy,
+            secret_policy=clean_secret_policy,
+            approval_policy=clean_approval_policy,
+            validation_checks=checks,
+            operator_checklist=clean_operator_checklist,
+            rollback_plan=clean_rollback_plan,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            planned_by=planned_by,
+            updated_by=planned_by,
+            gate_metadata=metadata or {},
+        )
+        self.session.add(gate)
+        await self.session.flush()
+        gate.gate_payload = self._build_comfyui_runtime_gate_payload(
+            operation=operation,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            gate=gate,
+        )
+        self._apply_comfyui_runtime_gate_to_plan(operation, gate)
+        await self.session.commit()
+        await self.session.refresh(gate)
+        return gate
+
+    async def list_comfyui_runtime_gates(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        adapter_dispatch_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIRuntimeGate]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIRuntimeGate).where(
+            CommercialOperationComfyUIRuntimeGate.workspace_id == workspace_id,
+            CommercialOperationComfyUIRuntimeGate.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIRuntimeGate.gate_status == status)
+        if adapter_dispatch_id is not None:
+            statement = statement.where(CommercialOperationComfyUIRuntimeGate.adapter_dispatch_id == adapter_dispatch_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIRuntimeGate.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIRuntimeGate).where(
+                CommercialOperationComfyUIRuntimeGate.workspace_id == workspace_id,
+                CommercialOperationComfyUIRuntimeGate.operation_id == operation_id,
+                CommercialOperationComfyUIRuntimeGate.id == runtime_gate_id,
+            )
+        )
+        gate = result.scalar_one_or_none()
+        if gate is None:
+            raise ValueError("Commercial operation ComfyUI runtime gate not found in workspace")
+        return gate
+
+    async def update_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        gate = await self.require_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+        )
+        if gate.gate_status in {
+            CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.DISABLED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Armed, disabled, or archived ComfyUI runtime gates cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=gate.adapter_dispatch_id,
+        )
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=gate.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=gate.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=gate.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=gate.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=gate.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        if "title" in patch and patch["title"] is not None:
+            gate.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "environment_payload" in patch and patch["environment_payload"] is not None:
+            gate.environment_payload = self._build_comfyui_runtime_gate_environment_payload(
+                environment_payload=patch["environment_payload"],
+                runtime_mode=patch.get("runtime_mode") or gate.runtime_mode,
+                dispatch=dispatch,
+                adapter_config=adapter_config,
+            )
+        if "network_policy" in patch and patch["network_policy"] is not None:
+            gate.network_policy = self._build_comfyui_runtime_gate_network_policy(
+                network_policy=patch["network_policy"],
+                dispatch=dispatch,
+                adapter_config=adapter_config,
+            )
+        if "queue_policy" in patch and patch["queue_policy"] is not None:
+            gate.queue_policy = self._build_comfyui_runtime_gate_queue_policy(
+                queue_policy=patch["queue_policy"],
+                dispatch=dispatch,
+            )
+        if "secret_policy" in patch and patch["secret_policy"] is not None:
+            gate.secret_policy = self._build_comfyui_runtime_gate_secret_policy(
+                secret_policy=patch["secret_policy"],
+                adapter_config=adapter_config,
+            )
+        if "approval_policy" in patch and patch["approval_policy"] is not None:
+            gate.approval_policy = self._build_comfyui_runtime_gate_approval_policy(
+                approval_policy=patch["approval_policy"],
+                gate_status=gate.gate_status,
+            )
+        if "operator_checklist" in patch and patch["operator_checklist"] is not None:
+            gate.operator_checklist = self._clean_list(patch["operator_checklist"])
+        if "rollback_plan" in patch and patch["rollback_plan"] is not None:
+            gate.rollback_plan = self._build_comfyui_runtime_gate_rollback_plan(
+                rollback_plan=patch["rollback_plan"],
+                gate_status=gate.gate_status,
+                failure_reason=gate.failure_reason,
+            )
+        for field in ("result_summary", "failure_reason", "reviewer_notes"):
+            if field in patch:
+                value = patch[field]
+                setattr(gate, field, value.strip() if isinstance(value, str) and value.strip() else None)
+        if "metadata" in patch and patch["metadata"] is not None:
+            gate.gate_metadata = patch["metadata"] or {}
+        if "environment_payload" not in patch:
+            gate.environment_payload = self._build_comfyui_runtime_gate_environment_payload(
+                environment_payload=gate.environment_payload,
+                runtime_mode=gate.runtime_mode,
+                dispatch=dispatch,
+                adapter_config=adapter_config,
+            )
+        if "network_policy" not in patch:
+            gate.network_policy = self._build_comfyui_runtime_gate_network_policy(
+                network_policy=gate.network_policy,
+                dispatch=dispatch,
+                adapter_config=adapter_config,
+            )
+        if "queue_policy" not in patch:
+            gate.queue_policy = self._build_comfyui_runtime_gate_queue_policy(
+                queue_policy=gate.queue_policy,
+                dispatch=dispatch,
+            )
+        if "secret_policy" not in patch:
+            gate.secret_policy = self._build_comfyui_runtime_gate_secret_policy(
+                secret_policy=gate.secret_policy,
+                adapter_config=adapter_config,
+            )
+        gate.approval_policy = self._build_comfyui_runtime_gate_approval_policy(
+            approval_policy=gate.approval_policy,
+            gate_status=CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value,
+        )
+        gate.rollback_plan = self._build_comfyui_runtime_gate_rollback_plan(
+            rollback_plan=gate.rollback_plan,
+            gate_status=CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value,
+            failure_reason=gate.failure_reason,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_runtime_gate(
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+            environment_payload=gate.environment_payload,
+            network_policy=gate.network_policy,
+            queue_policy=gate.queue_policy,
+            secret_policy=gate.secret_policy,
+            approval_policy=gate.approval_policy,
+            validation_checks=patch.get("validation_checks") if "validation_checks" in patch else gate.validation_checks,
+            operator_checklist=gate.operator_checklist,
+            rollback_plan=gate.rollback_plan,
+        )
+        gate.validation_checks = checks
+        gate.result_summary = result_summary
+        gate.failure_reason = failure_reason
+        gate.gate_status = CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value
+        gate.runtime_mode = "metadata_only"
+        gate.updated_by = updated_by
+        gate.approved_by = None
+        gate.armed_by = None
+        gate.disabled_by = None
+        gate.approved_at = None
+        gate.rejected_at = None
+        gate.armed_at = None
+        gate.disabled_at = None
+        gate.failed_at = None
+        gate.archived_at = None
+        gate.gate_payload = self._build_comfyui_runtime_gate_payload(
+            operation=operation,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            gate=gate,
+        )
+        self._apply_comfyui_runtime_gate_to_plan(operation, gate)
+        await self.session.commit()
+        await self.session.refresh(gate)
+        return gate
+
+    async def mark_comfyui_runtime_gate_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def arm_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        armed_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+            actor_user_id=armed_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def disable_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.DISABLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        archived_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        return await self._decide_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+            status=CommercialOperationComfyUIRuntimeGateStatus.ARCHIVED.value,
+            actor_user_id=archived_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_deliverable(
         self,
         *,
@@ -6998,6 +7513,224 @@ class CommercialOperationService:
         await self.session.refresh(dispatch)
         return dispatch
 
+    async def _decide_comfyui_runtime_gate(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        runtime_gate_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIRuntimeGate:
+        gate = await self.require_comfyui_runtime_gate(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            runtime_gate_id=runtime_gate_id,
+        )
+        if gate.gate_status == CommercialOperationComfyUIRuntimeGateStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI runtime gates cannot be changed")
+        if status == CommercialOperationComfyUIRuntimeGateStatus.READY_FOR_REVIEW.value and gate.gate_status not in {
+            CommercialOperationComfyUIRuntimeGateStatus.DRAFT.value,
+            CommercialOperationComfyUIRuntimeGateStatus.REJECTED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI runtime gates can be marked ready")
+        if status in {
+            CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.REJECTED.value,
+        } and gate.gate_status != CommercialOperationComfyUIRuntimeGateStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI runtime gates can be approved or rejected")
+        if status == CommercialOperationComfyUIRuntimeGateStatus.ARMED.value and gate.gate_status != (
+            CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value
+        ):
+            raise ValueError("Only approved ComfyUI runtime gates can be armed")
+        if status == CommercialOperationComfyUIRuntimeGateStatus.FAILED.value and gate.gate_status not in {
+            CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+        }:
+            raise ValueError("Only approved or armed ComfyUI runtime gates can be failed")
+        if status == CommercialOperationComfyUIRuntimeGateStatus.DISABLED.value and gate.gate_status not in {
+            CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.FAILED.value,
+        }:
+            raise ValueError("Only approved, armed, or failed ComfyUI runtime gates can be disabled")
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=gate.adapter_dispatch_id,
+        )
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=gate.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=gate.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=gate.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=gate.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=gate.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        gate.environment_payload = self._build_comfyui_runtime_gate_environment_payload(
+            environment_payload=gate.environment_payload,
+            runtime_mode=gate.runtime_mode,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        gate.network_policy = self._build_comfyui_runtime_gate_network_policy(
+            network_policy=gate.network_policy,
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+        )
+        gate.queue_policy = self._build_comfyui_runtime_gate_queue_policy(
+            queue_policy=gate.queue_policy,
+            dispatch=dispatch,
+        )
+        gate.secret_policy = self._build_comfyui_runtime_gate_secret_policy(
+            secret_policy=gate.secret_policy,
+            adapter_config=adapter_config,
+        )
+        gate.approval_policy = self._build_comfyui_runtime_gate_approval_policy(
+            approval_policy=gate.approval_policy,
+            gate_status=status,
+        )
+        gate.rollback_plan = self._build_comfyui_runtime_gate_rollback_plan(
+            rollback_plan=gate.rollback_plan,
+            gate_status=status,
+            failure_reason=failure_reason or gate.failure_reason,
+        )
+        checks, evaluated_summary, evaluated_failure = self._evaluate_comfyui_runtime_gate(
+            dispatch=dispatch,
+            adapter_config=adapter_config,
+            environment_payload=gate.environment_payload,
+            network_policy=gate.network_policy,
+            queue_policy=gate.queue_policy,
+            secret_policy=gate.secret_policy,
+            approval_policy=gate.approval_policy,
+            validation_checks=gate.validation_checks,
+            operator_checklist=gate.operator_checklist,
+            rollback_plan=gate.rollback_plan,
+        )
+        if status in {
+            CommercialOperationComfyUIRuntimeGateStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value,
+            CommercialOperationComfyUIRuntimeGateStatus.ARMED.value,
+        } and evaluated_failure:
+            raise ValueError(f"ComfyUI runtime gate is blocked: {evaluated_failure}")
+
+        now = datetime.now(UTC)
+        gate.gate_status = status
+        gate.runtime_mode = "metadata_only"
+        gate.validation_checks = checks
+        gate.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        gate.result_summary = (
+            result_summary.strip()
+            if result_summary and result_summary.strip()
+            else evaluated_summary
+            if status != CommercialOperationComfyUIRuntimeGateStatus.FAILED.value
+            else None
+        )
+        gate.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else evaluated_failure
+            if status == CommercialOperationComfyUIRuntimeGateStatus.FAILED.value
+            else None
+        )
+        gate.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIRuntimeGateStatus.READY_FOR_REVIEW.value:
+            gate.approved_by = None
+            gate.armed_by = None
+            gate.disabled_by = None
+            gate.approved_at = None
+            gate.rejected_at = None
+            gate.armed_at = None
+            gate.disabled_at = None
+            gate.failed_at = None
+            gate.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeGateStatus.APPROVED.value:
+            gate.approved_by = actor_user_id
+            gate.approved_at = now
+            gate.rejected_at = None
+            gate.armed_at = None
+            gate.disabled_at = None
+            gate.failed_at = None
+            gate.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeGateStatus.REJECTED.value:
+            gate.rejected_at = now
+            gate.approved_by = None
+            gate.armed_by = None
+            gate.approved_at = None
+            gate.armed_at = None
+            gate.disabled_at = None
+            gate.failed_at = None
+            gate.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeGateStatus.ARMED.value:
+            gate.armed_by = actor_user_id
+            gate.armed_at = now
+            gate.disabled_at = None
+            gate.failed_at = None
+            gate.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeGateStatus.FAILED.value:
+            gate.failed_at = now
+            gate.disabled_at = None
+            gate.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeGateStatus.DISABLED.value:
+            gate.disabled_by = actor_user_id
+            gate.disabled_at = now
+            gate.archived_at = None
+        elif status == CommercialOperationComfyUIRuntimeGateStatus.ARCHIVED.value:
+            gate.archived_by = actor_user_id
+            gate.archived_at = now
+        gate.approval_policy = self._build_comfyui_runtime_gate_approval_policy(
+            approval_policy=gate.approval_policy,
+            gate_status=gate.gate_status,
+        )
+        gate.rollback_plan = self._build_comfyui_runtime_gate_rollback_plan(
+            rollback_plan=gate.rollback_plan,
+            gate_status=gate.gate_status,
+            failure_reason=gate.failure_reason,
+        )
+        gate.gate_payload = self._build_comfyui_runtime_gate_payload(
+            operation=operation,
+            dispatch=dispatch,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            gate=gate,
+        )
+        self._apply_comfyui_runtime_gate_to_plan(operation, gate)
+        await self.session.commit()
+        await self.session.refresh(gate)
+        return gate
+
     async def _decide_deliverable(
         self,
         *,
@@ -9358,6 +10091,345 @@ class CommercialOperationService:
             ],
         }
 
+    def _build_comfyui_runtime_gate_environment_payload(
+        self,
+        *,
+        environment_payload: dict[str, Any] | None,
+        runtime_mode: str,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        payload = environment_payload.copy() if isinstance(environment_payload, dict) else {}
+        payload.update(
+            {
+                "runtime_mode": "metadata_only",
+                "requested_runtime_mode": str(runtime_mode or "metadata_only").strip() or "metadata_only",
+                "adapter_runtime_enabled": False,
+                "runtime_calls_enabled": False,
+                "network_request": False,
+                "queue_submission": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "adapter_dispatch_id": str(dispatch.id),
+                "adapter_dispatch_status": dispatch.dispatch_status,
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "target_url": dispatch.target_url,
+                "queue_name": dispatch.queue_name,
+                "workflow_name": dispatch.workflow_name,
+                "execution_boundary": "metadata-only runtime gate; no ComfyUI adapter runtime is enabled",
+            }
+        )
+        return payload
+
+    def _build_comfyui_runtime_gate_network_policy(
+        self,
+        *,
+        network_policy: dict[str, Any] | None,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        policy = network_policy.copy() if isinstance(network_policy, dict) else {}
+        policy.update(
+            {
+                "allow_network_requests": False,
+                "http_client_enabled": False,
+                "read_only_probe": False,
+                "queue_read": False,
+                "queue_submission": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "external_calls": "disabled",
+                "target_url": dispatch.target_url,
+                "secret_ref": adapter_config.secret_ref if adapter_config else None,
+                "execution_boundary": "network policy only; no ComfyUI HTTP request is made",
+            }
+        )
+        return policy
+
+    def _build_comfyui_runtime_gate_queue_policy(
+        self,
+        *,
+        queue_policy: dict[str, Any] | None,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> dict[str, Any]:
+        policy = queue_policy.copy() if isinstance(queue_policy, dict) else {}
+        policy.update(
+            {
+                "queue_name": dispatch.queue_name,
+                "workflow_name": dispatch.workflow_name,
+                "max_concurrent_jobs": 0,
+                "queue_read": False,
+                "queue_submission": False,
+                "submit_job": False,
+                "submit_jobs": False,
+                "prompt_submission": False,
+                "upload_files": False,
+                "generation_started": False,
+                "output_collection": False,
+                "execution_boundary": "queue policy only; no ComfyUI queue is read or submitted",
+            }
+        )
+        return policy
+
+    def _build_comfyui_runtime_gate_secret_policy(
+        self,
+        *,
+        secret_policy: dict[str, Any] | None,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        policy = secret_policy.copy() if isinstance(secret_policy, dict) else {}
+        for key in ("secret_value", "token", "api_key", "password", "authorization"):
+            policy.pop(key, None)
+        policy.update(
+            {
+                "secret_ref": adapter_config.secret_ref if adapter_config else policy.get("secret_ref"),
+                "auth_mode": adapter_config.auth_mode if adapter_config else policy.get("auth_mode", "none"),
+                "secret_value_present": False,
+                "secret_lookup_enabled": False,
+                "secret_material_stored": False,
+                "operator_rotation_required": bool(policy.get("operator_rotation_required", False)),
+                "execution_boundary": "secret references only; no secret values are stored or resolved",
+            }
+        )
+        return policy
+
+    def _build_comfyui_runtime_gate_approval_policy(
+        self,
+        *,
+        approval_policy: dict[str, Any] | None,
+        gate_status: str,
+    ) -> dict[str, Any]:
+        policy = approval_policy.copy() if isinstance(approval_policy, dict) else {}
+        policy.update(
+            {
+                "gate_status": gate_status,
+                "approval_required": True,
+                "server_maintainer_review_required": True,
+                "operator_cutover_required": True,
+                "manual_cutover_only": True,
+                "auto_arm": False,
+                "auto_execute": False,
+                "approval_bypass_allowed": False,
+                "execution_boundary": "approval policy only; no runtime execution is authorized here",
+            }
+        )
+        return policy
+
+    def _build_comfyui_runtime_gate_rollback_plan(
+        self,
+        *,
+        rollback_plan: dict[str, Any] | None,
+        gate_status: str,
+        failure_reason: str | None,
+    ) -> dict[str, Any]:
+        plan = rollback_plan.copy() if isinstance(rollback_plan, dict) else {}
+        next_steps = plan.get("next_steps")
+        if not isinstance(next_steps, list) or not next_steps:
+            next_steps = [
+                "disable the future ComfyUI runtime gate before changing adapter code",
+                "review adapter dispatch, connection probe, and maintained adapter config",
+                "keep generated assets out of publishing flows until operator approval is recorded",
+            ]
+        plan.update(
+            {
+                "gate_status": gate_status,
+                "failure_reason": failure_reason,
+                "disable_supported": True,
+                "rollback_required": gate_status
+                in {
+                    CommercialOperationComfyUIRuntimeGateStatus.FAILED.value,
+                    CommercialOperationComfyUIRuntimeGateStatus.DISABLED.value,
+                },
+                "next_steps": next_steps,
+                "execution_boundary": "rollback guidance only; no ComfyUI cancellation or queue mutation is executed",
+            }
+        )
+        return plan
+
+    def _evaluate_comfyui_runtime_gate(
+        self,
+        *,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        environment_payload: dict[str, Any],
+        network_policy: dict[str, Any],
+        queue_policy: dict[str, Any],
+        secret_policy: dict[str, Any],
+        approval_policy: dict[str, Any],
+        validation_checks: list[dict[str, Any]] | None,
+        operator_checklist: list[str],
+        rollback_plan: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], str, str | None]:
+        generated_checks = [
+            {
+                "key": "adapter_dispatch_recorded",
+                "label": "Adapter dispatch is recorded",
+                "status": dispatch.dispatch_status == CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+                "severity": "blocker",
+                "message": "Runtime gates require a recorded adapter dispatch.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_config_ready",
+                "label": "Maintained adapter config is ready",
+                "status": adapter_config is not None
+                and adapter_config.config_status == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "A ready maintained adapter config is required before any runtime gate can be armed.",
+                "source": "system",
+            },
+            {
+                "key": "runtime_disabled",
+                "label": "Runtime remains disabled in this phase",
+                "status": environment_payload.get("runtime_mode") == "metadata_only"
+                and environment_payload.get("adapter_runtime_enabled") is False
+                and environment_payload.get("runtime_calls_enabled") is False,
+                "severity": "blocker",
+                "message": "Runtime gates can only record readiness metadata in this phase.",
+                "source": "system",
+            },
+            {
+                "key": "network_policy_closed",
+                "label": "Network policy blocks live calls",
+                "status": network_policy.get("allow_network_requests") is False
+                and network_policy.get("http_client_enabled") is False
+                and network_policy.get("external_calls") == "disabled",
+                "severity": "blocker",
+                "message": "Network policy must keep ComfyUI HTTP calls disabled.",
+                "source": "system",
+            },
+            {
+                "key": "queue_policy_closed",
+                "label": "Queue policy blocks queue reads and submissions",
+                "status": queue_policy.get("queue_read") is False
+                and queue_policy.get("queue_submission") is False
+                and queue_policy.get("submit_job") is False
+                and queue_policy.get("submit_jobs") is False,
+                "severity": "blocker",
+                "message": "Queue policy must keep queue reads and submissions disabled.",
+                "source": "system",
+            },
+            {
+                "key": "secret_reference_only",
+                "label": "Secret policy stores references only",
+                "status": secret_policy.get("secret_value_present") is False
+                and secret_policy.get("secret_lookup_enabled") is False
+                and secret_policy.get("secret_material_stored") is False,
+                "severity": "blocker",
+                "message": "Runtime gates cannot store or resolve secret values.",
+                "source": "system",
+            },
+            {
+                "key": "approval_policy_required",
+                "label": "Manual approval and cutover are required",
+                "status": approval_policy.get("approval_required") is True
+                and approval_policy.get("server_maintainer_review_required") is True
+                and approval_policy.get("operator_cutover_required") is True
+                and approval_policy.get("approval_bypass_allowed") is False,
+                "severity": "blocker",
+                "message": "Runtime gate approval cannot be bypassed.",
+                "source": "system",
+            },
+            {
+                "key": "operator_checklist_present",
+                "label": "Operator checklist is present",
+                "status": bool(operator_checklist),
+                "severity": "blocker",
+                "message": "Runtime gates need an operator checklist.",
+                "source": "system",
+            },
+            {
+                "key": "rollback_plan_present",
+                "label": "Rollback plan is present",
+                "status": bool(rollback_plan.get("next_steps")),
+                "severity": "blocker",
+                "message": "Runtime gates need rollback and disable guidance.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(validation_checks):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, "ComfyUI runtime gate is blocked; maintainer action is required.", labels
+        return (
+            merged_checks,
+            "ComfyUI runtime gate is ready as metadata-only cutover control; no adapter call occurred.",
+            None,
+        )
+
+    def _build_comfyui_runtime_gate_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        probe: CommercialOperationComfyUIConnectionProbe,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        gate: CommercialOperationComfyUIRuntimeGate,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "runtime_gate_id": str(gate.id) if gate.id else None,
+            "gate_status": gate.gate_status,
+            "adapter_dispatch_id": str(dispatch.id),
+            "adapter_dispatch_status": dispatch.dispatch_status,
+            "connection_probe_id": str(probe.id),
+            "execution_plan_id": str(execution_plan.id),
+            "job_request_id": str(job_request.id),
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "adapter_config_status": adapter_config.config_status if adapter_config else None,
+            "asset_request_id": str(handoff.asset_request_id),
+            "step_key": gate.step_key,
+            "title": gate.title,
+            "target_url": gate.target_url,
+            "queue_name": gate.queue_name,
+            "workflow_name": gate.workflow_name,
+            "runtime_mode": "metadata_only",
+            "environment_payload": gate.environment_payload,
+            "network_policy": gate.network_policy,
+            "queue_policy": gate.queue_policy,
+            "secret_policy": gate.secret_policy,
+            "approval_policy": gate.approval_policy,
+            "validation_checks": gate.validation_checks,
+            "operator_checklist": gate.operator_checklist,
+            "rollback_plan": gate.rollback_plan,
+            "result_summary": gate.result_summary,
+            "failure_reason": gate.failure_reason,
+            "runtime_calls_enabled": False,
+            "execution_boundary": "metadata-only ComfyUI runtime gate; no ComfyUI HTTP request, prompt submission, queue submission, upload, or media generation occurs",
+            "next_runtime": "future_guarded_comfyui_runtime_adapter",
+            "forbidden_actions": [
+                "no ComfyUI HTTP request",
+                "no ComfyUI prompt submission",
+                "no ComfyUI queue read",
+                "no ComfyUI queue submission",
+                "no file upload to ComfyUI",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no secret value storage",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -10303,6 +11375,39 @@ class CommercialOperationService:
                     updated["comfyui_adapter_dispatch_decision_at"] = dispatch.cancelled_at.isoformat()
                 elif dispatch.archived_at is not None:
                     updated["comfyui_adapter_dispatch_decision_at"] = dispatch.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_runtime_gate_to_plan(
+        self,
+        operation: CommercialOperation,
+        gate: CommercialOperationComfyUIRuntimeGate,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == gate.step_key:
+                updated = dict(step)
+                updated["comfyui_runtime_gate_id"] = str(gate.id)
+                updated["comfyui_runtime_gate_status"] = gate.gate_status
+                updated["comfyui_runtime_gate_adapter_dispatch_id"] = str(gate.adapter_dispatch_id)
+                updated["comfyui_runtime_gate_target_url"] = gate.target_url
+                updated["comfyui_runtime_gate_queue_name"] = gate.queue_name
+                updated["comfyui_runtime_gate_workflow_name"] = gate.workflow_name
+                updated["comfyui_runtime_gate_mode"] = gate.runtime_mode
+                if gate.armed_at is not None:
+                    updated["comfyui_runtime_gate_decision_at"] = gate.armed_at.isoformat()
+                elif gate.approved_at is not None:
+                    updated["comfyui_runtime_gate_decision_at"] = gate.approved_at.isoformat()
+                elif gate.rejected_at is not None:
+                    updated["comfyui_runtime_gate_decision_at"] = gate.rejected_at.isoformat()
+                elif gate.disabled_at is not None:
+                    updated["comfyui_runtime_gate_decision_at"] = gate.disabled_at.isoformat()
+                elif gate.failed_at is not None:
+                    updated["comfyui_runtime_gate_decision_at"] = gate.failed_at.isoformat()
+                elif gate.archived_at is not None:
+                    updated["comfyui_runtime_gate_decision_at"] = gate.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

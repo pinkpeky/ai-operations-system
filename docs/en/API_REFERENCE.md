@@ -4169,3 +4169,24 @@ Endpoints:
 Supported `dispatch_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `dispatched`, `failed`, `cancelled`, and `archived`.
 
 Boundary: ComfyUI adapter dispatches are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved dispatches can be marked dispatched only as an operator-facing metadata state record; no ComfyUI adapter call or queue submission occurs.
+
+## Phase 61X: Commercial Operation ComfyUI Runtime Gates
+
+Phase 61X adds `commercial_operation_comfyui_runtime_gates` and `CommercialOperationComfyUIRuntimeGate` records below each commercial operation. Operators and server maintainers can create metadata-only runtime gate records from dispatched ComfyUI adapter dispatches, edit them, send them for review, approve or reject them, mark them armed, mark failures, disable active gates, or archive their audit trail. These records document future guarded ComfyUI runtime cutover controls, runtime switch metadata, network policies, queue policies, secret-reference policies, approval policies, validation checks, operator checklists, and rollback plans without storing or resolving secret values, calling ComfyUI, submitting prompts, reading queues, uploading files, submitting queues, or generating media.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/runtime-gates`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/arm`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/disable`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-gates/{runtime_gate_id}/archive`
+
+Supported `gate_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `armed`, `disabled`, `failed`, and `archived`.
+
+Boundary: ComfyUI runtime gates are metadata records only. They do not store or resolve secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, submit prompts, read queues, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved gates can be marked armed only as an operator-facing metadata state record; no ComfyUI adapter runtime is enabled.

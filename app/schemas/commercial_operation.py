@@ -20,6 +20,7 @@ from app.models.commercial_operation import (
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
+    CommercialOperationComfyUIRuntimeGate,
     CommercialOperationContentDraft,
     CommercialOperationDeliverable,
     CommercialOperationDryRun,
@@ -100,6 +101,16 @@ CommercialOperationComfyUIAdapterDispatchStatusLiteral = Literal[
     "dispatched",
     "failed",
     "cancelled",
+    "archived",
+]
+CommercialOperationComfyUIRuntimeGateStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "armed",
+    "disabled",
+    "failed",
     "archived",
 ]
 CommercialOperationDeliverableStatusLiteral = Literal[
@@ -1645,6 +1656,159 @@ class CommercialOperationComfyUIAdapterDispatchListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIAdapterDispatchResponse]
+
+
+class CommercialOperationComfyUIRuntimeGateCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI runtime gate from a dispatched adapter dispatch."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    runtime_mode: str = Field(default="metadata_only", min_length=1, max_length=32)
+    environment_payload: dict[str, Any] = Field(default_factory=dict)
+    network_policy: dict[str, Any] = Field(default_factory=dict)
+    queue_policy: dict[str, Any] = Field(default_factory=dict)
+    secret_policy: dict[str, Any] = Field(default_factory=dict)
+    approval_policy: dict[str, Any] = Field(default_factory=dict)
+    validation_checks: list[dict[str, Any]] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    rollback_plan: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIRuntimeGateUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI runtime gate before arming."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    runtime_mode: str | None = Field(default=None, min_length=1, max_length=32)
+    environment_payload: dict[str, Any] | None = None
+    network_policy: dict[str, Any] | None = None
+    queue_policy: dict[str, Any] | None = None
+    secret_policy: dict[str, Any] | None = None
+    approval_policy: dict[str, Any] | None = None
+    validation_checks: list[dict[str, Any]] | None = None
+    operator_checklist: list[str] | None = None
+    rollback_plan: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIRuntimeGateDecisionRequest(BaseModel):
+    """Review, arm, disable, fail, or archive a ComfyUI runtime gate."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIRuntimeGateResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI runtime gate response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    adapter_dispatch_id: UUID
+    connection_probe_id: UUID
+    execution_plan_id: UUID
+    job_request_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    gate_status: str
+    runtime_mode: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    environment_payload: dict[str, Any]
+    network_policy: dict[str, Any]
+    queue_policy: dict[str, Any]
+    secret_policy: dict[str, Any]
+    approval_policy: dict[str, Any]
+    validation_checks: list[dict[str, Any]]
+    operator_checklist: list[str]
+    rollback_plan: dict[str, Any]
+    gate_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    planned_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    armed_by: str | None
+    disabled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    armed_at: datetime | None
+    disabled_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        gate: CommercialOperationComfyUIRuntimeGate,
+    ) -> "CommercialOperationComfyUIRuntimeGateResponse":
+        return cls(
+            id=gate.id,
+            workspace_id=gate.workspace_id,
+            operation_id=gate.operation_id,
+            adapter_dispatch_id=gate.adapter_dispatch_id,
+            connection_probe_id=gate.connection_probe_id,
+            execution_plan_id=gate.execution_plan_id,
+            job_request_id=gate.job_request_id,
+            preflight_id=gate.preflight_id,
+            handoff_id=gate.handoff_id,
+            adapter_config_id=gate.adapter_config_id,
+            asset_request_id=gate.asset_request_id,
+            step_key=gate.step_key,
+            title=gate.title,
+            gate_status=gate.gate_status,
+            runtime_mode=gate.runtime_mode,
+            target_url=gate.target_url,
+            queue_name=gate.queue_name,
+            workflow_name=gate.workflow_name,
+            environment_payload=gate.environment_payload,
+            network_policy=gate.network_policy,
+            queue_policy=gate.queue_policy,
+            secret_policy=gate.secret_policy,
+            approval_policy=gate.approval_policy,
+            validation_checks=gate.validation_checks,
+            operator_checklist=gate.operator_checklist,
+            rollback_plan=gate.rollback_plan,
+            gate_payload=gate.gate_payload,
+            result_summary=gate.result_summary,
+            failure_reason=gate.failure_reason,
+            reviewer_notes=gate.reviewer_notes,
+            planned_by=gate.planned_by,
+            updated_by=gate.updated_by,
+            approved_by=gate.approved_by,
+            armed_by=gate.armed_by,
+            disabled_by=gate.disabled_by,
+            archived_by=gate.archived_by,
+            approved_at=gate.approved_at,
+            rejected_at=gate.rejected_at,
+            armed_at=gate.armed_at,
+            disabled_at=gate.disabled_at,
+            failed_at=gate.failed_at,
+            archived_at=gate.archived_at,
+            metadata=gate.gate_metadata,
+            created_at=gate.created_at,
+            updated_at=gate.updated_at,
+        )
+
+
+class CommercialOperationComfyUIRuntimeGateListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI runtime gate list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIRuntimeGateResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

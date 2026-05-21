@@ -463,8 +463,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61W",
-    boundaryBody: "商业运营 ComfyUI 连接探测：从已批准或已模拟的执行预案创建受控健康检查和只读队列快照记录；当前仍不请求 ComfyUI、不读取队列、不上传文件、不提交任务、不生成媒体、不发布、不控制账号。",
+    boundaryTitle: "Phase 61X",
+    boundaryBody: "商业运营 ComfyUI 运行门禁：从已记录调度创建服务器维护人员可审查的运行开关、网络边界、队列策略、密钥引用和回滚记录；当前仍不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不发布、不控制账号。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61W",
-    boundaryBody: "Commercial operation ComfyUI adapter dispatch records: create reviewable, recoverable metadata-only dispatch handoffs from recorded connection probes while keeping ComfyUI calls, queue reads, uploads, job submission, media generation, publishing, and account control disabled.",
+    boundaryTitle: "Phase 61X",
+    boundaryBody: "Commercial operation ComfyUI runtime gates: create server-maintainer reviewed runtime switch, network boundary, queue policy, secret reference, and rollback records from recorded adapter dispatches while keeping ComfyUI calls, queue submissions, uploads, media generation, publishing, and account control disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -5072,6 +5072,62 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresProbe: "Record one ComfyUI connection probe first.",
           noDispatches: "No ComfyUI adapter dispatches yet.",
         };
+  const comfyuiRuntimeGateCopy =
+    language === "zh-CN"
+      ? {
+          title: "ComfyUI 运行门禁",
+          description: "从已记录调度创建服务器维护人员可审查的运行开关、网络边界、队列策略、密钥引用和回滚记录。这里只保存门禁元数据，不会请求 ComfyUI、提交队列、上传文件或生成媒体。",
+          adapterDispatchLabel: "已记录适配器调度",
+          modeLabel: "运行模式",
+          environmentLabel: "运行环境 JSON",
+          networkPolicyLabel: "网络策略 JSON",
+          queuePolicyLabel: "队列策略 JSON",
+          secretPolicyLabel: "密钥引用策略 JSON",
+          approvalPolicyLabel: "审批策略 JSON",
+          validationChecksLabel: "门禁检查 JSON",
+          checklistLabel: "操作清单",
+          rollbackPlanLabel: "回滚方案 JSON",
+          createAction: "创建运行门禁",
+          saveAction: "保存运行门禁",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          armAction: "记录已就绪",
+          failAction: "失败",
+          disableAction: "禁用",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并记录至少一个 ComfyUI 适配器调度。",
+          requiresDispatch: "先记录一个 ComfyUI 适配器调度。",
+          noGates: "暂无 ComfyUI 运行门禁。",
+        }
+      : {
+          title: "ComfyUI runtime gates",
+          description: "Create server-maintainer reviewed runtime switch, network boundary, queue policy, secret reference, and rollback records from recorded adapter dispatches. This stores gate metadata only; it does not call ComfyUI, submit queues, upload files, or generate media.",
+          adapterDispatchLabel: "Recorded adapter dispatch",
+          modeLabel: "Runtime mode",
+          environmentLabel: "Environment JSON",
+          networkPolicyLabel: "Network policy JSON",
+          queuePolicyLabel: "Queue policy JSON",
+          secretPolicyLabel: "Secret reference policy JSON",
+          approvalPolicyLabel: "Approval policy JSON",
+          validationChecksLabel: "Gate checks JSON",
+          checklistLabel: "Operator checklist",
+          rollbackPlanLabel: "Rollback plan JSON",
+          createAction: "Create runtime gate",
+          saveAction: "Save runtime gate",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          armAction: "Mark armed",
+          failAction: "Fail",
+          disableAction: "Disable",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and record at least one ComfyUI adapter dispatch first.",
+          requiresDispatch: "Record one ComfyUI adapter dispatch first.",
+          noGates: "No ComfyUI runtime gates yet.",
+        };
   const deliverableCopy =
     language === "zh-CN"
       ? {
@@ -5425,6 +5481,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiExecutionPlansState, setComfyuiExecutionPlansState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiConnectionProbesState, setComfyuiConnectionProbesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiAdapterDispatchesState, setComfyuiAdapterDispatchesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [comfyuiRuntimeGatesState, setComfyuiRuntimeGatesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [evidenceSnapshotsState, setEvidenceSnapshotsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -5561,6 +5618,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiDispatchChecklistDraft, setComfyuiDispatchChecklistDraft] = useState("connection probe recorded, operator approval required, no real adapter call");
   const [comfyuiDispatchRetryDraft, setComfyuiDispatchRetryDraft] = useState('{"retry_mode":"operator_review_only","max_attempts":1}');
   const [comfyuiDispatchRecoveryDraft, setComfyuiDispatchRecoveryDraft] = useState('{"next_steps":["review connection probe","keep dispatch metadata-only"]}');
+  const [selectedComfyuiRuntimeGateId, setSelectedComfyuiRuntimeGateId] = useState("");
+  const [comfyuiRuntimeGateDispatchId, setComfyuiRuntimeGateDispatchId] = useState("");
+  const [comfyuiRuntimeGateTitle, setComfyuiRuntimeGateTitle] = useState(language === "zh-CN" ? "ComfyUI 运行门禁" : "ComfyUI runtime gate");
+  const [comfyuiRuntimeGateMode, setComfyuiRuntimeGateMode] = useState("metadata_only");
+  const [comfyuiRuntimeEnvironmentDraft, setComfyuiRuntimeEnvironmentDraft] = useState('{"runtime_mode":"metadata_only","runtime_calls_enabled":false}');
+  const [comfyuiRuntimeNetworkDraft, setComfyuiRuntimeNetworkDraft] = useState('{"allow_network_requests":false,"http_client_enabled":false}');
+  const [comfyuiRuntimeQueueDraft, setComfyuiRuntimeQueueDraft] = useState('{"queue_submission":false,"submit_job":false}');
+  const [comfyuiRuntimeSecretDraft, setComfyuiRuntimeSecretDraft] = useState('{"secret_lookup_enabled":false,"secret_value_present":false}');
+  const [comfyuiRuntimeApprovalDraft, setComfyuiRuntimeApprovalDraft] = useState('{"approval_required":true,"server_maintainer_review_required":true}');
+  const [comfyuiRuntimeChecksDraft, setComfyuiRuntimeChecksDraft] = useState("[]");
+  const [comfyuiRuntimeChecklistDraft, setComfyuiRuntimeChecklistDraft] = useState("adapter dispatch recorded, server maintainer review required, runtime remains metadata-only");
+  const [comfyuiRuntimeRollbackDraft, setComfyuiRuntimeRollbackDraft] = useState('{"next_steps":["disable runtime gate before adapter changes","review dispatch and config"]}');
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -5933,6 +6002,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadComfyuiRuntimeGates = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setComfyuiRuntimeGatesState(emptyState());
+        return;
+      }
+      setComfyuiRuntimeGatesState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.comfyuiRuntimeGates(operationId, settings);
+        setComfyuiRuntimeGatesState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setComfyuiRuntimeGatesState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime gates API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadDeliverables = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -6100,6 +6191,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadComfyuiExecutionPlans(selectedOperationId);
       void loadComfyuiConnectionProbes(selectedOperationId);
       void loadComfyuiAdapterDispatches(selectedOperationId);
+      void loadComfyuiRuntimeGates(selectedOperationId);
       void loadDeliverables(selectedOperationId);
       void loadEvidenceSnapshots(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
@@ -6121,6 +6213,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setComfyuiExecutionPlansState(emptyState());
     setComfyuiConnectionProbesState(emptyState());
     setComfyuiAdapterDispatchesState(emptyState());
+    setComfyuiRuntimeGatesState(emptyState());
     setDeliverablesState(emptyState());
     setEvidenceSnapshotsState(emptyState());
     setExecutionRequestsState(emptyState());
@@ -6129,7 +6222,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -7378,6 +7471,132 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editComfyuiRuntimeGate = (gate: JsonRecord) => {
+    const runtimeGateId = valueAt(gate, ["id"], "");
+    if (!runtimeGateId) {
+      return;
+    }
+    setSelectedComfyuiRuntimeGateId(runtimeGateId);
+    setComfyuiRuntimeGateDispatchId(valueAt(gate, ["adapter_dispatch_id"], comfyuiRuntimeGateDispatchId));
+    setComfyuiRuntimeGateTitle(valueAt(gate, ["title"], comfyuiRuntimeGateTitle));
+    setComfyuiRuntimeGateMode(valueAt(gate, ["runtime_mode"], "metadata_only"));
+    setComfyuiRuntimeEnvironmentDraft(JSON.stringify((gate.environment_payload as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeNetworkDraft(JSON.stringify((gate.network_policy as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeQueueDraft(JSON.stringify((gate.queue_policy as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeSecretDraft(JSON.stringify((gate.secret_policy as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeApprovalDraft(JSON.stringify((gate.approval_policy as JsonRecord) || {}, null, 2));
+    setComfyuiRuntimeChecksDraft(JSON.stringify((gate.validation_checks as JsonRecord[]) || [], null, 2));
+    setComfyuiRuntimeChecklistDraft(draftListText(gate.operator_checklist));
+    setComfyuiRuntimeRollbackDraft(JSON.stringify((gate.rollback_plan as JsonRecord) || {}, null, 2));
+  };
+
+  const comfyuiRuntimeGatePayload = (): JsonRecord => ({
+    title: comfyuiRuntimeGateTitle.trim() || "ComfyUI runtime gate",
+    runtime_mode: comfyuiRuntimeGateMode.trim() || "metadata_only",
+    environment_payload: parseJsonRecordDraft(comfyuiRuntimeEnvironmentDraft),
+    network_policy: parseJsonRecordDraft(comfyuiRuntimeNetworkDraft),
+    queue_policy: parseJsonRecordDraft(comfyuiRuntimeQueueDraft),
+    secret_policy: parseJsonRecordDraft(comfyuiRuntimeSecretDraft),
+    approval_policy: parseJsonRecordDraft(comfyuiRuntimeApprovalDraft),
+    validation_checks: parseJsonArrayDraft(comfyuiRuntimeChecksDraft),
+    operator_checklist: splitDraftList(comfyuiRuntimeChecklistDraft),
+    rollback_plan: parseJsonRecordDraft(comfyuiRuntimeRollbackDraft),
+    metadata: { source: "admin_dashboard", phase: "61X", runtime_mode: "metadata_only" },
+  });
+
+  const createComfyuiRuntimeGate = async () => {
+    if (!selectedOperationId || !comfyuiRuntimeGateDispatchId) {
+      setActionState({
+        data: null,
+        error: comfyuiRuntimeGateCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createComfyuiRuntimeGate(
+        selectedOperationId,
+        comfyuiRuntimeGateDispatchId,
+        comfyuiRuntimeGatePayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedComfyuiRuntimeGateId(valueAt(created, ["id"], ""));
+      await loadComfyuiRuntimeGates(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime gate create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateComfyuiRuntimeGate = async () => {
+    if (!selectedOperationId || !selectedComfyuiRuntimeGateId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateComfyuiRuntimeGate(
+        selectedOperationId,
+        selectedComfyuiRuntimeGateId,
+        comfyuiRuntimeGatePayload(),
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiRuntimeGates(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime gate update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateComfyuiRuntimeGate = async (
+    runtimeGateId: string,
+    action: "ready" | "approve" | "reject" | "arm" | "fail" | "disable" | "archive",
+  ) => {
+    if (!selectedOperationId || !runtimeGateId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyComfyuiRuntimeGate(selectedOperationId, runtimeGateId, settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveComfyuiRuntimeGate(selectedOperationId, runtimeGateId, settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectComfyuiRuntimeGate(selectedOperationId, runtimeGateId, settings)
+              : action === "arm"
+                ? await commercialOperationsApi.armComfyuiRuntimeGate(selectedOperationId, runtimeGateId, settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failComfyuiRuntimeGate(selectedOperationId, runtimeGateId, "Failed during metadata-only ComfyUI runtime gate review; maintainer action required.", settings)
+                  : action === "disable"
+                    ? await commercialOperationsApi.disableComfyuiRuntimeGate(selectedOperationId, runtimeGateId, settings)
+                    : await commercialOperationsApi.archiveComfyuiRuntimeGate(selectedOperationId, runtimeGateId, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiRuntimeGates(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI runtime gate action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const editOperationDeliverable = (deliverable: JsonRecord) => {
     const deliverableId = valueAt(deliverable, ["id"], "");
     if (!deliverableId) {
@@ -8454,6 +8673,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const comfyuiConnectionProbes = comfyuiConnectionProbesState.data || [];
   const actionableComfyuiConnectionProbes = comfyuiConnectionProbes.filter((probe) => valueAt(probe, ["probe_status"], "") === "probed");
   const comfyuiAdapterDispatches = comfyuiAdapterDispatchesState.data || [];
+  const actionableComfyuiAdapterDispatches = comfyuiAdapterDispatches.filter((dispatch) => valueAt(dispatch, ["dispatch_status"], "") === "dispatched");
+  const comfyuiRuntimeGates = comfyuiRuntimeGatesState.data || [];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -8662,6 +8883,42 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, [actionableComfyuiConnectionProbes, comfyuiDispatchConnectionProbeId, selectedComfyuiAdapterDispatchId]);
 
   useEffect(() => {
+    if (comfyuiRuntimeGateDispatchId && actionableComfyuiAdapterDispatches.some((dispatch) => valueAt(dispatch, ["id"], "") === comfyuiRuntimeGateDispatchId)) {
+      return;
+    }
+    const nextDispatch = actionableComfyuiAdapterDispatches[0];
+    const nextDispatchId = nextDispatch ? valueAt(nextDispatch, ["id"], "") : "";
+    setComfyuiRuntimeGateDispatchId(nextDispatchId);
+    if (nextDispatch && !selectedComfyuiRuntimeGateId) {
+      setComfyuiRuntimeGateTitle(`${valueAt(nextDispatch, ["title"], "ComfyUI adapter dispatch")} runtime gate`);
+      setComfyuiRuntimeEnvironmentDraft(
+        JSON.stringify(
+          {
+            runtime_mode: "metadata_only",
+            runtime_calls_enabled: false,
+            adapter_dispatch_id: nextDispatchId,
+            target_url: valueAt(nextDispatch, ["target_url"], ""),
+          },
+          null,
+          2,
+        ),
+      );
+      setComfyuiRuntimeQueueDraft(
+        JSON.stringify(
+          {
+            queue_submission: false,
+            submit_job: false,
+            queue_name: valueAt(nextDispatch, ["queue_name"], ""),
+            workflow_name: valueAt(nextDispatch, ["workflow_name"], ""),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }, [actionableComfyuiAdapterDispatches, comfyuiRuntimeGateDispatchId, selectedComfyuiRuntimeGateId]);
+
+  useEffect(() => {
     if (deliverableContentDraftId && approvedContentDrafts.some((draft) => valueAt(draft, ["id"], "") === deliverableContentDraftId)) {
       return;
     }
@@ -8765,7 +9022,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -10336,6 +10593,177 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{comfyuiDispatchCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={comfyuiRuntimeGateCopy.title} description={comfyuiRuntimeGateCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-asset-grid">
+              <label>
+                {comfyuiRuntimeGateCopy.adapterDispatchLabel}
+                <select value={comfyuiRuntimeGateDispatchId} onChange={(event) => setComfyuiRuntimeGateDispatchId(event.target.value)}>
+                  {actionableComfyuiAdapterDispatches.length ? null : <option value="">{comfyuiRuntimeGateCopy.requiresDispatch}</option>}
+                  {actionableComfyuiAdapterDispatches.map((dispatch) => {
+                    const adapterDispatchId = valueAt(dispatch, ["id"], "");
+                    return (
+                      <option value={adapterDispatchId} key={adapterDispatchId}>
+                        {valueAt(dispatch, ["title"])} / {valueAt(dispatch, ["dispatch_status"], "-")} / {valueAt(dispatch, ["workflow_name"], "-")}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={comfyuiRuntimeGateTitle} onChange={(event) => setComfyuiRuntimeGateTitle(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeGateCopy.modeLabel}
+                <select value={comfyuiRuntimeGateMode} onChange={(event) => setComfyuiRuntimeGateMode(event.target.value)}>
+                  <option value="metadata_only">metadata_only</option>
+                  <option value="future_guarded_runtime">future_guarded_runtime</option>
+                </select>
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeGateCopy.environmentLabel}
+                <textarea value={comfyuiRuntimeEnvironmentDraft} onChange={(event) => setComfyuiRuntimeEnvironmentDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeGateCopy.networkPolicyLabel}
+                <textarea value={comfyuiRuntimeNetworkDraft} onChange={(event) => setComfyuiRuntimeNetworkDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeGateCopy.queuePolicyLabel}
+                <textarea value={comfyuiRuntimeQueueDraft} onChange={(event) => setComfyuiRuntimeQueueDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeGateCopy.secretPolicyLabel}
+                <textarea value={comfyuiRuntimeSecretDraft} onChange={(event) => setComfyuiRuntimeSecretDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeGateCopy.approvalPolicyLabel}
+                <textarea value={comfyuiRuntimeApprovalDraft} onChange={(event) => setComfyuiRuntimeApprovalDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeGateCopy.validationChecksLabel}
+                <textarea value={comfyuiRuntimeChecksDraft} onChange={(event) => setComfyuiRuntimeChecksDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiRuntimeGateCopy.checklistLabel}
+                <textarea value={comfyuiRuntimeChecklistDraft} onChange={(event) => setComfyuiRuntimeChecklistDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiRuntimeGateCopy.rollbackPlanLabel}
+                <textarea value={comfyuiRuntimeRollbackDraft} onChange={(event) => setComfyuiRuntimeRollbackDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createComfyuiRuntimeGate()}
+                disabled={!comfyuiRuntimeGateDispatchId || !comfyuiRuntimeGateTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {comfyuiRuntimeGateCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateComfyuiRuntimeGate()}
+                disabled={!selectedComfyuiRuntimeGateId || !comfyuiRuntimeGateTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {comfyuiRuntimeGateCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={comfyuiRuntimeGatesState} />
+            {comfyuiRuntimeGatesState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiRuntimeGatesState.updatedAt}</div> : null}
+            {comfyuiRuntimeGates.length ? (
+              <div className="commercial-asset-list">
+                {comfyuiRuntimeGates.map((gate) => {
+                  const runtimeGateId = valueAt(gate, ["id"], "");
+                  const gateStatus = valueAt(gate, ["gate_status"], "");
+                  return (
+                    <article className="commercial-asset-item" key={runtimeGateId}>
+                      <div>
+                        <strong>{valueAt(gate, ["title"])}</strong>
+                        <span>{valueAt(gate, ["target_url"], "-")} / {valueAt(gate, ["queue_name"], "-")} / {valueAt(gate, ["workflow_name"], "-")}</span>
+                        <p>{shortJson(gate.validation_checks, 90)}</p>
+                        <p>{shortJson(gate.gate_payload, 90)}</p>
+                        <StatusPill value={gateStatus} />
+                      </div>
+                      <div className="commercial-asset-actions">
+                        <button className="ghost-button" onClick={() => editComfyuiRuntimeGate(gate)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {comfyuiRuntimeGateCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(gateStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiRuntimeGateCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "approve")}
+                          disabled={gateStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiRuntimeGateCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "reject")}
+                          disabled={gateStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeGateCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "arm")}
+                          disabled={gateStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {comfyuiRuntimeGateCopy.armAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "fail")}
+                          disabled={!["approved", "armed"].includes(gateStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeGateCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "disable")}
+                          disabled={!["approved", "armed", "failed"].includes(gateStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeGateCopy.disableAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiRuntimeGate(runtimeGateId, "archive")}
+                          disabled={gateStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiRuntimeGateCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{actionableComfyuiAdapterDispatches.length ? comfyuiRuntimeGateCopy.noGates : comfyuiRuntimeGateCopy.requiresDispatch}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{comfyuiRuntimeGateCopy.selectedHint}</div>
         )}
       </Panel>
 
