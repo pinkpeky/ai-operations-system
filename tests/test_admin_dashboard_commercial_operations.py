@@ -20,7 +20,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial Ops" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61T" in text
+    assert "Phase 61U" in text
     assert "Approval gates" in text
     assert "Safe dry-runs" in text
     assert "Content drafts" in text
@@ -29,6 +29,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "ComfyUI preflights" in text
     assert "ComfyUI adapter configs" in text
     assert "ComfyUI job requests" in text
+    assert "ComfyUI execution plans" in text
     assert "Deliverables" in text
     assert "Evidence snapshots" in text
     assert "Execution requests" in text
@@ -103,6 +104,16 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.failComfyuiJobRequest" in text
     assert "commercialOperationsApi.cancelComfyuiJobRequest" in text
     assert "commercialOperationsApi.archiveComfyuiJobRequest" in text
+    assert "commercialOperationsApi.comfyuiExecutionPlans" in text
+    assert "commercialOperationsApi.createComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.updateComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.readyComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.approveComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.rejectComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.simulateComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.failComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.cancelComfyuiExecutionPlan" in text
+    assert "commercialOperationsApi.archiveComfyuiExecutionPlan" in text
     assert "commercialOperationsApi.deliverables" in text
     assert "commercialOperationsApi.createDeliverable" in text
     assert "commercialOperationsApi.updateDeliverable" in text
@@ -229,6 +240,16 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/fail" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/cancel" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/archive" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-job-requests/${encodeURIComponent(jobRequestId)}/execution-plans" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/ready" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/approve" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/reject" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/simulate" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/fail" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/cancel" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-execution-plans/${encodeURIComponent(executionPlanId)}/archive" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready" in text

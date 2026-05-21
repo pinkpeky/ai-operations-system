@@ -15,6 +15,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
@@ -33,6 +34,7 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIAdapterConfigStatus,
+    CommercialOperationComfyUIExecutionPlanStatus,
     CommercialOperationComfyUIHandoffStatus,
     CommercialOperationComfyUIJobRequestStatus,
     CommercialOperationComfyUIPreflightStatus,
@@ -2370,6 +2372,425 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        job_request_id: UUID,
+        title: str | None = None,
+        priority: str = "normal",
+        execution_steps: list[dict[str, Any]] | None = None,
+        simulation_checks: list[dict[str, Any]] | None = None,
+        operator_checklist: list[str] | None = None,
+        rollback_plan: dict[str, Any] | None = None,
+        simulation_payload: dict[str, Any] | None = None,
+        planned_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+        )
+        if job_request.job_status not in {
+            CommercialOperationComfyUIJobRequestStatus.APPROVED.value,
+            CommercialOperationComfyUIJobRequestStatus.QUEUED.value,
+        }:
+            raise ValueError("ComfyUI execution plans require an approved or queued job request")
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=job_request.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=job_request.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        clean_simulation_payload = self._normalize_comfyui_execution_simulation_payload(
+            simulation_payload=simulation_payload,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+        )
+        clean_steps = self._clean_execution_plan_steps(execution_steps)
+        clean_checklist = self._clean_list(operator_checklist) or [
+            "confirm human approval remains valid",
+            "confirm ComfyUI adapter is still disabled",
+            "confirm rollback owner and failure contact",
+        ]
+        queue_payload = self._build_comfyui_execution_queue_payload(
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_execution_plan(
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            queue_payload=queue_payload,
+            simulation_payload=clean_simulation_payload,
+            simulation_checks=simulation_checks,
+        )
+        plan = CommercialOperationComfyUIExecutionPlan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request.id,
+            preflight_id=job_request.preflight_id,
+            handoff_id=job_request.handoff_id,
+            adapter_config_id=job_request.adapter_config_id,
+            asset_request_id=job_request.asset_request_id,
+            step_key=job_request.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI execution plan: {job_request.title}"
+            )[:255],
+            plan_status=CommercialOperationComfyUIExecutionPlanStatus.DRAFT.value,
+            priority=self._clean_priority(priority),
+            target_url=job_request.target_url,
+            queue_name=job_request.queue_name,
+            workflow_name=job_request.workflow_name,
+            execution_mode="metadata_only",
+            queue_payload=queue_payload,
+            execution_steps=clean_steps,
+            simulation_checks=checks,
+            operator_checklist=clean_checklist,
+            rollback_plan=self._build_comfyui_execution_rollback_plan(
+                rollback_plan=rollback_plan,
+                plan_status=CommercialOperationComfyUIExecutionPlanStatus.DRAFT.value,
+                failure_reason=failure_reason,
+            ),
+            simulation_payload=clean_simulation_payload,
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            planned_by=planned_by,
+            updated_by=planned_by,
+            plan_metadata=metadata or {},
+        )
+        self.session.add(plan)
+        await self.session.flush()
+        plan.plan_payload = self._build_comfyui_execution_plan_payload(
+            operation=operation,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            plan=plan,
+        )
+        self._apply_comfyui_execution_plan_to_plan(operation, plan)
+        await self.session.commit()
+        await self.session.refresh(plan)
+        return plan
+
+    async def list_comfyui_execution_plans(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        job_request_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIExecutionPlan]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIExecutionPlan).where(
+            CommercialOperationComfyUIExecutionPlan.workspace_id == workspace_id,
+            CommercialOperationComfyUIExecutionPlan.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIExecutionPlan.plan_status == status)
+        if job_request_id is not None:
+            statement = statement.where(CommercialOperationComfyUIExecutionPlan.job_request_id == job_request_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIExecutionPlan.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIExecutionPlan).where(
+                CommercialOperationComfyUIExecutionPlan.workspace_id == workspace_id,
+                CommercialOperationComfyUIExecutionPlan.operation_id == operation_id,
+                CommercialOperationComfyUIExecutionPlan.id == execution_plan_id,
+            )
+        )
+        plan = result.scalar_one_or_none()
+        if plan is None:
+            raise ValueError("Commercial operation ComfyUI execution plan not found in workspace")
+        return plan
+
+    async def update_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+        )
+        if plan.plan_status in {
+            CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.CANCELLED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Simulated, cancelled, or archived ComfyUI execution plans cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=plan.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=plan.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=plan.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        if "title" in patch and patch["title"] is not None:
+            plan.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "priority" in patch and patch["priority"] is not None:
+            plan.priority = self._clean_priority(patch["priority"])
+        if "execution_steps" in patch and patch["execution_steps"] is not None:
+            plan.execution_steps = self._clean_execution_plan_steps(patch["execution_steps"])
+        if "operator_checklist" in patch and patch["operator_checklist"] is not None:
+            plan.operator_checklist = self._clean_list(patch["operator_checklist"])
+        if "simulation_payload" in patch and patch["simulation_payload"] is not None:
+            plan.simulation_payload = self._normalize_comfyui_execution_simulation_payload(
+                simulation_payload=patch["simulation_payload"],
+                job_request=job_request,
+                preflight=preflight,
+                handoff=handoff,
+                adapter_config=adapter_config,
+            )
+        if "rollback_plan" in patch and patch["rollback_plan"] is not None:
+            plan.rollback_plan = self._build_comfyui_execution_rollback_plan(
+                rollback_plan=patch["rollback_plan"],
+                plan_status=plan.plan_status,
+                failure_reason=plan.failure_reason,
+            )
+        for field in ("result_summary", "failure_reason", "reviewer_notes"):
+            if field in patch:
+                value = patch[field]
+                setattr(plan, field, value.strip() if isinstance(value, str) and value.strip() else None)
+        if "metadata" in patch and patch["metadata"] is not None:
+            plan.plan_metadata = patch["metadata"] or {}
+        plan.queue_payload = self._build_comfyui_execution_queue_payload(
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+        )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_execution_plan(
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            queue_payload=plan.queue_payload,
+            simulation_payload=plan.simulation_payload,
+            simulation_checks=patch.get("simulation_checks") if "simulation_checks" in patch else plan.simulation_checks,
+        )
+        plan.simulation_checks = checks
+        plan.result_summary = result_summary
+        plan.failure_reason = failure_reason
+        plan.plan_status = CommercialOperationComfyUIExecutionPlanStatus.DRAFT.value
+        plan.updated_by = updated_by
+        plan.approved_by = None
+        plan.simulated_by = None
+        plan.cancelled_by = None
+        plan.approved_at = None
+        plan.rejected_at = None
+        plan.simulated_at = None
+        plan.failed_at = None
+        plan.cancelled_at = None
+        plan.archived_at = None
+        plan.rollback_plan = self._build_comfyui_execution_rollback_plan(
+            rollback_plan=plan.rollback_plan,
+            plan_status=plan.plan_status,
+            failure_reason=plan.failure_reason,
+        )
+        plan.plan_payload = self._build_comfyui_execution_plan_payload(
+            operation=operation,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            plan=plan,
+        )
+        self._apply_comfyui_execution_plan_to_plan(operation, plan)
+        await self.session.commit()
+        await self.session.refresh(plan)
+        return plan
+
+    async def mark_comfyui_execution_plan_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def simulate_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        simulated_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+            actor_user_id=simulated_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        archived_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        return await self._decide_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            status=CommercialOperationComfyUIExecutionPlanStatus.ARCHIVED.value,
+            actor_user_id=archived_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_deliverable(
         self,
         *,
@@ -4561,6 +4982,49 @@ class CommercialOperationService:
             steps.append(cleaned)
         return steps
 
+    def _clean_execution_plan_steps(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        steps: list[dict[str, Any]] = []
+        for index, item in enumerate(values or [], start=1):
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title") or item.get("step") or item.get("name") or "").strip()
+            if not title:
+                continue
+            cleaned = dict(item)
+            cleaned["title"] = title
+            cleaned["status"] = str(cleaned.get("status") or "planned").strip() or "planned"
+            cleaned.setdefault("order", index)
+            cleaned["execution_boundary"] = "metadata-only execution plan step; no ComfyUI call"
+            steps.append(cleaned)
+        if steps:
+            return steps
+        return [
+            {
+                "order": 1,
+                "title": "Review approved ComfyUI job request",
+                "status": "planned",
+                "execution_boundary": "metadata-only execution plan step; no ComfyUI call",
+            },
+            {
+                "order": 2,
+                "title": "Verify adapter, queue, workflow, and secret references",
+                "status": "planned",
+                "execution_boundary": "metadata-only execution plan step; no ComfyUI call",
+            },
+            {
+                "order": 3,
+                "title": "Simulate queue payload shape locally",
+                "status": "planned",
+                "execution_boundary": "metadata-only execution plan step; no ComfyUI call",
+            },
+            {
+                "order": 4,
+                "title": "Record rollback and human approval decision",
+                "status": "planned",
+                "execution_boundary": "metadata-only execution plan step; no ComfyUI call",
+            },
+        ]
+
     def _clean_operator_checklist(self, values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
         checklist: list[dict[str, Any]] = []
         for index, item in enumerate(values or [], start=1):
@@ -5033,6 +5497,181 @@ class CommercialOperationService:
         await self.session.commit()
         await self.session.refresh(job_request)
         return job_request
+
+    async def _decide_comfyui_execution_plan(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        execution_plan_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIExecutionPlan:
+        plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+        )
+        if plan.plan_status == CommercialOperationComfyUIExecutionPlanStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI execution plans cannot be changed")
+        if status == CommercialOperationComfyUIExecutionPlanStatus.READY_FOR_REVIEW.value and plan.plan_status not in {
+            CommercialOperationComfyUIExecutionPlanStatus.DRAFT.value,
+            CommercialOperationComfyUIExecutionPlanStatus.REJECTED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI execution plans can be marked ready")
+        if status in {
+            CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.REJECTED.value,
+        } and plan.plan_status != CommercialOperationComfyUIExecutionPlanStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI execution plans can be approved or rejected")
+        if status == CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value and plan.plan_status != (
+            CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value
+        ):
+            raise ValueError("Only approved ComfyUI execution plans can be simulated")
+        if status == CommercialOperationComfyUIExecutionPlanStatus.FAILED.value and plan.plan_status not in {
+            CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+        }:
+            raise ValueError("Only approved or simulated ComfyUI execution plans can be failed")
+        if status == CommercialOperationComfyUIExecutionPlanStatus.CANCELLED.value and plan.plan_status in {
+            CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.CANCELLED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.ARCHIVED.value,
+        }:
+            raise ValueError("ComfyUI execution plan is already terminal")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=plan.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=plan.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=plan.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        plan.simulation_payload = self._normalize_comfyui_execution_simulation_payload(
+            simulation_payload=plan.simulation_payload,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+        )
+        plan.queue_payload = self._build_comfyui_execution_queue_payload(
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+        )
+        checks, evaluated_summary, evaluated_failure = self._evaluate_comfyui_execution_plan(
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            queue_payload=plan.queue_payload,
+            simulation_payload=plan.simulation_payload,
+            simulation_checks=plan.simulation_checks,
+        )
+        if status in {
+            CommercialOperationComfyUIExecutionPlanStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+            CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+        } and evaluated_failure:
+            raise ValueError(f"ComfyUI execution plan is blocked: {evaluated_failure}")
+        now = datetime.now(UTC)
+        plan.plan_status = status
+        plan.simulation_checks = checks
+        plan.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        plan.result_summary = (
+            result_summary.strip()
+            if result_summary and result_summary.strip()
+            else evaluated_summary
+            if status != CommercialOperationComfyUIExecutionPlanStatus.FAILED.value
+            else None
+        )
+        plan.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else evaluated_failure
+            if status == CommercialOperationComfyUIExecutionPlanStatus.FAILED.value
+            else None
+        )
+        plan.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIExecutionPlanStatus.READY_FOR_REVIEW.value:
+            plan.approved_by = None
+            plan.simulated_by = None
+            plan.cancelled_by = None
+            plan.approved_at = None
+            plan.rejected_at = None
+            plan.simulated_at = None
+            plan.failed_at = None
+            plan.cancelled_at = None
+            plan.archived_at = None
+        elif status == CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value:
+            plan.approved_by = actor_user_id
+            plan.approved_at = now
+            plan.rejected_at = None
+            plan.simulated_at = None
+            plan.failed_at = None
+            plan.cancelled_at = None
+            plan.archived_at = None
+        elif status == CommercialOperationComfyUIExecutionPlanStatus.REJECTED.value:
+            plan.rejected_at = now
+            plan.approved_by = None
+            plan.simulated_by = None
+            plan.approved_at = None
+            plan.simulated_at = None
+            plan.failed_at = None
+            plan.cancelled_at = None
+            plan.archived_at = None
+        elif status == CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value:
+            plan.simulated_by = actor_user_id
+            plan.simulated_at = now
+            plan.failed_at = None
+            plan.cancelled_at = None
+            plan.archived_at = None
+        elif status == CommercialOperationComfyUIExecutionPlanStatus.FAILED.value:
+            plan.failed_at = now
+            plan.cancelled_at = None
+            plan.archived_at = None
+        elif status == CommercialOperationComfyUIExecutionPlanStatus.CANCELLED.value:
+            plan.cancelled_by = actor_user_id
+            plan.cancelled_at = now
+            plan.archived_at = None
+        elif status == CommercialOperationComfyUIExecutionPlanStatus.ARCHIVED.value:
+            plan.archived_by = actor_user_id
+            plan.archived_at = now
+        plan.rollback_plan = self._build_comfyui_execution_rollback_plan(
+            rollback_plan=plan.rollback_plan,
+            plan_status=plan.plan_status,
+            failure_reason=plan.failure_reason,
+        )
+        plan.plan_payload = self._build_comfyui_execution_plan_payload(
+            operation=operation,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            plan=plan,
+        )
+        self._apply_comfyui_execution_plan_to_plan(operation, plan)
+        await self.session.commit()
+        await self.session.refresh(plan)
+        return plan
 
     async def _decide_deliverable(
         self,
@@ -6531,6 +7170,240 @@ class CommercialOperationService:
             ],
         }
 
+    def _normalize_comfyui_execution_simulation_payload(
+        self,
+        *,
+        simulation_payload: dict[str, Any] | None,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        payload = simulation_payload.copy() if isinstance(simulation_payload, dict) else {}
+        payload.update(
+            {
+                "adapter": "future_guarded_comfyui_adapter",
+                "execution_mode": "metadata_only",
+                "simulation_mode": "queue_payload_shape_only",
+                "connection_mode": "metadata_only",
+                "network_probe": False,
+                "queue_submission": False,
+                "submit_job": False,
+                "submit_jobs": False,
+                "upload_files": False,
+                "external_calls": "disabled",
+                "dry_run_only": True,
+                "job_request_id": str(job_request.id),
+                "preflight_id": str(preflight.id),
+                "handoff_id": str(handoff.id),
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "target_url": preflight.target_url,
+                "queue_name": preflight.queue_name,
+                "workflow_name": preflight.workflow_name,
+            }
+        )
+        return payload
+
+    def _build_comfyui_execution_queue_payload(
+        self,
+        *,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        return {
+            "job_request_id": str(job_request.id),
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "target_url": preflight.target_url,
+            "queue_name": preflight.queue_name,
+            "workflow_name": preflight.workflow_name,
+            "prompt_payload": job_request.prompt_payload,
+            "workflow_payload": job_request.workflow_payload,
+            "runtime_payload": job_request.runtime_payload,
+            "output_expectations": job_request.output_expectations,
+            "execution_boundary": "metadata-only queue payload simulation; no ComfyUI queue submission occurs",
+            "submission_enabled": False,
+            "upload_enabled": False,
+            "generation_enabled": False,
+        }
+
+    def _evaluate_comfyui_execution_plan(
+        self,
+        *,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        queue_payload: dict[str, Any],
+        simulation_payload: dict[str, Any],
+        simulation_checks: list[dict[str, Any]] | None,
+    ) -> tuple[list[dict[str, Any]], str, str | None]:
+        generated_checks = [
+            {
+                "key": "job_request_approved_or_queued",
+                "label": "Job request is approved or queued",
+                "status": job_request.job_status
+                in {
+                    CommercialOperationComfyUIJobRequestStatus.APPROVED.value,
+                    CommercialOperationComfyUIJobRequestStatus.QUEUED.value,
+                },
+                "severity": "blocker",
+                "message": "Execution plans require an approved or queued ComfyUI job request.",
+                "source": "system",
+            },
+            {
+                "key": "preflight_checked",
+                "label": "ComfyUI preflight is checked",
+                "status": preflight.preflight_status == CommercialOperationComfyUIPreflightStatus.CHECKED.value,
+                "severity": "blocker",
+                "message": "Execution simulation requires a checked preflight.",
+                "source": "system",
+            },
+            {
+                "key": "handoff_approved_or_prepared",
+                "label": "Handoff is approved or prepared",
+                "status": handoff.handoff_status
+                in {
+                    CommercialOperationComfyUIHandoffStatus.APPROVED.value,
+                    CommercialOperationComfyUIHandoffStatus.PREPARED.value,
+                },
+                "severity": "blocker",
+                "message": "Execution plans must trace back to an approved or prepared handoff.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_config_ready",
+                "label": "Linked adapter config is ready or not required",
+                "status": adapter_config is None
+                or adapter_config.config_status == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "Linked adapter configs must be ready before execution planning.",
+                "source": "system",
+            },
+            {
+                "key": "metadata_only_simulation",
+                "label": "Metadata-only simulation boundary is active",
+                "status": simulation_payload.get("execution_mode") == "metadata_only"
+                and simulation_payload.get("queue_submission") is False
+                and simulation_payload.get("submit_job") is False
+                and simulation_payload.get("submit_jobs") is False
+                and simulation_payload.get("upload_files") is False
+                and simulation_payload.get("external_calls") == "disabled",
+                "severity": "blocker",
+                "message": "Execution plans can only simulate metadata locally.",
+                "source": "system",
+            },
+            {
+                "key": "queue_payload_reviewable",
+                "label": "Queue payload is reviewable",
+                "status": bool(
+                    queue_payload.get("prompt_payload")
+                    and queue_payload.get("workflow_payload")
+                    and queue_payload.get("queue_name")
+                    and queue_payload.get("workflow_name")
+                ),
+                "severity": "blocker",
+                "message": "Queue payload, queue name, and workflow name must be visible before simulation.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(simulation_checks):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, "ComfyUI execution plan is blocked; operator action is required.", labels
+        return (
+            merged_checks,
+            "ComfyUI execution plan is ready for metadata-only queue simulation; no ComfyUI call occurred.",
+            None,
+        )
+
+    def _build_comfyui_execution_rollback_plan(
+        self,
+        *,
+        rollback_plan: dict[str, Any] | None,
+        plan_status: str,
+        failure_reason: str | None,
+    ) -> dict[str, Any]:
+        plan = rollback_plan.copy() if isinstance(rollback_plan, dict) else {}
+        plan.update(
+            {
+                "plan_status": plan_status,
+                "failure_reason": failure_reason,
+                "can_resimulate_as_metadata": plan_status in {"failed", "rejected", "cancelled"},
+                "next_steps": plan.get("next_steps")
+                or [
+                    "review job request, preflight, and adapter config state",
+                    "update queue payload shape or operator checklist",
+                    "send the execution plan through review before any future runtime adapter work",
+                ],
+                "execution_boundary": "metadata-only rollback guidance; no ComfyUI cancellation or queue retry is executed",
+            }
+        )
+        return plan
+
+    def _build_comfyui_execution_plan_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        plan: CommercialOperationComfyUIExecutionPlan,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "execution_plan_id": str(plan.id) if plan.id else None,
+            "plan_status": plan.plan_status,
+            "job_request_id": str(job_request.id),
+            "job_request_status": job_request.job_status,
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "asset_request_id": str(plan.asset_request_id),
+            "step_key": plan.step_key,
+            "title": plan.title,
+            "priority": plan.priority,
+            "target_url": plan.target_url,
+            "queue_name": plan.queue_name,
+            "workflow_name": plan.workflow_name,
+            "execution_mode": "metadata_only",
+            "queue_payload": plan.queue_payload,
+            "execution_steps": plan.execution_steps,
+            "simulation_checks": plan.simulation_checks,
+            "operator_checklist": plan.operator_checklist,
+            "rollback_plan": plan.rollback_plan,
+            "simulation_payload": plan.simulation_payload,
+            "result_summary": plan.result_summary,
+            "failure_reason": plan.failure_reason,
+            "execution_boundary": "metadata-only ComfyUI execution plan; no ComfyUI API call, upload, or queue submission occurs",
+            "next_runtime": "future_guarded_comfyui_adapter",
+            "forbidden_actions": [
+                "no ComfyUI HTTP request",
+                "no ComfyUI queue submission",
+                "no file upload to ComfyUI",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no secret value storage",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -7377,6 +8250,38 @@ class CommercialOperationService:
                     updated["comfyui_job_request_decision_at"] = job_request.cancelled_at.isoformat()
                 elif job_request.archived_at is not None:
                     updated["comfyui_job_request_decision_at"] = job_request.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_execution_plan_to_plan(
+        self,
+        operation: CommercialOperation,
+        plan: CommercialOperationComfyUIExecutionPlan,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == plan.step_key:
+                updated = dict(step)
+                updated["comfyui_execution_plan_id"] = str(plan.id)
+                updated["comfyui_execution_plan_status"] = plan.plan_status
+                updated["comfyui_execution_plan_job_request_id"] = str(plan.job_request_id)
+                updated["comfyui_execution_plan_queue_name"] = plan.queue_name
+                updated["comfyui_execution_plan_workflow_name"] = plan.workflow_name
+                updated["comfyui_execution_plan_mode"] = plan.execution_mode
+                if plan.simulated_at is not None:
+                    updated["comfyui_execution_plan_decision_at"] = plan.simulated_at.isoformat()
+                elif plan.approved_at is not None:
+                    updated["comfyui_execution_plan_decision_at"] = plan.approved_at.isoformat()
+                elif plan.rejected_at is not None:
+                    updated["comfyui_execution_plan_decision_at"] = plan.rejected_at.isoformat()
+                elif plan.failed_at is not None:
+                    updated["comfyui_execution_plan_decision_at"] = plan.failed_at.isoformat()
+                elif plan.cancelled_at is not None:
+                    updated["comfyui_execution_plan_decision_at"] = plan.cancelled_at.isoformat()
+                elif plan.archived_at is not None:
+                    updated["comfyui_execution_plan_decision_at"] = plan.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

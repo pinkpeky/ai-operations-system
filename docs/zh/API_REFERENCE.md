@@ -3522,4 +3522,23 @@ API:
 - `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/cancel`
 - `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/archive`
 
+## Phase 61U: 商业运营 ComfyUI 执行预案
+
+Phase 61U 新增 `commercial_operation_comfyui_execution_plans` 与 `CommercialOperationComfyUIExecutionPlan` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans`。操作人员可以从 approved 或 queued ComfyUI job request 创建 metadata-only execution plan，编辑、送审、批准、驳回、模拟、标记 failed、取消或归档。该记录用于保存未来受控 ComfyUI 队列模拟步骤、模拟检查、操作清单、回滚指引和标准化 queue payload；系统不会上传文件、不会保存密钥值、不会请求 ComfyUI、不会提交队列、不会生成媒体。
+
+API:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/execution-plans`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/simulate`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/archive`
+
+边界：ComfyUI execution plan 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved plan 的 simulate 状态只是人工操作记录，不代表真实队列提交。
+
 边界：ComfyUI job request 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved request 的 queued 状态只是人工操作记录，不代表真实队列提交。

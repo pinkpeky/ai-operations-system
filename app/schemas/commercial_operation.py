@@ -14,6 +14,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
@@ -65,6 +66,16 @@ CommercialOperationComfyUIJobRequestStatusLiteral = Literal[
     "approved",
     "rejected",
     "queued",
+    "failed",
+    "cancelled",
+    "archived",
+]
+CommercialOperationComfyUIExecutionPlanStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "simulated",
     "failed",
     "cancelled",
     "archived",
@@ -1173,6 +1184,145 @@ class CommercialOperationComfyUIJobRequestListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationComfyUIJobRequestResponse]
+
+
+class CommercialOperationComfyUIExecutionPlanCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI execution plan from a job request."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: CommercialOperationPriorityLiteral = "normal"
+    execution_steps: list[dict[str, Any]] = Field(default_factory=list)
+    simulation_checks: list[dict[str, Any]] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    rollback_plan: dict[str, Any] = Field(default_factory=dict)
+    simulation_payload: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationComfyUIExecutionPlanUpdateRequest(BaseModel):
+    """Patch a metadata-only ComfyUI execution plan before simulation."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    priority: CommercialOperationPriorityLiteral | None = None
+    execution_steps: list[dict[str, Any]] | None = None
+    simulation_checks: list[dict[str, Any]] | None = None
+    operator_checklist: list[str] | None = None
+    rollback_plan: dict[str, Any] | None = None
+    simulation_payload: dict[str, Any] | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CommercialOperationComfyUIExecutionPlanDecisionRequest(BaseModel):
+    """Review, simulate, fail, cancel, or archive a ComfyUI execution plan."""
+
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationComfyUIExecutionPlanResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI execution plan response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    job_request_id: UUID
+    preflight_id: UUID
+    handoff_id: UUID
+    adapter_config_id: UUID | None
+    asset_request_id: UUID
+    step_key: str
+    title: str
+    plan_status: str
+    priority: str
+    target_url: str | None
+    queue_name: str | None
+    workflow_name: str
+    execution_mode: str
+    queue_payload: dict[str, Any]
+    execution_steps: list[dict[str, Any]]
+    simulation_checks: list[dict[str, Any]]
+    operator_checklist: list[str]
+    rollback_plan: dict[str, Any]
+    simulation_payload: dict[str, Any]
+    plan_payload: dict[str, Any]
+    result_summary: str | None
+    failure_reason: str | None
+    reviewer_notes: str | None
+    planned_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    simulated_by: str | None
+    cancelled_by: str | None
+    archived_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    simulated_at: datetime | None
+    failed_at: datetime | None
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        plan: CommercialOperationComfyUIExecutionPlan,
+    ) -> "CommercialOperationComfyUIExecutionPlanResponse":
+        return cls(
+            id=plan.id,
+            workspace_id=plan.workspace_id,
+            operation_id=plan.operation_id,
+            job_request_id=plan.job_request_id,
+            preflight_id=plan.preflight_id,
+            handoff_id=plan.handoff_id,
+            adapter_config_id=plan.adapter_config_id,
+            asset_request_id=plan.asset_request_id,
+            step_key=plan.step_key,
+            title=plan.title,
+            plan_status=plan.plan_status,
+            priority=plan.priority,
+            target_url=plan.target_url,
+            queue_name=plan.queue_name,
+            workflow_name=plan.workflow_name,
+            execution_mode=plan.execution_mode,
+            queue_payload=plan.queue_payload,
+            execution_steps=plan.execution_steps,
+            simulation_checks=plan.simulation_checks,
+            operator_checklist=plan.operator_checklist,
+            rollback_plan=plan.rollback_plan,
+            simulation_payload=plan.simulation_payload,
+            plan_payload=plan.plan_payload,
+            result_summary=plan.result_summary,
+            failure_reason=plan.failure_reason,
+            reviewer_notes=plan.reviewer_notes,
+            planned_by=plan.planned_by,
+            updated_by=plan.updated_by,
+            approved_by=plan.approved_by,
+            simulated_by=plan.simulated_by,
+            cancelled_by=plan.cancelled_by,
+            archived_by=plan.archived_by,
+            approved_at=plan.approved_at,
+            rejected_at=plan.rejected_at,
+            simulated_at=plan.simulated_at,
+            failed_at=plan.failed_at,
+            cancelled_at=plan.cancelled_at,
+            archived_at=plan.archived_at,
+            metadata=plan.plan_metadata,
+            created_at=plan.created_at,
+            updated_at=plan.updated_at,
+        )
+
+
+class CommercialOperationComfyUIExecutionPlanListResponse(BaseModel):
+    """Commercial operation metadata-only ComfyUI execution plan list response."""
+
+    operation_id: UUID
+    items: list[CommercialOperationComfyUIExecutionPlanResponse]
 
 
 class CommercialOperationDeliverableCreateRequest(BaseModel):

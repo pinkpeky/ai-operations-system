@@ -463,8 +463,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61T",
-    boundaryBody: "商业运营 ComfyUI 作业请求：把已检查的 preflight 转为可审批的未来队列 payload，保留安全检查、输出预期和恢复指引；当前仍不请求 ComfyUI、不上传文件、不提交队列、不生成媒体、不发布、不控制账号。",
+    boundaryTitle: "Phase 61U",
+    boundaryBody: "商业运营 ComfyUI 执行预案：把已批准或已排队的 job request 转为可审查的队列模拟预案，保留执行步骤、模拟检查、操作清单和回滚指引；当前仍不请求 ComfyUI、不上传文件、不提交队列、不生成媒体、不发布、不控制账号。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61T",
-    boundaryBody: "Commercial operation ComfyUI job requests: turn checked preflights into reviewable future queue payloads with safety checks, output expectations, and recovery guidance while keeping ComfyUI calls, uploads, queue submission, generation, publishing, and account control disabled.",
+    boundaryTitle: "Phase 61U",
+    boundaryBody: "Commercial operation ComfyUI execution plans: prepare metadata-only queue simulation plans from approved or queued job requests while keeping ComfyUI calls, uploads, queue submission, media generation, publishing, and account control disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4910,6 +4910,56 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresPreflight: "Complete one checked ComfyUI preflight first.",
           noRequests: "No ComfyUI job requests yet.",
         };
+  const comfyuiExecutionCopy =
+    language === "zh-CN"
+      ? {
+          title: "ComfyUI 执行预案",
+          description: "把已批准或已标记排队的 ComfyUI 任务请求整理成可审查的队列模拟预案。这里只保存执行步骤、检查清单、回滚方案和模拟 payload，不会请求 ComfyUI、上传文件或提交队列。",
+          jobRequestLabel: "已批准/已排队任务请求",
+          priorityLabel: "优先级",
+          stepsLabel: "执行步骤 JSON",
+          checksLabel: "模拟检查 JSON",
+          checklistLabel: "操作清单",
+          simulationPayloadLabel: "模拟 payload JSON",
+          rollbackLabel: "回滚方案 JSON",
+          createAction: "创建执行预案",
+          saveAction: "保存执行预案",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          simulateAction: "模拟",
+          failAction: "失败",
+          cancelAction: "取消",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并批准或标记排队至少一个 ComfyUI 任务请求。",
+          requiresJobRequest: "先批准或标记排队一个 ComfyUI 任务请求。",
+          noPlans: "暂无 ComfyUI 执行预案。",
+        }
+      : {
+          title: "ComfyUI execution plans",
+          description: "Prepare metadata-only queue simulation plans from approved or queued ComfyUI job requests. This records steps, checks, rollback guidance, and simulation payloads only; it does not call ComfyUI, upload files, or submit queues.",
+          jobRequestLabel: "Approved/queued job request",
+          priorityLabel: "Priority",
+          stepsLabel: "Execution steps JSON",
+          checksLabel: "Simulation checks JSON",
+          checklistLabel: "Operator checklist",
+          simulationPayloadLabel: "Simulation payload JSON",
+          rollbackLabel: "Rollback plan JSON",
+          createAction: "Create execution plan",
+          saveAction: "Save execution plan",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          simulateAction: "Simulate",
+          failAction: "Fail",
+          cancelAction: "Cancel",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and approve or queue at least one ComfyUI job request first.",
+          requiresJobRequest: "Approve or queue one ComfyUI job request first.",
+          noPlans: "No ComfyUI execution plans yet.",
+        };
   const deliverableCopy =
     language === "zh-CN"
       ? {
@@ -5260,6 +5310,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiPreflightsState, setComfyuiPreflightsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiAdapterConfigsState, setComfyuiAdapterConfigsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiJobRequestsState, setComfyuiJobRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [comfyuiExecutionPlansState, setComfyuiExecutionPlansState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [evidenceSnapshotsState, setEvidenceSnapshotsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -5361,6 +5412,17 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiJobSafetyChecksDraft, setComfyuiJobSafetyChecksDraft] = useState("[]");
   const [comfyuiJobOutputsDraft, setComfyuiJobOutputsDraft] = useState("reviewable queue payload, operator recovery guidance");
   const [comfyuiJobRecoveryDraft, setComfyuiJobRecoveryDraft] = useState('{"next_steps":["review preflight","adjust payload if needed"]}');
+  const [selectedComfyuiExecutionPlanId, setSelectedComfyuiExecutionPlanId] = useState("");
+  const [comfyuiExecutionJobRequestId, setComfyuiExecutionJobRequestId] = useState("");
+  const [comfyuiExecutionTitle, setComfyuiExecutionTitle] = useState(language === "zh-CN" ? "ComfyUI 执行预案" : "ComfyUI execution plan");
+  const [comfyuiExecutionPriority, setComfyuiExecutionPriority] = useState<"low" | "normal" | "high">("normal");
+  const [comfyuiExecutionStepsDraft, setComfyuiExecutionStepsDraft] = useState(
+    '[{"title":"Review approved job request","status":"planned"},{"title":"Simulate queue payload locally","status":"planned"}]',
+  );
+  const [comfyuiExecutionChecksDraft, setComfyuiExecutionChecksDraft] = useState("[]");
+  const [comfyuiExecutionChecklistDraft, setComfyuiExecutionChecklistDraft] = useState("approval still valid, adapter disabled, rollback owner confirmed");
+  const [comfyuiExecutionSimulationPayloadDraft, setComfyuiExecutionSimulationPayloadDraft] = useState('{"execution_mode":"metadata_only","queue_submission":false,"upload_files":false}');
+  const [comfyuiExecutionRollbackDraft, setComfyuiExecutionRollbackDraft] = useState('{"next_steps":["review execution plan","adjust queue payload shape"]}');
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -5667,6 +5729,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadComfyuiExecutionPlans = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setComfyuiExecutionPlansState(emptyState());
+        return;
+      }
+      setComfyuiExecutionPlansState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.comfyuiExecutionPlans(operationId, settings);
+        setComfyuiExecutionPlansState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setComfyuiExecutionPlansState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation ComfyUI execution plans API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadDeliverables = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -5831,6 +5915,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadComfyuiPreflights(selectedOperationId);
       void loadComfyuiAdapterConfigs(selectedOperationId);
       void loadComfyuiJobRequests(selectedOperationId);
+      void loadComfyuiExecutionPlans(selectedOperationId);
       void loadDeliverables(selectedOperationId);
       void loadEvidenceSnapshots(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
@@ -5849,6 +5934,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setComfyuiPreflightsState(emptyState());
     setComfyuiAdapterConfigsState(emptyState());
     setComfyuiJobRequestsState(emptyState());
+    setComfyuiExecutionPlansState(emptyState());
     setDeliverablesState(emptyState());
     setEvidenceSnapshotsState(emptyState());
     setExecutionRequestsState(emptyState());
@@ -5857,7 +5943,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -6728,6 +6814,126 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       setActionState({
         data: null,
         error: error instanceof Error ? error.message : "Commercial operation ComfyUI job request action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const editComfyuiExecutionPlan = (plan: JsonRecord) => {
+    const executionPlanId = valueAt(plan, ["id"], "");
+    if (!executionPlanId) {
+      return;
+    }
+    setSelectedComfyuiExecutionPlanId(executionPlanId);
+    setComfyuiExecutionJobRequestId(valueAt(plan, ["job_request_id"], comfyuiExecutionJobRequestId));
+    setComfyuiExecutionTitle(valueAt(plan, ["title"], comfyuiExecutionTitle));
+    setComfyuiExecutionPriority(valueAt(plan, ["priority"], "normal") as "low" | "normal" | "high");
+    setComfyuiExecutionStepsDraft(JSON.stringify((plan.execution_steps as JsonRecord[]) || [], null, 2));
+    setComfyuiExecutionChecksDraft(JSON.stringify((plan.simulation_checks as JsonRecord[]) || [], null, 2));
+    setComfyuiExecutionChecklistDraft(draftListText(plan.operator_checklist));
+    setComfyuiExecutionSimulationPayloadDraft(JSON.stringify((plan.simulation_payload as JsonRecord) || {}, null, 2));
+    setComfyuiExecutionRollbackDraft(JSON.stringify((plan.rollback_plan as JsonRecord) || {}, null, 2));
+  };
+
+  const comfyuiExecutionPlanPayload = (): JsonRecord => ({
+    title: comfyuiExecutionTitle.trim() || "ComfyUI execution plan",
+    priority: comfyuiExecutionPriority,
+    execution_steps: parseJsonArrayDraft(comfyuiExecutionStepsDraft),
+    simulation_checks: parseJsonArrayDraft(comfyuiExecutionChecksDraft),
+    operator_checklist: splitDraftList(comfyuiExecutionChecklistDraft),
+    simulation_payload: parseJsonRecordDraft(comfyuiExecutionSimulationPayloadDraft),
+    rollback_plan: parseJsonRecordDraft(comfyuiExecutionRollbackDraft),
+    metadata: { source: "admin_dashboard", phase: "61U", execution_mode: "metadata_only" },
+  });
+
+  const createComfyuiExecutionPlan = async () => {
+    if (!selectedOperationId || !comfyuiExecutionJobRequestId) {
+      setActionState({
+        data: null,
+        error: comfyuiExecutionCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createComfyuiExecutionPlan(
+        selectedOperationId,
+        comfyuiExecutionJobRequestId,
+        comfyuiExecutionPlanPayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedComfyuiExecutionPlanId(valueAt(created, ["id"], ""));
+      await loadComfyuiExecutionPlans(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI execution plan create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateComfyuiExecutionPlan = async () => {
+    if (!selectedOperationId || !selectedComfyuiExecutionPlanId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateComfyuiExecutionPlan(
+        selectedOperationId,
+        selectedComfyuiExecutionPlanId,
+        comfyuiExecutionPlanPayload(),
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiExecutionPlans(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI execution plan update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateComfyuiExecutionPlan = async (
+    executionPlanId: string,
+    action: "ready" | "approve" | "reject" | "simulate" | "fail" | "cancel" | "archive",
+  ) => {
+    if (!selectedOperationId || !executionPlanId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyComfyuiExecutionPlan(selectedOperationId, executionPlanId, settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveComfyuiExecutionPlan(selectedOperationId, executionPlanId, settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectComfyuiExecutionPlan(selectedOperationId, executionPlanId, settings)
+              : action === "simulate"
+                ? await commercialOperationsApi.simulateComfyuiExecutionPlan(selectedOperationId, executionPlanId, settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failComfyuiExecutionPlan(selectedOperationId, executionPlanId, "Failed during metadata-only ComfyUI execution simulation; operator action required.", settings)
+                  : action === "cancel"
+                    ? await commercialOperationsApi.cancelComfyuiExecutionPlan(selectedOperationId, executionPlanId, settings)
+                    : await commercialOperationsApi.archiveComfyuiExecutionPlan(selectedOperationId, executionPlanId, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiExecutionPlans(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI execution plan action unavailable",
         loading: false,
         updatedAt: nowLabel(),
       });
@@ -7804,6 +8010,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const comfyuiAdapterConfigs = comfyuiAdapterConfigsState.data || [];
   const readyComfyuiAdapterConfigs = comfyuiAdapterConfigs.filter((config) => valueAt(config, ["config_status"], "") === "ready");
   const comfyuiJobRequests = comfyuiJobRequestsState.data || [];
+  const actionableComfyuiJobRequests = comfyuiJobRequests.filter((jobRequest) => ["approved", "queued"].includes(valueAt(jobRequest, ["job_status"], "")));
+  const comfyuiExecutionPlans = comfyuiExecutionPlansState.data || [];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -7925,6 +8133,33 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, [checkedComfyuiPreflights, comfyuiJobPreflightId, selectedComfyuiJobRequestId]);
 
   useEffect(() => {
+    if (comfyuiExecutionJobRequestId && actionableComfyuiJobRequests.some((jobRequest) => valueAt(jobRequest, ["id"], "") === comfyuiExecutionJobRequestId)) {
+      return;
+    }
+    const nextJobRequest = actionableComfyuiJobRequests[0];
+    const nextJobRequestId = nextJobRequest ? valueAt(nextJobRequest, ["id"], "") : "";
+    setComfyuiExecutionJobRequestId(nextJobRequestId);
+    if (nextJobRequest && !selectedComfyuiExecutionPlanId) {
+      setComfyuiExecutionTitle(`${valueAt(nextJobRequest, ["title"], "ComfyUI job request")} execution plan`);
+      setComfyuiExecutionPriority(valueAt(nextJobRequest, ["priority"], "normal") as "low" | "normal" | "high");
+      setComfyuiExecutionSimulationPayloadDraft(
+        JSON.stringify(
+          {
+            execution_mode: "metadata_only",
+            queue_submission: false,
+            upload_files: false,
+            job_request_id: nextJobRequestId,
+            queue_name: valueAt(nextJobRequest, ["queue_name"], ""),
+            workflow_name: valueAt(nextJobRequest, ["workflow_name"], ""),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }, [actionableComfyuiJobRequests, comfyuiExecutionJobRequestId, selectedComfyuiExecutionPlanId]);
+
+  useEffect(() => {
     if (deliverableContentDraftId && approvedContentDrafts.some((draft) => valueAt(draft, ["id"], "") === deliverableContentDraftId)) {
       return;
     }
@@ -8028,7 +8263,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -9097,6 +9332,166 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{comfyuiJobCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={comfyuiExecutionCopy.title} description={comfyuiExecutionCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-asset-grid">
+              <label>
+                {comfyuiExecutionCopy.jobRequestLabel}
+                <select value={comfyuiExecutionJobRequestId} onChange={(event) => setComfyuiExecutionJobRequestId(event.target.value)}>
+                  {actionableComfyuiJobRequests.length ? null : <option value="">{comfyuiExecutionCopy.requiresJobRequest}</option>}
+                  {actionableComfyuiJobRequests.map((jobRequest) => {
+                    const jobRequestId = valueAt(jobRequest, ["id"], "");
+                    return (
+                      <option value={jobRequestId} key={jobRequestId}>
+                        {valueAt(jobRequest, ["title"])} / {valueAt(jobRequest, ["job_status"], "-")} / {valueAt(jobRequest, ["workflow_name"], "-")}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={comfyuiExecutionTitle} onChange={(event) => setComfyuiExecutionTitle(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiExecutionCopy.priorityLabel}
+                <select value={comfyuiExecutionPriority} onChange={(event) => setComfyuiExecutionPriority(event.target.value as "low" | "normal" | "high")}>
+                  <option value="low">low</option>
+                  <option value="normal">normal</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label>
+                {comfyuiExecutionCopy.checklistLabel}
+                <textarea value={comfyuiExecutionChecklistDraft} onChange={(event) => setComfyuiExecutionChecklistDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiExecutionCopy.stepsLabel}
+                <textarea value={comfyuiExecutionStepsDraft} onChange={(event) => setComfyuiExecutionStepsDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiExecutionCopy.checksLabel}
+                <textarea value={comfyuiExecutionChecksDraft} onChange={(event) => setComfyuiExecutionChecksDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiExecutionCopy.simulationPayloadLabel}
+                <textarea value={comfyuiExecutionSimulationPayloadDraft} onChange={(event) => setComfyuiExecutionSimulationPayloadDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiExecutionCopy.rollbackLabel}
+                <textarea value={comfyuiExecutionRollbackDraft} onChange={(event) => setComfyuiExecutionRollbackDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createComfyuiExecutionPlan()}
+                disabled={!comfyuiExecutionJobRequestId || !comfyuiExecutionTitle.trim() || actionState.loading}
+              >
+                <Send size={15} />
+                {comfyuiExecutionCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateComfyuiExecutionPlan()}
+                disabled={!selectedComfyuiExecutionPlanId || !comfyuiExecutionTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {comfyuiExecutionCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={comfyuiExecutionPlansState} />
+            {comfyuiExecutionPlansState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiExecutionPlansState.updatedAt}</div> : null}
+            {comfyuiExecutionPlans.length ? (
+              <div className="commercial-asset-list">
+                {comfyuiExecutionPlans.map((executionPlan) => {
+                  const executionPlanId = valueAt(executionPlan, ["id"], "");
+                  const planStatus = valueAt(executionPlan, ["plan_status"], "");
+                  return (
+                    <article className="commercial-asset-item" key={executionPlanId}>
+                      <div>
+                        <strong>{valueAt(executionPlan, ["title"])}</strong>
+                        <span>{valueAt(executionPlan, ["queue_name"], "-")} / {valueAt(executionPlan, ["workflow_name"], "-")} / {valueAt(executionPlan, ["priority"], "normal")}</span>
+                        <p>{shortJson(executionPlan.simulation_checks, 90)}</p>
+                        <p>{shortJson(executionPlan.plan_payload, 90)}</p>
+                        <StatusPill value={planStatus} />
+                      </div>
+                      <div className="commercial-asset-actions">
+                        <button className="ghost-button" onClick={() => editComfyuiExecutionPlan(executionPlan)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {comfyuiExecutionCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(planStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiExecutionCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "approve")}
+                          disabled={planStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiExecutionCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "reject")}
+                          disabled={planStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiExecutionCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "simulate")}
+                          disabled={planStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {comfyuiExecutionCopy.simulateAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "fail")}
+                          disabled={planStatus !== "approved" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiExecutionCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "cancel")}
+                          disabled={["cancelled", "archived"].includes(planStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiExecutionCopy.cancelAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiExecutionPlan(executionPlanId, "archive")}
+                          disabled={planStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiExecutionCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{actionableComfyuiJobRequests.length ? comfyuiExecutionCopy.noPlans : comfyuiExecutionCopy.requiresJobRequest}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{comfyuiExecutionCopy.selectedHint}</div>
         )}
       </Panel>
 
