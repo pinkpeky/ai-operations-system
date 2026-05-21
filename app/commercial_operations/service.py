@@ -15,6 +15,7 @@ from app.models.commercial_operation import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIAdapterDispatch,
     CommercialOperationComfyUIConnectionProbe,
     CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
@@ -35,6 +36,7 @@ from app.models.enums import (
     CommercialOperationApprovalStatus,
     CommercialOperationAssetRequestStatus,
     CommercialOperationComfyUIAdapterConfigStatus,
+    CommercialOperationComfyUIAdapterDispatchStatus,
     CommercialOperationComfyUIConnectionProbeStatus,
     CommercialOperationComfyUIExecutionPlanStatus,
     CommercialOperationComfyUIHandoffStatus,
@@ -3240,6 +3242,505 @@ class CommercialOperationService:
             failure_reason=None,
         )
 
+    async def create_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        connection_probe_id: UUID,
+        title: str | None = None,
+        dispatch_mode: str = "metadata_only",
+        prompt_payload: dict[str, Any] | None = None,
+        workflow_payload: dict[str, Any] | None = None,
+        queue_payload: dict[str, Any] | None = None,
+        dispatch_payload: dict[str, Any] | None = None,
+        guardrails: list[dict[str, Any]] | None = None,
+        operator_checklist: list[str] | None = None,
+        retry_policy: dict[str, Any] | None = None,
+        recovery_plan: dict[str, Any] | None = None,
+        planned_by: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=connection_probe_id,
+        )
+        if probe.probe_status != CommercialOperationComfyUIConnectionProbeStatus.PROBED.value:
+            raise ValueError("ComfyUI adapter dispatches require a probed connection probe")
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=probe.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=probe.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=probe.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=probe.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        clean_prompt_payload = self._build_comfyui_adapter_dispatch_prompt_payload(
+            prompt_payload=prompt_payload,
+            handoff=handoff,
+            job_request=job_request,
+            execution_plan=execution_plan,
+        )
+        clean_workflow_payload = self._build_comfyui_adapter_dispatch_workflow_payload(
+            workflow_payload=workflow_payload,
+            handoff=handoff,
+            job_request=job_request,
+            execution_plan=execution_plan,
+            adapter_config=adapter_config,
+        )
+        clean_queue_payload = self._build_comfyui_adapter_dispatch_queue_payload(
+            queue_payload=queue_payload,
+            job_request=job_request,
+            execution_plan=execution_plan,
+            probe=probe,
+        )
+        clean_dispatch_payload = self._normalize_comfyui_adapter_dispatch_payload(
+            dispatch_payload=dispatch_payload,
+            dispatch_mode=dispatch_mode,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            adapter_config=adapter_config,
+        )
+        clean_operator_checklist = self._clean_list(operator_checklist) or [
+            "connection probe recorded",
+            "operator approval required before any real ComfyUI adapter is enabled",
+            "dispatch remains metadata-only",
+        ]
+        checks, result_summary, failure_reason = self._evaluate_comfyui_adapter_dispatch(
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            adapter_config=adapter_config,
+            dispatch_payload=clean_dispatch_payload,
+            guardrails=guardrails,
+            operator_checklist=clean_operator_checklist,
+        )
+        dispatch = CommercialOperationComfyUIAdapterDispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=probe.id,
+            execution_plan_id=probe.execution_plan_id,
+            job_request_id=probe.job_request_id,
+            preflight_id=probe.preflight_id,
+            handoff_id=probe.handoff_id,
+            adapter_config_id=probe.adapter_config_id,
+            asset_request_id=probe.asset_request_id,
+            step_key=probe.step_key,
+            title=(
+                self._clean_required_text(title, "title")
+                if title and title.strip()
+                else f"ComfyUI adapter dispatch: {probe.title}"
+            )[:255],
+            dispatch_status=CommercialOperationComfyUIAdapterDispatchStatus.DRAFT.value,
+            dispatch_mode="metadata_only",
+            target_url=probe.target_url,
+            queue_name=probe.queue_name,
+            workflow_name=probe.workflow_name,
+            prompt_payload=clean_prompt_payload,
+            workflow_payload=clean_workflow_payload,
+            queue_payload=clean_queue_payload,
+            dispatch_payload=clean_dispatch_payload,
+            guardrails=checks,
+            operator_checklist=clean_operator_checklist,
+            retry_policy=self._build_comfyui_adapter_dispatch_retry_policy(
+                retry_policy=retry_policy,
+                dispatch_status=CommercialOperationComfyUIAdapterDispatchStatus.DRAFT.value,
+                failure_reason=failure_reason,
+            ),
+            recovery_plan=self._build_comfyui_adapter_dispatch_recovery_plan(
+                recovery_plan=recovery_plan,
+                dispatch_status=CommercialOperationComfyUIAdapterDispatchStatus.DRAFT.value,
+                failure_reason=failure_reason,
+            ),
+            result_summary=result_summary,
+            failure_reason=failure_reason,
+            planned_by=planned_by,
+            updated_by=planned_by,
+            dispatch_metadata=metadata or {},
+        )
+        self.session.add(dispatch)
+        await self.session.flush()
+        dispatch.dispatch_plan_payload = self._build_comfyui_adapter_dispatch_plan_payload(
+            operation=operation,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            dispatch=dispatch,
+        )
+        self._apply_comfyui_adapter_dispatch_to_plan(operation, dispatch)
+        await self.session.commit()
+        await self.session.refresh(dispatch)
+        return dispatch
+
+    async def list_comfyui_adapter_dispatches(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        status: str | None = None,
+        connection_probe_id: UUID | None = None,
+        limit: int = 100,
+    ) -> list[CommercialOperationComfyUIAdapterDispatch]:
+        await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        statement = select(CommercialOperationComfyUIAdapterDispatch).where(
+            CommercialOperationComfyUIAdapterDispatch.workspace_id == workspace_id,
+            CommercialOperationComfyUIAdapterDispatch.operation_id == operation_id,
+        )
+        if status is not None:
+            statement = statement.where(CommercialOperationComfyUIAdapterDispatch.dispatch_status == status)
+        if connection_probe_id is not None:
+            statement = statement.where(CommercialOperationComfyUIAdapterDispatch.connection_probe_id == connection_probe_id)
+        result = await self.session.execute(
+            statement.order_by(CommercialOperationComfyUIAdapterDispatch.updated_at.desc()).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def require_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        result = await self.session.execute(
+            select(CommercialOperationComfyUIAdapterDispatch).where(
+                CommercialOperationComfyUIAdapterDispatch.workspace_id == workspace_id,
+                CommercialOperationComfyUIAdapterDispatch.operation_id == operation_id,
+                CommercialOperationComfyUIAdapterDispatch.id == adapter_dispatch_id,
+            )
+        )
+        dispatch = result.scalar_one_or_none()
+        if dispatch is None:
+            raise ValueError("Commercial operation ComfyUI adapter dispatch not found in workspace")
+        return dispatch
+
+    async def update_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        patch: dict[str, Any],
+        updated_by: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+        )
+        if dispatch.dispatch_status in {
+            CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.CANCELLED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.ARCHIVED.value,
+        }:
+            raise ValueError("Dispatched, cancelled, or archived ComfyUI adapter dispatches cannot be updated")
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=dispatch.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=dispatch.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=dispatch.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=dispatch.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=dispatch.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        if "title" in patch and patch["title"] is not None:
+            dispatch.title = self._clean_required_text(patch["title"], "title")[:255]
+        if "prompt_payload" in patch and patch["prompt_payload"] is not None:
+            dispatch.prompt_payload = self._build_comfyui_adapter_dispatch_prompt_payload(
+                prompt_payload=patch["prompt_payload"],
+                handoff=handoff,
+                job_request=job_request,
+                execution_plan=execution_plan,
+            )
+        if "workflow_payload" in patch and patch["workflow_payload"] is not None:
+            dispatch.workflow_payload = self._build_comfyui_adapter_dispatch_workflow_payload(
+                workflow_payload=patch["workflow_payload"],
+                handoff=handoff,
+                job_request=job_request,
+                execution_plan=execution_plan,
+                adapter_config=adapter_config,
+            )
+        if "queue_payload" in patch and patch["queue_payload"] is not None:
+            dispatch.queue_payload = self._build_comfyui_adapter_dispatch_queue_payload(
+                queue_payload=patch["queue_payload"],
+                job_request=job_request,
+                execution_plan=execution_plan,
+                probe=probe,
+            )
+        if "dispatch_payload" in patch and patch["dispatch_payload"] is not None:
+            dispatch.dispatch_payload = self._normalize_comfyui_adapter_dispatch_payload(
+                dispatch_payload=patch["dispatch_payload"],
+                dispatch_mode=patch.get("dispatch_mode") or dispatch.dispatch_mode,
+                probe=probe,
+                execution_plan=execution_plan,
+                job_request=job_request,
+                adapter_config=adapter_config,
+            )
+        if "operator_checklist" in patch and patch["operator_checklist"] is not None:
+            dispatch.operator_checklist = self._clean_list(patch["operator_checklist"])
+        if "retry_policy" in patch and patch["retry_policy"] is not None:
+            dispatch.retry_policy = self._build_comfyui_adapter_dispatch_retry_policy(
+                retry_policy=patch["retry_policy"],
+                dispatch_status=dispatch.dispatch_status,
+                failure_reason=dispatch.failure_reason,
+            )
+        if "recovery_plan" in patch and patch["recovery_plan"] is not None:
+            dispatch.recovery_plan = self._build_comfyui_adapter_dispatch_recovery_plan(
+                recovery_plan=patch["recovery_plan"],
+                dispatch_status=dispatch.dispatch_status,
+                failure_reason=dispatch.failure_reason,
+            )
+        for field in ("result_summary", "failure_reason", "reviewer_notes"):
+            if field in patch:
+                value = patch[field]
+                setattr(dispatch, field, value.strip() if isinstance(value, str) and value.strip() else None)
+        if "metadata" in patch and patch["metadata"] is not None:
+            dispatch.dispatch_metadata = patch["metadata"] or {}
+        if "dispatch_payload" not in patch:
+            dispatch.dispatch_payload = self._normalize_comfyui_adapter_dispatch_payload(
+                dispatch_payload=dispatch.dispatch_payload,
+                dispatch_mode=dispatch.dispatch_mode,
+                probe=probe,
+                execution_plan=execution_plan,
+                job_request=job_request,
+                adapter_config=adapter_config,
+            )
+        checks, result_summary, failure_reason = self._evaluate_comfyui_adapter_dispatch(
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            adapter_config=adapter_config,
+            dispatch_payload=dispatch.dispatch_payload,
+            guardrails=patch.get("guardrails") if "guardrails" in patch else dispatch.guardrails,
+            operator_checklist=dispatch.operator_checklist,
+        )
+        dispatch.guardrails = checks
+        dispatch.result_summary = result_summary
+        dispatch.failure_reason = failure_reason
+        dispatch.dispatch_status = CommercialOperationComfyUIAdapterDispatchStatus.DRAFT.value
+        dispatch.dispatch_mode = "metadata_only"
+        dispatch.updated_by = updated_by
+        dispatch.approved_by = None
+        dispatch.dispatched_by = None
+        dispatch.cancelled_by = None
+        dispatch.approved_at = None
+        dispatch.rejected_at = None
+        dispatch.dispatched_at = None
+        dispatch.failed_at = None
+        dispatch.cancelled_at = None
+        dispatch.archived_at = None
+        dispatch.retry_policy = self._build_comfyui_adapter_dispatch_retry_policy(
+            retry_policy=dispatch.retry_policy,
+            dispatch_status=dispatch.dispatch_status,
+            failure_reason=dispatch.failure_reason,
+        )
+        dispatch.recovery_plan = self._build_comfyui_adapter_dispatch_recovery_plan(
+            recovery_plan=dispatch.recovery_plan,
+            dispatch_status=dispatch.dispatch_status,
+            failure_reason=dispatch.failure_reason,
+        )
+        dispatch.dispatch_plan_payload = self._build_comfyui_adapter_dispatch_plan_payload(
+            operation=operation,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            dispatch=dispatch,
+        )
+        self._apply_comfyui_adapter_dispatch_to_plan(operation, dispatch)
+        await self.session.commit()
+        await self.session.refresh(dispatch)
+        return dispatch
+
+    async def mark_comfyui_adapter_dispatch_ready(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.READY_FOR_REVIEW.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def approve_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        approved_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value,
+            actor_user_id=approved_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def reject_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        rejected_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.REJECTED.value,
+            actor_user_id=rejected_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def dispatch_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        dispatched_by: str | None = None,
+        result_summary: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+            actor_user_id=dispatched_by,
+            reviewer_notes=None,
+            result_summary=result_summary,
+            failure_reason=None,
+        )
+
+    async def fail_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        updated_by: str | None = None,
+        failure_reason: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=None,
+            result_summary=None,
+            failure_reason=failure_reason,
+        )
+
+    async def cancel_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        updated_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.CANCELLED.value,
+            actor_user_id=updated_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
+    async def archive_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        archived_by: str | None = None,
+        reviewer_notes: str | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        return await self._decide_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            status=CommercialOperationComfyUIAdapterDispatchStatus.ARCHIVED.value,
+            actor_user_id=archived_by,
+            reviewer_notes=reviewer_notes,
+            result_summary=None,
+            failure_reason=None,
+        )
+
     async def create_deliverable(
         self,
         *,
@@ -6306,6 +6807,197 @@ class CommercialOperationService:
         await self.session.refresh(probe)
         return probe
 
+    async def _decide_comfyui_adapter_dispatch(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        status: str,
+        actor_user_id: str | None,
+        reviewer_notes: str | None,
+        result_summary: str | None,
+        failure_reason: str | None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+        )
+        if dispatch.dispatch_status == CommercialOperationComfyUIAdapterDispatchStatus.ARCHIVED.value:
+            raise ValueError("Archived ComfyUI adapter dispatches cannot be changed")
+        if status == CommercialOperationComfyUIAdapterDispatchStatus.READY_FOR_REVIEW.value and dispatch.dispatch_status not in {
+            CommercialOperationComfyUIAdapterDispatchStatus.DRAFT.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.REJECTED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value,
+        }:
+            raise ValueError("Only draft, rejected, or failed ComfyUI adapter dispatches can be marked ready")
+        if status in {
+            CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.REJECTED.value,
+        } and dispatch.dispatch_status != CommercialOperationComfyUIAdapterDispatchStatus.READY_FOR_REVIEW.value:
+            raise ValueError("Only ready ComfyUI adapter dispatches can be approved or rejected")
+        if status == CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value and dispatch.dispatch_status != (
+            CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value
+        ):
+            raise ValueError("Only approved ComfyUI adapter dispatches can be marked dispatched")
+        if status == CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value and dispatch.dispatch_status not in {
+            CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+        }:
+            raise ValueError("Only approved or dispatched ComfyUI adapter dispatches can be failed")
+        if status == CommercialOperationComfyUIAdapterDispatchStatus.CANCELLED.value and dispatch.dispatch_status in {
+            CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.CANCELLED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.ARCHIVED.value,
+        }:
+            raise ValueError("ComfyUI adapter dispatch is already terminal")
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        probe = await self.require_comfyui_connection_probe(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            connection_probe_id=dispatch.connection_probe_id,
+        )
+        execution_plan = await self.require_comfyui_execution_plan(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=dispatch.execution_plan_id,
+        )
+        job_request = await self.require_comfyui_job_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            job_request_id=dispatch.job_request_id,
+        )
+        preflight = await self.require_comfyui_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight_id=dispatch.preflight_id,
+        )
+        handoff = await self.require_comfyui_handoff(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            handoff_id=dispatch.handoff_id,
+        )
+        adapter_config = await self._optional_comfyui_adapter_config_for_preflight(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            preflight=preflight,
+        )
+        dispatch.dispatch_payload = self._normalize_comfyui_adapter_dispatch_payload(
+            dispatch_payload=dispatch.dispatch_payload,
+            dispatch_mode=dispatch.dispatch_mode,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            adapter_config=adapter_config,
+        )
+        checks, evaluated_summary, evaluated_failure = self._evaluate_comfyui_adapter_dispatch(
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            adapter_config=adapter_config,
+            dispatch_payload=dispatch.dispatch_payload,
+            guardrails=dispatch.guardrails,
+            operator_checklist=dispatch.operator_checklist,
+        )
+        if status in {
+            CommercialOperationComfyUIAdapterDispatchStatus.READY_FOR_REVIEW.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+        } and evaluated_failure:
+            raise ValueError(f"ComfyUI adapter dispatch is blocked: {evaluated_failure}")
+
+        now = datetime.now(UTC)
+        dispatch.dispatch_status = status
+        dispatch.dispatch_mode = "metadata_only"
+        dispatch.guardrails = checks
+        dispatch.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else None
+        dispatch.result_summary = (
+            result_summary.strip()
+            if result_summary and result_summary.strip()
+            else evaluated_summary
+            if status != CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value
+            else None
+        )
+        dispatch.failure_reason = (
+            failure_reason.strip()
+            if failure_reason and failure_reason.strip()
+            else evaluated_failure
+            if status == CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value
+            else None
+        )
+        dispatch.updated_by = actor_user_id
+        if status == CommercialOperationComfyUIAdapterDispatchStatus.READY_FOR_REVIEW.value:
+            dispatch.approved_by = None
+            dispatch.dispatched_by = None
+            dispatch.cancelled_by = None
+            dispatch.approved_at = None
+            dispatch.rejected_at = None
+            dispatch.dispatched_at = None
+            dispatch.failed_at = None
+            dispatch.cancelled_at = None
+            dispatch.archived_at = None
+        elif status == CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value:
+            dispatch.approved_by = actor_user_id
+            dispatch.approved_at = now
+            dispatch.rejected_at = None
+            dispatch.dispatched_at = None
+            dispatch.failed_at = None
+            dispatch.cancelled_at = None
+            dispatch.archived_at = None
+        elif status == CommercialOperationComfyUIAdapterDispatchStatus.REJECTED.value:
+            dispatch.rejected_at = now
+            dispatch.approved_by = None
+            dispatch.dispatched_by = None
+            dispatch.approved_at = None
+            dispatch.dispatched_at = None
+            dispatch.failed_at = None
+            dispatch.cancelled_at = None
+            dispatch.archived_at = None
+        elif status == CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value:
+            dispatch.dispatched_by = actor_user_id
+            dispatch.dispatched_at = now
+            dispatch.failed_at = None
+            dispatch.cancelled_at = None
+            dispatch.archived_at = None
+        elif status == CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value:
+            dispatch.failed_at = now
+            dispatch.cancelled_at = None
+            dispatch.archived_at = None
+        elif status == CommercialOperationComfyUIAdapterDispatchStatus.CANCELLED.value:
+            dispatch.cancelled_by = actor_user_id
+            dispatch.cancelled_at = now
+            dispatch.archived_at = None
+        elif status == CommercialOperationComfyUIAdapterDispatchStatus.ARCHIVED.value:
+            dispatch.archived_by = actor_user_id
+            dispatch.archived_at = now
+        dispatch.retry_policy = self._build_comfyui_adapter_dispatch_retry_policy(
+            retry_policy=dispatch.retry_policy,
+            dispatch_status=dispatch.dispatch_status,
+            failure_reason=dispatch.failure_reason,
+        )
+        dispatch.recovery_plan = self._build_comfyui_adapter_dispatch_recovery_plan(
+            recovery_plan=dispatch.recovery_plan,
+            dispatch_status=dispatch.dispatch_status,
+            failure_reason=dispatch.failure_reason,
+        )
+        dispatch.dispatch_plan_payload = self._build_comfyui_adapter_dispatch_plan_payload(
+            operation=operation,
+            probe=probe,
+            execution_plan=execution_plan,
+            job_request=job_request,
+            preflight=preflight,
+            handoff=handoff,
+            adapter_config=adapter_config,
+            dispatch=dispatch,
+        )
+        self._apply_comfyui_adapter_dispatch_to_plan(operation, dispatch)
+        await self.session.commit()
+        await self.session.refresh(dispatch)
+        return dispatch
+
     async def _decide_deliverable(
         self,
         *,
@@ -8322,6 +9014,350 @@ class CommercialOperationService:
             ],
         }
 
+    def _build_comfyui_adapter_dispatch_prompt_payload(
+        self,
+        *,
+        prompt_payload: dict[str, Any] | None,
+        handoff: CommercialOperationComfyUIHandoff,
+        job_request: CommercialOperationComfyUIJobRequest,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+    ) -> dict[str, Any]:
+        payload = prompt_payload.copy() if isinstance(prompt_payload, dict) else {}
+        payload.update(
+            {
+                "source": "metadata_only",
+                "handoff_id": str(handoff.id),
+                "job_request_id": str(job_request.id),
+                "execution_plan_id": str(execution_plan.id),
+                "workflow_name": execution_plan.workflow_name,
+                "prompt_payload": handoff.prompt_payload,
+                "runtime_payload": job_request.runtime_payload,
+                "generation_started": False,
+                "execution_boundary": "metadata-only prompt payload; no ComfyUI prompt is submitted",
+            }
+        )
+        return payload
+
+    def _build_comfyui_adapter_dispatch_workflow_payload(
+        self,
+        *,
+        workflow_payload: dict[str, Any] | None,
+        handoff: CommercialOperationComfyUIHandoff,
+        job_request: CommercialOperationComfyUIJobRequest,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        payload = workflow_payload.copy() if isinstance(workflow_payload, dict) else {}
+        payload.update(
+            {
+                "source": "metadata_only",
+                "handoff_workflow_payload": handoff.workflow_payload,
+                "workflow_name": execution_plan.workflow_name,
+                "queue_name": execution_plan.queue_name,
+                "job_request_status": job_request.job_status,
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "allowed_workflows": adapter_config.allowed_workflows if adapter_config else [],
+                "workflow_validation": "documented_only",
+                "execution_boundary": "metadata-only workflow payload; no ComfyUI workflow is loaded or executed",
+            }
+        )
+        return payload
+
+    def _build_comfyui_adapter_dispatch_queue_payload(
+        self,
+        *,
+        queue_payload: dict[str, Any] | None,
+        job_request: CommercialOperationComfyUIJobRequest,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        probe: CommercialOperationComfyUIConnectionProbe,
+    ) -> dict[str, Any]:
+        payload = queue_payload.copy() if isinstance(queue_payload, dict) else {}
+        payload.update(
+            {
+                "source": "metadata_only",
+                "queue_name": probe.queue_name,
+                "workflow_name": probe.workflow_name,
+                "execution_plan_queue_payload": execution_plan.queue_payload,
+                "job_request_runtime_payload": job_request.runtime_payload,
+                "connection_probe_id": str(probe.id),
+                "connection_probe_status": probe.probe_status,
+                "queue_submission": False,
+                "queue_read": False,
+                "execution_boundary": "metadata-only queue payload; no ComfyUI queue read or submission occurs",
+            }
+        )
+        return payload
+
+    def _normalize_comfyui_adapter_dispatch_payload(
+        self,
+        *,
+        dispatch_payload: dict[str, Any] | None,
+        dispatch_mode: str,
+        probe: CommercialOperationComfyUIConnectionProbe,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+    ) -> dict[str, Any]:
+        payload = dispatch_payload.copy() if isinstance(dispatch_payload, dict) else {}
+        payload.update(
+            {
+                "adapter": "future_guarded_comfyui_adapter",
+                "dispatch_mode": "metadata_only",
+                "requested_dispatch_mode": str(dispatch_mode or "metadata_only").strip() or "metadata_only",
+                "connection_mode": "metadata_only",
+                "network_request": False,
+                "network_probe": False,
+                "read_only_probe": False,
+                "queue_read": False,
+                "queue_submission": False,
+                "prompt_submission": False,
+                "submit_job": False,
+                "submit_jobs": False,
+                "upload_files": False,
+                "generation_started": False,
+                "external_calls": "disabled",
+                "dry_run_only": True,
+                "approval_required": True,
+                "connection_probe_id": str(probe.id),
+                "execution_plan_id": str(execution_plan.id),
+                "job_request_id": str(job_request.id),
+                "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+                "adapter_config_status": adapter_config.config_status if adapter_config else None,
+                "target_url": probe.target_url,
+                "queue_name": probe.queue_name,
+                "workflow_name": probe.workflow_name,
+                "secret_ref": adapter_config.secret_ref if adapter_config else None,
+                "secret_value_present": False,
+            }
+        )
+        return payload
+
+    def _build_comfyui_adapter_dispatch_retry_policy(
+        self,
+        *,
+        retry_policy: dict[str, Any] | None,
+        dispatch_status: str,
+        failure_reason: str | None,
+    ) -> dict[str, Any]:
+        policy = retry_policy.copy() if isinstance(retry_policy, dict) else {}
+        try:
+            max_attempts = int(policy.get("max_attempts", 1) or 1)
+        except (TypeError, ValueError):
+            max_attempts = 1
+        policy.update(
+            {
+                "retry_mode": "operator_review_only",
+                "max_attempts": min(max(max_attempts, 1), 3),
+                "dispatch_status": dispatch_status,
+                "last_failure_reason": failure_reason,
+                "queue_retry_enabled": False,
+                "automatic_retry": False,
+                "execution_boundary": "retry policy only; no ComfyUI retry is scheduled",
+            }
+        )
+        return policy
+
+    def _build_comfyui_adapter_dispatch_recovery_plan(
+        self,
+        *,
+        recovery_plan: dict[str, Any] | None,
+        dispatch_status: str,
+        failure_reason: str | None,
+    ) -> dict[str, Any]:
+        plan = recovery_plan.copy() if isinstance(recovery_plan, dict) else {}
+        next_steps = plan.get("next_steps")
+        if not isinstance(next_steps, list) or not next_steps:
+            next_steps = [
+                "review connection probe and adapter config",
+                "confirm operator approval before enabling any real adapter",
+                "keep dispatch metadata-only until runtime adapter is implemented",
+            ]
+        plan.update(
+            {
+                "status": dispatch_status,
+                "failure_reason": failure_reason,
+                "next_steps": self._clean_list(next_steps),
+                "rollback_required": dispatch_status in {CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value},
+                "external_recovery_action": False,
+                "execution_boundary": "recovery plan only; no ComfyUI recovery action is executed",
+            }
+        )
+        return plan
+
+    def _evaluate_comfyui_adapter_dispatch(
+        self,
+        *,
+        probe: CommercialOperationComfyUIConnectionProbe,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        dispatch_payload: dict[str, Any],
+        guardrails: list[dict[str, Any]] | None,
+        operator_checklist: list[str],
+    ) -> tuple[list[dict[str, Any]], str, str | None]:
+        generated_checks = [
+            {
+                "key": "connection_probe_probed",
+                "label": "Connection probe is recorded",
+                "status": probe.probe_status == CommercialOperationComfyUIConnectionProbeStatus.PROBED.value,
+                "severity": "blocker",
+                "message": "Adapter dispatches require a probed ComfyUI connection probe.",
+                "source": "system",
+            },
+            {
+                "key": "execution_plan_approved_or_simulated",
+                "label": "Execution plan is approved or simulated",
+                "status": execution_plan.plan_status
+                in {
+                    CommercialOperationComfyUIExecutionPlanStatus.APPROVED.value,
+                    CommercialOperationComfyUIExecutionPlanStatus.SIMULATED.value,
+                },
+                "severity": "blocker",
+                "message": "Adapter dispatches must trace to an approved or simulated execution plan.",
+                "source": "system",
+            },
+            {
+                "key": "job_request_approved_or_queued",
+                "label": "Job request remains approved or queued",
+                "status": job_request.job_status
+                in {
+                    CommercialOperationComfyUIJobRequestStatus.APPROVED.value,
+                    CommercialOperationComfyUIJobRequestStatus.QUEUED.value,
+                },
+                "severity": "blocker",
+                "message": "Adapter dispatches must trace to an approved or queued job request.",
+                "source": "system",
+            },
+            {
+                "key": "preflight_checked",
+                "label": "ComfyUI preflight is checked",
+                "status": preflight.preflight_status == CommercialOperationComfyUIPreflightStatus.CHECKED.value,
+                "severity": "blocker",
+                "message": "The source preflight must remain checked.",
+                "source": "system",
+            },
+            {
+                "key": "adapter_config_ready",
+                "label": "Maintained adapter config is ready",
+                "status": adapter_config is not None
+                and adapter_config.config_status == CommercialOperationComfyUIAdapterConfigStatus.READY.value,
+                "severity": "blocker",
+                "message": "Adapter dispatches require a ready maintained adapter config.",
+                "source": "system",
+            },
+            {
+                "key": "target_url_present",
+                "label": "Target URL is configured",
+                "status": bool(probe.target_url),
+                "severity": "blocker",
+                "message": "A target URL is required before a future guarded dispatch can be reviewed.",
+                "source": "system",
+            },
+            {
+                "key": "operator_checklist_present",
+                "label": "Operator checklist is present",
+                "status": bool(operator_checklist),
+                "severity": "blocker",
+                "message": "Adapter dispatches require an operator checklist before review.",
+                "source": "system",
+            },
+            {
+                "key": "metadata_only_dispatch_boundary",
+                "label": "Metadata-only dispatch boundary is active",
+                "status": dispatch_payload.get("dispatch_mode") == "metadata_only"
+                and dispatch_payload.get("network_request") is False
+                and dispatch_payload.get("queue_submission") is False
+                and dispatch_payload.get("prompt_submission") is False
+                and dispatch_payload.get("submit_job") is False
+                and dispatch_payload.get("submit_jobs") is False
+                and dispatch_payload.get("upload_files") is False
+                and dispatch_payload.get("generation_started") is False
+                and dispatch_payload.get("external_calls") == "disabled",
+                "severity": "blocker",
+                "message": "This phase only records a dispatch plan and must not call ComfyUI.",
+                "source": "system",
+            },
+        ]
+        generated_keys = {item["key"] for item in generated_checks}
+        merged_checks = list(generated_checks)
+        for item in self._clean_check_items(guardrails):
+            if item["key"] not in generated_keys:
+                merged_checks.append(item)
+        blockers = [
+            item
+            for item in merged_checks
+            if not item.get("status") and str(item.get("severity", "")).lower() in {"blocker", "error"}
+        ]
+        if blockers:
+            labels = ", ".join(str(item.get("label") or item.get("key")) for item in blockers[:4])
+            return merged_checks, "ComfyUI adapter dispatch is blocked; maintainer action is required.", labels
+        return (
+            merged_checks,
+            "ComfyUI adapter dispatch is ready as a metadata-only guarded dispatch record; no adapter call occurred.",
+            None,
+        )
+
+    def _build_comfyui_adapter_dispatch_plan_payload(
+        self,
+        *,
+        operation: CommercialOperation,
+        probe: CommercialOperationComfyUIConnectionProbe,
+        execution_plan: CommercialOperationComfyUIExecutionPlan,
+        job_request: CommercialOperationComfyUIJobRequest,
+        preflight: CommercialOperationComfyUIPreflight,
+        handoff: CommercialOperationComfyUIHandoff,
+        adapter_config: CommercialOperationComfyUIAdapterConfig | None,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> dict[str, Any]:
+        return {
+            "operation_id": str(operation.id),
+            "operation_title": operation.title,
+            "adapter_dispatch_id": str(dispatch.id) if dispatch.id else None,
+            "dispatch_status": dispatch.dispatch_status,
+            "connection_probe_id": str(probe.id),
+            "connection_probe_status": probe.probe_status,
+            "execution_plan_id": str(execution_plan.id),
+            "execution_plan_status": execution_plan.plan_status,
+            "job_request_id": str(job_request.id),
+            "job_request_status": job_request.job_status,
+            "preflight_id": str(preflight.id),
+            "handoff_id": str(handoff.id),
+            "adapter_config_id": str(adapter_config.id) if adapter_config else None,
+            "adapter_config_status": adapter_config.config_status if adapter_config else None,
+            "asset_request_id": str(handoff.asset_request_id),
+            "step_key": dispatch.step_key,
+            "title": dispatch.title,
+            "target_url": dispatch.target_url,
+            "queue_name": dispatch.queue_name,
+            "workflow_name": dispatch.workflow_name,
+            "dispatch_mode": "metadata_only",
+            "prompt_payload": dispatch.prompt_payload,
+            "workflow_payload": dispatch.workflow_payload,
+            "queue_payload": dispatch.queue_payload,
+            "dispatch_payload": dispatch.dispatch_payload,
+            "guardrails": dispatch.guardrails,
+            "operator_checklist": dispatch.operator_checklist,
+            "retry_policy": dispatch.retry_policy,
+            "recovery_plan": dispatch.recovery_plan,
+            "result_summary": dispatch.result_summary,
+            "failure_reason": dispatch.failure_reason,
+            "execution_boundary": "metadata-only ComfyUI adapter dispatch; no ComfyUI HTTP request, prompt submission, upload, queue submission, or media generation occurs",
+            "next_runtime": "future_guarded_comfyui_runtime_adapter",
+            "forbidden_actions": [
+                "no ComfyUI HTTP request",
+                "no ComfyUI prompt submission",
+                "no ComfyUI queue submission",
+                "no file upload to ComfyUI",
+                "no image/video generation",
+                "no publishing",
+                "no account control",
+                "no secret value storage",
+                "no approval bypass",
+            ],
+        }
+
     async def _require_deliverable_asset_requests(
         self,
         *,
@@ -9234,6 +10270,39 @@ class CommercialOperationService:
                     updated["comfyui_connection_probe_decision_at"] = probe.cancelled_at.isoformat()
                 elif probe.archived_at is not None:
                     updated["comfyui_connection_probe_decision_at"] = probe.archived_at.isoformat()
+                outline.append(updated)
+            else:
+                outline.append(dict(step))
+        operation.plan_outline = outline
+
+    def _apply_comfyui_adapter_dispatch_to_plan(
+        self,
+        operation: CommercialOperation,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> None:
+        outline: list[dict[str, Any]] = []
+        for step in operation.plan_outline or []:
+            if step.get("step_key") == dispatch.step_key:
+                updated = dict(step)
+                updated["comfyui_adapter_dispatch_id"] = str(dispatch.id)
+                updated["comfyui_adapter_dispatch_status"] = dispatch.dispatch_status
+                updated["comfyui_adapter_dispatch_connection_probe_id"] = str(dispatch.connection_probe_id)
+                updated["comfyui_adapter_dispatch_target_url"] = dispatch.target_url
+                updated["comfyui_adapter_dispatch_queue_name"] = dispatch.queue_name
+                updated["comfyui_adapter_dispatch_workflow_name"] = dispatch.workflow_name
+                updated["comfyui_adapter_dispatch_mode"] = dispatch.dispatch_mode
+                if dispatch.dispatched_at is not None:
+                    updated["comfyui_adapter_dispatch_decision_at"] = dispatch.dispatched_at.isoformat()
+                elif dispatch.approved_at is not None:
+                    updated["comfyui_adapter_dispatch_decision_at"] = dispatch.approved_at.isoformat()
+                elif dispatch.rejected_at is not None:
+                    updated["comfyui_adapter_dispatch_decision_at"] = dispatch.rejected_at.isoformat()
+                elif dispatch.failed_at is not None:
+                    updated["comfyui_adapter_dispatch_decision_at"] = dispatch.failed_at.isoformat()
+                elif dispatch.cancelled_at is not None:
+                    updated["comfyui_adapter_dispatch_decision_at"] = dispatch.cancelled_at.isoformat()
+                elif dispatch.archived_at is not None:
+                    updated["comfyui_adapter_dispatch_decision_at"] = dispatch.archived_at.isoformat()
                 outline.append(updated)
             else:
                 outline.append(dict(step))

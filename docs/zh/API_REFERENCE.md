@@ -3560,3 +3560,21 @@ API:
 - `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/archive`
 
 边界：ComfyUI connection probe 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved probe 的 `probe` 状态只是人工操作记录，不代表真实 HTTP 请求或 read-only queue probe。
+## Phase 61W: 商业运营 ComfyUI 适配器调度记录
+
+Phase 61W 新增 `commercial_operation_comfyui_adapter_dispatches` 与 `CommercialOperationComfyUIAdapterDispatch` 记录，并提供 `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches`。操作人员可以从 probed ComfyUI connection probe 创建 metadata-only adapter dispatch，编辑、送审、批准、驳回、标记 dispatched、标记 failed、取消或归档。该记录用于保存未来受控 ComfyUI adapter dispatch 方案、prompt/workflow/queue payload、sanitized dispatch payload、guardrails、operator checklist、retry policy 与 recovery plan；系统不会保存密钥值、不会请求 ComfyUI、不会提交 prompt、不会读取队列、不会上传文件、不会提交队列、不会生成媒体。
+
+端点：
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-connection-probes/{connection_probe_id}/adapter-dispatches`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/dispatch`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/archive`
+
+边界：ComfyUI adapter dispatch 只是元数据记录。它不会调用 ComfyUI health/prompt/history/upload/queue 端点，不会提交 prompt，不会读取队列，不会上传文件，不会提交任务，不会生成媒体，不会发布，不会运行 OpenClaw 或 Browser Worker，不会控制真实账号，不会接入平台分析，不会宣称 ROI 归因，也不会绕过审批。approved dispatch 的 `dispatch` 状态只是人工操作记录，不代表真实 adapter 调用或 queue submission。

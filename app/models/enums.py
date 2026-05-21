@@ -186,6 +186,19 @@ class CommercialOperationComfyUIConnectionProbeStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class CommercialOperationComfyUIAdapterDispatchStatus(StrEnum):
+    """Commercial operation ComfyUI adapter dispatch lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    DISPATCHED = "dispatched"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    ARCHIVED = "archived"
+
+
 class CommercialOperationDeliverableStatus(StrEnum):
     """Commercial operation deliverable lifecycle status."""
 

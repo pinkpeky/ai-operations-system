@@ -463,7 +463,7 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61V",
+    boundaryTitle: "Phase 61W",
     boundaryBody: "商业运营 ComfyUI 连接探测：从已批准或已模拟的执行预案创建受控健康检查和只读队列快照记录；当前仍不请求 ComfyUI、不读取队列、不上传文件、不提交任务、不生成媒体、不发布、不控制账号。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
@@ -726,8 +726,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61V",
-    boundaryBody: "Commercial operation ComfyUI connection probes: prepare metadata-only health-check and read-only queue snapshot records from approved or simulated execution plans while keeping ComfyUI calls, queue reads, uploads, job submission, media generation, publishing, and account control disabled.",
+    boundaryTitle: "Phase 61W",
+    boundaryBody: "Commercial operation ComfyUI adapter dispatch records: create reviewable, recoverable metadata-only dispatch handoffs from recorded connection probes while keeping ComfyUI calls, queue reads, uploads, job submission, media generation, publishing, and account control disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -5016,6 +5016,62 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           requiresExecutionPlan: "Approve or simulate one ComfyUI execution plan first.",
           noProbes: "No ComfyUI connection probes yet.",
         };
+  const comfyuiDispatchCopy =
+    language === "zh-CN"
+      ? {
+          title: "ComfyUI 适配器调度记录",
+          description: "从已记录的连接探测创建可审批的适配器调度交接。这里只保存 prompt、workflow、queue、护栏、重试和恢复元数据，不会请求 ComfyUI、上传文件、提交队列或生成媒体。",
+          connectionProbeLabel: "已记录连接探测",
+          modeLabel: "调度模式",
+          promptPayloadLabel: "Prompt payload JSON",
+          workflowPayloadLabel: "Workflow payload JSON",
+          queuePayloadLabel: "Queue payload JSON",
+          dispatchPayloadLabel: "Dispatch payload JSON",
+          guardrailsLabel: "护栏 JSON",
+          checklistLabel: "操作清单",
+          retryPolicyLabel: "重试策略 JSON",
+          recoveryPlanLabel: "恢复方案 JSON",
+          createAction: "创建调度记录",
+          saveAction: "保存调度记录",
+          editAction: "编辑",
+          readyAction: "送审",
+          approveAction: "批准",
+          rejectAction: "驳回",
+          dispatchAction: "记录调度",
+          failAction: "失败",
+          cancelAction: "取消",
+          archiveAction: "归档",
+          selectedHint: "先选择项目，并记录至少一个 ComfyUI 连接探测。",
+          requiresProbe: "先记录一个 ComfyUI 连接探测。",
+          noDispatches: "暂无 ComfyUI 适配器调度记录。",
+        }
+      : {
+          title: "ComfyUI adapter dispatches",
+          description: "Create reviewable adapter dispatch handoffs from recorded connection probes. This stores prompt, workflow, queue, guardrail, retry, and recovery metadata only; it does not call ComfyUI, upload files, submit queues, or generate media.",
+          connectionProbeLabel: "Recorded connection probe",
+          modeLabel: "Dispatch mode",
+          promptPayloadLabel: "Prompt payload JSON",
+          workflowPayloadLabel: "Workflow payload JSON",
+          queuePayloadLabel: "Queue payload JSON",
+          dispatchPayloadLabel: "Dispatch payload JSON",
+          guardrailsLabel: "Guardrails JSON",
+          checklistLabel: "Operator checklist",
+          retryPolicyLabel: "Retry policy JSON",
+          recoveryPlanLabel: "Recovery plan JSON",
+          createAction: "Create dispatch",
+          saveAction: "Save dispatch",
+          editAction: "Edit",
+          readyAction: "Ready",
+          approveAction: "Approve",
+          rejectAction: "Reject",
+          dispatchAction: "Record dispatch",
+          failAction: "Fail",
+          cancelAction: "Cancel",
+          archiveAction: "Archive",
+          selectedHint: "Select an operation and record at least one ComfyUI connection probe first.",
+          requiresProbe: "Record one ComfyUI connection probe first.",
+          noDispatches: "No ComfyUI adapter dispatches yet.",
+        };
   const deliverableCopy =
     language === "zh-CN"
       ? {
@@ -5368,6 +5424,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiJobRequestsState, setComfyuiJobRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiExecutionPlansState, setComfyuiExecutionPlansState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [comfyuiConnectionProbesState, setComfyuiConnectionProbesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [comfyuiAdapterDispatchesState, setComfyuiAdapterDispatchesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [deliverablesState, setDeliverablesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [evidenceSnapshotsState, setEvidenceSnapshotsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [executionRequestsState, setExecutionRequestsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
@@ -5492,6 +5549,18 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const [comfyuiProbeHealthSnapshotDraft, setComfyuiProbeHealthSnapshotDraft] = useState('{"source":"metadata_only","reachable":"not_measured"}');
   const [comfyuiProbeQueueSnapshotDraft, setComfyuiProbeQueueSnapshotDraft] = useState('{"source":"metadata_only","queue_observed":false}');
   const [comfyuiProbeSchemaDraft, setComfyuiProbeSchemaDraft] = useState('{"health_response":{"expected_keys":["system","devices"]},"queue_response":{"expected_keys":["queue_running","queue_pending"]}}');
+  const [selectedComfyuiAdapterDispatchId, setSelectedComfyuiAdapterDispatchId] = useState("");
+  const [comfyuiDispatchConnectionProbeId, setComfyuiDispatchConnectionProbeId] = useState("");
+  const [comfyuiDispatchTitle, setComfyuiDispatchTitle] = useState(language === "zh-CN" ? "ComfyUI 适配器调度记录" : "ComfyUI adapter dispatch");
+  const [comfyuiDispatchMode, setComfyuiDispatchMode] = useState("metadata_only");
+  const [comfyuiDispatchPromptPayloadDraft, setComfyuiDispatchPromptPayloadDraft] = useState('{"source":"metadata_only"}');
+  const [comfyuiDispatchWorkflowPayloadDraft, setComfyuiDispatchWorkflowPayloadDraft] = useState('{"workflow_validation":"documented_only"}');
+  const [comfyuiDispatchQueuePayloadDraft, setComfyuiDispatchQueuePayloadDraft] = useState('{"queue_submission":false,"queue_read":false}');
+  const [comfyuiDispatchPayloadDraft, setComfyuiDispatchPayloadDraft] = useState('{"dispatch_mode":"metadata_only","queue_submission":false,"prompt_submission":false}');
+  const [comfyuiDispatchGuardrailsDraft, setComfyuiDispatchGuardrailsDraft] = useState("[]");
+  const [comfyuiDispatchChecklistDraft, setComfyuiDispatchChecklistDraft] = useState("connection probe recorded, operator approval required, no real adapter call");
+  const [comfyuiDispatchRetryDraft, setComfyuiDispatchRetryDraft] = useState('{"retry_mode":"operator_review_only","max_attempts":1}');
+  const [comfyuiDispatchRecoveryDraft, setComfyuiDispatchRecoveryDraft] = useState('{"next_steps":["review connection probe","keep dispatch metadata-only"]}');
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -5842,6 +5911,28 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     [settings],
   );
 
+  const loadComfyuiAdapterDispatches = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setComfyuiAdapterDispatchesState(emptyState());
+        return;
+      }
+      setComfyuiAdapterDispatchesState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.comfyuiAdapterDispatches(operationId, settings);
+        setComfyuiAdapterDispatchesState({ data: toItems(response), error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setComfyuiAdapterDispatchesState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation ComfyUI adapter dispatches API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadDeliverables = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -6008,6 +6099,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
       void loadComfyuiJobRequests(selectedOperationId);
       void loadComfyuiExecutionPlans(selectedOperationId);
       void loadComfyuiConnectionProbes(selectedOperationId);
+      void loadComfyuiAdapterDispatches(selectedOperationId);
       void loadDeliverables(selectedOperationId);
       void loadEvidenceSnapshots(selectedOperationId);
       void loadExecutionRequests(selectedOperationId);
@@ -6028,6 +6120,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setComfyuiJobRequestsState(emptyState());
     setComfyuiExecutionPlansState(emptyState());
     setComfyuiConnectionProbesState(emptyState());
+    setComfyuiAdapterDispatchesState(emptyState());
     setDeliverablesState(emptyState());
     setEvidenceSnapshotsState(emptyState());
     setExecutionRequestsState(emptyState());
@@ -6036,7 +6129,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -7159,6 +7252,132 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
     }
   };
 
+  const editComfyuiAdapterDispatch = (dispatch: JsonRecord) => {
+    const adapterDispatchId = valueAt(dispatch, ["id"], "");
+    if (!adapterDispatchId) {
+      return;
+    }
+    setSelectedComfyuiAdapterDispatchId(adapterDispatchId);
+    setComfyuiDispatchConnectionProbeId(valueAt(dispatch, ["connection_probe_id"], comfyuiDispatchConnectionProbeId));
+    setComfyuiDispatchTitle(valueAt(dispatch, ["title"], comfyuiDispatchTitle));
+    setComfyuiDispatchMode(valueAt(dispatch, ["dispatch_mode"], "metadata_only"));
+    setComfyuiDispatchPromptPayloadDraft(JSON.stringify((dispatch.prompt_payload as JsonRecord) || {}, null, 2));
+    setComfyuiDispatchWorkflowPayloadDraft(JSON.stringify((dispatch.workflow_payload as JsonRecord) || {}, null, 2));
+    setComfyuiDispatchQueuePayloadDraft(JSON.stringify((dispatch.queue_payload as JsonRecord) || {}, null, 2));
+    setComfyuiDispatchPayloadDraft(JSON.stringify((dispatch.dispatch_payload as JsonRecord) || {}, null, 2));
+    setComfyuiDispatchGuardrailsDraft(JSON.stringify((dispatch.guardrails as JsonRecord[]) || [], null, 2));
+    setComfyuiDispatchChecklistDraft(draftListText(dispatch.operator_checklist));
+    setComfyuiDispatchRetryDraft(JSON.stringify((dispatch.retry_policy as JsonRecord) || {}, null, 2));
+    setComfyuiDispatchRecoveryDraft(JSON.stringify((dispatch.recovery_plan as JsonRecord) || {}, null, 2));
+  };
+
+  const comfyuiAdapterDispatchPayload = (): JsonRecord => ({
+    title: comfyuiDispatchTitle.trim() || "ComfyUI adapter dispatch",
+    dispatch_mode: comfyuiDispatchMode.trim() || "metadata_only",
+    prompt_payload: parseJsonRecordDraft(comfyuiDispatchPromptPayloadDraft),
+    workflow_payload: parseJsonRecordDraft(comfyuiDispatchWorkflowPayloadDraft),
+    queue_payload: parseJsonRecordDraft(comfyuiDispatchQueuePayloadDraft),
+    dispatch_payload: parseJsonRecordDraft(comfyuiDispatchPayloadDraft),
+    guardrails: parseJsonArrayDraft(comfyuiDispatchGuardrailsDraft),
+    operator_checklist: splitDraftList(comfyuiDispatchChecklistDraft),
+    retry_policy: parseJsonRecordDraft(comfyuiDispatchRetryDraft),
+    recovery_plan: parseJsonRecordDraft(comfyuiDispatchRecoveryDraft),
+    metadata: { source: "admin_dashboard", phase: "61W", dispatch_mode: "metadata_only" },
+  });
+
+  const createComfyuiAdapterDispatch = async () => {
+    if (!selectedOperationId || !comfyuiDispatchConnectionProbeId) {
+      setActionState({
+        data: null,
+        error: comfyuiDispatchCopy.selectedHint,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await commercialOperationsApi.createComfyuiAdapterDispatch(
+        selectedOperationId,
+        comfyuiDispatchConnectionProbeId,
+        comfyuiAdapterDispatchPayload(),
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      setSelectedComfyuiAdapterDispatchId(valueAt(created, ["id"], ""));
+      await loadComfyuiAdapterDispatches(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI adapter dispatch create unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const updateComfyuiAdapterDispatch = async () => {
+    if (!selectedOperationId || !selectedComfyuiAdapterDispatchId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const updated = await commercialOperationsApi.updateComfyuiAdapterDispatch(
+        selectedOperationId,
+        selectedComfyuiAdapterDispatchId,
+        comfyuiAdapterDispatchPayload(),
+        settings,
+      );
+      setActionState({ data: updated, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiAdapterDispatches(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI adapter dispatch update unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
+  const mutateComfyuiAdapterDispatch = async (
+    adapterDispatchId: string,
+    action: "ready" | "approve" | "reject" | "dispatch" | "fail" | "cancel" | "archive",
+  ) => {
+    if (!selectedOperationId || !adapterDispatchId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response =
+        action === "ready"
+          ? await commercialOperationsApi.readyComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
+          : action === "approve"
+            ? await commercialOperationsApi.approveComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
+            : action === "reject"
+              ? await commercialOperationsApi.rejectComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
+              : action === "dispatch"
+                ? await commercialOperationsApi.dispatchComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
+                : action === "fail"
+                  ? await commercialOperationsApi.failComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, "Failed during metadata-only ComfyUI adapter dispatch review; maintainer action required.", settings)
+                  : action === "cancel"
+                    ? await commercialOperationsApi.cancelComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
+                    : await commercialOperationsApi.archiveComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings);
+      setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiAdapterDispatches(selectedOperationId);
+      await load();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation ComfyUI adapter dispatch action unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const editOperationDeliverable = (deliverable: JsonRecord) => {
     const deliverableId = valueAt(deliverable, ["id"], "");
     if (!deliverableId) {
@@ -8233,6 +8452,8 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   const comfyuiExecutionPlans = comfyuiExecutionPlansState.data || [];
   const actionableComfyuiExecutionPlans = comfyuiExecutionPlans.filter((plan) => ["approved", "simulated"].includes(valueAt(plan, ["plan_status"], "")));
   const comfyuiConnectionProbes = comfyuiConnectionProbesState.data || [];
+  const actionableComfyuiConnectionProbes = comfyuiConnectionProbes.filter((probe) => valueAt(probe, ["probe_status"], "") === "probed");
+  const comfyuiAdapterDispatches = comfyuiAdapterDispatchesState.data || [];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -8406,6 +8627,41 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
   }, [actionableComfyuiExecutionPlans, comfyuiProbeExecutionPlanId, selectedComfyuiConnectionProbeId]);
 
   useEffect(() => {
+    if (comfyuiDispatchConnectionProbeId && actionableComfyuiConnectionProbes.some((probe) => valueAt(probe, ["id"], "") === comfyuiDispatchConnectionProbeId)) {
+      return;
+    }
+    const nextProbe = actionableComfyuiConnectionProbes[0];
+    const nextProbeId = nextProbe ? valueAt(nextProbe, ["id"], "") : "";
+    setComfyuiDispatchConnectionProbeId(nextProbeId);
+    if (nextProbe && !selectedComfyuiAdapterDispatchId) {
+      setComfyuiDispatchTitle(`${valueAt(nextProbe, ["title"], "ComfyUI connection probe")} adapter dispatch`);
+      setComfyuiDispatchPromptPayloadDraft(
+        JSON.stringify(
+          {
+            source: "metadata_only",
+            connection_probe_id: nextProbeId,
+            workflow_name: valueAt(nextProbe, ["workflow_name"], ""),
+          },
+          null,
+          2,
+        ),
+      );
+      setComfyuiDispatchQueuePayloadDraft(
+        JSON.stringify(
+          {
+            queue_submission: false,
+            queue_read: false,
+            queue_name: valueAt(nextProbe, ["queue_name"], ""),
+            workflow_name: valueAt(nextProbe, ["workflow_name"], ""),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  }, [actionableComfyuiConnectionProbes, comfyuiDispatchConnectionProbeId, selectedComfyuiAdapterDispatchId]);
+
+  useEffect(() => {
     if (deliverableContentDraftId && approvedContentDrafts.some((draft) => valueAt(draft, ["id"], "") === deliverableContentDraftId)) {
       return;
     }
@@ -8509,7 +8765,7 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
-        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
+        <DataCard title={copy.steps} value={String(planStepCount)} detail={`${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`} icon={<BarChart3 size={20} />} />
       </div>
 
       <div className="commercial-grid">
@@ -9909,6 +10165,177 @@ function CommercialOperationsPage({ settings, language }: { settings: AdminSetti
           </>
         ) : (
           <div className="empty-table">{comfyuiProbeCopy.selectedHint}</div>
+        )}
+      </Panel>
+
+      <Panel title={comfyuiDispatchCopy.title} description={comfyuiDispatchCopy.description}>
+        {selectedOperation ? (
+          <>
+            <div className="commercial-asset-grid">
+              <label>
+                {comfyuiDispatchCopy.connectionProbeLabel}
+                <select value={comfyuiDispatchConnectionProbeId} onChange={(event) => setComfyuiDispatchConnectionProbeId(event.target.value)}>
+                  {actionableComfyuiConnectionProbes.length ? null : <option value="">{comfyuiDispatchCopy.requiresProbe}</option>}
+                  {actionableComfyuiConnectionProbes.map((probe) => {
+                    const connectionProbeId = valueAt(probe, ["id"], "");
+                    return (
+                      <option value={connectionProbeId} key={connectionProbeId}>
+                        {valueAt(probe, ["title"])} / {valueAt(probe, ["probe_status"], "-")} / {valueAt(probe, ["workflow_name"], "-")}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label>
+                {copy.titleLabel}
+                <input value={comfyuiDispatchTitle} onChange={(event) => setComfyuiDispatchTitle(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiDispatchCopy.modeLabel}
+                <select value={comfyuiDispatchMode} onChange={(event) => setComfyuiDispatchMode(event.target.value)}>
+                  <option value="metadata_only">metadata_only</option>
+                  <option value="future_guarded_dispatch">future_guarded_dispatch</option>
+                </select>
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiDispatchCopy.promptPayloadLabel}
+                <textarea value={comfyuiDispatchPromptPayloadDraft} onChange={(event) => setComfyuiDispatchPromptPayloadDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiDispatchCopy.workflowPayloadLabel}
+                <textarea value={comfyuiDispatchWorkflowPayloadDraft} onChange={(event) => setComfyuiDispatchWorkflowPayloadDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiDispatchCopy.queuePayloadLabel}
+                <textarea value={comfyuiDispatchQueuePayloadDraft} onChange={(event) => setComfyuiDispatchQueuePayloadDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiDispatchCopy.dispatchPayloadLabel}
+                <textarea value={comfyuiDispatchPayloadDraft} onChange={(event) => setComfyuiDispatchPayloadDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiDispatchCopy.guardrailsLabel}
+                <textarea value={comfyuiDispatchGuardrailsDraft} onChange={(event) => setComfyuiDispatchGuardrailsDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiDispatchCopy.checklistLabel}
+                <textarea value={comfyuiDispatchChecklistDraft} onChange={(event) => setComfyuiDispatchChecklistDraft(event.target.value)} />
+              </label>
+              <label>
+                {comfyuiDispatchCopy.retryPolicyLabel}
+                <textarea value={comfyuiDispatchRetryDraft} onChange={(event) => setComfyuiDispatchRetryDraft(event.target.value)} />
+              </label>
+              <label className="commercial-wide-label">
+                {comfyuiDispatchCopy.recoveryPlanLabel}
+                <textarea value={comfyuiDispatchRecoveryDraft} onChange={(event) => setComfyuiDispatchRecoveryDraft(event.target.value)} />
+              </label>
+            </div>
+            <div className="commercial-action-row">
+              <button
+                className="primary-button"
+                onClick={() => void createComfyuiAdapterDispatch()}
+                disabled={!comfyuiDispatchConnectionProbeId || !comfyuiDispatchTitle.trim() || actionState.loading}
+              >
+                <Send size={15} />
+                {comfyuiDispatchCopy.createAction}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void updateComfyuiAdapterDispatch()}
+                disabled={!selectedComfyuiAdapterDispatchId || !comfyuiDispatchTitle.trim() || actionState.loading}
+              >
+                <ShieldCheck size={15} />
+                {comfyuiDispatchCopy.saveAction}
+              </button>
+            </div>
+            <LoadNotice state={comfyuiAdapterDispatchesState} />
+            {comfyuiAdapterDispatchesState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiAdapterDispatchesState.updatedAt}</div> : null}
+            {comfyuiAdapterDispatches.length ? (
+              <div className="commercial-asset-list">
+                {comfyuiAdapterDispatches.map((dispatch) => {
+                  const adapterDispatchId = valueAt(dispatch, ["id"], "");
+                  const dispatchStatus = valueAt(dispatch, ["dispatch_status"], "");
+                  return (
+                    <article className="commercial-asset-item" key={adapterDispatchId}>
+                      <div>
+                        <strong>{valueAt(dispatch, ["title"])}</strong>
+                        <span>{valueAt(dispatch, ["target_url"], "-")} / {valueAt(dispatch, ["queue_name"], "-")} / {valueAt(dispatch, ["workflow_name"], "-")}</span>
+                        <p>{shortJson(dispatch.guardrails, 90)}</p>
+                        <p>{shortJson(dispatch.dispatch_plan_payload, 90)}</p>
+                        <StatusPill value={dispatchStatus} />
+                      </div>
+                      <div className="commercial-asset-actions">
+                        <button className="ghost-button" onClick={() => editComfyuiAdapterDispatch(dispatch)} disabled={actionState.loading}>
+                          <FileText size={15} />
+                          {comfyuiDispatchCopy.editAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "ready")}
+                          disabled={!["draft", "rejected", "failed"].includes(dispatchStatus) || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiDispatchCopy.readyAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "approve")}
+                          disabled={dispatchStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <ShieldCheck size={15} />
+                          {comfyuiDispatchCopy.approveAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "reject")}
+                          disabled={dispatchStatus !== "ready_for_review" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiDispatchCopy.rejectAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "dispatch")}
+                          disabled={dispatchStatus !== "approved" || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {comfyuiDispatchCopy.dispatchAction}
+                        </button>
+                        <button
+                          className="ghost-button danger-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "fail")}
+                          disabled={dispatchStatus !== "approved" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiDispatchCopy.failAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "cancel")}
+                          disabled={["cancelled", "archived", "dispatched"].includes(dispatchStatus) || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiDispatchCopy.cancelAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "archive")}
+                          disabled={dispatchStatus === "archived" || actionState.loading}
+                        >
+                          <AlertTriangle size={15} />
+                          {comfyuiDispatchCopy.archiveAction}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-table">{actionableComfyuiConnectionProbes.length ? comfyuiDispatchCopy.noDispatches : comfyuiDispatchCopy.requiresProbe}</div>
+            )}
+          </>
+        ) : (
+          <div className="empty-table">{comfyuiDispatchCopy.selectedHint}</div>
         )}
       </Panel>
 
