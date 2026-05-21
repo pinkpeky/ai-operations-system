@@ -3657,4 +3657,23 @@ Endpoints:
 - `COMFYUI_RUNTIME_ALLOW_NETWORK=False`
 - `COMFYUI_RUNTIME_ALLOWED_HOSTS=127.0.0.1,localhost`
 
+## Phase 62B: ComfyUI Guarded Read-Only Probe
+
+Phase 62B 在 ComfyUI runtime contract 上增加显式门禁的只读健康探测。默认仍不出网。`GET /api/v1/comfyui-runtime/health` 只有在 `COMFYUI_RUNTIME_PROVIDER=guarded`、`COMFYUI_RUNTIME_ENABLED=true`、`COMFYUI_RUNTIME_ALLOW_NETWORK=true`、`COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=true`、base URL host 位于 `COMFYUI_RUNTIME_ALLOWED_HOSTS`、且 health path 位于 `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS` 时，才会尝试一次 `GET /system_stats`。
+
+Endpoints:
+
+- `GET /api/v1/comfyui-runtime/health`
+- `GET /api/v1/comfyui-runtime/capabilities`
+
+新增默认配置:
+
+- `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=False`
+- `COMFYUI_RUNTIME_HEALTH_PATH=/system_stats`
+- `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS=/system_stats`
+
+Health response 会返回 `read_only_probe_enabled`、`read_only_probe_attempted`、`health_path`、`allowed_health_paths`、`probe_status_code` 和 `probe_latency_ms`。
+
+边界：Phase 62B 只允许受控只读健康检查，不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、启用 runtime switch、修改 runtime configuration、读取 environment state 或解析 secret value。
+
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。

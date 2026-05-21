@@ -202,6 +202,15 @@ class Settings(BaseSettings):
     comfyui_runtime_timeout_seconds: float = Field(default=30.0, ge=1.0, le=600.0, alias="COMFYUI_RUNTIME_TIMEOUT_SECONDS")
     comfyui_runtime_allow_network: bool = Field(default=False, alias="COMFYUI_RUNTIME_ALLOW_NETWORK")
     comfyui_runtime_allowed_hosts: str = Field(default="127.0.0.1,localhost", alias="COMFYUI_RUNTIME_ALLOWED_HOSTS")
+    comfyui_runtime_read_only_probe_enabled: bool = Field(
+        default=False,
+        alias="COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED",
+    )
+    comfyui_runtime_health_path: str = Field(default="/system_stats", alias="COMFYUI_RUNTIME_HEALTH_PATH")
+    comfyui_runtime_allowed_health_paths: str = Field(
+        default="/system_stats",
+        alias="COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS",
+    )
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:
@@ -220,6 +229,18 @@ class Settings(BaseSettings):
         """Parse ComfyUI runtime host allowlist from CSV config."""
 
         return {item.strip().lower() for item in self.comfyui_runtime_allowed_hosts.split(",") if item.strip()}
+
+    @property
+    def comfyui_runtime_allowed_health_path_set(self) -> set[str]:
+        """Parse ComfyUI runtime read-only health path allowlist from CSV config."""
+
+        paths: set[str] = set()
+        for item in self.comfyui_runtime_allowed_health_paths.split(","):
+            candidate = item.strip()
+            if not candidate:
+                continue
+            paths.add(candidate if candidate.startswith("/") else f"/{candidate}")
+        return paths
 
     @property
     def allowed_file_type_set(self) -> set[str]:

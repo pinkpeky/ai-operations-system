@@ -19,6 +19,12 @@ class ComfyUIRuntimeHealthResponse(BaseModel):
     network_allowed: bool = False
     external_request_attempted: bool = False
     runtime_calls_enabled: bool = False
+    read_only_probe_enabled: bool = False
+    read_only_probe_attempted: bool = False
+    health_path: str | None = None
+    allowed_health_paths: list[str] = Field(default_factory=list)
+    probe_status_code: int | None = None
+    probe_latency_ms: float | None = None
     base_url: str
     allowed_hosts: list[str] = Field(default_factory=list)
     timeout_seconds: float
@@ -37,6 +43,9 @@ class ComfyUIRuntimeCapabilitiesResponse(BaseModel):
     mock: bool = True
     base_url: str
     allowed_hosts: list[str] = Field(default_factory=list)
+    health_path: str | None = None
+    allowed_health_paths: list[str] = Field(default_factory=list)
+    read_only_probe_enabled: bool = False
     available_actions: list[str] = Field(default_factory=list)
     disabled_actions: list[str] = Field(default_factory=list)
     guardrails: list[str] = Field(default_factory=list)

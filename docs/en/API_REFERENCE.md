@@ -4252,3 +4252,22 @@ Default configuration:
 - `COMFYUI_RUNTIME_ALLOWED_HOSTS=127.0.0.1,localhost`
 
 Boundary: Phase 62A is a contract and visibility layer only. Even when guarded settings are supplied, the health endpoint reports readiness metadata without attempting a network request. Runtime calls, queue reads/submissions, prompt submission, uploads, media generation, runtime switch enablement, and secret resolution remain disabled.
+
+## Phase 62B: ComfyUI Guarded Read-Only Probe
+
+Phase 62B extends the ComfyUI runtime contract with an explicitly gated read-only health probe. The default remains no-network. `GET /api/v1/comfyui-runtime/health` attempts exactly one `GET /system_stats` request only when `COMFYUI_RUNTIME_PROVIDER=guarded`, `COMFYUI_RUNTIME_ENABLED=true`, `COMFYUI_RUNTIME_ALLOW_NETWORK=true`, `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=true`, the base URL host is in `COMFYUI_RUNTIME_ALLOWED_HOSTS`, and the health path is in `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS`.
+
+Endpoints:
+
+- `GET /api/v1/comfyui-runtime/health`
+- `GET /api/v1/comfyui-runtime/capabilities`
+
+Additional default configuration:
+
+- `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=False`
+- `COMFYUI_RUNTIME_HEALTH_PATH=/system_stats`
+- `COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS=/system_stats`
+
+Health responses include `read_only_probe_enabled`, `read_only_probe_attempted`, `health_path`, `allowed_health_paths`, `probe_status_code`, and `probe_latency_ms`.
+
+Boundary: Phase 62B is a guarded read-only health check only. It does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.
