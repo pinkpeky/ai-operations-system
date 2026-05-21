@@ -17,6 +17,7 @@ from app.models import (
     CommercialOperationApproval,
     CommercialOperationAssetRequest,
     CommercialOperationComfyUIAdapterConfig,
+    CommercialOperationComfyUIExecutionPlan,
     CommercialOperationComfyUIHandoff,
     CommercialOperationComfyUIJobRequest,
     CommercialOperationComfyUIPreflight,
@@ -42,6 +43,7 @@ async def test_commercial_operations_api_flow() -> None:
         CommercialOperationApproval,
         CommercialOperationAssetRequest,
         CommercialOperationComfyUIAdapterConfig,
+        CommercialOperationComfyUIExecutionPlan,
         CommercialOperationComfyUIHandoff,
         CommercialOperationComfyUIJobRequest,
         CommercialOperationComfyUIPreflight,
@@ -707,6 +709,99 @@ async def test_commercial_operations_api_flow() -> None:
             assert queued_comfyui_job_request.json()["queued_by"] == "user-commercial-api"
             assert queued_comfyui_job_request.json()["runtime_payload"]["external_calls"] == "disabled"
 
+            comfyui_execution_plan = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{comfyui_job_request_id}/execution-plans",
+                headers=headers,
+                json={
+                    "title": "Newsletter hero ComfyUI execution plan",
+                    "priority": "high",
+                    "execution_steps": [{"title": "Review queue payload", "status": "planned"}],
+                    "simulation_checks": [
+                        {"key": "rollback_owner", "label": "Rollback owner assigned", "status": True}
+                    ],
+                    "operator_checklist": ["approval still valid", "adapter disabled"],
+                    "simulation_payload": {
+                        "execution_mode": "live",
+                        "queue_submission": True,
+                        "upload_files": True,
+                        "submit_job": True,
+                    },
+                    "rollback_plan": {"next_steps": ["pause handoff", "revise queue payload"]},
+                    "metadata": {"phase": "61U"},
+                },
+            )
+            assert comfyui_execution_plan.status_code == 201
+            comfyui_execution_body = comfyui_execution_plan.json()
+            comfyui_execution_plan_id = comfyui_execution_body["id"]
+            assert comfyui_execution_body["plan_status"] == "draft"
+            assert comfyui_execution_body["job_request_id"] == comfyui_job_request_id
+            assert comfyui_execution_body["simulation_payload"]["execution_mode"] == "metadata_only"
+            assert comfyui_execution_body["simulation_payload"]["queue_submission"] is False
+            assert comfyui_execution_body["simulation_payload"]["upload_files"] is False
+            assert comfyui_execution_body["simulation_payload"]["submit_job"] is False
+            assert comfyui_execution_body["plan_payload"]["execution_boundary"] == (
+                "metadata-only ComfyUI execution plan; no ComfyUI API call, upload, or queue submission occurs"
+            )
+            assert "no file upload to ComfyUI" in comfyui_execution_body["plan_payload"]["forbidden_actions"]
+
+            comfyui_execution_plans = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans",
+                headers=headers,
+            )
+            assert comfyui_execution_plans.status_code == 200
+            assert [item["id"] for item in comfyui_execution_plans.json()["items"]] == [comfyui_execution_plan_id]
+
+            hidden_comfyui_execution_plans = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_comfyui_execution_plans.status_code == 404
+
+            updated_comfyui_execution_plan = await client.patch(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{comfyui_execution_plan_id}",
+                headers=headers,
+                json={
+                    "simulation_payload": {
+                        "execution_mode": "live",
+                        "queue_submission": True,
+                        "upload_files": True,
+                        "submit_jobs": True,
+                    },
+                    "operator_checklist": ["approval still valid", "operator reviewed"],
+                },
+            )
+            assert updated_comfyui_execution_plan.status_code == 200
+            assert updated_comfyui_execution_plan.json()["plan_status"] == "draft"
+            assert updated_comfyui_execution_plan.json()["simulation_payload"]["execution_mode"] == "metadata_only"
+            assert updated_comfyui_execution_plan.json()["simulation_payload"]["queue_submission"] is False
+            assert updated_comfyui_execution_plan.json()["simulation_payload"]["upload_files"] is False
+
+            ready_comfyui_execution_plan = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{comfyui_execution_plan_id}/ready",
+                headers=headers,
+                json={"reviewer_notes": "Ready for metadata-only execution simulation review."},
+            )
+            assert ready_comfyui_execution_plan.status_code == 200
+            assert ready_comfyui_execution_plan.json()["plan_status"] == "ready_for_review"
+
+            approved_comfyui_execution_plan = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{comfyui_execution_plan_id}/approve",
+                headers=headers,
+                json={"reviewer_notes": "Approved metadata-only simulation plan."},
+            )
+            assert approved_comfyui_execution_plan.status_code == 200
+            assert approved_comfyui_execution_plan.json()["plan_status"] == "approved"
+            assert approved_comfyui_execution_plan.json()["approved_by"] == "user-commercial-api"
+
+            simulated_comfyui_execution_plan = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{comfyui_execution_plan_id}/simulate",
+                headers=headers,
+                json={"result_summary": "Simulated queue payload locally; no ComfyUI call occurred."},
+            )
+            assert simulated_comfyui_execution_plan.status_code == 200
+            assert simulated_comfyui_execution_plan.json()["plan_status"] == "simulated"
+            assert simulated_comfyui_execution_plan.json()["simulated_by"] == "user-commercial-api"
+
             fetched_after_comfyui_handoff = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}",
                 headers=headers,
@@ -731,6 +826,10 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_job_request_status"] == "queued"
             assert comfyui_step["comfyui_job_request_preflight_id"] == comfyui_preflight_id
             assert comfyui_step["comfyui_job_request_queue_name"] == "commercial-assets"
+            assert comfyui_step["comfyui_execution_plan_id"] == comfyui_execution_plan_id
+            assert comfyui_step["comfyui_execution_plan_status"] == "simulated"
+            assert comfyui_step["comfyui_execution_plan_job_request_id"] == comfyui_job_request_id
+            assert comfyui_step["comfyui_execution_plan_queue_name"] == "commercial-assets"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

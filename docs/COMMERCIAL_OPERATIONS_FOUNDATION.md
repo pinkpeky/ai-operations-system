@@ -8,12 +8,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 > A user provides an operating goal; the system plans, generates content, calls materials and knowledge, waits for approval, executes or publishes safely, monitors effects, recovers failures, and reports commercial results.
 
-Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. Phase 61R adds metadata-only ComfyUI connection preflights from approved or prepared handoffs. Phase 61S adds metadata-only ComfyUI adapter config records for server maintainer endpoint, queue, workflow allowlist, model inventory, runtime-limit, maintenance-note, and secret-reference readiness. Phase 61T adds metadata-only ComfyUI job request records so checked preflights can become reviewable future queue payloads with approval, safety checks, output expectations, and recovery guidance. The system still does not attempt the whole autonomous loop yet.
+Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. Phase 61R adds metadata-only ComfyUI connection preflights from approved or prepared handoffs. Phase 61S adds metadata-only ComfyUI adapter config records for server maintainer endpoint, queue, workflow allowlist, model inventory, runtime-limit, maintenance-note, and secret-reference readiness. Phase 61T adds metadata-only ComfyUI job request records so checked preflights can become reviewable future queue payloads with approval, safety checks, output expectations, and recovery guidance. Phase 61U adds metadata-only ComfyUI execution plan records so approved or queued job requests can become reviewable queue simulation plans with execution steps, local checks, operator checklist, and rollback guidance. The system still does not attempt the whole autonomous loop yet.
 
 ## Branch
 
 ```text
-codex/phase-61t-commercial-comfyui-job-requests
+codex/phase-61u-commercial-comfyui-execution-plans
 ```
 
 ## What This Phase Adds
@@ -28,6 +28,7 @@ codex/phase-61t-commercial-comfyui-job-requests
 - Database table: `commercial_operation_comfyui_preflights`.
 - Database table: `commercial_operation_comfyui_adapter_configs`.
 - Database table: `commercial_operation_comfyui_job_requests`.
+- Database table: `commercial_operation_comfyui_execution_plans`.
 - Database table: `commercial_operation_deliverables`.
 - Database table: `commercial_operation_execution_requests`.
 - Database table: `commercial_operation_execution_runs`.
@@ -45,6 +46,7 @@ codex/phase-61t-commercial-comfyui-job-requests
 - ORM model: `CommercialOperationComfyUIPreflight`.
 - ORM model: `CommercialOperationComfyUIAdapterConfig`.
 - ORM model: `CommercialOperationComfyUIJobRequest`.
+- ORM model: `CommercialOperationComfyUIExecutionPlan`.
 - ORM model: `CommercialOperationDeliverable`.
 - ORM model: `CommercialOperationExecutionRequest`.
 - ORM model: `CommercialOperationExecutionRun`.
@@ -65,6 +67,7 @@ codex/phase-61t-commercial-comfyui-job-requests
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-preflights`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-adapter-configs`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-job-requests`.
+- API route group: `/api/v1/commercial-operations/{operation_id}/comfyui-execution-plans`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/deliverables`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
@@ -92,6 +95,7 @@ codex/phase-61t-commercial-comfyui-job-requests
 - Migration: `0049_phase61r_comfyui_preflights`.
 - Migration: `0050_phase61s_comfyui_configs`.
 - Migration: `0051_phase61t_comfyui_jobs`.
+- Migration: `0052_phase61u_comfyui_plans`.
 
 Each commercial operation stores:
 
@@ -149,6 +153,20 @@ Each commercial operation ComfyUI adapter config stores:
 - workspace, operation, maintainer-facing title, endpoint URL, auth mode, secret reference, queue name, default workflow, allowed workflows, model inventory, runtime limits, maintenance notes, validation checks, and config payload;
 - creator, updater, validator, archiver, validation/failure/archive timestamps, result summary, failure reason, and metadata;
 - `config_status`: `draft`, `ready`, `blocked`, `failed`, or `archived`.
+
+Each commercial operation ComfyUI job request stores:
+
+- workspace, operation, checked preflight, linked handoff, optional adapter config, approved/prepared asset request, and plan-step context;
+- queue name, workflow name, prompt/workflow payloads, runtime payload, safety checks, output expectations, recovery plan, job payload, result summary, failure reason, reviewer notes, and metadata;
+- requester, updater, approver, queuer, canceller, archiver, decision timestamps, failure timestamp, and cancellation timestamp;
+- `job_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `queued`, `failed`, `cancelled`, or `archived`.
+
+Each commercial operation ComfyUI execution plan stores:
+
+- workspace, operation, approved/queued job request, checked preflight, linked handoff, optional adapter config, approved/prepared asset request, and plan-step context;
+- queue name, workflow name, execution mode, queue payload, execution steps, simulation checks, operator checklist, rollback plan, simulation payload, plan payload, result summary, failure reason, reviewer notes, and metadata;
+- planner, updater, approver, simulator, canceller, archiver, decision timestamps, simulation timestamp, failure timestamp, and cancellation timestamp;
+- `plan_status`: `draft`, `ready_for_review`, `approved`, `rejected`, `simulated`, `failed`, `cancelled`, or `archived`.
 
 Each commercial operation deliverable stores:
 
@@ -254,6 +272,12 @@ Phase 61T treats ComfyUI job requests as first-class, metadata-only operating re
 
 Job requests record the checked preflight, linked handoff, optional adapter config and asset request, queue name, workflow name, prompt/workflow payload, runtime payload, safety checks, output expectations, recovery plan, result summary, failure reason, reviewer notes, and operator attribution. The service normalizes runtime payloads back to `execution_mode=metadata_only`, `connection_mode=metadata_only`, `network_probe=false`, `queue_submission=false`, `submit_job=false`, and `external_calls=disabled` so client input cannot accidentally open live execution. Job requests do not call ComfyUI, submit queue jobs, upload files, generate media, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store secret values, or bypass approval. The `job_payload` is designed for workstation users and server maintainers to review the future queue shape and recovery steps before any guarded adapter exists.
 
+## ComfyUI Execution Plans
+
+Phase 61U treats ComfyUI Execution Plans as first-class, metadata-only operating records created from approved or queued ComfyUI job requests. A plan can be drafted, edited, sent for review, approved, rejected, simulated, marked failed, cancelled, or archived. Creating or deciding an execution plan writes the latest execution-plan state back to the matching `plan_outline` step.
+
+Execution plans record the approved/queued job request, checked preflight, linked handoff, optional adapter config and asset request, queue/workflow names, queue payload, execution steps, simulation checks, operator checklist, rollback plan, simulation payload, result summary, failure reason, reviewer notes, and operator attribution. The service normalizes simulation payloads back to `execution_mode=metadata_only`, `connection_mode=metadata_only`, `network_probe=false`, `queue_submission=false`, `submit_job=false`, `upload_files=false`, and `external_calls=disabled` so client input cannot accidentally open live execution. Execution plans do not call ComfyUI, submit queue jobs, upload files, generate media, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store secret values, or bypass approval. The `plan_payload` is designed for workstation users and server maintainers to review the future queue simulation shape and rollback steps before any guarded adapter exists.
+
 ## Deliverables
 
 Phase 61G treats deliverables as the operator-facing handoff package for an approved content draft and approved/prepared asset requests. A deliverable can be created, edited, marked ready for review, approved, rejected, packaged, failed during packaging, or archived. Creating or deciding a deliverable writes the latest deliverable state back to the matching `plan_outline` step.
@@ -317,18 +341,19 @@ Optimization decisions are still metadata-only. They do not auto-optimize conten
 11. Create ComfyUI adapter configs for maintainer-reviewed endpoint, queue, workflow allowlist, model inventory, runtime limits, and secret references; validate them locally without calling ComfyUI.
 12. Create ComfyUI preflights from approved/prepared handoffs, optionally select a ready adapter config, and recheck local readiness without submitting queues.
 13. Create ComfyUI job requests from checked preflights, review safety checks/output expectations/recovery guidance, then approve, reject, mark queued, fail, cancel, or archive them without submitting queues.
-14. Package approved drafts and approved/prepared asset requests into deliverables, then approve, package, fail, or archive the handoff package.
-15. Create execution requests from packaged deliverables, then send them for review, approve/reject them, prepare/cancel/fail them, or archive them without external execution.
-16. Create execution runs from prepared execution requests, then start/succeed/fail/retry/cancel/archive them as metadata-only operating records.
-17. Create result records from succeeded, failed, or cancelled execution runs; record observed metrics, evidence, outcomes, and follow-up actions; then send them for review, approve/reject, or archive them.
-18. Create monitoring observations from approved result records; record metric snapshots, qualitative signals, evidence, anomalies, and recommended actions; then send them for review, approve/reject, or archive them.
-19. Create optimization decisions from approved monitoring observations; record rationale, content, asset, audience, execution, and risk-control actions; then send them for review, approve/reject, or archive them.
-20. Create evidence snapshots from packaged deliverables; record reviewed knowledge collection, source document ids, source links, evidence items, coverage checks, and relevance notes; then send them for review, approve/reject, or archive them.
-21. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
-22. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
-23. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, ComfyUI handoff, ComfyUI preflight, ComfyUI adapter config, ComfyUI job request, deliverable, evidence snapshot, execution request, execution run, result record, monitoring observation, optimization decision, dry-run record, or external material.
+14. Create ComfyUI execution plans from approved/queued job requests, review execution steps, simulation checks, operator checklist, and rollback guidance, then approve, reject, simulate, fail, cancel, or archive them without submitting queues.
+15. Package approved drafts and approved/prepared asset requests into deliverables, then approve, package, fail, or archive the handoff package.
+16. Create execution requests from packaged deliverables, then send them for review, approve/reject them, prepare/cancel/fail them, or archive them without external execution.
+17. Create execution runs from prepared execution requests, then start/succeed/fail/retry/cancel/archive them as metadata-only operating records.
+18. Create result records from succeeded, failed, or cancelled execution runs; record observed metrics, evidence, outcomes, and follow-up actions; then send them for review, approve/reject, or archive them.
+19. Create monitoring observations from approved result records; record metric snapshots, qualitative signals, evidence, anomalies, and recommended actions; then send them for review, approve/reject, or archive them.
+20. Create optimization decisions from approved monitoring observations; record rationale, content, asset, audience, execution, and risk-control actions; then send them for review, approve/reject, or archive them.
+21. Create evidence snapshots from packaged deliverables; record reviewed knowledge collection, source document ids, source links, evidence items, coverage checks, and relevance notes; then send them for review, approve/reject, or archive them.
+22. Create approval gates for risky plan steps, approve/reject/cancel them, and keep the plan outline updated.
+23. Create safe dry-runs from approved approval records, then mark them completed, failed, or cancelled after operator review.
+24. Attach evidence or handoff links so the next operator can find the source conversation, RAG document, generated artifact, task run, workflow run, approval record, content draft, asset request, ComfyUI handoff, ComfyUI preflight, ComfyUI adapter config, ComfyUI job request, ComfyUI execution plan, deliverable, evidence snapshot, execution request, execution run, result record, monitoring observation, optimization decision, dry-run record, or external material.
 
-The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, ComfyUI handoffs, ComfyUI adapter configs, ComfyUI preflights, ComfyUI job requests, deliverables, evidence snapshots, execution requests, execution runs, results, monitoring observations, optimization decisions, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
+The page is intentionally compact: form, list, selected detail, plan draft, content drafts, asset requests, ComfyUI handoffs, ComfyUI adapter configs, ComfyUI preflights, ComfyUI job requests, ComfyUI execution plans, deliverables, evidence snapshots, execution requests, execution runs, results, monitoring observations, optimization decisions, approval gates, safe dry-runs, evidence/handoff links, and action result are visible without requiring operators to understand backend tables.
 
 ## Maintainer Flow
 
@@ -399,6 +424,16 @@ POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_requ
 POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/fail
 POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/cancel
 POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/archive
+POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/execution-plans
+GET /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans
+PATCH /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/ready
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/approve
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/reject
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/simulate
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/fail
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/cancel
+POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/archive
 GET /api/v1/commercial-operations/{operation_id}/deliverables
 POST /api/v1/commercial-operations/{operation_id}/deliverables
 PATCH /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}
@@ -465,7 +500,7 @@ All routes are workspace-scoped through `X-Workspace-Id`. A record created in on
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation. Phase 61S is a metadata-only ComfyUI adapter config foundation. Phase 61T is a metadata-only ComfyUI job request foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief generation foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation. Phase 61S is a metadata-only ComfyUI adapter config foundation. Phase 61T is a metadata-only ComfyUI job request foundation. Phase 61U is a metadata-only ComfyUI execution plan foundation.
 
 It does not publish to social platforms.
 
@@ -473,7 +508,7 @@ It does not execute OpenClaw actions.
 
 It does not run ComfyUI jobs.
 
-It does not call ComfyUI health, prompt, history, upload, or queue endpoints during preflight or job-request preparation.
+It does not call ComfyUI health, prompt, history, upload, or queue endpoints during preflight, job-request preparation, or execution-plan simulation.
 
 It does not upload files to ComfyUI.
 

@@ -32,6 +32,11 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIAdapterConfigListResponse,
     CommercialOperationComfyUIAdapterConfigResponse,
     CommercialOperationComfyUIAdapterConfigUpdateRequest,
+    CommercialOperationComfyUIExecutionPlanCreateRequest,
+    CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    CommercialOperationComfyUIExecutionPlanListResponse,
+    CommercialOperationComfyUIExecutionPlanResponse,
+    CommercialOperationComfyUIExecutionPlanUpdateRequest,
     CommercialOperationComfyUIHandoffCreateRequest,
     CommercialOperationComfyUIHandoffDecisionRequest,
     CommercialOperationComfyUIHandoffListResponse,
@@ -2527,6 +2532,343 @@ async def archive_commercial_operation_comfyui_job_request(
             extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
         )
         raise AppError("Commercial operation ComfyUI job request archive failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-job-requests/{job_request_id}/execution-plans",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+    status_code=201,
+)
+async def create_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    job_request_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanCreateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Create a metadata-only ComfyUI execution plan from an approved job request."""
+
+    try:
+        plan = await CommercialOperationService(session).create_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            job_request_id=job_request_id,
+            planned_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan create API failed",
+            extra={"operation_id": str(operation_id), "job_request_id": str(job_request_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan create failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/comfyui-execution-plans", response_model=CommercialOperationComfyUIExecutionPlanListResponse)
+async def list_commercial_operation_comfyui_execution_plans(
+    operation_id: UUID,
+    status: str | None = Query(default=None, description="draft / ready_for_review / approved / rejected / simulated / failed / cancelled / archived"),
+    job_request_id: UUID | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanListResponse:
+    """List metadata-only ComfyUI execution plans for a commercial operation."""
+
+    try:
+        plans = await CommercialOperationService(session).list_comfyui_execution_plans(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            status=status,
+            job_request_id=job_request_id,
+            limit=limit,
+        )
+        return CommercialOperationComfyUIExecutionPlanListResponse(
+            operation_id=operation_id,
+            items=[CommercialOperationComfyUIExecutionPlanResponse.from_model(item) for item in plans],
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation ComfyUI execution plan list API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation ComfyUI execution plan list failed", status_code=500) from exc
+
+
+@router.patch(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def update_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Patch a metadata-only ComfyUI execution plan before simulation."""
+
+    try:
+        plan = await CommercialOperationService(session).update_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            patch=request.model_dump(exclude_unset=True),
+            updated_by=context.user_id,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan update API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan update failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/ready",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def ready_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Mark a metadata-only ComfyUI execution plan ready for review."""
+
+    try:
+        plan = await CommercialOperationService(session).mark_comfyui_execution_plan_ready(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan ready API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan ready failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/approve",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def approve_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Approve a metadata-only ComfyUI execution plan without submitting it."""
+
+    try:
+        plan = await CommercialOperationService(session).approve_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            approved_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan approve API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan approve failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/reject",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def reject_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Reject a metadata-only ComfyUI execution plan without submitting it."""
+
+    try:
+        plan = await CommercialOperationService(session).reject_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            rejected_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan reject API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan reject failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/simulate",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def simulate_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Mark a ComfyUI execution plan simulated as metadata only; no ComfyUI call occurs."""
+
+    try:
+        plan = await CommercialOperationService(session).simulate_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            simulated_by=context.user_id,
+            result_summary=request.result_summary,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan simulate API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan simulate failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/fail",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def fail_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Mark a ComfyUI execution plan failed without external execution."""
+
+    try:
+        plan = await CommercialOperationService(session).fail_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            updated_by=context.user_id,
+            failure_reason=request.failure_reason,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan fail API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan fail failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/cancel",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def cancel_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Cancel a metadata-only ComfyUI execution plan."""
+
+    try:
+        plan = await CommercialOperationService(session).cancel_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            updated_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan cancel API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan cancel failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-execution-plans/{execution_plan_id}/archive",
+    response_model=CommercialOperationComfyUIExecutionPlanResponse,
+)
+async def archive_commercial_operation_comfyui_execution_plan(
+    operation_id: UUID,
+    execution_plan_id: UUID,
+    request: CommercialOperationComfyUIExecutionPlanDecisionRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIExecutionPlanResponse:
+    """Archive a ComfyUI execution plan without deleting its audit trail."""
+
+    try:
+        plan = await CommercialOperationService(session).archive_comfyui_execution_plan(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            execution_plan_id=execution_plan_id,
+            archived_by=context.user_id,
+            reviewer_notes=request.reviewer_notes,
+        )
+        return CommercialOperationComfyUIExecutionPlanResponse.from_model(plan)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI execution plan archive API failed",
+            extra={"operation_id": str(operation_id), "execution_plan_id": str(execution_plan_id)},
+        )
+        raise AppError("Commercial operation ComfyUI execution plan archive failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/deliverables", response_model=CommercialOperationDeliverableResponse, status_code=201)

@@ -4106,3 +4106,24 @@ Endpoints:
 Supported `job_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `queued`, `failed`, `cancelled`, and `archived`.
 
 Boundary: ComfyUI job requests are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved requests can be marked queued only as an operator-facing state record; no ComfyUI queue submission occurs.
+
+## Phase 61U: Commercial Operation ComfyUI Execution Plans
+
+Phase 61U adds `commercial_operation_comfyui_execution_plans` and `CommercialOperationComfyUIExecutionPlan` records below each commercial operation. Operators can create metadata-only execution plans from approved or queued ComfyUI job requests, edit them, send them for review, approve or reject them, simulate them locally, mark failed plans, cancel active plans, or archive their audit trail. These records document future guarded ComfyUI queue simulation steps, simulation checks, operator checklist items, rollback guidance, and normalized queue payload shape without uploading files, storing secret values, calling ComfyUI, submitting queues, or generating media.
+
+Endpoints:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-job-requests/{job_request_id}/execution-plans`
+- `GET /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans`
+- `PATCH /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/ready`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/approve`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/reject`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/simulate`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/fail`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/cancel`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-execution-plans/{execution_plan_id}/archive`
+
+Supported `plan_status` values: `draft`, `ready_for_review`, `approved`, `rejected`, `simulated`, `failed`, `cancelled`, and `archived`.
+
+Boundary: ComfyUI execution plans are metadata records only. They do not store secret values, call ComfyUI health, prompt, history, upload, or queue endpoints, upload files, submit jobs, generate media, publish content, run OpenClaw, run Browser Worker actions, control real accounts, ingest platform analytics, claim ROI attribution, or bypass approval. Approved plans can be simulated only as an operator-facing local metadata state record; no ComfyUI queue submission occurs.
