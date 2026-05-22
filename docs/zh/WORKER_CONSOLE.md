@@ -710,7 +710,7 @@ Boundary: Phase 62R is frontend-only. It does not call ComfyUI, execute OpenClaw
 
 ## Phase 62S Customer Console Knowledge Document Details
 
-Status: active branch `codex/phase-62s-knowledge-document-details`, draft PR pending.
+Status: active branch `codex/phase-62s-knowledge-document-details`, draft PR #85.
 
 Phase 62S continues the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with knowledge document details. It helps customer-machine operators understand document readiness, source ids, chunks, timestamps, and update actions without reading code or JSON.
 
