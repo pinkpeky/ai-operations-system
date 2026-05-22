@@ -73,6 +73,117 @@ type ControlAction =
   | "startHeartbeat"
   | "stopHeartbeat";
 
+type ClientLanguage = "zh-CN" | "en-US";
+
+type ClientCopy = {
+  phase: string;
+  appTitle: string;
+  runtimeLabel: string;
+  heartbeatLabel: string;
+  homeTitle: string;
+  homeSummary: string;
+  languageLabel: string;
+  connectionCard: string;
+  runtimeCard: string;
+  heartbeatCard: string;
+  recoveryCard: string;
+  connected: string;
+  disconnected: string;
+  running: string;
+  stopped: string;
+  actionStartRuntime: string;
+  actionStartHeartbeat: string;
+  actionRefresh: string;
+  quickTitle: string;
+  quickChat: string;
+  quickPlaybooks: string;
+  quickApprovals: string;
+  quickOutputs: string;
+  quickTasks: string;
+  quickLogs: string;
+  recoveryTitle: string;
+  recoverySteps: string[];
+  boundaryTitle: string;
+  boundaryBody: string;
+};
+
+const clientCopy: Record<ClientLanguage, ClientCopy> = {
+  "zh-CN": {
+    phase: "Phase 62I",
+    appTitle: "工作站 Worker 控制台",
+    runtimeLabel: "运行时",
+    heartbeatLabel: "心跳",
+    homeTitle: "工作站操作入口",
+    homeSummary:
+      "给客户机/工作站使用人员的简洁入口：先确认本机 Worker 连接，再处理对话、剧本、审批、任务、产物和日志。",
+    languageLabel: "语言",
+    connectionCard: "本机连接",
+    runtimeCard: "Worker 运行",
+    heartbeatCard: "心跳上报",
+    recoveryCard: "异常恢复",
+    connected: "已连接",
+    disconnected: "未连接",
+    running: "运行中",
+    stopped: "未运行",
+    actionStartRuntime: "启动运行时",
+    actionStartHeartbeat: "启动心跳",
+    actionRefresh: "刷新状态",
+    quickTitle: "常用入口",
+    quickChat: "对话与执行",
+    quickPlaybooks: "剧本运行",
+    quickApprovals: "待审批",
+    quickOutputs: "产物库",
+    quickTasks: "任务恢复",
+    quickLogs: "本机日志",
+    recoveryTitle: "如果不可用",
+    recoverySteps: [
+      "确认本机 worker_client 已启动并监听 127.0.0.1:9100。",
+      "确认 AI Server、Workspace ID、User ID 与客户机配置一致。",
+      "先处理待审批和失败任务，再重新运行剧本或对话。",
+    ],
+    boundaryTitle: "边界说明",
+    boundaryBody:
+      "这个页面只控制当前客户机/工作站的本地 Worker。它不会直接调用 ComfyUI、OpenClaw、真实平台账号，也不会绕过审批。",
+  },
+  "en-US": {
+    phase: "Phase 62I",
+    appTitle: "Workstation Worker Console",
+    runtimeLabel: "Runtime",
+    heartbeatLabel: "Heartbeat",
+    homeTitle: "Workstation Operator Home",
+    homeSummary:
+      "A simple customer-machine entrypoint: confirm the local Worker first, then handle conversations, playbooks, approvals, tasks, outputs, and logs.",
+    languageLabel: "Language",
+    connectionCard: "Local connection",
+    runtimeCard: "Worker runtime",
+    heartbeatCard: "Heartbeat",
+    recoveryCard: "Recovery",
+    connected: "connected",
+    disconnected: "disconnected",
+    running: "running",
+    stopped: "stopped",
+    actionStartRuntime: "Start Runtime",
+    actionStartHeartbeat: "Start Heartbeat",
+    actionRefresh: "Refresh status",
+    quickTitle: "Shortcuts",
+    quickChat: "Conversation run",
+    quickPlaybooks: "Playbooks",
+    quickApprovals: "Approvals",
+    quickOutputs: "Output Library",
+    quickTasks: "Task recovery",
+    quickLogs: "Local logs",
+    recoveryTitle: "When unavailable",
+    recoverySteps: [
+      "Confirm worker_client is running locally on 127.0.0.1:9100.",
+      "Confirm AI Server, Workspace ID, and User ID match the customer-machine config.",
+      "Clear approvals and failed tasks before rerunning playbooks or conversations.",
+    ],
+    boundaryTitle: "Boundary",
+    boundaryBody:
+      "This page controls only the local Worker on the current customer machine. It does not call ComfyUI, execute OpenClaw, control real accounts, or bypass approvals.",
+  },
+};
+
 function StatusBadge({ label, active }: { label: string; active: boolean }) {
   return (
     <span className={`status-badge ${active ? "status-badge-active" : "status-badge-muted"}`}>
@@ -112,6 +223,117 @@ function ActionButton({
 
 function isErrorLog(line: string): boolean {
   return /error|failed|exception|traceback/i.test(line);
+}
+
+function WorkstationHome({
+  status,
+  health,
+  error,
+  localApi,
+  actionLoading,
+  language,
+  onLanguageChange,
+  onRefresh,
+  onRunControl,
+}: {
+  status: WorkerStatus;
+  health: WorkerHealth | null;
+  error: string | null;
+  localApi: string;
+  actionLoading: ControlAction | null;
+  language: ClientLanguage;
+  onLanguageChange: (language: ClientLanguage) => void;
+  onRefresh: () => void;
+  onRunControl: (action: ControlAction) => void;
+}) {
+  const copy = clientCopy[language];
+  const connected = Boolean(health?.success);
+  const recoveryState = error || status.last_error ? copy.recoveryCard : copy.connected;
+
+  return (
+    <section className="operator-home" aria-labelledby="operator-home-title">
+      <div className="operator-home-header">
+        <div>
+          <p className="eyeline">{copy.phase}</p>
+          <h2 id="operator-home-title">{copy.homeTitle}</h2>
+          <p>{copy.homeSummary}</p>
+        </div>
+        <div className="language-switch" aria-label={copy.languageLabel}>
+          <span>{copy.languageLabel}</span>
+          <button className={language === "zh-CN" ? "active" : ""} onClick={() => onLanguageChange("zh-CN")}>
+            中文
+          </button>
+          <button className={language === "en-US" ? "active" : ""} onClick={() => onLanguageChange("en-US")}>
+            English
+          </button>
+        </div>
+      </div>
+
+      <div className="operator-status-grid">
+        <div className={`operator-status-card ${connected ? "good" : "warn"}`}>
+          <span>{copy.connectionCard}</span>
+          <strong>{connected ? copy.connected : copy.disconnected}</strong>
+          <small>{localApi}</small>
+        </div>
+        <div className={`operator-status-card ${status.runtime_running ? "good" : "warn"}`}>
+          <span>{copy.runtimeCard}</span>
+          <strong>{status.runtime_running ? copy.running : copy.stopped}</strong>
+          <small>{status.current_status ?? "-"}</small>
+        </div>
+        <div className={`operator-status-card ${status.heartbeat_running ? "good" : "warn"}`}>
+          <span>{copy.heartbeatCard}</span>
+          <strong>{status.heartbeat_running ? copy.running : copy.stopped}</strong>
+          <small>{status.last_heartbeat_at ?? "-"}</small>
+        </div>
+        <div className={`operator-status-card ${error || status.last_error ? "warn" : "good"}`}>
+          <span>{copy.recoveryCard}</span>
+          <strong>{recoveryState}</strong>
+          <small>{error ?? status.last_error ?? "-"}</small>
+        </div>
+      </div>
+
+      <div className="operator-actions">
+        <button className="action-button" onClick={() => onRunControl("startRuntime")} disabled={Boolean(actionLoading)}>
+          <PlayCircle size={16} />
+          {copy.actionStartRuntime}
+        </button>
+        <button className="action-button" onClick={() => onRunControl("startHeartbeat")} disabled={Boolean(actionLoading)}>
+          <Wifi size={16} />
+          {copy.actionStartHeartbeat}
+        </button>
+        <button className="refresh-button" onClick={onRefresh}>
+          <RefreshCcw size={15} />
+          {copy.actionRefresh}
+        </button>
+      </div>
+
+      <div className="operator-support-grid">
+        <div>
+          <h3>{copy.quickTitle}</h3>
+          <div className="quick-link-grid">
+            <a href="#chat-panel">{copy.quickChat}</a>
+            <a href="#playbook-panel">{copy.quickPlaybooks}</a>
+            <a href="#approvals-panel">{copy.quickApprovals}</a>
+            <a href="#outputs-panel">{copy.quickOutputs}</a>
+            <a href="#tasks-panel">{copy.quickTasks}</a>
+            <a href="#logs-panel">{copy.quickLogs}</a>
+          </div>
+        </div>
+        <div>
+          <h3>{copy.recoveryTitle}</h3>
+          <ol className="recovery-list">
+            {copy.recoverySteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <h3>{copy.boundaryTitle}</h3>
+          <p>{copy.boundaryBody}</p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function ChatPanel() {
@@ -560,7 +782,7 @@ function ChatPanel() {
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
 
   return (
-    <section className="panel chat-panel">
+    <section id="chat-panel" className="panel chat-panel">
       <div className="panel-title logs-title">
         <span>
           <MessageCircle size={18} />
@@ -630,7 +852,7 @@ function ChatPanel() {
       <div className="chat-note">
         Worker Console remains a local runtime console. This Chat Panel uses approval review_first by default, polling only, not WebSocket, not SSE, and not a full ChatGPT UI.
       </div>
-      <div className="approval-list">
+      <div id="playbook-panel" className="approval-list">
         <h3>Playbook selector</h3>
         <select value={selectedPlaybookName} onChange={(event) => setSelectedPlaybookName(event.target.value)}>
           {playbooks.map((playbook) => (
@@ -664,7 +886,7 @@ function ChatPanel() {
           <div className="empty-chat">No Playbook runs yet.</div>
         )}
       </div>
-      <div className="approval-list">
+      <div id="templates-panel" className="approval-list">
         <h3>Template Library</h3>
         <div className="chat-note">
           Workflow Template Registry foundation with governance status, verification badges, and compatibility summary. This is not a public marketplace, not a visual DAG builder, and not a ComfyUI integration.
@@ -715,7 +937,7 @@ function ChatPanel() {
           <div className="empty-chat">No workflow template runs yet.</div>
         )}
       </div>
-      <div className="approval-list">
+      <div id="approvals-panel" className="approval-list">
         <h3>Pending approvals panel</h3>
         {approvals.length > 0 ? approvals.map((approval) => (
           <div key={approval.id} className={`approval-card approval-risk-${approval.risk_level}`}>
@@ -769,7 +991,7 @@ function ChatPanel() {
           )}
         </div>
       </div>
-      <div className="approval-list">
+      <div id="outputs-panel" className="approval-list">
         <h3>Output Library</h3>
         <div className="chat-note">Generated artifacts from Playbook runs and saved assistant messages. This is not a full DAM.</div>
         {artifacts.length > 0 ? artifacts.slice(0, 5).map((artifact) => (
@@ -802,7 +1024,7 @@ function ChatPanel() {
           <div className="empty-chat">No generated artifacts yet.</div>
         )}
       </div>
-      <div className="approval-list">
+      <div id="workflow-panel" className="approval-list">
         <h3>Workflow State</h3>
         <div className="chat-note">
           Workflow State tracks current step, checkpoints, and Agent Memory Snapshots for Conversation / Playbook / Task execution. Foundation only; not a full workflow editor and not ComfyUI.
@@ -885,7 +1107,7 @@ function ChatPanel() {
           <div className="empty-chat">No memory snapshots yet.</div>
         )}
       </div>
-      <div className="approval-list">
+      <div id="tasks-panel" className="approval-list">
         <h3>Task Runs</h3>
         <div className="chat-note">
           Background execution uses the in-process queue with lease, recovery, retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
@@ -1161,10 +1383,15 @@ function App() {
   const [status, setStatus] = useState<WorkerStatus>(fallbackStatus);
   const [health, setHealth] = useState<WorkerHealth | null>(null);
   const [logs, setLogs] = useState<WorkerLogs>({ lines: [] });
+  const [language, setLanguage] = useState<ClientLanguage>(() => {
+    const stored = window.localStorage.getItem("workerConsoleLanguage");
+    return stored === "en-US" ? "en-US" : "zh-CN";
+  });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<ControlAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
+  const copy = clientCopy[language];
 
   const refresh = useCallback(async () => {
     try {
@@ -1192,6 +1419,10 @@ function App() {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
+  useEffect(() => {
+    window.localStorage.setItem("workerConsoleLanguage", language);
+  }, [language]);
+
   const runControl = async (action: ControlAction) => {
     setActionLoading(action);
     setError(null);
@@ -1214,11 +1445,11 @@ function App() {
       <section className="topbar">
         <div>
           <p className="eyeline">AI Ops Worker Console</p>
-          <h1>Local Worker Runtime</h1>
+          <h1>{copy.appTitle}</h1>
         </div>
         <div className="topbar-status">
-          <StatusBadge label="Runtime" active={status.runtime_running} />
-          <StatusBadge label="Heartbeat" active={status.heartbeat_running} />
+          <StatusBadge label={copy.runtimeLabel} active={status.runtime_running} />
+          <StatusBadge label={copy.heartbeatLabel} active={status.heartbeat_running} />
         </div>
       </section>
 
@@ -1234,6 +1465,18 @@ function App() {
           </div>
         </section>
       ) : null}
+
+      <WorkstationHome
+        status={status}
+        health={health}
+        error={error}
+        localApi={localWorkerClient.baseUrl}
+        actionLoading={actionLoading}
+        language={language}
+        onLanguageChange={setLanguage}
+        onRefresh={() => void refresh()}
+        onRunControl={(action) => void runControl(action)}
+      />
 
       <section className="layout-grid">
         <section className="panel dashboard-panel">
@@ -1353,7 +1596,7 @@ function App() {
         <ChatPanel />
         <BrowserSessionsPanel />
 
-        <section className="panel logs-panel">
+        <section id="logs-panel" className="panel logs-panel">
           <div className="panel-title logs-title">
             <span>
               <TerminalSquare size={18} />

@@ -120,6 +120,185 @@ h2 {
   font-size: 12px;
 }
 
+.operator-home {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.operator-home-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.operator-home-header h2 {
+  font-size: 20px;
+}
+
+.operator-home-header p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+
+.language-switch span {
+  padding: 0 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.language-switch button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.language-switch button.active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.operator-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.operator-status-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.operator-status-card.good {
+  border-color: rgba(21, 128, 61, 0.22);
+  background: #f0fdf4;
+}
+
+.operator-status-card.warn {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: #fffbeb;
+}
+
+.operator-status-card span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.operator-status-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.operator-status-card small {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.operator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.operator-support-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.2fr 1fr;
+  gap: 12px;
+}
+
+.operator-support-grid > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e6ebf2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.operator-support-grid h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.operator-support-grid p,
+.recovery-list {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.quick-link-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quick-link-grid a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.quick-link-grid a:hover {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.recovery-list {
+  padding-left: 18px;
+}
+
+.recovery-list li + li {
+  margin-top: 4px;
+}
+
 .layout-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
@@ -602,8 +781,14 @@ h2 {
 
   .chat-grid,
   .chat-input-row,
-  .chat-config-grid {
+  .chat-config-grid,
+  .operator-status-grid,
+  .operator-support-grid {
     grid-template-columns: 1fr;
+  }
+
+  .operator-home-header {
+    flex-direction: column;
   }
 
   .session-row {

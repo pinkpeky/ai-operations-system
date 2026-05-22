@@ -1,6 +1,6 @@
 # Worker Console Desktop App Foundation
 
-`worker_console_desktop` is the Phase 31 Tauri desktop shell for the AI Ops Worker Console. It reuses the same local Worker API contract as the web console and defaults to:
+`worker_console_desktop` is the Phase 62I customer-machine desktop shell for the AI Ops Worker Console. It reuses the same local Worker API contract as the web console and defaults to:
 
 ```text
 VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
@@ -10,6 +10,11 @@ VITE_LOCAL_WORKER_API=http://127.0.0.1:9100
 
 Implemented:
 
+- Phase 62I operator home for customer-machine/workstation users
+- Chinese/English language switching for the top-level workstation flow
+- Simple status cards for local connection, runtime, heartbeat, and recovery state
+- Shortcuts for conversation runs, playbooks, approval queue, Output Library, task recovery, and local logs
+- Setup/recovery guidance and explicit server-vs-customer-machine boundary messaging
 - Tauri project skeleton
 - Tauri system tray with Show Console, Hide Window, Start Runtime, Stop Runtime, Restart Runtime, Start Heartbeat, Stop Heartbeat, Refresh Status, and Quit
 - Minimize To Tray: closing the window hides it; Quit exits the app
@@ -31,6 +36,7 @@ Not implemented in this phase:
 - real platform automation
 - TikTok / YouTube / X automation
 - login, cookie injection, proxy pool, fingerprint bypass, or captcha handling
+- live ComfyUI calls, OpenClaw execution, platform publishing, real account control, installer signing, or auto-update
 
 ## Development
 
