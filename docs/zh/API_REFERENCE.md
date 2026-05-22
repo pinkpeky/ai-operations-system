@@ -3749,3 +3749,22 @@ Review endpoints:
 边界：Phase 62H 只记录维护人员就绪对比，不会写入环境变量、不会重启服务、不会启用 runtime switch、不会通过 API 修改 runtime configuration、不会请求 ComfyUI、不会触发 guarded `/system_stats` 探测、不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、读取 environment state、解析 secret value、发布、运行 OpenClaw、运行 Browser Worker actions 或绕过审批。
 
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。
+
+## Phase 62J: ComfyUI Runtime Guarded Probe Execution Audit
+
+Phase 62J 新增面向服务器维护人员的受控只读探针执行审计记录。`POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/guarded-probe-executions` 只能从已经 `approved_for_read_only_probe` 且当前无网络 diagnostics 仍显示 `read_only_probe_ready=true` 的 Phase 62H 检查创建记录。创建时保存 readiness check payload、current diagnostics、计划执行的只读探针请求、disabled actions、`probe_result_status=not_started`、`external_request_attempted=false`、`health_probe_executed=false`、`runtime_calls_enabled=false` 和 `api_config_mutation_performed=false` 到 `comfyui_runtime_guarded_probe_executions`。`GET /api/v1/comfyui-runtime/guarded-probe-executions` 用于列出当前 workspace 的最近记录。
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/ready`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/approve`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/reject`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/fail`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/cancel`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/archive`
+
+Execution endpoint:
+
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/execute`
+
+边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。

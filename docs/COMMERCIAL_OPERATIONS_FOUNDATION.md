@@ -419,6 +419,8 @@ Phase 62G adds `comfyui_runtime_manual_apply_evidence`, `ComfyUIRuntimeManualApp
 
 Phase 62H adds `comfyui_runtime_post_manual_readiness_checks`, `ComfyUIRuntimePostManualReadinessCheck`, `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks`, `GET /api/v1/comfyui-runtime/post-manual-readiness-checks`, and ready/approve/reject/fail/archive review actions for metadata-only maintainer readiness comparisons. A check can only be created from verified Phase 62G evidence and stores before/after/current readiness, current no-network diagnostics, manual evidence state, restart evidence, comparison results, blocking reasons, recommended actions, `comparison_status`, `guarded_probe_ready`, `health_probe_executed=false`, `external_request_attempted=false`, `runtime_calls_enabled=false`, and `api_config_mutation_performed=false`. It never writes environment variables, restarts services, enables runtime switches, mutates runtime configuration through the API, runs `/system_stats`, or calls ComfyUI.
 
+Phase 62J ComfyUI Runtime Guarded Probe Execution Audit adds `comfyui_runtime_guarded_probe_executions`, `ComfyUIRuntimeGuardedProbeExecution`, `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/guarded-probe-executions`, `GET /api/v1/comfyui-runtime/guarded-probe-executions`, ready/approve/reject/fail/cancel/archive review actions, and a separate `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/execute` action. Create/list/review remain no-network and record the approved readiness payload, current diagnostics, intended read-only probe request, disabled actions, and status metadata. Execute rechecks current diagnostics, then calls only the existing guarded `GET /system_stats` health path after `approved_for_execution`; it records `probe_result_status`, probe status, latency, response, and failure recovery status while keeping runtime calls and config mutation disabled.
+
 The `ComfyUIRuntimeService` does not import or call a ComfyUI adapter, call ComfyUI endpoints, read queues, submit prompts, submit queue jobs, upload files, generate media, enable runtime switches, mutate environment/config, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store or resolve secret values, or bypass approval. The Admin Dashboard exposes the contract, runbook, snapshots, configuration change requests, manual apply evidence, and post-manual readiness checks in the dedicated `?page=comfyui-operations` tab so server maintainers can inspect and retain the future live-adapter boundary without making a network request.
 
 ## Deliverables
@@ -650,6 +652,15 @@ POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/approve
 POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/reject
 POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/fail
 POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/archive
+GET /api/v1/comfyui-runtime/guarded-probe-executions
+POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/guarded-probe-executions
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/ready
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/approve
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/reject
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/fail
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/cancel
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/archive
+POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/execute
 GET /api/v1/commercial-operations/{operation_id}/deliverables
 POST /api/v1/commercial-operations/{operation_id}/deliverables
 PATCH /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}

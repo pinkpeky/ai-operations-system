@@ -23,6 +23,10 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeDiagnosticSnapshotListResponse,
     ComfyUIRuntimeDiagnosticSnapshotResponse,
     ComfyUIRuntimeDiagnosticsResponse,
+    ComfyUIRuntimeGuardedProbeExecutionCreateRequest,
+    ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    ComfyUIRuntimeGuardedProbeExecutionListResponse,
+    ComfyUIRuntimeGuardedProbeExecutionResponse,
     ComfyUIRuntimeHealthResponse,
     ComfyUIRuntimeMaintenanceRunbookResponse,
     ComfyUIRuntimeManualApplyEvidenceCreateRequest,
@@ -629,6 +633,231 @@ async def archive_comfyui_runtime_post_manual_readiness_check(
         settings=settings,
         session=session,
     )
+
+
+@router.post(
+    "/post-manual-readiness-checks/{check_id}/guarded-probe-executions",
+    response_model=ComfyUIRuntimeGuardedProbeExecutionResponse,
+)
+async def create_comfyui_runtime_guarded_probe_execution(
+    check_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionCreateRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Create an approval-gated record for a later guarded read-only ComfyUI health probe."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).create_guarded_probe_execution(
+            session,
+            workspace_id=context.workspace_id,
+            check_id=check_id,
+            user_id=context.user_id,
+            operator_note=request.operator_note,
+            metadata=request.metadata,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime post-manual readiness check not found", status_code=404) from exc
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime guarded probe execution create API failed")
+        raise AppError("ComfyUI runtime guarded probe execution create failed", status_code=500) from exc
+
+
+@router.get("/guarded-probe-executions", response_model=ComfyUIRuntimeGuardedProbeExecutionListResponse)
+async def list_comfyui_runtime_guarded_probe_executions(
+    limit: int = Query(default=20, ge=1, le=100),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionListResponse:
+    """List guarded read-only ComfyUI health probe execution audit records."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).list_guarded_probe_executions(
+            session,
+            workspace_id=context.workspace_id,
+            limit=limit,
+        )
+    except Exception as exc:
+        logger.exception("ComfyUI runtime guarded probe execution list API failed")
+        raise AppError("ComfyUI runtime guarded probe execution list failed", status_code=500) from exc
+
+
+async def _set_guarded_probe_execution_status(
+    *,
+    execution_id: UUID,
+    status: str,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext,
+    settings: Settings,
+    session: AsyncSession,
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    try:
+        return await ComfyUIRuntimeService(settings=settings).update_guarded_probe_execution_status(
+            session,
+            workspace_id=context.workspace_id,
+            execution_id=execution_id,
+            status=status,
+            reviewer_notes=request.reviewer_notes,
+            metadata=request.metadata,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime guarded probe execution not found", status_code=404) from exc
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime guarded probe execution status API failed", extra={"execution_id": str(execution_id)})
+        raise AppError("ComfyUI runtime guarded probe execution status update failed", status_code=500) from exc
+
+
+@router.post("/guarded-probe-executions/{execution_id}/ready", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def ready_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Mark a guarded read-only probe execution ready for approval."""
+
+    return await _set_guarded_probe_execution_status(
+        execution_id=execution_id,
+        status="ready_for_approval",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/guarded-probe-executions/{execution_id}/approve", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def approve_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Approve a guarded read-only probe execution for the separate execute endpoint."""
+
+    return await _set_guarded_probe_execution_status(
+        execution_id=execution_id,
+        status="approved_for_execution",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/guarded-probe-executions/{execution_id}/reject", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def reject_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Reject a guarded read-only probe execution."""
+
+    return await _set_guarded_probe_execution_status(
+        execution_id=execution_id,
+        status="rejected",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/guarded-probe-executions/{execution_id}/fail", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def fail_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Mark a guarded read-only probe execution failed without calling ComfyUI."""
+
+    return await _set_guarded_probe_execution_status(
+        execution_id=execution_id,
+        status="failed",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/guarded-probe-executions/{execution_id}/cancel", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def cancel_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Cancel a guarded read-only probe execution."""
+
+    return await _set_guarded_probe_execution_status(
+        execution_id=execution_id,
+        status="cancelled",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/guarded-probe-executions/{execution_id}/archive", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def archive_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Archive a guarded read-only probe execution."""
+
+    return await _set_guarded_probe_execution_status(
+        execution_id=execution_id,
+        status="archived",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/guarded-probe-executions/{execution_id}/execute", response_model=ComfyUIRuntimeGuardedProbeExecutionResponse)
+async def execute_comfyui_runtime_guarded_probe_execution(
+    execution_id: UUID,
+    request: ComfyUIRuntimeGuardedProbeExecutionDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+    """Execute the separately approved guarded read-only ComfyUI health probe."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).execute_guarded_probe_execution(
+            session,
+            workspace_id=context.workspace_id,
+            execution_id=execution_id,
+            reviewer_notes=request.reviewer_notes,
+            metadata=request.metadata,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime guarded probe execution not found", status_code=404) from exc
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime guarded probe execution API failed", extra={"execution_id": str(execution_id)})
+        raise AppError("ComfyUI runtime guarded probe execution failed", status_code=500) from exc
 
 
 @router.post("/diagnostic-snapshots", response_model=ComfyUIRuntimeDiagnosticSnapshotResponse)

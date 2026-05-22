@@ -17,6 +17,7 @@ from app.core.config import Settings, get_settings
 from app.models.comfyui_runtime import (
     ComfyUIRuntimeConfigChangeRequest,
     ComfyUIRuntimeDiagnosticSnapshot,
+    ComfyUIRuntimeGuardedProbeExecution,
     ComfyUIRuntimeManualApplyEvidence,
     ComfyUIRuntimePostManualReadinessCheck,
 )
@@ -28,6 +29,8 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeDiagnosticSnapshotListResponse,
     ComfyUIRuntimeDiagnosticSnapshotResponse,
     ComfyUIRuntimeDiagnosticsResponse,
+    ComfyUIRuntimeGuardedProbeExecutionListResponse,
+    ComfyUIRuntimeGuardedProbeExecutionResponse,
     ComfyUIRuntimeHealthResponse,
     ComfyUIRuntimeMaintenanceRunbookResponse,
     ComfyUIRuntimeMaintenanceStep,
@@ -72,6 +75,17 @@ COMFYUI_RUNTIME_POST_MANUAL_READINESS_STATUSES = {
     "approved_for_read_only_probe",
     "rejected",
     "failed",
+    "archived",
+}
+COMFYUI_RUNTIME_GUARDED_PROBE_EXECUTION_STATUSES = {
+    "draft",
+    "ready_for_approval",
+    "approved_for_execution",
+    "rejected",
+    "executing",
+    "succeeded",
+    "failed",
+    "cancelled",
     "archived",
 }
 
@@ -926,6 +940,267 @@ class ComfyUIRuntimeService:
         await session.commit()
         await session.refresh(check)
         return ComfyUIRuntimePostManualReadinessCheckResponse.from_model(check)
+
+    async def create_guarded_probe_execution(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        check_id: UUID,
+        user_id: str | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+        """Create an auditable approval record for a later guarded read-only probe."""
+
+        result = await session.execute(
+            select(ComfyUIRuntimePostManualReadinessCheck).where(
+                ComfyUIRuntimePostManualReadinessCheck.id == check_id,
+                ComfyUIRuntimePostManualReadinessCheck.workspace_id == workspace_id,
+            )
+        )
+        check = result.scalar_one_or_none()
+        if check is None:
+            raise LookupError("ComfyUI runtime post-manual readiness check not found")
+        if check.check_status != "approved_for_read_only_probe":
+            raise ValueError("Post-manual readiness check must be approved before creating a guarded probe execution")
+        if not check.guarded_probe_ready:
+            raise ValueError("Post-manual readiness check must be ready for guarded read-only probe execution")
+
+        diagnostics = self.diagnostics(workspace_id=workspace_id)
+        if not diagnostics.read_only_probe_ready:
+            raise ValueError("Current diagnostics are no longer ready for guarded read-only probe execution")
+
+        readiness_payload = ComfyUIRuntimePostManualReadinessCheckResponse.from_model(check).model_dump(mode="json")
+        diagnostics_payload = diagnostics.model_dump(mode="json")
+        probe_request = {
+            "method": "GET",
+            "url": self._build_probe_url(diagnostics.base_url, diagnostics.health_path),
+            "health_path": diagnostics.health_path,
+            "allowed_hosts": diagnostics.allowed_hosts,
+            "allowed_health_paths": diagnostics.allowed_health_paths,
+            "read_only": True,
+            "requires_execute_endpoint": True,
+        }
+        execution_metadata = {
+            **dict(metadata or {}),
+            "phase": "62J",
+            "source": "comfyui_runtime_guarded_probe_execution",
+            "no_network_call_performed": True,
+            "created_from_post_manual_readiness_check": str(check_id),
+            "health_probe_executed": False,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
+        execution = ComfyUIRuntimeGuardedProbeExecution(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            post_manual_readiness_check_id=check_id,
+            manual_apply_evidence_id=check.manual_apply_evidence_id,
+            config_change_request_id=check.config_change_request_id,
+            execution_status="draft",
+            provider=diagnostics.provider,
+            readiness_status_current=diagnostics.readiness_status,
+            read_only_probe_ready_current=diagnostics.read_only_probe_ready,
+            guarded_probe_ready=True,
+            base_url=diagnostics.base_url,
+            health_path=diagnostics.health_path,
+            allowed_hosts=list(diagnostics.allowed_hosts),
+            allowed_health_paths=list(diagnostics.allowed_health_paths),
+            external_request_attempted=False,
+            runtime_calls_enabled=False,
+            health_probe_executed=False,
+            read_only_probe_attempted=False,
+            api_config_mutation_performed=False,
+            probe_status_code=None,
+            probe_latency_ms=None,
+            probe_result_status="not_started",
+            readiness_check_payload=readiness_payload,
+            current_diagnostics_payload=diagnostics_payload,
+            probe_request=probe_request,
+            probe_response={},
+            blocking_reasons=list(diagnostics.blocking_reasons),
+            recommended_actions=list(diagnostics.recommended_actions),
+            disabled_actions=self._disabled_actions(read_only_probe_ready=diagnostics.read_only_probe_ready),
+            operator_note=operator_note.strip() if operator_note else None,
+            execution_metadata=execution_metadata,
+        )
+        session.add(execution)
+        await session.commit()
+        await session.refresh(execution)
+        return ComfyUIRuntimeGuardedProbeExecutionResponse.from_model(execution)
+
+    async def list_guarded_probe_executions(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        limit: int = 20,
+    ) -> ComfyUIRuntimeGuardedProbeExecutionListResponse:
+        """List recent guarded read-only probe execution audit records for one workspace."""
+
+        bounded_limit = max(1, min(limit, 100))
+        result = await session.execute(
+            select(ComfyUIRuntimeGuardedProbeExecution)
+            .where(ComfyUIRuntimeGuardedProbeExecution.workspace_id == workspace_id)
+            .order_by(ComfyUIRuntimeGuardedProbeExecution.created_at.desc())
+            .limit(bounded_limit)
+        )
+        executions = result.scalars().all()
+        return ComfyUIRuntimeGuardedProbeExecutionListResponse(
+            workspace_id=workspace_id,
+            items=[ComfyUIRuntimeGuardedProbeExecutionResponse.from_model(execution) for execution in executions],
+        )
+
+    async def update_guarded_probe_execution_status(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        execution_id: UUID,
+        status: str,
+        reviewer_notes: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+        """Update guarded probe execution review status without calling ComfyUI."""
+
+        if status not in COMFYUI_RUNTIME_GUARDED_PROBE_EXECUTION_STATUSES:
+            raise ValueError(f"Unsupported ComfyUI runtime guarded probe execution status: {status}")
+        result = await session.execute(
+            select(ComfyUIRuntimeGuardedProbeExecution).where(
+                ComfyUIRuntimeGuardedProbeExecution.id == execution_id,
+                ComfyUIRuntimeGuardedProbeExecution.workspace_id == workspace_id,
+            )
+        )
+        execution = result.scalar_one_or_none()
+        if execution is None:
+            raise LookupError("ComfyUI runtime guarded probe execution not found")
+        if status == "approved_for_execution" and execution.execution_status != "ready_for_approval":
+            raise ValueError("Guarded probe execution must be ready for approval before execution approval")
+        if status == "ready_for_approval" and execution.execution_status not in {"draft", "rejected"}:
+            raise ValueError("Guarded probe execution can only be marked ready from draft or rejected")
+        execution.execution_status = status
+        execution.reviewer_notes = reviewer_notes.strip() if reviewer_notes else execution.reviewer_notes
+        execution.api_config_mutation_performed = False
+        execution.runtime_calls_enabled = False
+        execution.execution_metadata = {
+            **(execution.execution_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "62J",
+            "last_review_status": status,
+            "status_update_no_network_call_performed": True,
+            "health_probe_executed": execution.health_probe_executed,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": execution.external_request_attempted,
+            "runtime_calls_enabled": False,
+        }
+        await session.commit()
+        await session.refresh(execution)
+        return ComfyUIRuntimeGuardedProbeExecutionResponse.from_model(execution)
+
+    async def execute_guarded_probe_execution(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        execution_id: UUID,
+        reviewer_notes: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeGuardedProbeExecutionResponse:
+        """Run the approved guarded read-only health probe and persist the outcome."""
+
+        result = await session.execute(
+            select(ComfyUIRuntimeGuardedProbeExecution).where(
+                ComfyUIRuntimeGuardedProbeExecution.id == execution_id,
+                ComfyUIRuntimeGuardedProbeExecution.workspace_id == workspace_id,
+            )
+        )
+        execution = result.scalar_one_or_none()
+        if execution is None:
+            raise LookupError("ComfyUI runtime guarded probe execution not found")
+        if execution.execution_status != "approved_for_execution":
+            raise ValueError("Guarded probe execution must be approved before execute can run")
+
+        diagnostics = self.diagnostics(workspace_id=workspace_id)
+        diagnostics_payload = diagnostics.model_dump(mode="json")
+        execution.current_diagnostics_payload = diagnostics_payload
+        execution.provider = diagnostics.provider
+        execution.readiness_status_current = diagnostics.readiness_status
+        execution.read_only_probe_ready_current = diagnostics.read_only_probe_ready
+        execution.base_url = diagnostics.base_url
+        execution.health_path = diagnostics.health_path
+        execution.allowed_hosts = list(diagnostics.allowed_hosts)
+        execution.allowed_health_paths = list(diagnostics.allowed_health_paths)
+        execution.blocking_reasons = list(diagnostics.blocking_reasons)
+        execution.recommended_actions = list(diagnostics.recommended_actions)
+        execution.disabled_actions = self._disabled_actions(read_only_probe_ready=diagnostics.read_only_probe_ready)
+        execution.probe_request = {
+            "method": "GET",
+            "url": self._build_probe_url(diagnostics.base_url, diagnostics.health_path),
+            "health_path": diagnostics.health_path,
+            "allowed_hosts": diagnostics.allowed_hosts,
+            "allowed_health_paths": diagnostics.allowed_health_paths,
+            "read_only": True,
+            "requires_execute_endpoint": True,
+        }
+        execution.reviewer_notes = reviewer_notes.strip() if reviewer_notes else execution.reviewer_notes
+        execution.api_config_mutation_performed = False
+        execution.runtime_calls_enabled = False
+
+        if not diagnostics.read_only_probe_ready:
+            execution.execution_status = "failed"
+            execution.probe_result_status = "blocked_before_execution"
+            execution.external_request_attempted = False
+            execution.health_probe_executed = False
+            execution.read_only_probe_attempted = False
+            execution.probe_response = {
+                "success": False,
+                "reachable": False,
+                "error": "Current diagnostics are no longer ready for guarded read-only probe execution.",
+                "diagnostics": diagnostics_payload,
+            }
+            execution.execution_metadata = {
+                **(execution.execution_metadata or {}),
+                **dict(metadata or {}),
+                "phase": "62J",
+                "last_review_status": "failed",
+                "no_network_call_performed": True,
+                "health_probe_executed": False,
+                "api_config_mutation_performed": False,
+                "external_request_attempted": False,
+                "runtime_calls_enabled": False,
+            }
+            await session.commit()
+            await session.refresh(execution)
+            return ComfyUIRuntimeGuardedProbeExecutionResponse.from_model(execution)
+
+        health = self.health_check(workspace_id=workspace_id)
+        health_payload = health.model_dump(mode="json")
+        execution.execution_status = "succeeded" if health.reachable else "failed"
+        execution.external_request_attempted = health.external_request_attempted
+        execution.health_probe_executed = health.read_only_probe_attempted
+        execution.read_only_probe_attempted = health.read_only_probe_attempted
+        execution.runtime_calls_enabled = False
+        execution.api_config_mutation_performed = False
+        execution.probe_status_code = health.probe_status_code
+        execution.probe_latency_ms = health.probe_latency_ms
+        execution.probe_result_status = "reachable" if health.reachable else "unreachable"
+        execution.probe_response = health_payload
+        execution.execution_metadata = {
+            **(execution.execution_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "62J",
+            "last_review_status": execution.execution_status,
+            "no_network_call_performed": False,
+            "health_probe_executed": health.read_only_probe_attempted,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": health.external_request_attempted,
+            "runtime_calls_enabled": False,
+        }
+        await session.commit()
+        await session.refresh(execution)
+        return ComfyUIRuntimeGuardedProbeExecutionResponse.from_model(execution)
 
     async def create_diagnostic_snapshot(
         self,

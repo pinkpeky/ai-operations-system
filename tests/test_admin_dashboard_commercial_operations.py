@@ -54,6 +54,11 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "post_manual_readiness_count" in text
     assert "latest_post_manual_check_status" in text
     assert "latest_post_manual_comparison" in text
+    assert "guarded_probe_execution_count" in text
+    assert "latest_guarded_probe_status" in text
+    assert "latest_guarded_probe_result" in text
+    assert "Guarded probe executions" in text
+    assert "Execute read-only probe" in text
     assert "Config change requests" in text
     assert "Manual apply evidence" in text
     assert "Post-manual readiness" in text
@@ -68,10 +73,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "updateComfyuiRuntimeManualApplyEvidenceStatus" in text
     assert "createComfyuiRuntimePostManualReadinessCheck" in text
     assert "updateComfyuiRuntimePostManualReadinessCheckStatus" in text
+    assert "createComfyuiRuntimeGuardedProbeExecution" in text
+    assert "updateComfyuiRuntimeGuardedProbeExecutionStatus" in text
+    assert "executeComfyuiRuntimeGuardedProbeExecution" in text
     assert "saveComfyuiRuntimeDiagnosticSnapshot" in text
     assert "allowed_health_paths" in text
     assert "probe_latency_ms" in text
-    assert "comfyuiRuntimeApi.health" in text
+    assert "health_probe_deferred_to_guarded_execution" in text
     assert "comfyuiRuntimeApi.capabilities" in text
     assert "comfyuiRuntimeApi.diagnostics" in text
     assert "comfyuiRuntimeApi.maintenanceRunbook" in text
@@ -84,6 +92,10 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "comfyuiRuntimeApi.postManualReadinessChecks" in text
     assert "comfyuiRuntimeApi.createPostManualReadinessCheck" in text
     assert "comfyuiRuntimeApi.updatePostManualReadinessCheckStatus" in text
+    assert "comfyuiRuntimeApi.guardedProbeExecutions" in text
+    assert "comfyuiRuntimeApi.createGuardedProbeExecution" in text
+    assert "comfyuiRuntimeApi.updateGuardedProbeExecutionStatus" in text
+    assert "comfyuiRuntimeApi.executeGuardedProbeExecution" in text
     assert "comfyuiRuntimeApi.diagnosticSnapshots" in text
     assert "comfyuiRuntimeApi.createDiagnosticSnapshot" in text
     assert "Approval gates" in text
@@ -318,6 +330,10 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/post-manual-readiness-checks" in text
     assert "/comfyui-runtime/manual-apply-evidence/${encodeURIComponent(evidenceId)}/post-manual-readiness-checks" in text
     assert "/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/${encodeURIComponent(action)}" in text
+    assert "/comfyui-runtime/guarded-probe-executions" in text
+    assert "/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/guarded-probe-executions" in text
+    assert "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(action)}" in text
+    assert "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/execute" in text
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text

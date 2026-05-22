@@ -46,6 +46,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 62F",
         "Phase 62G",
         "Phase 62H",
+        "Phase 62J",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -66,6 +67,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "comfyui_runtime_config_change_requests",
         "comfyui_runtime_manual_apply_evidence",
         "comfyui_runtime_post_manual_readiness_checks",
+        "comfyui_runtime_guarded_probe_executions",
         "commercial_operation_deliverables",
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
@@ -93,6 +95,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUIRuntimeConfigChangeRequest",
         "ComfyUIRuntimeManualApplyEvidence",
         "ComfyUIRuntimePostManualReadinessCheck",
+        "ComfyUIRuntimeGuardedProbeExecution",
         "CommercialOperationDeliverable",
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
@@ -127,6 +130,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/comfyui-runtime/config-change-requests",
         "/api/v1/comfyui-runtime/manual-apply-evidence",
         "/api/v1/comfyui-runtime/post-manual-readiness-checks",
+        "/api/v1/comfyui-runtime/guarded-probe-executions",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -162,6 +166,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Runtime Configuration Change Requests",
         "ComfyUI Runtime Manual Apply Evidence",
         "ComfyUI Runtime Post-Manual Readiness Checks",
+        "ComfyUI Runtime Guarded Probe Execution Audit",
         "configuration change requests",
         "manual apply evidence",
         "post-manual readiness",
@@ -169,6 +174,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "api_config_mutation_performed",
         "guarded_probe_ready",
         "health_probe_executed",
+        "probe_result_status",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -186,7 +192,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_62h_comfyui_runtime_post_manual_readiness() -> None:
+def test_recovery_docs_point_to_phase_62j_comfyui_runtime_guarded_probe_execution() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -199,6 +205,8 @@ def test_recovery_docs_point_to_phase_62h_comfyui_runtime_post_manual_readiness(
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "Phase 62J" in text or "62J" in text, relative
+        assert "Guarded Probe Execution" in text or "guarded probe" in text or "guarded-probe" in text, relative
         assert "Phase 62H" in text or "62H" in text, relative
         assert "ComfyUI Runtime Post-Manual Readiness Checks" in text or "post-manual readiness" in text, relative
         assert "/comfyui-runtime/health" in text, relative
@@ -208,6 +216,8 @@ def test_recovery_docs_point_to_phase_62h_comfyui_runtime_post_manual_readiness(
         assert "/comfyui-runtime/config-change-requests" in text, relative
         assert "/comfyui-runtime/manual-apply-evidence" in text, relative
         assert "/comfyui-runtime/post-manual-readiness-checks" in text, relative
+        assert "/comfyui-runtime/guarded-probe-executions" in text, relative
         assert "/comfyui-runtime/diagnostic-snapshots" in text, relative
         assert "api_config_mutation_performed" in text or "manual_config_applied" in text, relative
         assert "guarded_probe_ready" in text or "health_probe_executed" in text, relative
+        assert "probe_result_status" in text or "external_request_attempted" in text, relative

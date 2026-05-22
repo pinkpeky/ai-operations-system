@@ -4685,6 +4685,16 @@ function CommercialOperationsPage({
           runtimePostManualReject: "驳回就绪对比",
           runtimePostManualFail: "标记对比失败",
           runtimePostManualArchive: "归档就绪对比",
+          runtimeGuardedProbeExecutions: "受控只读探针执行",
+          runtimeGuardedProbeExecutionsEmpty: "暂无受控只读探针执行记录。",
+          runtimeGuardedProbeCreate: "创建探针执行记录",
+          runtimeGuardedProbeReady: "送审探针执行",
+          runtimeGuardedProbeApprove: "批准执行探针",
+          runtimeGuardedProbeExecute: "执行只读探针",
+          runtimeGuardedProbeReject: "驳回探针执行",
+          runtimeGuardedProbeFail: "标记探针失败",
+          runtimeGuardedProbeCancel: "取消探针执行",
+          runtimeGuardedProbeArchive: "归档探针执行",
         }
       : {
           title: "ComfyUI operations workspace",
@@ -4726,6 +4736,16 @@ function CommercialOperationsPage({
           runtimePostManualReject: "Reject readiness",
           runtimePostManualFail: "Mark readiness failed",
           runtimePostManualArchive: "Archive readiness",
+          runtimeGuardedProbeExecutions: "Guarded probe executions",
+          runtimeGuardedProbeExecutionsEmpty: "No guarded probe execution records yet.",
+          runtimeGuardedProbeCreate: "Create probe execution record",
+          runtimeGuardedProbeReady: "Mark probe ready",
+          runtimeGuardedProbeApprove: "Approve probe execution",
+          runtimeGuardedProbeExecute: "Execute read-only probe",
+          runtimeGuardedProbeReject: "Reject probe execution",
+          runtimeGuardedProbeFail: "Mark probe failed",
+          runtimeGuardedProbeCancel: "Cancel probe execution",
+          runtimeGuardedProbeArchive: "Archive probe execution",
         };
   const contentCopy =
     language === "zh-CN"
@@ -5975,8 +5995,16 @@ function CommercialOperationsPage({
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [health, capabilities, diagnostics, runbook, configRequests, snapshots, manualApplyEvidence, postManualReadinessChecks] = await Promise.all([
-        comfyuiRuntimeApi.health(settings),
+      const [
+        capabilities,
+        diagnostics,
+        runbook,
+        configRequests,
+        snapshots,
+        manualApplyEvidence,
+        postManualReadinessChecks,
+        guardedProbeExecutions,
+      ] = await Promise.all([
         comfyuiRuntimeApi.capabilities(settings),
         comfyuiRuntimeApi.diagnostics(settings),
         comfyuiRuntimeApi.maintenanceRunbook(settings),
@@ -5984,7 +6012,20 @@ function CommercialOperationsPage({
         comfyuiRuntimeApi.diagnosticSnapshots(settings),
         comfyuiRuntimeApi.manualApplyEvidence(settings),
         comfyuiRuntimeApi.postManualReadinessChecks(settings),
+        comfyuiRuntimeApi.guardedProbeExecutions(settings),
       ]);
+      const health = {
+        ...diagnostics,
+        read_only_probe_attempted: false,
+        probe_status_code: null,
+        probe_latency_ms: null,
+        error: null,
+        raw: {
+          source_endpoint: "/api/v1/comfyui-runtime/diagnostics",
+          no_network_call_performed: true,
+          health_probe_deferred_to_guarded_execution: true,
+        },
+      };
       setComfyuiRuntimeAdapterState({
         data: {
           health,
@@ -5995,6 +6036,7 @@ function CommercialOperationsPage({
           snapshots: toItems(snapshots),
           manualApplyEvidence: toItems(manualApplyEvidence),
           postManualReadinessChecks: toItems(postManualReadinessChecks),
+          guardedProbeExecutions: toItems(guardedProbeExecutions),
         },
         error: null,
         loading: false,
@@ -6244,6 +6286,103 @@ function CommercialOperationsPage({
         setActionState({
           data: null,
           error: error instanceof Error ? error.message : "ComfyUI runtime post-manual readiness review unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
+
+  const createComfyuiRuntimeGuardedProbeExecution = useCallback(
+    async (checkId: string) => {
+      if (!checkId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const execution = await comfyuiRuntimeApi.createGuardedProbeExecution(
+          checkId,
+          {
+            operator_note:
+              language === "zh-CN"
+                ? "从 Admin Dashboard 创建受控只读探针执行记录；此步骤仍不请求 ComfyUI。"
+                : "Created guarded read-only probe execution from Admin Dashboard; this step still does not call ComfyUI.",
+            metadata: { source_page: "comfyui-operations", phase: "62J", ui_language: language },
+          },
+          settings,
+        );
+        setActionState({ data: execution, error: null, loading: false, updatedAt: nowLabel() });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI runtime guarded probe execution unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
+
+  const updateComfyuiRuntimeGuardedProbeExecutionStatus = useCallback(
+    async (executionId: string, action: "ready" | "approve" | "reject" | "fail" | "cancel" | "archive") => {
+      if (!executionId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const reviewed = await comfyuiRuntimeApi.updateGuardedProbeExecutionStatus(
+          executionId,
+          action,
+          {
+            reviewer_notes:
+              language === "zh-CN"
+                ? "从 Admin Dashboard 更新受控探针执行状态；此状态更新本身不请求 ComfyUI。"
+                : "Updated guarded probe execution from Admin Dashboard; this status update itself does not call ComfyUI.",
+            metadata: { source_page: "comfyui-operations", phase: "62J", ui_language: language, action },
+          },
+          settings,
+        );
+        setActionState({ data: reviewed, error: null, loading: false, updatedAt: nowLabel() });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI runtime guarded probe review unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
+
+  const executeComfyuiRuntimeGuardedProbeExecution = useCallback(
+    async (executionId: string) => {
+      if (!executionId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const executed = await comfyuiRuntimeApi.executeGuardedProbeExecution(
+          executionId,
+          {
+            reviewer_notes:
+              language === "zh-CN"
+                ? "从 Admin Dashboard 执行一次已经批准的只读 /system_stats 探针。"
+                : "Executed one approved read-only /system_stats probe from Admin Dashboard.",
+            metadata: { source_page: "comfyui-operations", phase: "62J", ui_language: language },
+          },
+          settings,
+        );
+        setActionState({ data: executed, error: null, loading: false, updatedAt: nowLabel() });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI runtime guarded probe execution failed",
           loading: false,
           updatedAt: nowLabel(),
         });
@@ -9516,12 +9655,27 @@ function CommercialOperationsPage({
   const comfyuiRuntimePostManualReadinessChecks = toItems(comfyuiRuntimeAdapterState.data?.postManualReadinessChecks);
   const latestComfyuiRuntimePostManualReadinessCheck = comfyuiRuntimePostManualReadinessChecks[0] ?? null;
   const latestComfyuiRuntimePostManualReadinessCheckId = valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["id"], "");
+  const latestComfyuiRuntimePostManualReadinessCheckStatus = valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["check_status"], "");
   const latestComfyuiRuntimePostManualComparisonStatus = valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["comparison_status"], "");
   const canCreateComfyuiRuntimePostManualReadinessCheck =
     Boolean(latestComfyuiRuntimeManualApplyEvidenceId) && latestComfyuiRuntimeManualApplyEvidenceStatus === "verified";
   const canApproveComfyuiRuntimePostManualReadinessCheck =
     Boolean(latestComfyuiRuntimePostManualReadinessCheckId) &&
     latestComfyuiRuntimePostManualComparisonStatus === "ready_for_guarded_read_only_probe";
+  const comfyuiRuntimeGuardedProbeExecutions = toItems(comfyuiRuntimeAdapterState.data?.guardedProbeExecutions);
+  const latestComfyuiRuntimeGuardedProbeExecution = comfyuiRuntimeGuardedProbeExecutions[0] ?? null;
+  const latestComfyuiRuntimeGuardedProbeExecutionId = valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["id"], "");
+  const latestComfyuiRuntimeGuardedProbeExecutionStatus = valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["execution_status"], "");
+  const canCreateComfyuiRuntimeGuardedProbeExecution =
+    Boolean(latestComfyuiRuntimePostManualReadinessCheckId) &&
+    latestComfyuiRuntimePostManualReadinessCheckStatus === "approved_for_read_only_probe" &&
+    latestComfyuiRuntimePostManualComparisonStatus === "ready_for_guarded_read_only_probe";
+  const canApproveComfyuiRuntimeGuardedProbeExecution =
+    Boolean(latestComfyuiRuntimeGuardedProbeExecutionId) &&
+    latestComfyuiRuntimeGuardedProbeExecutionStatus === "ready_for_approval";
+  const canExecuteComfyuiRuntimeGuardedProbeExecution =
+    Boolean(latestComfyuiRuntimeGuardedProbeExecutionId) &&
+    latestComfyuiRuntimeGuardedProbeExecutionStatus === "approved_for_execution";
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -9552,7 +9706,7 @@ function CommercialOperationsPage({
   const eligibleComfyuiHandoffs = comfyuiHandoffs.filter((handoff) => ["approved", "prepared"].includes(valueAt(handoff, ["handoff_status"], "")));
   const links = linksState.data || [];
   const commercialStepDetail = `${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`;
-  const comfyuiStepDetail = `${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length}`;
+  const comfyuiStepDetail = `${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length} / ${comfyuiSurfaceCopy.runtimeGuardedProbeExecutions}: ${comfyuiRuntimeGuardedProbeExecutions.length}`;
   const comfyuiRecordCount =
     comfyuiHandoffs.length +
     comfyuiAdapterConfigs.length +
@@ -9563,7 +9717,8 @@ function CommercialOperationsPage({
     comfyuiAdapterDispatches.length +
     comfyuiRuntimeGates.length +
     comfyuiRuntimeDryRuns.length +
-    comfyuiRuntimeActivations.length;
+    comfyuiRuntimeActivations.length +
+    comfyuiRuntimeGuardedProbeExecutions.length;
 
   useEffect(() => {
     const approved = (approvalsState.data || []).filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
@@ -10154,6 +10309,10 @@ function CommercialOperationsPage({
             <Field label="post_manual_readiness_count" value={String(comfyuiRuntimePostManualReadinessChecks.length)} />
             <Field label="latest_post_manual_check_status" value={<StatusPill value={valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["check_status"], "none")} />} />
             <Field label="latest_post_manual_comparison" value={<StatusPill value={valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["comparison_status"], "none")} />} />
+            <Field label="guarded_probe_execution_count" value={String(comfyuiRuntimeGuardedProbeExecutions.length)} />
+            <Field label="latest_guarded_probe_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["execution_status"], "none")} />} />
+            <Field label="latest_guarded_probe_result" value={<StatusPill value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["probe_result_status"], "none")} />} />
+            <Field label="latest_guarded_probe_code" value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["probe_status_code"], "-")} />
           </div>
           <h3>{comfyuiSurfaceCopy.runtimeRunbook}</h3>
           <Table
@@ -10203,6 +10362,20 @@ function CommercialOperationsPage({
               { key: "guarded_probe_ready", label: "probe_ready" },
               { key: "health_probe_executed", label: "probe_executed" },
               { key: "next_operator_action", label: "next_action" },
+              { key: "created_at", label: "created_at" },
+            ]}
+          />
+          <h3>{comfyuiSurfaceCopy.runtimeGuardedProbeExecutions}</h3>
+          <Table
+            rows={comfyuiRuntimeGuardedProbeExecutions}
+            emptyLabel={comfyuiSurfaceCopy.runtimeGuardedProbeExecutionsEmpty}
+            columns={[
+              { key: "execution_status", label: "status" },
+              { key: "probe_result_status", label: "probe_result" },
+              { key: "read_only_probe_ready_current", label: "probe_ready" },
+              { key: "external_request_attempted", label: "external_attempted" },
+              { key: "health_probe_executed", label: "probe_executed" },
+              { key: "probe_status_code", label: "status_code" },
               { key: "created_at", label: "created_at" },
             ]}
           />
@@ -10354,6 +10527,70 @@ function CommercialOperationsPage({
             >
               <History size={15} />
               {comfyuiSurfaceCopy.runtimePostManualArchive}
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => void createComfyuiRuntimeGuardedProbeExecution(latestComfyuiRuntimePostManualReadinessCheckId)}
+              disabled={!canCreateComfyuiRuntimeGuardedProbeExecution || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <MonitorCheck size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeCreate}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeGuardedProbeExecutionStatus(latestComfyuiRuntimeGuardedProbeExecutionId, "ready")}
+              disabled={!latestComfyuiRuntimeGuardedProbeExecutionId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Send size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeReady}
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => void updateComfyuiRuntimeGuardedProbeExecutionStatus(latestComfyuiRuntimeGuardedProbeExecutionId, "approve")}
+              disabled={!canApproveComfyuiRuntimeGuardedProbeExecution || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <ShieldCheck size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeApprove}
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => void executeComfyuiRuntimeGuardedProbeExecution(latestComfyuiRuntimeGuardedProbeExecutionId)}
+              disabled={!canExecuteComfyuiRuntimeGuardedProbeExecution || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <PlayCircle size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeExecute}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeGuardedProbeExecutionStatus(latestComfyuiRuntimeGuardedProbeExecutionId, "reject")}
+              disabled={!latestComfyuiRuntimeGuardedProbeExecutionId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <AlertTriangle size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeReject}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeGuardedProbeExecutionStatus(latestComfyuiRuntimeGuardedProbeExecutionId, "fail")}
+              disabled={!latestComfyuiRuntimeGuardedProbeExecutionId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Crosshair size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeFail}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeGuardedProbeExecutionStatus(latestComfyuiRuntimeGuardedProbeExecutionId, "cancel")}
+              disabled={!latestComfyuiRuntimeGuardedProbeExecutionId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Crosshair size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeCancel}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeGuardedProbeExecutionStatus(latestComfyuiRuntimeGuardedProbeExecutionId, "archive")}
+              disabled={!latestComfyuiRuntimeGuardedProbeExecutionId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <History size={15} />
+              {comfyuiSurfaceCopy.runtimeGuardedProbeArchive}
             </button>
           </div>
         </Panel>
