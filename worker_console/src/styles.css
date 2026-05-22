@@ -687,6 +687,77 @@ h2 {
   border-color: #2563eb;
 }
 
+.workbench-plan-preview {
+  display: grid;
+  gap: 10px;
+  margin: 12px 14px 0;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.workbench-plan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workbench-plan-header span,
+.workbench-plan-steps span,
+.workbench-plan-gate span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workbench-plan-header strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.workbench-plan-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workbench-plan-steps li {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.workbench-plan-steps strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workbench-plan-gate {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(180, 83, 9, 0.22);
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .browser-sessions-panel {
   grid-column: 1 / -1;
 }
@@ -1161,6 +1232,7 @@ h2 {
   .chat-config-grid,
   .workbench-metrics,
   .workbench-template-grid,
+  .workbench-plan-steps,
   .operator-status-grid,
   .operator-support-grid {
     grid-template-columns: 1fr;
@@ -1170,7 +1242,9 @@ h2 {
     flex-direction: column;
   }
 
-  .workbench-template-header {
+  .workbench-template-header,
+  .workbench-plan-header,
+  .workbench-plan-gate {
     align-items: flex-start;
     flex-direction: column;
   }

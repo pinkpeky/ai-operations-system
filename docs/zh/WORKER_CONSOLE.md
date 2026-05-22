@@ -625,6 +625,22 @@ Operator workflow:
 
 边界：Phase 62M 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
 
+## Phase 62N Customer Console Goal Plan Preview
+
+Status: in progress on `codex/phase-62n-client-goal-plan-preview`.
+
+Phase 62N 在 `worker_console` 和 `worker_console_desktop` 里为当前选中的客户机目标模板增加紧凑计划预览。
+
+Operator workflow:
+
+- 选择目标模板。
+- 运行前先查看计划步骤。
+- 确认审批边界和预期产物。
+- 继续使用现有立即运行或后台运行入口。
+- 高级维护和诊断仍然放在独立折叠区。
+
+边界：Phase 62N 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

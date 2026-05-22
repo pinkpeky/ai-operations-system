@@ -153,6 +153,10 @@ type TaskWorkbenchCopy = {
   templatePlaybookLabel: string;
   templateModeNow: string;
   templateModeBackground: string;
+  planTitle: string;
+  planOutcomeLabel: string;
+  planGateLabel: string;
+  planStepLabel: string;
   goalPlaceholder: string;
   metricApprovals: string;
   metricActiveTasks: string;
@@ -190,6 +194,9 @@ type WorkbenchGoalTemplate = {
   prompt: string;
   playbookName: string;
   runMode: WorkbenchRunMode;
+  planSteps: string[];
+  reviewGate: string;
+  outcome: string;
 };
 
 const clientCopy: Record<ClientLanguage, ClientCopy> = {
@@ -298,6 +305,10 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     templatePlaybookLabel: "推荐剧本",
     templateModeNow: "立即",
     templateModeBackground: "后台",
+    planTitle: "计划预览",
+    planOutcomeLabel: "预期产物",
+    planGateLabel: "审批边界",
+    planStepLabel: "步骤",
     goalPlaceholder: "输入一个运营目标，例如：为新品活动生成三条短视频文案，并先进入审批。",
     metricApprovals: "待审批",
     metricActiveTasks: "运行中",
@@ -333,6 +344,10 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     templatePlaybookLabel: "Recommended playbook",
     templateModeNow: "Now",
     templateModeBackground: "Background",
+    planTitle: "Plan preview",
+    planOutcomeLabel: "Expected output",
+    planGateLabel: "Approval boundary",
+    planStepLabel: "Step",
     goalPlaceholder: "Tell this client machine what to do... Enter an operating goal, for example: generate three short-video drafts for a product launch and send them to approval first.",
     metricApprovals: "Approvals",
     metricActiveTasks: "Active",
@@ -371,6 +386,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "请为一个新品活动生成 3 条短视频文案和 1 条图文说明，列出目标受众、卖点、审批风险、需要引用的知识库材料，以及最终应保存到产物库的内容。",
       playbookName: "content_generation",
       runMode: "now",
+      planSteps: ["确认目标受众和卖点", "生成多渠道内容草稿", "列出审批风险和引用材料", "保存可审核产物"],
+      reviewGate: "内容草稿必须先进入人工审批，不能直接发布。",
+      outcome: "可审批内容草稿",
     },
     {
       id: "rag_evidence",
@@ -379,6 +397,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "请围绕当前运营目标检索知识库，整理可用于内容创作的证据摘要、来源文档、引用风险和缺失信息，先输出给人工审核，不要发布或执行外部动作。",
       playbookName: "content_generation",
       runMode: "now",
+      planSteps: ["拆解运营问题", "检索知识库来源", "整理证据和缺失信息", "输出审核用证据摘要"],
+      reviewGate: "证据摘要只供人工审核和后续创作，不触发外部动作。",
+      outcome: "RAG 证据摘要",
     },
     {
       id: "asset_brief",
@@ -387,6 +408,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "请把当前运营目标拆成素材需求 brief，包括画面方向、尺寸、文案、参考信息、审核标准和 ComfyUI 前置检查项；只生成可审批的素材请求，不要调用 ComfyUI。",
       playbookName: "content_generation",
       runMode: "background",
+      planSteps: ["提取素材目标", "定义画面和尺寸", "补充参考与审核标准", "生成素材请求记录"],
+      reviewGate: "只创建素材请求和 ComfyUI 前置检查项，不调用 ComfyUI。",
+      outcome: "素材请求 Brief",
     },
     {
       id: "page_report",
@@ -395,6 +419,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "请对 https://example.com 做浏览器截图报告，提取页面标题、关键信息、截图说明和后续内容建议；所有浏览器动作必须先经过审批。",
       playbookName: "browser_screenshot_report",
       runMode: "background",
+      planSteps: ["确认目标页面", "请求浏览器审批", "采集截图和页面信息", "输出页面报告"],
+      reviewGate: "浏览器动作必须保持审批受控，不能绕过人工确认。",
+      outcome: "页面截图报告",
     },
   ],
   "en-US": [
@@ -405,6 +432,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "Generate 3 short-video scripts and 1 social post for a product launch. Include audience, selling points, approval risks, knowledge-base references needed, and the final outputs that should be saved to the Output Library.",
       playbookName: "content_generation",
       runMode: "now",
+      planSteps: ["Confirm audience and selling points", "Draft multi-channel content", "List approval risks and references", "Save reviewable outputs"],
+      reviewGate: "Drafts must go through human approval before publishing.",
+      outcome: "Reviewable content drafts",
     },
     {
       id: "rag_evidence",
@@ -413,6 +443,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "Search the knowledge base for the current operating goal and summarize useful evidence, source documents, citation risks, and missing information for human review. Do not publish or execute external actions.",
       playbookName: "content_generation",
       runMode: "now",
+      planSteps: ["Break down the operating question", "Search knowledge sources", "Summarize evidence and gaps", "Prepare review evidence"],
+      reviewGate: "Evidence is for review and later drafting only; it does not trigger external actions.",
+      outcome: "RAG evidence summary",
     },
     {
       id: "asset_brief",
@@ -421,6 +454,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "Turn the current operating goal into an asset request brief with visual direction, dimensions, copy, reference information, review criteria, and ComfyUI preflight checks. Only create a reviewable request; do not call ComfyUI.",
       playbookName: "content_generation",
       runMode: "background",
+      planSteps: ["Extract asset objective", "Define visuals and dimensions", "Add references and review criteria", "Create the asset request record"],
+      reviewGate: "Only create an asset request and ComfyUI preflight notes; do not call ComfyUI.",
+      outcome: "Asset request brief",
     },
     {
       id: "page_report",
@@ -429,6 +465,9 @@ const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = 
       prompt: "Create a browser screenshot report for https://example.com with page title, key information, screenshot notes, and content recommendations. Browser actions must stay approval-gated.",
       playbookName: "browser_screenshot_report",
       runMode: "background",
+      planSteps: ["Confirm target page", "Request browser approval", "Capture screenshot and page facts", "Produce the page report"],
+      reviewGate: "Browser actions remain approval-gated and cannot bypass human confirmation.",
+      outcome: "Page screenshot report",
     },
   ],
 };
@@ -1249,6 +1288,24 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
               </button>
             ))}
           </div>
+        </div>
+        <div className="workbench-plan-preview" aria-label={workbenchCopy.planTitle}>
+          <div className="workbench-plan-header">
+            <span>{workbenchCopy.planTitle}</span>
+            <strong>{workbenchCopy.planOutcomeLabel}: {selectedGoalTemplate.outcome}</strong>
+          </div>
+          <ol className="workbench-plan-steps">
+            {selectedGoalTemplate.planSteps.map((step, index) => (
+              <li key={step}>
+                <span>{workbenchCopy.planStepLabel} {index + 1}</span>
+                <strong>{step}</strong>
+              </li>
+            ))}
+          </ol>
+          <p className="workbench-plan-gate">
+            <span>{workbenchCopy.planGateLabel}</span>
+            {selectedGoalTemplate.reviewGate}
+          </p>
         </div>
         <div className="chat-input-row command-input-row">
           <textarea
