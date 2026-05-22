@@ -18,6 +18,7 @@ from app.models.comfyui_runtime import (
     ComfyUIRuntimeConfigChangeRequest,
     ComfyUIRuntimeDiagnosticSnapshot,
     ComfyUIRuntimeManualApplyEvidence,
+    ComfyUIRuntimePostManualReadinessCheck,
 )
 from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeCapabilitiesResponse,
@@ -32,6 +33,8 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeMaintenanceStep,
     ComfyUIRuntimeManualApplyEvidenceListResponse,
     ComfyUIRuntimeManualApplyEvidenceResponse,
+    ComfyUIRuntimePostManualReadinessCheckListResponse,
+    ComfyUIRuntimePostManualReadinessCheckResponse,
 )
 
 
@@ -59,6 +62,14 @@ COMFYUI_RUNTIME_MANUAL_APPLY_EVIDENCE_STATUSES = {
     "draft",
     "ready_for_review",
     "verified",
+    "rejected",
+    "failed",
+    "archived",
+}
+COMFYUI_RUNTIME_POST_MANUAL_READINESS_STATUSES = {
+    "draft",
+    "ready_for_review",
+    "approved_for_read_only_probe",
     "rejected",
     "failed",
     "archived",
@@ -772,6 +783,150 @@ class ComfyUIRuntimeService:
         await session.refresh(evidence)
         return ComfyUIRuntimeManualApplyEvidenceResponse.from_model(evidence)
 
+    async def create_post_manual_readiness_check(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        evidence_id: UUID,
+        user_id: str | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+        """Compare verified manual apply evidence with current no-network diagnostics."""
+
+        result = await session.execute(
+            select(ComfyUIRuntimeManualApplyEvidence).where(
+                ComfyUIRuntimeManualApplyEvidence.id == evidence_id,
+                ComfyUIRuntimeManualApplyEvidence.workspace_id == workspace_id,
+            )
+        )
+        evidence = result.scalar_one_or_none()
+        if evidence is None:
+            raise LookupError("ComfyUI runtime manual apply evidence not found")
+        if evidence.evidence_status != "verified":
+            raise ValueError("ComfyUI runtime manual apply evidence must be verified before post-manual readiness can be checked")
+
+        diagnostics = self.diagnostics(workspace_id=workspace_id)
+        comparison = self._post_manual_readiness_comparison(evidence, diagnostics)
+        evidence_payload = ComfyUIRuntimeManualApplyEvidenceResponse.from_model(evidence).model_dump(mode="json")
+        check_metadata = {
+            **dict(metadata or {}),
+            "phase": "62H",
+            "source": "comfyui_runtime_post_manual_readiness",
+            "no_network_call_performed": True,
+            "health_probe_executed": False,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
+        check = ComfyUIRuntimePostManualReadinessCheck(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            manual_apply_evidence_id=evidence_id,
+            config_change_request_id=evidence.config_change_request_id,
+            check_status="draft",
+            comparison_status=comparison["comparison_status"],
+            provider=diagnostics.provider,
+            readiness_status_before=evidence.readiness_status_before,
+            readiness_status_after_evidence=evidence.readiness_status_after,
+            readiness_status_current=diagnostics.readiness_status,
+            read_only_probe_ready_before=evidence.read_only_probe_ready_before,
+            read_only_probe_ready_after_evidence=evidence.read_only_probe_ready_after,
+            read_only_probe_ready_current=diagnostics.read_only_probe_ready,
+            guarded_probe_ready=bool(comparison["guarded_probe_ready"]),
+            manual_evidence_status=evidence.evidence_status,
+            manual_config_applied=evidence.manual_config_applied,
+            service_restart_reported=evidence.service_restart_reported,
+            external_request_attempted=False,
+            runtime_calls_enabled=False,
+            health_probe_executed=False,
+            api_config_mutation_performed=False,
+            requested_changes=evidence.requested_changes or [],
+            manual_apply_steps=evidence.manual_apply_steps or [],
+            restart_evidence=evidence.restart_evidence or {},
+            evidence_payload=evidence_payload,
+            current_diagnostics_payload=diagnostics.model_dump(mode="json"),
+            comparison_results=comparison,
+            blocking_reasons=list(comparison["blocking_reasons"]),
+            recommended_actions=list(comparison["recommended_actions"]),
+            next_operator_action=comparison["next_operator_action"],
+            operator_note=operator_note.strip() if operator_note else None,
+            check_metadata=check_metadata,
+        )
+        session.add(check)
+        await session.commit()
+        await session.refresh(check)
+        return ComfyUIRuntimePostManualReadinessCheckResponse.from_model(check)
+
+    async def list_post_manual_readiness_checks(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        limit: int = 20,
+    ) -> ComfyUIRuntimePostManualReadinessCheckListResponse:
+        """List recent post-manual readiness comparisons for one workspace."""
+
+        bounded_limit = max(1, min(limit, 100))
+        result = await session.execute(
+            select(ComfyUIRuntimePostManualReadinessCheck)
+            .where(ComfyUIRuntimePostManualReadinessCheck.workspace_id == workspace_id)
+            .order_by(ComfyUIRuntimePostManualReadinessCheck.created_at.desc())
+            .limit(bounded_limit)
+        )
+        checks = result.scalars().all()
+        return ComfyUIRuntimePostManualReadinessCheckListResponse(
+            workspace_id=workspace_id,
+            items=[ComfyUIRuntimePostManualReadinessCheckResponse.from_model(check) for check in checks],
+        )
+
+    async def update_post_manual_readiness_check_status(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        check_id: UUID,
+        status: str,
+        reviewer_notes: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+        """Update post-manual readiness review status without performing runtime actions."""
+
+        if status not in COMFYUI_RUNTIME_POST_MANUAL_READINESS_STATUSES:
+            raise ValueError(f"Unsupported ComfyUI runtime post-manual readiness status: {status}")
+        result = await session.execute(
+            select(ComfyUIRuntimePostManualReadinessCheck).where(
+                ComfyUIRuntimePostManualReadinessCheck.id == check_id,
+                ComfyUIRuntimePostManualReadinessCheck.workspace_id == workspace_id,
+            )
+        )
+        check = result.scalar_one_or_none()
+        if check is None:
+            raise LookupError("ComfyUI runtime post-manual readiness check not found")
+        if status == "approved_for_read_only_probe" and not check.guarded_probe_ready:
+            raise ValueError("Post-manual readiness check must be ready for guarded read-only probe before approval")
+        check.check_status = status
+        check.reviewer_notes = reviewer_notes.strip() if reviewer_notes else check.reviewer_notes
+        check.api_config_mutation_performed = False
+        check.external_request_attempted = False
+        check.runtime_calls_enabled = False
+        check.health_probe_executed = False
+        check.check_metadata = {
+            **(check.check_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "62H",
+            "last_review_status": status,
+            "no_network_call_performed": True,
+            "health_probe_executed": False,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
+        await session.commit()
+        await session.refresh(check)
+        return ComfyUIRuntimePostManualReadinessCheckResponse.from_model(check)
+
     async def create_diagnostic_snapshot(
         self,
         session: AsyncSession,
@@ -925,6 +1080,142 @@ class ComfyUIRuntimeService:
                 }
             )
         return steps
+
+    @staticmethod
+    def _post_manual_readiness_comparison(
+        evidence: ComfyUIRuntimeManualApplyEvidence,
+        diagnostics: ComfyUIRuntimeDiagnosticsResponse,
+    ) -> dict[str, Any]:
+        checks: list[dict[str, Any]] = []
+        blocking_reasons: list[str] = []
+        recommended_actions: list[str] = []
+
+        def add_check(
+            *,
+            key: str,
+            passed: bool,
+            detail: str,
+            current_value: Any,
+            expected_value: Any,
+            remediation: str | None = None,
+            required: bool = True,
+        ) -> None:
+            status = "pass" if passed else "blocked" if required else "warning"
+            checks.append(
+                {
+                    "key": key,
+                    "status": status,
+                    "detail": detail,
+                    "current_value": current_value,
+                    "expected_value": expected_value,
+                    "remediation": remediation,
+                    "required": required,
+                }
+            )
+            if required and not passed:
+                blocking_reasons.append(f"{key}: {detail}")
+                if remediation and remediation not in recommended_actions:
+                    recommended_actions.append(remediation)
+
+        add_check(
+            key="manual_evidence_verified",
+            passed=evidence.evidence_status == "verified",
+            detail="Manual apply evidence must be verified before any post-manual readiness decision.",
+            current_value=evidence.evidence_status,
+            expected_value="verified",
+            remediation="Verify the manual apply evidence after maintainer review.",
+        )
+        add_check(
+            key="manual_config_applied",
+            passed=evidence.manual_config_applied,
+            detail="The maintainer must explicitly report that the approved configuration was applied.",
+            current_value=evidence.manual_config_applied,
+            expected_value=True,
+            remediation="Record manual apply evidence after the approved configuration has been applied outside the app.",
+        )
+        add_check(
+            key="service_restart_reported",
+            passed=evidence.service_restart_reported,
+            detail="Service restart evidence should be recorded before post-manual readiness approval.",
+            current_value=evidence.service_restart_reported,
+            expected_value=True,
+            remediation="Attach restart evidence or record why restart was not required.",
+        )
+        add_check(
+            key="api_config_mutation_performed",
+            passed=not evidence.api_config_mutation_performed,
+            detail="The API must not mutate runtime configuration during manual apply evidence or readiness comparison.",
+            current_value=evidence.api_config_mutation_performed,
+            expected_value=False,
+            remediation="Recreate evidence only through metadata-only routes.",
+        )
+        add_check(
+            key="external_request_attempted",
+            passed=not diagnostics.external_request_attempted,
+            detail="Current diagnostics must remain no-network before any guarded health probe.",
+            current_value=diagnostics.external_request_attempted,
+            expected_value=False,
+            remediation="Use diagnostics/readiness comparison only until guarded probe approval.",
+        )
+        add_check(
+            key="runtime_calls_enabled",
+            passed=not diagnostics.runtime_calls_enabled,
+            detail="Runtime calls must remain disabled during post-manual readiness comparison.",
+            current_value=diagnostics.runtime_calls_enabled,
+            expected_value=False,
+            remediation="Keep ComfyUI runtime calls disabled until a later guarded adapter phase.",
+        )
+        add_check(
+            key="health_probe_executed",
+            passed=True,
+            detail="No ComfyUI health probe is executed by this readiness comparison.",
+            current_value=False,
+            expected_value=False,
+            remediation=None,
+            required=False,
+        )
+        add_check(
+            key="read_only_probe_ready_current",
+            passed=diagnostics.read_only_probe_ready,
+            detail="Current no-network diagnostics must show all guarded read-only probe gates ready.",
+            current_value=diagnostics.read_only_probe_ready,
+            expected_value=True,
+            remediation="Complete the remaining ComfyUI runtime provider, switch, network, host, and path gates, then save a new readiness comparison.",
+        )
+
+        for action in diagnostics.recommended_actions:
+            if action not in recommended_actions:
+                recommended_actions.append(action)
+
+        guarded_probe_ready = all(check["status"] == "pass" for check in checks if check["required"])
+        comparison_status = "ready_for_guarded_read_only_probe" if guarded_probe_ready else "blocked"
+        if guarded_probe_ready:
+            next_operator_action = "Ready for a separate guarded read-only health probe approval; this comparison still did not call ComfyUI."
+        else:
+            next_operator_action = recommended_actions[0] if recommended_actions else "Review blocked readiness checks before any guarded probe."
+
+        return {
+            "phase": "62H",
+            "comparison_status": comparison_status,
+            "guarded_probe_ready": guarded_probe_ready,
+            "checks": checks,
+            "blocking_reasons": blocking_reasons,
+            "recommended_actions": recommended_actions,
+            "next_operator_action": next_operator_action,
+            "readiness_delta": {
+                "before": evidence.readiness_status_before,
+                "after_evidence": evidence.readiness_status_after,
+                "current": diagnostics.readiness_status,
+                "read_only_probe_ready_before": evidence.read_only_probe_ready_before,
+                "read_only_probe_ready_after_evidence": evidence.read_only_probe_ready_after,
+                "read_only_probe_ready_current": diagnostics.read_only_probe_ready,
+            },
+            "no_network_call_performed": True,
+            "health_probe_executed": False,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
 
     @staticmethod
     def _configuration_summary_from_diagnostics(

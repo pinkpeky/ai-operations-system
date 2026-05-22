@@ -23,6 +23,7 @@ from app.models.comfyui_runtime import (
     ComfyUIRuntimeConfigChangeRequest,
     ComfyUIRuntimeDiagnosticSnapshot,
     ComfyUIRuntimeManualApplyEvidence,
+    ComfyUIRuntimePostManualReadinessCheck,
 )
 from app.models.commercial_operation import (
     CommercialOperation,
@@ -227,6 +228,7 @@ __all__ = [
     "ComfyUIRuntimeConfigChangeRequest",
     "ComfyUIRuntimeDiagnosticSnapshot",
     "ComfyUIRuntimeManualApplyEvidence",
+    "ComfyUIRuntimePostManualReadinessCheck",
     "CommercialOperation",
     "CommercialOperationApproval",
     "CommercialOperationApprovalStatus",

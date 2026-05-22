@@ -12,6 +12,7 @@ from app.models.comfyui_runtime import (
     ComfyUIRuntimeConfigChangeRequest,
     ComfyUIRuntimeDiagnosticSnapshot,
     ComfyUIRuntimeManualApplyEvidence,
+    ComfyUIRuntimePostManualReadinessCheck,
 )
 
 
@@ -326,6 +327,114 @@ class ComfyUIRuntimeManualApplyEvidenceListResponse(BaseModel):
     success: bool = True
     workspace_id: str
     items: list[ComfyUIRuntimeManualApplyEvidenceResponse] = Field(default_factory=list)
+
+
+class ComfyUIRuntimePostManualReadinessCheckCreateRequest(BaseModel):
+    """Create a metadata-only readiness comparison after manual ComfyUI config apply."""
+
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimePostManualReadinessCheckDecisionRequest(BaseModel):
+    """Review metadata-only post-manual readiness comparison."""
+
+    reviewer_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimePostManualReadinessCheckResponse(BaseModel):
+    """Persisted ComfyUI runtime post-manual readiness comparison response."""
+
+    success: bool = True
+    id: UUID
+    workspace_id: str
+    user_id: str | None = None
+    manual_apply_evidence_id: UUID
+    config_change_request_id: UUID
+    check_status: str
+    comparison_status: str
+    provider: str
+    readiness_status_before: str
+    readiness_status_after_evidence: str
+    readiness_status_current: str
+    read_only_probe_ready_before: bool
+    read_only_probe_ready_after_evidence: bool
+    read_only_probe_ready_current: bool
+    guarded_probe_ready: bool
+    manual_evidence_status: str
+    manual_config_applied: bool
+    service_restart_reported: bool
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    health_probe_executed: bool
+    api_config_mutation_performed: bool
+    requested_changes: list[dict[str, Any]] = Field(default_factory=list)
+    manual_apply_steps: list[dict[str, Any]] = Field(default_factory=list)
+    restart_evidence: dict[str, Any] = Field(default_factory=dict)
+    evidence_payload: dict[str, Any] = Field(default_factory=dict)
+    current_diagnostics_payload: dict[str, Any] = Field(default_factory=dict)
+    comparison_results: dict[str, Any] = Field(default_factory=dict)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    next_operator_action: str | None = None
+    operator_note: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        check: ComfyUIRuntimePostManualReadinessCheck,
+    ) -> "ComfyUIRuntimePostManualReadinessCheckResponse":
+        return cls(
+            id=check.id,
+            workspace_id=check.workspace_id,
+            user_id=check.user_id,
+            manual_apply_evidence_id=check.manual_apply_evidence_id,
+            config_change_request_id=check.config_change_request_id,
+            check_status=check.check_status,
+            comparison_status=check.comparison_status,
+            provider=check.provider,
+            readiness_status_before=check.readiness_status_before,
+            readiness_status_after_evidence=check.readiness_status_after_evidence,
+            readiness_status_current=check.readiness_status_current,
+            read_only_probe_ready_before=check.read_only_probe_ready_before,
+            read_only_probe_ready_after_evidence=check.read_only_probe_ready_after_evidence,
+            read_only_probe_ready_current=check.read_only_probe_ready_current,
+            guarded_probe_ready=check.guarded_probe_ready,
+            manual_evidence_status=check.manual_evidence_status,
+            manual_config_applied=check.manual_config_applied,
+            service_restart_reported=check.service_restart_reported,
+            external_request_attempted=check.external_request_attempted,
+            runtime_calls_enabled=check.runtime_calls_enabled,
+            health_probe_executed=check.health_probe_executed,
+            api_config_mutation_performed=check.api_config_mutation_performed,
+            requested_changes=check.requested_changes or [],
+            manual_apply_steps=check.manual_apply_steps or [],
+            restart_evidence=check.restart_evidence or {},
+            evidence_payload=check.evidence_payload or {},
+            current_diagnostics_payload=check.current_diagnostics_payload or {},
+            comparison_results=check.comparison_results or {},
+            blocking_reasons=check.blocking_reasons or [],
+            recommended_actions=check.recommended_actions or [],
+            next_operator_action=check.next_operator_action,
+            operator_note=check.operator_note,
+            reviewer_notes=check.reviewer_notes,
+            metadata=check.check_metadata or {},
+            created_at=check.created_at,
+            updated_at=check.updated_at,
+        )
+
+
+class ComfyUIRuntimePostManualReadinessCheckListResponse(BaseModel):
+    """List response for post-manual readiness comparisons."""
+
+    success: bool = True
+    workspace_id: str
+    items: list[ComfyUIRuntimePostManualReadinessCheckResponse] = Field(default_factory=list)
 
 
 class ComfyUIRuntimeDiagnosticSnapshotCreateRequest(BaseModel):

@@ -468,8 +468,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 61Z",
-    boundaryBody: "商业运营 ComfyUI 运行启用请求：从已验证干运行创建服务器维护人员可审查的启用请求、开关审计、运行护栏和回滚记录；当前仍不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不启用开关、不发布、不控制账号。",
+    boundaryTitle: "Phase 62H",
+    boundaryBody: "ComfyUI 运行应用后就绪对比：从已验证人工应用证据创建服务器维护人员可审查的无网络就绪对比；当前仍不请求 ComfyUI、不触发 /system_stats、不提交队列、不上传文件、不生成媒体、不启用开关、不重启服务、不修改配置。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -731,8 +731,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 61Z",
-    boundaryBody: "Commercial operation ComfyUI runtime activations: create reviewable metadata-only activation requests from validated dry-runs while keeping adapter imports/calls, ComfyUI HTTP, queue reads/submissions, uploads, media generation, runtime switch enablement, publishing, and account control disabled.",
+    boundaryTitle: "Phase 62H",
+    boundaryBody: "ComfyUI runtime post-manual readiness checks: create reviewable no-network readiness comparisons from verified manual apply evidence while keeping /system_stats probes, ComfyUI HTTP, queue reads/submissions, uploads, media generation, runtime switch enablement, service restarts, and config mutation disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -1113,7 +1113,7 @@ function useAutoRefresh(enabled: boolean, intervalMs: number, callback: () => vo
 
 function StatusPill({ value }: { value: React.ReactNode }) {
   const label = String(value ?? "unknown");
-  const variant = /online|active|healthy|completed|success|pass|ready|approved|verified|true/i.test(label)
+  const variant = /online|active|healthy|completed|success|pass|ready|approved|verified|approved_for_read_only_probe|ready_for_guarded_read_only_probe|true/i.test(label)
     ? "ok"
     : /failed|error|offline|timeout|blocked|rejected|cancelled|false|revoked/i.test(label)
       ? "bad"
@@ -1265,7 +1265,7 @@ function Table({
 }
 
 function renderCell(value: unknown): React.ReactNode {
-  if (typeof value === "string" && /^(active|online|offline|failed|completed|pending|running|healthy|warning|error|blocked|pass|ready|draft|ready_for_review|approved_for_manual_apply|verified|rejected|cancelled|archived|true|false)$/i.test(value)) {
+  if (typeof value === "string" && /^(active|online|offline|failed|completed|pending|running|healthy|warning|error|blocked|pass|ready|draft|ready_for_review|approved_for_manual_apply|approved_for_read_only_probe|ready_for_guarded_read_only_probe|verified|rejected|cancelled|archived|true|false)$/i.test(value)) {
     return <StatusPill value={value} />;
   }
   if (typeof value === "boolean") {
@@ -4392,7 +4392,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 61Z",
+    phaseLabel: "Phase 62H",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4470,7 +4470,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 61Z",
+    phaseLabel: "Phase 62H",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4655,7 +4655,7 @@ function CommercialOperationsPage({
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作、最近诊断快照、Phase 62E 维护 runbook、Phase 62F 配置变更申请和 Phase 62G 人工应用证据。只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作、最近诊断快照、Phase 62E 维护 runbook、Phase 62F 配置变更申请、Phase 62G 人工应用证据和 Phase 62H 应用后就绪对比。只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
           runtimeRefresh: "刷新适配器状态",
           runtimeSnapshot: "保存诊断快照",
           runtimeConfigRequest: "创建配置变更申请",
@@ -4677,6 +4677,14 @@ function CommercialOperationsPage({
           runtimeManualApplyReject: "驳回证据",
           runtimeManualApplyFail: "标记证据失败",
           runtimeManualApplyArchive: "归档证据",
+          runtimePostManualReadiness: "应用后就绪对比",
+          runtimePostManualReadinessEmpty: "暂无应用后就绪对比。",
+          runtimePostManualCreate: "创建就绪对比",
+          runtimePostManualReady: "送审就绪对比",
+          runtimePostManualApprove: "批准只读探测准备",
+          runtimePostManualReject: "驳回就绪对比",
+          runtimePostManualFail: "标记对比失败",
+          runtimePostManualArchive: "归档就绪对比",
         }
       : {
           title: "ComfyUI operations workspace",
@@ -4688,7 +4696,7 @@ function CommercialOperationsPage({
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, recent diagnostic snapshots, the Phase 62E maintenance runbook, Phase 62F config change requests, and Phase 62G manual apply evidence. /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, recent diagnostic snapshots, the Phase 62E maintenance runbook, Phase 62F config change requests, Phase 62G manual apply evidence, and Phase 62H post-manual readiness checks. /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
           runtimeRefresh: "Refresh adapter status",
           runtimeSnapshot: "Save diagnostics snapshot",
           runtimeConfigRequest: "Create config change request",
@@ -4710,6 +4718,14 @@ function CommercialOperationsPage({
           runtimeManualApplyReject: "Reject evidence",
           runtimeManualApplyFail: "Mark evidence failed",
           runtimeManualApplyArchive: "Archive evidence",
+          runtimePostManualReadiness: "Post-manual readiness",
+          runtimePostManualReadinessEmpty: "No post-manual readiness checks yet.",
+          runtimePostManualCreate: "Create readiness check",
+          runtimePostManualReady: "Mark readiness ready",
+          runtimePostManualApprove: "Approve probe readiness",
+          runtimePostManualReject: "Reject readiness",
+          runtimePostManualFail: "Mark readiness failed",
+          runtimePostManualArchive: "Archive readiness",
         };
   const contentCopy =
     language === "zh-CN"
@@ -5959,7 +5975,7 @@ function CommercialOperationsPage({
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [health, capabilities, diagnostics, runbook, configRequests, snapshots, manualApplyEvidence] = await Promise.all([
+      const [health, capabilities, diagnostics, runbook, configRequests, snapshots, manualApplyEvidence, postManualReadinessChecks] = await Promise.all([
         comfyuiRuntimeApi.health(settings),
         comfyuiRuntimeApi.capabilities(settings),
         comfyuiRuntimeApi.diagnostics(settings),
@@ -5967,6 +5983,7 @@ function CommercialOperationsPage({
         comfyuiRuntimeApi.configChangeRequests(settings),
         comfyuiRuntimeApi.diagnosticSnapshots(settings),
         comfyuiRuntimeApi.manualApplyEvidence(settings),
+        comfyuiRuntimeApi.postManualReadinessChecks(settings),
       ]);
       setComfyuiRuntimeAdapterState({
         data: {
@@ -5977,6 +5994,7 @@ function CommercialOperationsPage({
           configRequests: toItems(configRequests),
           snapshots: toItems(snapshots),
           manualApplyEvidence: toItems(manualApplyEvidence),
+          postManualReadinessChecks: toItems(postManualReadinessChecks),
         },
         error: null,
         loading: false,
@@ -6161,6 +6179,71 @@ function CommercialOperationsPage({
         setActionState({
           data: null,
           error: error instanceof Error ? error.message : "ComfyUI runtime manual apply evidence review unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
+
+  const createComfyuiRuntimePostManualReadinessCheck = useCallback(
+    async (evidenceId: string) => {
+      if (!evidenceId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const readinessCheck = await comfyuiRuntimeApi.createPostManualReadinessCheck(
+          evidenceId,
+          {
+            operator_note:
+              language === "zh-CN"
+                ? "从 Admin Dashboard 创建人工应用后的无网络就绪对比；不触发 /system_stats。"
+                : "Created post-manual no-network readiness comparison from Admin Dashboard; does not trigger /system_stats.",
+            metadata: { source_page: "comfyui-operations", phase: "62H", ui_language: language },
+          },
+          settings,
+        );
+        setActionState({ data: readinessCheck, error: null, loading: false, updatedAt: nowLabel() });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI runtime post-manual readiness check unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
+
+  const updateComfyuiRuntimePostManualReadinessCheckStatus = useCallback(
+    async (checkId: string, action: "ready" | "approve" | "reject" | "fail" | "archive") => {
+      if (!checkId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const reviewed = await comfyuiRuntimeApi.updatePostManualReadinessCheckStatus(
+          checkId,
+          action,
+          {
+            reviewer_notes:
+              language === "zh-CN"
+                ? "从 Admin Dashboard 更新应用后就绪对比状态；仍不请求 ComfyUI、不重启服务、不修改配置。"
+                : "Updated post-manual readiness from Admin Dashboard; still no ComfyUI call, service restart, or config mutation.",
+            metadata: { source_page: "comfyui-operations", phase: "62H", ui_language: language, action },
+          },
+          settings,
+        );
+        setActionState({ data: reviewed, error: null, loading: false, updatedAt: nowLabel() });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI runtime post-manual readiness review unavailable",
           loading: false,
           updatedAt: nowLabel(),
         });
@@ -9427,8 +9510,18 @@ function CommercialOperationsPage({
   const comfyuiRuntimeManualApplyEvidence = toItems(comfyuiRuntimeAdapterState.data?.manualApplyEvidence);
   const latestComfyuiRuntimeManualApplyEvidence = comfyuiRuntimeManualApplyEvidence[0] ?? null;
   const latestComfyuiRuntimeManualApplyEvidenceId = valueAt(latestComfyuiRuntimeManualApplyEvidence, ["id"], "");
+  const latestComfyuiRuntimeManualApplyEvidenceStatus = valueAt(latestComfyuiRuntimeManualApplyEvidence, ["evidence_status"], "");
   const canCreateComfyuiRuntimeManualApplyEvidence =
     Boolean(latestComfyuiRuntimeConfigRequestId) && latestComfyuiRuntimeConfigRequestStatus === "approved_for_manual_apply";
+  const comfyuiRuntimePostManualReadinessChecks = toItems(comfyuiRuntimeAdapterState.data?.postManualReadinessChecks);
+  const latestComfyuiRuntimePostManualReadinessCheck = comfyuiRuntimePostManualReadinessChecks[0] ?? null;
+  const latestComfyuiRuntimePostManualReadinessCheckId = valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["id"], "");
+  const latestComfyuiRuntimePostManualComparisonStatus = valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["comparison_status"], "");
+  const canCreateComfyuiRuntimePostManualReadinessCheck =
+    Boolean(latestComfyuiRuntimeManualApplyEvidenceId) && latestComfyuiRuntimeManualApplyEvidenceStatus === "verified";
+  const canApproveComfyuiRuntimePostManualReadinessCheck =
+    Boolean(latestComfyuiRuntimePostManualReadinessCheckId) &&
+    latestComfyuiRuntimePostManualComparisonStatus === "ready_for_guarded_read_only_probe";
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -10058,6 +10151,9 @@ function CommercialOperationsPage({
             <Field label="manual_apply_evidence_count" value={String(comfyuiRuntimeManualApplyEvidence.length)} />
             <Field label="latest_manual_apply_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeManualApplyEvidence, ["evidence_status"], "none")} />} />
             <Field label="latest_manual_apply_at" value={valueAt(latestComfyuiRuntimeManualApplyEvidence, ["created_at"], "-")} />
+            <Field label="post_manual_readiness_count" value={String(comfyuiRuntimePostManualReadinessChecks.length)} />
+            <Field label="latest_post_manual_check_status" value={<StatusPill value={valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["check_status"], "none")} />} />
+            <Field label="latest_post_manual_comparison" value={<StatusPill value={valueAt(latestComfyuiRuntimePostManualReadinessCheck, ["comparison_status"], "none")} />} />
           </div>
           <h3>{comfyuiSurfaceCopy.runtimeRunbook}</h3>
           <Table
@@ -10093,6 +10189,20 @@ function CommercialOperationsPage({
               { key: "service_restart_reported", label: "restart" },
               { key: "api_config_mutation_performed", label: "app_mutated_config" },
               { key: "operator_note", label: "note" },
+              { key: "created_at", label: "created_at" },
+            ]}
+          />
+          <h3>{comfyuiSurfaceCopy.runtimePostManualReadiness}</h3>
+          <Table
+            rows={comfyuiRuntimePostManualReadinessChecks}
+            emptyLabel={comfyuiSurfaceCopy.runtimePostManualReadinessEmpty}
+            columns={[
+              { key: "check_status", label: "status" },
+              { key: "comparison_status", label: "comparison" },
+              { key: "readiness_status_current", label: "current" },
+              { key: "guarded_probe_ready", label: "probe_ready" },
+              { key: "health_probe_executed", label: "probe_executed" },
+              { key: "next_operator_action", label: "next_action" },
               { key: "created_at", label: "created_at" },
             ]}
           />
@@ -10196,6 +10306,54 @@ function CommercialOperationsPage({
             >
               <History size={15} />
               {comfyuiSurfaceCopy.runtimeManualApplyArchive}
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => void createComfyuiRuntimePostManualReadinessCheck(latestComfyuiRuntimeManualApplyEvidenceId)}
+              disabled={!canCreateComfyuiRuntimePostManualReadinessCheck || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <MonitorCheck size={15} />
+              {comfyuiSurfaceCopy.runtimePostManualCreate}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimePostManualReadinessCheckStatus(latestComfyuiRuntimePostManualReadinessCheckId, "ready")}
+              disabled={!latestComfyuiRuntimePostManualReadinessCheckId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Send size={15} />
+              {comfyuiSurfaceCopy.runtimePostManualReady}
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => void updateComfyuiRuntimePostManualReadinessCheckStatus(latestComfyuiRuntimePostManualReadinessCheckId, "approve")}
+              disabled={!canApproveComfyuiRuntimePostManualReadinessCheck || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <ShieldCheck size={15} />
+              {comfyuiSurfaceCopy.runtimePostManualApprove}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimePostManualReadinessCheckStatus(latestComfyuiRuntimePostManualReadinessCheckId, "reject")}
+              disabled={!latestComfyuiRuntimePostManualReadinessCheckId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <AlertTriangle size={15} />
+              {comfyuiSurfaceCopy.runtimePostManualReject}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimePostManualReadinessCheckStatus(latestComfyuiRuntimePostManualReadinessCheckId, "fail")}
+              disabled={!latestComfyuiRuntimePostManualReadinessCheckId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Crosshair size={15} />
+              {comfyuiSurfaceCopy.runtimePostManualFail}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimePostManualReadinessCheckStatus(latestComfyuiRuntimePostManualReadinessCheckId, "archive")}
+              disabled={!latestComfyuiRuntimePostManualReadinessCheckId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <History size={15} />
+              {comfyuiSurfaceCopy.runtimePostManualArchive}
             </button>
           </div>
         </Panel>

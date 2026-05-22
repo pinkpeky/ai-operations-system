@@ -1936,6 +1936,20 @@ export const comfyuiRuntimeApi = {
       { method: "POST", body: JSON.stringify(payload) },
       settings,
     ),
+  postManualReadinessChecks: (settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>("/comfyui-runtime/post-manual-readiness-checks?limit=20", {}, settings),
+  createPostManualReadinessCheck: (evidenceId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/manual-apply-evidence/${encodeURIComponent(evidenceId)}/post-manual-readiness-checks`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  updatePostManualReadinessCheckStatus: (checkId: string, action: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/${encodeURIComponent(action)}`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
   diagnosticSnapshots: (settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>("/comfyui-runtime/diagnostic-snapshots?limit=20", {}, settings),
   createDiagnosticSnapshot: (payload: JsonRecord, settings?: AdminSettings) =>

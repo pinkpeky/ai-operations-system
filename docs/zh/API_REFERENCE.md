@@ -3653,6 +3653,8 @@ Endpoints:
 - `POST /api/v1/comfyui-runtime/config-change-requests`
 - `GET /api/v1/comfyui-runtime/manual-apply-evidence`
 - `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence`
+- `GET /api/v1/comfyui-runtime/post-manual-readiness-checks`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -3731,5 +3733,19 @@ Review endpoints:
 - `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/archive`
 
 边界：Phase 62G 只记录维护人员证据，不会写入环境变量、不会重启服务、不会启用 runtime switch、不会通过 API 修改 runtime configuration、不会请求 ComfyUI、不会触发 guarded `/system_stats` 探测、不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、读取 environment state、解析 secret value、发布、运行 OpenClaw、运行 Browser Worker actions 或绕过审批。
+
+## Phase 62H: ComfyUI Runtime Post-Manual Readiness Checks
+
+Phase 62H 新增服务器维护人员使用的 metadata-only 应用后就绪对比。`POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks` 只能从已经 verified 的 Phase 62G 证据创建检查，并把 before/after/current readiness、当前无网络 diagnostics、comparison results、blocking reasons、recommended actions、readiness delta、`comparison_status`、`guarded_probe_ready`、`health_probe_executed=false`、`external_request_attempted=false`、`runtime_calls_enabled=false` 和 `api_config_mutation_performed=false` 保存到 `comfyui_runtime_post_manual_readiness_checks`。`GET /api/v1/comfyui-runtime/post-manual-readiness-checks` 用于列出当前 workspace 最近的就绪对比。
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/ready`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/approve`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/reject`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/fail`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/archive`
+
+边界：Phase 62H 只记录维护人员就绪对比，不会写入环境变量、不会重启服务、不会启用 runtime switch、不会通过 API 修改 runtime configuration、不会请求 ComfyUI、不会触发 guarded `/system_stats` 探测、不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、读取 environment state、解析 secret value、发布、运行 OpenClaw、运行 Browser Worker actions 或绕过审批。
 
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。

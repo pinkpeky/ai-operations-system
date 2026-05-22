@@ -4247,6 +4247,8 @@ Endpoints:
 - `POST /api/v1/comfyui-runtime/config-change-requests`
 - `GET /api/v1/comfyui-runtime/manual-apply-evidence`
 - `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence`
+- `GET /api/v1/comfyui-runtime/post-manual-readiness-checks`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -4327,3 +4329,17 @@ Review endpoints:
 - `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/archive`
 
 Boundary: Phase 62G records maintainer evidence only. It does not write environment variables, restart services, enable runtime switches, mutate runtime configuration through the API, call ComfyUI, run the guarded `/system_stats` probe, import adapters, submit prompts, read queues, submit queues, upload files, generate media, read environment state, resolve secret values, publish, run OpenClaw, run Browser Worker actions, or bypass approval.
+
+## Phase 62H: ComfyUI Runtime Post-Manual Readiness Checks
+
+Phase 62H adds metadata-only post-manual readiness checks for server maintainers. `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks` creates a check from verified Phase 62G evidence, compares before/after/current readiness, stores current no-network diagnostics, comparison results, blockers, recommended actions, readiness delta, `comparison_status`, `guarded_probe_ready`, `health_probe_executed=false`, `external_request_attempted=false`, `runtime_calls_enabled=false`, and `api_config_mutation_performed=false` in `comfyui_runtime_post_manual_readiness_checks`. `GET /api/v1/comfyui-runtime/post-manual-readiness-checks` lists recent checks for the current workspace.
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/ready`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/approve`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/reject`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/fail`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/archive`
+
+Boundary: Phase 62H records maintainer readiness comparisons only. It does not write environment variables, restart services, enable runtime switches, mutate runtime configuration through the API, call ComfyUI, run the guarded `/system_stats` probe, import adapters, submit prompts, read queues, submit queues, upload files, generate media, read environment state, resolve secret values, publish, run OpenClaw, run Browser Worker actions, or bypass approval.
