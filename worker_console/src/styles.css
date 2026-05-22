@@ -1514,6 +1514,123 @@ h2 {
   text-transform: uppercase;
 }
 
+.knowledge-validation-guidance {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.knowledge-validation-guidance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.knowledge-validation-guidance-header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.knowledge-validation-guidance-header span,
+.knowledge-validation-target-card span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.knowledge-validation-guidance-header strong,
+.knowledge-validation-target-card strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.knowledge-validation-guidance-header p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.knowledge-validation-targets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.knowledge-validation-target-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.knowledge-validation-target-card small {
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.knowledge-validation-target-card .refresh-button {
+  justify-self: start;
+}
+
+.knowledge-validation-suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.knowledge-validation-suggestion-card {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.knowledge-validation-suggestion-card:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #eff6ff;
+}
+
+.knowledge-validation-suggestion-card strong {
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.knowledge-validation-suggestion-card span {
+  overflow-wrap: anywhere;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.knowledge-validation-suggestion-card em {
+  align-self: end;
+  color: #2563eb;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .knowledge-validation-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(150px, 0.26fr) auto;
@@ -2635,6 +2752,8 @@ h2 {
   .knowledge-form-row,
   .knowledge-ingestion-stats,
   .knowledge-ingestion-pipeline,
+  .knowledge-validation-targets,
+  .knowledge-validation-suggestions,
   .knowledge-validation-form,
   .knowledge-document-overview,
   .knowledge-document-workspace,
@@ -2648,6 +2767,7 @@ h2 {
   .knowledge-ingestion-header,
   .knowledge-activity-header,
   .knowledge-validation-header,
+  .knowledge-validation-guidance-header,
   .knowledge-library-header {
     align-items: flex-start;
     flex-direction: column;

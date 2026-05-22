@@ -336,6 +336,22 @@ type KnowledgeBaseCopy = {
   validationSearchTitle: string;
   validationFailedTitle: string;
   validationClear: string;
+  validationGuidanceTitle: string;
+  validationGuidanceHint: string;
+  validationSuggestionTitle: string;
+  validationSuggestionApplied: string;
+  validationSuggestionAppliedTitle: string;
+  validationUseSuggestion: string;
+  validationRunForItem: string;
+  validationSelectedMaterial: string;
+  validationLatestUpload: string;
+  validationNoTarget: string;
+  validationSuggestionSummary: string;
+  validationSuggestionRisk: string;
+  validationSuggestionAction: string;
+  validationSuggestionSummaryQuery: string;
+  validationSuggestionRiskQuery: string;
+  validationSuggestionActionQuery: string;
   ingestionTitle: string;
   ingestionHint: string;
   ingestionNextAction: string;
@@ -365,6 +381,14 @@ type KnowledgeBaseCopy = {
 type KnowledgeQueueStatus = "queued" | "uploading" | "uploaded" | "failed";
 type KnowledgeActivityTone = "good" | "warn" | "neutral";
 type KnowledgeIngestionStage = "ready" | "processing" | "failed" | "waiting";
+
+type KnowledgeValidationSuggestion = {
+  id: string;
+  label: string;
+  query: string;
+  mode: KnowledgeSearchMode;
+  sourceId?: string;
+};
 
 type KnowledgeQueueItem = {
   id: string;
@@ -740,6 +764,22 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     validationSearchTitle: "知识检索验证完成",
     validationFailedTitle: "知识检索验证失败",
     validationClear: "清空结果",
+    validationGuidanceTitle: "验证建议",
+    validationGuidanceHint: "根据当前资料生成常用验证问题，一键带入检索验证。",
+    validationSuggestionTitle: "建议问题",
+    validationSuggestionApplied: "已填入验证问题",
+    validationSuggestionAppliedTitle: "已使用验证建议",
+    validationUseSuggestion: "使用问题",
+    validationRunForItem: "验证此资料",
+    validationSelectedMaterial: "当前资料",
+    validationLatestUpload: "最近上传",
+    validationNoTarget: "选择资料或上传文件后，会出现更准确的验证建议。",
+    validationSuggestionSummary: "核心内容",
+    validationSuggestionRisk: "风险与限制",
+    validationSuggestionAction: "执行要点",
+    validationSuggestionSummaryQuery: "请总结《{material}》中和当前运营目标相关的关键内容。",
+    validationSuggestionRiskQuery: "《{material}》中有哪些禁用词、合规风险或需要人工确认的信息？",
+    validationSuggestionActionQuery: "根据《{material}》，下一步运营执行需要注意哪些要点？",
     ingestionTitle: "入库状态闭环",
     ingestionHint: "查看资料从选择、上传、切分入库到检索验证的当前状态和失败原因。",
     ingestionNextAction: "当前建议",
@@ -888,6 +928,22 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     validationSearchTitle: "Knowledge search validation completed",
     validationFailedTitle: "Knowledge search validation failed",
     validationClear: "Clear results",
+    validationGuidanceTitle: "Validation guidance",
+    validationGuidanceHint: "Use common validation questions for the current material and send them into search validation.",
+    validationSuggestionTitle: "Suggested questions",
+    validationSuggestionApplied: "Validation question filled",
+    validationSuggestionAppliedTitle: "Validation suggestion used",
+    validationUseSuggestion: "Use question",
+    validationRunForItem: "Validate material",
+    validationSelectedMaterial: "Selected material",
+    validationLatestUpload: "Latest upload",
+    validationNoTarget: "Choose material or upload files to get more accurate validation suggestions.",
+    validationSuggestionSummary: "Core content",
+    validationSuggestionRisk: "Risks and limits",
+    validationSuggestionAction: "Action points",
+    validationSuggestionSummaryQuery: "Summarize the key content in \"{material}\" that is relevant to the current operating goal.",
+    validationSuggestionRiskQuery: "What restricted terms, compliance risks, or human-review items appear in \"{material}\"?",
+    validationSuggestionActionQuery: "Based on \"{material}\", what should the operator pay attention to before the next execution step?",
     ingestionTitle: "Ingestion status loop",
     ingestionHint: "Track material from selection and upload through chunking, indexing, and search validation.",
     ingestionNextAction: "Current suggestion",
@@ -2586,6 +2642,10 @@ function knowledgeActivityId(): string {
   return `knowledge-activity-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function knowledgeValidationQuestion(template: string, material: string): string {
+  return template.split("{material}").join(material);
+}
+
 function KnowledgeBasePanel({
   language,
   settingsStorageKey,
@@ -2745,6 +2805,51 @@ function KnowledgeBasePanel({
         ? copy.detailHealthNeedsReview
         : copy.detailHealthUnknown;
   const selectedDocumentIngestLabel = selectedDocument?.ingest_status || selectedDocumentStatusLabel;
+  const latestUploadedQueueItem = [...queue].reverse().find((item) => item.status === "uploaded" && (item.sourceId || item.documentId));
+  const fallbackValidationMaterialName = latestUploadedQueueItem?.file.name || collectionName.trim() || copy.collectionMissing;
+  const validationMaterialName = selectedDocument ? documentDisplayName(selectedDocument) : fallbackValidationMaterialName;
+  const validationTargetSourceId = selectedDocument?.source_id ?? latestUploadedQueueItem?.sourceId;
+  const validationSuggestions: KnowledgeValidationSuggestion[] = [
+    {
+      id: "summary",
+      label: copy.validationSuggestionSummary,
+      query: knowledgeValidationQuestion(copy.validationSuggestionSummaryQuery, validationMaterialName),
+      mode: "hybrid",
+      sourceId: validationTargetSourceId,
+    },
+    {
+      id: "risk",
+      label: copy.validationSuggestionRisk,
+      query: knowledgeValidationQuestion(copy.validationSuggestionRiskQuery, validationMaterialName),
+      mode: "hybrid",
+      sourceId: validationTargetSourceId,
+    },
+    {
+      id: "action",
+      label: copy.validationSuggestionAction,
+      query: knowledgeValidationQuestion(copy.validationSuggestionActionQuery, validationMaterialName),
+      mode: "keyword",
+      sourceId: validationTargetSourceId,
+    },
+  ];
+  const selectedDocumentValidationSuggestion: KnowledgeValidationSuggestion | null = selectedDocument
+    ? {
+        id: "selected-document",
+        label: copy.validationSelectedMaterial,
+        query: knowledgeValidationQuestion(copy.validationSuggestionSummaryQuery, documentDisplayName(selectedDocument)),
+        mode: "hybrid",
+        sourceId: selectedDocument.source_id,
+      }
+    : null;
+  const latestUploadValidationSuggestion: KnowledgeValidationSuggestion | null = latestUploadedQueueItem
+    ? {
+        id: "latest-upload",
+        label: copy.validationLatestUpload,
+        query: knowledgeValidationQuestion(copy.validationSuggestionSummaryQuery, latestUploadedQueueItem.file.name),
+        mode: "hybrid",
+        sourceId: latestUploadedQueueItem.sourceId,
+      }
+    : null;
 
   useEffect(() => {
     if (documents.length === 0) {
@@ -3001,12 +3106,29 @@ function KnowledgeBasePanel({
     setMessage(null);
   };
 
-  const runKnowledgeValidation = async () => {
-    const query = validationQuery.trim();
+  const applyKnowledgeValidationSuggestion = (suggestion: KnowledgeValidationSuggestion) => {
+    setValidationQuery(suggestion.query);
+    setValidationMode(suggestion.mode);
+    setValidationResults([]);
+    setValidationState("idle");
+    setValidationSummary(`${copy.validationSuggestionApplied}: ${suggestion.label}`);
+    addKnowledgeActivity({
+      title: copy.validationSuggestionAppliedTitle,
+      detail: suggestion.query,
+      meta: `${copy.validationCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+      tone: "neutral",
+    });
+  };
+
+  const runKnowledgeValidation = async (override?: { query?: string; mode?: KnowledgeSearchMode; sourceId?: string }) => {
+    const query = (override?.query ?? validationQuery).trim();
+    const searchMode = override?.mode ?? validationMode;
     if (!query) {
       setValidationSummary(copy.validationQueryRequired);
       return;
     }
+    setValidationQuery(query);
+    setValidationMode(searchMode);
     setValidationState("loading");
     setValidationSummary(null);
     try {
@@ -3014,8 +3136,9 @@ function KnowledgeBasePanel({
         {
           query,
           collectionName: collectionName.trim() || undefined,
-          searchMode: validationMode,
+          searchMode,
           topK: 5,
+          sourceId: override?.sourceId,
         },
         settings,
       );
@@ -3387,6 +3510,64 @@ function KnowledgeBasePanel({
             <XCircle size={15} />
             {copy.validationClear}
           </button>
+        </div>
+        <div className="knowledge-validation-guidance" aria-label={copy.validationGuidanceTitle}>
+          <div className="knowledge-validation-guidance-header">
+            <div>
+              <span>{copy.validationSuggestionTitle}</span>
+              <strong>{copy.validationGuidanceTitle}</strong>
+              <p>{copy.validationGuidanceHint}</p>
+            </div>
+          </div>
+          <div className="knowledge-validation-targets">
+            {selectedDocumentValidationSuggestion ? (
+              <article className="knowledge-validation-target-card">
+                <span>{copy.validationSelectedMaterial}</span>
+                <strong>{documentDisplayName(selectedDocument!)}</strong>
+                <small>{copy.ingestionSourceId}: {selectedDocument?.source_id ?? "-"}</small>
+                <button
+                  className="refresh-button"
+                  onClick={() => void runKnowledgeValidation(selectedDocumentValidationSuggestion)}
+                  disabled={validationState === "loading"}
+                >
+                  <Search size={14} />
+                  {copy.validationRunForItem}
+                </button>
+              </article>
+            ) : null}
+            {latestUploadValidationSuggestion ? (
+              <article className="knowledge-validation-target-card">
+                <span>{copy.validationLatestUpload}</span>
+                <strong>{latestUploadedQueueItem?.file.name}</strong>
+                <small>{copy.documentChunks}: {latestUploadedQueueItem?.chunkCount ?? "-"}</small>
+                <button
+                  className="refresh-button"
+                  onClick={() => void runKnowledgeValidation(latestUploadValidationSuggestion)}
+                  disabled={validationState === "loading"}
+                >
+                  <Search size={14} />
+                  {copy.validationRunForItem}
+                </button>
+              </article>
+            ) : null}
+            {!selectedDocumentValidationSuggestion && !latestUploadValidationSuggestion ? (
+              <div className="knowledge-empty">{copy.validationNoTarget}</div>
+            ) : null}
+          </div>
+          <div className="knowledge-validation-suggestions">
+            {validationSuggestions.map((suggestion) => (
+              <button
+                className="knowledge-validation-suggestion-card"
+                key={suggestion.id}
+                onClick={() => applyKnowledgeValidationSuggestion(suggestion)}
+                type="button"
+              >
+                <strong>{suggestion.label}</strong>
+                <span>{suggestion.query}</span>
+                <em>{copy.validationUseSuggestion}</em>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="knowledge-validation-form">
           <label>
