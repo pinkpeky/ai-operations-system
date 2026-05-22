@@ -120,6 +120,11 @@ type ClientCopy = {
 type TaskWorkbenchCopy = {
   title: string;
   subtitle: string;
+  templateTitle: string;
+  selectedTemplateLabel: string;
+  templatePlaybookLabel: string;
+  templateModeNow: string;
+  templateModeBackground: string;
   goalPlaceholder: string;
   metricApprovals: string;
   metricActiveTasks: string;
@@ -146,6 +151,17 @@ type TaskWorkbenchCopy = {
   outputsSummary: string;
   workflowSummary: string;
   tasksSummary: string;
+};
+
+type WorkbenchRunMode = "now" | "background";
+
+type WorkbenchGoalTemplate = {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+  playbookName: string;
+  runMode: WorkbenchRunMode;
 };
 
 const clientCopy: Record<ClientLanguage, ClientCopy> = {
@@ -249,6 +265,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
   "zh-CN": {
     title: "客户机任务工作台",
     subtitle: "把运营目标、审批、后台任务和失败恢复放在同一个入口，适合普通使用人员按下一步处理。",
+    templateTitle: "目标模板",
+    selectedTemplateLabel: "当前模板",
+    templatePlaybookLabel: "推荐剧本",
+    templateModeNow: "立即",
+    templateModeBackground: "后台",
     goalPlaceholder: "输入一个运营目标，例如：为新品活动生成三条短视频文案，并先进入审批。",
     metricApprovals: "待审批",
     metricActiveTasks: "运行中",
@@ -279,6 +300,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
   "en-US": {
     title: "Client Task Workbench",
     subtitle: "One entrypoint for goals, approvals, background tasks, and recovery so operators can follow the next action.",
+    templateTitle: "Goal templates",
+    selectedTemplateLabel: "Selected template",
+    templatePlaybookLabel: "Recommended playbook",
+    templateModeNow: "Now",
+    templateModeBackground: "Background",
     goalPlaceholder: "Tell this client machine what to do... Enter an operating goal, for example: generate three short-video drafts for a product launch and send them to approval first.",
     metricApprovals: "Approvals",
     metricActiveTasks: "Active",
@@ -306,6 +332,77 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     workflowSummary: "Workflow State",
     tasksSummary: "Background tasks and recovery",
   },
+};
+
+const workbenchGoalTemplates: Record<ClientLanguage, WorkbenchGoalTemplate[]> = {
+  "zh-CN": [
+    {
+      id: "launch_content",
+      title: "新品内容",
+      description: "生成可审批的多渠道内容草稿。",
+      prompt: "请为一个新品活动生成 3 条短视频文案和 1 条图文说明，列出目标受众、卖点、审批风险、需要引用的知识库材料，以及最终应保存到产物库的内容。",
+      playbookName: "content_generation",
+      runMode: "now",
+    },
+    {
+      id: "rag_evidence",
+      title: "知识证据",
+      description: "整理 RAG 证据和引用来源。",
+      prompt: "请围绕当前运营目标检索知识库，整理可用于内容创作的证据摘要、来源文档、引用风险和缺失信息，先输出给人工审核，不要发布或执行外部动作。",
+      playbookName: "content_generation",
+      runMode: "now",
+    },
+    {
+      id: "asset_brief",
+      title: "素材 Brief",
+      description: "准备图片或视频素材请求。",
+      prompt: "请把当前运营目标拆成素材需求 brief，包括画面方向、尺寸、文案、参考信息、审核标准和 ComfyUI 前置检查项；只生成可审批的素材请求，不要调用 ComfyUI。",
+      playbookName: "content_generation",
+      runMode: "background",
+    },
+    {
+      id: "page_report",
+      title: "页面报告",
+      description: "生成页面截图和要点报告。",
+      prompt: "请对 https://example.com 做浏览器截图报告，提取页面标题、关键信息、截图说明和后续内容建议；所有浏览器动作必须先经过审批。",
+      playbookName: "browser_screenshot_report",
+      runMode: "background",
+    },
+  ],
+  "en-US": [
+    {
+      id: "launch_content",
+      title: "Launch content",
+      description: "Draft reviewable multi-channel content.",
+      prompt: "Generate 3 short-video scripts and 1 social post for a product launch. Include audience, selling points, approval risks, knowledge-base references needed, and the final outputs that should be saved to the Output Library.",
+      playbookName: "content_generation",
+      runMode: "now",
+    },
+    {
+      id: "rag_evidence",
+      title: "Knowledge evidence",
+      description: "Collect RAG evidence and source notes.",
+      prompt: "Search the knowledge base for the current operating goal and summarize useful evidence, source documents, citation risks, and missing information for human review. Do not publish or execute external actions.",
+      playbookName: "content_generation",
+      runMode: "now",
+    },
+    {
+      id: "asset_brief",
+      title: "Asset brief",
+      description: "Prepare image or video asset requests.",
+      prompt: "Turn the current operating goal into an asset request brief with visual direction, dimensions, copy, reference information, review criteria, and ComfyUI preflight checks. Only create a reviewable request; do not call ComfyUI.",
+      playbookName: "content_generation",
+      runMode: "background",
+    },
+    {
+      id: "page_report",
+      title: "Page report",
+      description: "Create a page screenshot and summary report.",
+      prompt: "Create a browser screenshot report for https://example.com with page title, key information, screenshot notes, and content recommendations. Browser actions must stay approval-gated.",
+      playbookName: "browser_screenshot_report",
+      runMode: "background",
+    },
+  ],
 };
 
 function StatusBadge({ label, active }: { label: string; active: boolean }) {
@@ -492,6 +589,7 @@ function WorkstationHome({
 
 function ChatPanel({ language }: { language: ClientLanguage }) {
   const workbenchCopy = taskWorkbenchCopy[language];
+  const goalTemplates = workbenchGoalTemplates[language];
   const [threadId, setThreadId] = useState<string | null>(null);
   const [title, setTitle] = useState("Worker Console conversation");
   const [input, setInput] = useState("请帮我生成一条短视频文案，并展示执行事件。");
@@ -530,6 +628,7 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
   const [connectionState, setConnectionState] = useState("unknown");
   const [runStatus, setRunStatus] = useState("idle");
   const [pollEvents, setPollEvents] = useState(false);
+  const [selectedGoalTemplateId, setSelectedGoalTemplateId] = useState("launch_content");
 
   useEffect(() => {
     window.localStorage.setItem("workerConsoleConversationSettings", JSON.stringify(settings));
@@ -935,6 +1034,7 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
 
   const assistantMessages = messages.filter((message) => message.role === "assistant");
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
+  const selectedGoalTemplate = goalTemplates.find((template) => template.id === selectedGoalTemplateId) ?? goalTemplates[0];
   const pendingApprovals = approvals.filter((approval) => approval.approval_status === "pending");
   const activeTaskRuns = taskRuns.filter((task) => ["queued", "running", "retrying", "waiting_approval"].includes(task.status));
   const failedTaskRuns = taskRuns.filter((task) => task.recoverable || ["failed", "expired"].includes(task.status));
@@ -948,6 +1048,13 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
           : taskRuns.some((task) => task.status === "completed")
             ? workbenchCopy.nextComplete
             : workbenchCopy.nextSubmit;
+
+  const applyGoalTemplate = (template: WorkbenchGoalTemplate) => {
+    setSelectedGoalTemplateId(template.id);
+    setInput(template.prompt);
+    setSelectedPlaybookName(template.playbookName);
+    setRunStatus(`template selected: ${template.id}`);
+  };
 
   return (
     <section id="chat-panel" className="panel chat-panel">
@@ -991,6 +1098,29 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
           <div>
             <span>{workbenchCopy.metricArtifacts}</span>
             <strong>{artifacts.length}</strong>
+          </div>
+        </div>
+        <div className="workbench-template-strip" aria-label={workbenchCopy.templateTitle}>
+          <div className="workbench-template-header">
+            <span>{workbenchCopy.templateTitle}</span>
+            <strong>{workbenchCopy.selectedTemplateLabel}: {selectedGoalTemplate.title}</strong>
+          </div>
+          <div className="workbench-template-grid">
+            {goalTemplates.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                className={`workbench-template-card ${selectedGoalTemplate.id === template.id ? "selected" : ""}`}
+                aria-pressed={selectedGoalTemplate.id === template.id}
+                onClick={() => applyGoalTemplate(template)}
+              >
+                <span>{template.title}</span>
+                <p>{template.description}</p>
+                <small>
+                  {workbenchCopy.templatePlaybookLabel}: {template.playbookName} | {template.runMode === "background" ? workbenchCopy.templateModeBackground : workbenchCopy.templateModeNow}
+                </small>
+              </button>
+            ))}
           </div>
         </div>
         <div className="chat-input-row command-input-row">

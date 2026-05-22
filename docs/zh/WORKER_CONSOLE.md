@@ -609,6 +609,22 @@ Operator workflow:
 
 边界：Phase 62L 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
 
+## Phase 62M Customer Console Goal Templates
+
+Status: in progress on `codex/phase-62m-client-goal-templates`.
+
+Phase 62M 在 `worker_console` 和 `worker_console_desktop` 的客户机任务工作台里增加标准目标模板。
+
+Operator workflow:
+
+- 选择发布内容、RAG 证据、素材简报或页面报告模板。
+- 模板会自动填入运营目标。
+- 模板会自动选择推荐 playbook。
+- 继续通过现有审批受控的立即运行或后台排队动作执行。
+- 高级维护和诊断仍然放在独立折叠区。
+
+边界：Phase 62M 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
