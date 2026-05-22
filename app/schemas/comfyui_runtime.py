@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+from app.models.comfyui_runtime import ComfyUIRuntimeDiagnosticSnapshot
 
 
 class ComfyUIRuntimeHealthResponse(BaseModel):
@@ -93,3 +97,90 @@ class ComfyUIRuntimeDiagnosticsResponse(BaseModel):
     forbidden_actions: list[str] = Field(default_factory=list)
     workspace_id: str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeDiagnosticSnapshotCreateRequest(BaseModel):
+    """Create a persisted no-network ComfyUI runtime diagnostic snapshot."""
+
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeDiagnosticSnapshotResponse(BaseModel):
+    """Persisted ComfyUI runtime diagnostic snapshot response."""
+
+    success: bool = True
+    id: UUID
+    workspace_id: str
+    user_id: str | None = None
+    provider: str
+    enabled: bool
+    guarded: bool
+    network_allowed: bool
+    read_only_probe_enabled: bool
+    base_url: str
+    parsed_host: str | None = None
+    scheme_allowed: bool
+    host_allowed: bool
+    allowed_hosts: list[str] = Field(default_factory=list)
+    health_path: str
+    health_path_allowed: bool
+    allowed_health_paths: list[str] = Field(default_factory=list)
+    read_only_probe_ready: bool
+    readiness_status: str
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    diagnostics: list[dict[str, Any]] = Field(default_factory=list)
+    forbidden_actions: list[str] = Field(default_factory=list)
+    snapshot_payload: dict[str, Any] = Field(default_factory=dict)
+    operator_note: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        snapshot: ComfyUIRuntimeDiagnosticSnapshot,
+    ) -> "ComfyUIRuntimeDiagnosticSnapshotResponse":
+        return cls(
+            id=snapshot.id,
+            workspace_id=snapshot.workspace_id,
+            user_id=snapshot.user_id,
+            provider=snapshot.provider,
+            enabled=snapshot.enabled,
+            guarded=snapshot.guarded,
+            network_allowed=snapshot.network_allowed,
+            read_only_probe_enabled=snapshot.read_only_probe_enabled,
+            base_url=snapshot.base_url,
+            parsed_host=snapshot.parsed_host,
+            scheme_allowed=snapshot.scheme_allowed,
+            host_allowed=snapshot.host_allowed,
+            allowed_hosts=snapshot.allowed_hosts or [],
+            health_path=snapshot.health_path,
+            health_path_allowed=snapshot.health_path_allowed,
+            allowed_health_paths=snapshot.allowed_health_paths or [],
+            read_only_probe_ready=snapshot.read_only_probe_ready,
+            readiness_status=snapshot.readiness_status,
+            external_request_attempted=snapshot.external_request_attempted,
+            runtime_calls_enabled=snapshot.runtime_calls_enabled,
+            blocking_reasons=snapshot.blocking_reasons or [],
+            recommended_actions=snapshot.recommended_actions or [],
+            diagnostics=snapshot.diagnostics or [],
+            forbidden_actions=snapshot.forbidden_actions or [],
+            snapshot_payload=snapshot.snapshot_payload or {},
+            operator_note=snapshot.operator_note,
+            metadata=snapshot.snapshot_metadata or {},
+            created_at=snapshot.created_at,
+            updated_at=snapshot.updated_at,
+        )
+
+
+class ComfyUIRuntimeDiagnosticSnapshotListResponse(BaseModel):
+    """List response for persisted ComfyUI runtime diagnostic snapshots."""
+
+    success: bool = True
+    workspace_id: str
+    items: list[ComfyUIRuntimeDiagnosticSnapshotResponse] = Field(default_factory=list)

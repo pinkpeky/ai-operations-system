@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.comfyui_runtime import ComfyUIRuntimeService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.workspace_context import WorkspaceContext, get_workspace_context
+from app.db.postgres import get_session
 from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeCapabilitiesResponse,
+    ComfyUIRuntimeDiagnosticSnapshotCreateRequest,
+    ComfyUIRuntimeDiagnosticSnapshotListResponse,
+    ComfyUIRuntimeDiagnosticSnapshotResponse,
     ComfyUIRuntimeDiagnosticsResponse,
     ComfyUIRuntimeHealthResponse,
 )
@@ -61,3 +66,45 @@ async def get_comfyui_runtime_diagnostics(
     except Exception as exc:
         logger.exception("ComfyUI runtime diagnostics API failed")
         raise AppError("ComfyUI runtime diagnostics failed", status_code=500) from exc
+
+
+@router.post("/diagnostic-snapshots", response_model=ComfyUIRuntimeDiagnosticSnapshotResponse)
+async def create_comfyui_runtime_diagnostic_snapshot(
+    request: ComfyUIRuntimeDiagnosticSnapshotCreateRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeDiagnosticSnapshotResponse:
+    """Persist a no-network ComfyUI runtime diagnostic snapshot."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).create_diagnostic_snapshot(
+            session,
+            workspace_id=context.workspace_id,
+            user_id=context.user_id,
+            operator_note=request.operator_note,
+            metadata=request.metadata,
+        )
+    except Exception as exc:
+        logger.exception("ComfyUI runtime diagnostic snapshot create API failed")
+        raise AppError("ComfyUI runtime diagnostic snapshot create failed", status_code=500) from exc
+
+
+@router.get("/diagnostic-snapshots", response_model=ComfyUIRuntimeDiagnosticSnapshotListResponse)
+async def list_comfyui_runtime_diagnostic_snapshots(
+    limit: int = Query(default=20, ge=1, le=100),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeDiagnosticSnapshotListResponse:
+    """List persisted no-network ComfyUI runtime diagnostic snapshots."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).list_diagnostic_snapshots(
+            session,
+            workspace_id=context.workspace_id,
+            limit=limit,
+        )
+    except Exception as exc:
+        logger.exception("ComfyUI runtime diagnostic snapshot list API failed")
+        raise AppError("ComfyUI runtime diagnostic snapshot list failed", status_code=500) from exc

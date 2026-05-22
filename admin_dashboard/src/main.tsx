@@ -4655,8 +4655,9 @@ function CommercialOperationsPage({
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因和禁用动作。Phase 62C 新增无网络诊断；只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作和最近诊断快照。Phase 62D 可保存无网络诊断快照；只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
           runtimeRefresh: "刷新适配器状态",
+          runtimeSnapshot: "保存诊断快照",
           runtimeCapabilities: "能力与护栏",
         }
       : {
@@ -4669,8 +4670,9 @@ function CommercialOperationsPage({
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, and disabled actions. Phase 62C adds no-network diagnostics; /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, and recent diagnostic snapshots. Phase 62D can persist no-network diagnostics snapshots; /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
           runtimeRefresh: "Refresh adapter status",
+          runtimeSnapshot: "Save diagnostics snapshot",
           runtimeCapabilities: "Capabilities and guardrails",
         };
   const contentCopy =
@@ -5921,12 +5923,18 @@ function CommercialOperationsPage({
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [health, capabilities, diagnostics] = await Promise.all([
+      const [health, capabilities, diagnostics, snapshots] = await Promise.all([
         comfyuiRuntimeApi.health(settings),
         comfyuiRuntimeApi.capabilities(settings),
         comfyuiRuntimeApi.diagnostics(settings),
+        comfyuiRuntimeApi.diagnosticSnapshots(settings),
       ]);
-      setComfyuiRuntimeAdapterState({ data: { health, capabilities, diagnostics }, error: null, loading: false, updatedAt: nowLabel() });
+      setComfyuiRuntimeAdapterState({
+        data: { health, capabilities, diagnostics, snapshots: toItems(snapshots) },
+        error: null,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
     } catch (error) {
       setComfyuiRuntimeAdapterState({
         data: null,
@@ -5936,6 +5944,31 @@ function CommercialOperationsPage({
       });
     }
   }, [settings]);
+
+  const saveComfyuiRuntimeDiagnosticSnapshot = useCallback(async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const snapshot = await comfyuiRuntimeApi.createDiagnosticSnapshot(
+        {
+          operator_note:
+            language === "zh-CN"
+              ? "从 Admin Dashboard ComfyUI 运行诊断保存。"
+              : "Saved from Admin Dashboard ComfyUI runtime diagnostics.",
+          metadata: { source_page: "comfyui-operations", phase: "62D", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: snapshot, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiRuntimeAdapter();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI runtime diagnostic snapshot unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [language, loadComfyuiRuntimeAdapter, settings]);
 
   useEffect(() => {
     if (isComfyuiPage) {
@@ -9182,6 +9215,8 @@ function CommercialOperationsPage({
   const comfyuiRuntimeDryRuns = comfyuiRuntimeDryRunsState.data || [];
   const actionableComfyuiRuntimeDryRuns = comfyuiRuntimeDryRuns.filter((dryRun) => valueAt(dryRun, ["dry_run_status"], "") === "validated");
   const comfyuiRuntimeActivations = comfyuiRuntimeActivationsState.data || [];
+  const comfyuiRuntimeDiagnosticSnapshots = toItems(comfyuiRuntimeAdapterState.data?.snapshots);
+  const latestComfyuiRuntimeDiagnosticSnapshot = comfyuiRuntimeDiagnosticSnapshots[0] ?? null;
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -9789,6 +9824,10 @@ function CommercialOperationsPage({
             <Field label="diagnostic_blockers" value={shortJson((comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord | undefined)?.blocking_reasons, 180)} />
             <Field label="recommended_actions" value={shortJson((comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord | undefined)?.recommended_actions, 180)} />
             <Field label="diagnostic_checks" value={shortJson((comfyuiRuntimeAdapterState.data?.diagnostics as JsonRecord | undefined)?.diagnostics, 220)} />
+            <Field label="snapshot_count" value={String(comfyuiRuntimeDiagnosticSnapshots.length)} />
+            <Field label="latest_snapshot_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeDiagnosticSnapshot, ["readiness_status"], "none")} />} />
+            <Field label="latest_snapshot_at" value={valueAt(latestComfyuiRuntimeDiagnosticSnapshot, ["created_at"], "-")} />
+            <Field label="latest_snapshot_note" value={valueAt(latestComfyuiRuntimeDiagnosticSnapshot, ["operator_note"], "-")} />
             <Field label="health_path" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["health_path"], "-")} />
             <Field label="allowed_health_paths" value={shortJson((comfyuiRuntimeAdapterState.data?.health as JsonRecord | undefined)?.allowed_health_paths, 120)} />
             <Field label="probe_status_code" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["probe_status_code"], "-")} />
@@ -9798,10 +9837,16 @@ function CommercialOperationsPage({
             <Field label="error" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["error"], "-")} />
             <Field label={comfyuiSurfaceCopy.runtimeCapabilities} value={shortJson((comfyuiRuntimeAdapterState.data?.capabilities as JsonRecord | undefined)?.guardrails, 180)} />
           </div>
-          <button className="ghost-button" onClick={() => void loadComfyuiRuntimeAdapter()} disabled={comfyuiRuntimeAdapterState.loading}>
-            <RefreshCcw size={15} />
-            {comfyuiSurfaceCopy.runtimeRefresh}
-          </button>
+          <div className="commercial-action-row">
+            <button className="ghost-button" onClick={() => void loadComfyuiRuntimeAdapter()} disabled={comfyuiRuntimeAdapterState.loading}>
+              <RefreshCcw size={15} />
+              {comfyuiSurfaceCopy.runtimeRefresh}
+            </button>
+            <button className="primary-button" onClick={() => void saveComfyuiRuntimeDiagnosticSnapshot()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
+              <HardDrive size={15} />
+              {comfyuiSurfaceCopy.runtimeSnapshot}
+            </button>
+          </div>
         </Panel>
       ) : null}
 

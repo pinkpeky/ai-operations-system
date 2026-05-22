@@ -10,12 +10,12 @@ Phase 61A started the path toward the requested commercial automation system:
 
 Phase 61B adds evidence and handoff links to that project center. Phase 61C adds approval gates for individual plan steps. Phase 61D adds approved, metadata-only dry-run records before any real execution. Phase 61E adds reviewable content drafts per channel. Phase 61F promotes asset requests into first-class records. Phase 61G packages approved drafts and approved/prepared asset requests into reviewable commercial operation deliverables that also appear in the Output Library. Phase 61H adds first-class metadata-only execution requests from packaged deliverables. Phase 61I adds metadata-only execution run records with lifecycle, retry, result, and recovery state. Phase 61J adds first-class commercial result records for operator-observed metrics, evidence, outcomes, and follow-up actions after a terminal execution run. Phase 61K adds first-class monitoring observations for approved commercial results. Phase 61L adds first-class optimization decisions from approved monitoring observations. Phase 61M adds first-class evidence snapshots from packaged deliverables so approved knowledge/source evidence and operator checklists can travel into execution requests and execution runs. Phase 61N adds draft evidence snapshot generation from existing RAG search results. Phase 61O adds draft content generation from existing RAG search results. Phase 61P adds draft asset request brief generation from existing RAG search results. Phase 61Q adds metadata-only ComfyUI handoff records from approved or prepared asset requests. Phase 61R adds metadata-only ComfyUI connection preflights from approved or prepared handoffs. Phase 61S adds metadata-only ComfyUI adapter config records for server maintainer endpoint, queue, workflow allowlist, model inventory, runtime-limit, maintenance-note, and secret-reference readiness. Phase 61T adds metadata-only ComfyUI job request records so checked preflights can become reviewable future queue payloads with approval, safety checks, output expectations, and recovery guidance. Phase 61U adds metadata-only ComfyUI execution plan records so approved or queued job requests can become reviewable queue simulation plans with execution steps, local checks, operator checklist, and rollback guidance. Phase 61V adds metadata-only ComfyUI connection probe records so approved or simulated execution plans can become reviewable health and queue snapshot plans with route/readiness checks, sanitized probe payloads, and lifecycle state before any real HTTP request or queue read. Phase 61W adds metadata-only ComfyUI adapter dispatch records so recorded connection probes can become reviewable guarded dispatch handoffs with prompt/workflow/queue payloads, guardrails, retry policy, recovery plan, and lifecycle state before any real adapter call. Phase 61X adds metadata-only ComfyUI runtime gates so recorded adapter dispatches can become server-maintainer reviewed runtime switch, network boundary, queue policy, secret-reference, approval, and rollback records before any real runtime adapter is enabled. Phase 61Y adds metadata-only ComfyUI runtime dry-runs so armed runtime gates can become reviewable adapter contracts, request fixtures, expected response contracts, explicit server-switch policies, validation checks, and rollback records before any real adapter import or ComfyUI call exists. Phase 61Z adds metadata-only ComfyUI runtime activation requests so validated runtime dry-runs can become reviewable activation request, switch audit, runtime guardrail, validation, operator checklist, and rollback records before any runtime switch or adapter call exists. The system still does not attempt the whole autonomous loop yet.
 
-Phase 62B adds a guarded read-only ComfyUI health probe with provider, switch, base URL, timeout, host/path allowlists, disabled action, required configuration, probe status, and guardrail visibility. It makes no network request by default and only attempts `GET /system_stats` when every explicit gate is enabled. Phase 62C adds no-network ComfyUI Runtime Diagnostics so server maintainers can see `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, and each provider/switch/network/host/path gate before any probe is attempted.
+Phase 62B adds a guarded read-only ComfyUI health probe with provider, switch, base URL, timeout, host/path allowlists, disabled action, required configuration, probe status, and guardrail visibility. It makes no network request by default and only attempts `GET /system_stats` when every explicit gate is enabled. Phase 62C adds no-network ComfyUI Runtime Diagnostics so server maintainers can see `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, and each provider/switch/network/host/path gate before any probe is attempted. Phase 62D adds persisted no-network ComfyUI Runtime Diagnostic Snapshots so maintainers can save before/after readiness records with operator notes and metadata.
 
 ## Branch
 
 ```text
-codex/phase-62c-comfyui-runtime-diagnostics
+codex/phase-62d-comfyui-runtime-diagnostic-snapshots
 ```
 
 ## What This Phase Adds
@@ -36,6 +36,7 @@ codex/phase-62c-comfyui-runtime-diagnostics
 - Database table: `commercial_operation_comfyui_runtime_gates`.
 - Database table: `commercial_operation_comfyui_runtime_dry_runs`.
 - Database table: `commercial_operation_comfyui_runtime_activations`.
+- Database table: `comfyui_runtime_diagnostic_snapshots`.
 - Database table: `commercial_operation_deliverables`.
 - Database table: `commercial_operation_execution_requests`.
 - Database table: `commercial_operation_execution_runs`.
@@ -59,6 +60,7 @@ codex/phase-62c-comfyui-runtime-diagnostics
 - ORM model: `CommercialOperationComfyUIRuntimeGate`.
 - ORM model: `CommercialOperationComfyUIRuntimeDryRun`.
 - ORM model: `CommercialOperationComfyUIRuntimeActivation`.
+- ORM model: `ComfyUIRuntimeDiagnosticSnapshot`.
 - ORM model: `CommercialOperationDeliverable`.
 - ORM model: `CommercialOperationExecutionRequest`.
 - ORM model: `CommercialOperationExecutionRun`.
@@ -89,6 +91,7 @@ codex/phase-62c-comfyui-runtime-diagnostics
 - API route group: `/api/v1/comfyui-runtime/health`.
 - API route group: `/api/v1/comfyui-runtime/capabilities`.
 - API route group: `/api/v1/comfyui-runtime/diagnostics`.
+- API route group: `/api/v1/comfyui-runtime/diagnostic-snapshots`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/deliverables`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-requests`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/execution-runs`.
@@ -123,6 +126,7 @@ codex/phase-62c-comfyui-runtime-diagnostics
 - Migration: `0055_phase61x_comfyui_gates`.
 - Migration: `0056_phase61y_comfyui_dryruns`.
 - Migration: `0057_phase61z_comfyui_active`.
+- Migration: `0058_phase62d_comfyui_snaps`.
 
 Each commercial operation stores:
 
@@ -382,7 +386,11 @@ Phase 62B extends that surface with a guarded read-only health probe. The health
 
 Phase 62C adds `GET /api/v1/comfyui-runtime/diagnostics` for no-network maintainer readiness checks. The response includes `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, `external_request_attempted=false`, `runtime_calls_enabled=false`, and per-gate checks for `provider_guarded`, `runtime_enabled`, `network_gate`, `base_url_scheme`, `base_url_host_allowlist`, `read_only_probe_gate`, `health_path_allowlist`, and `execution_boundary`. It never calls ComfyUI; it only explains whether the guarded Phase 62B read-only probe is ready.
 
-The `ComfyUIRuntimeService` does not import or call a ComfyUI adapter, call ComfyUI endpoints, read queues, submit prompts, submit queue jobs, upload files, generate media, enable runtime switches, mutate environment/config, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store or resolve secret values, or bypass approval. The Admin Dashboard exposes the contract in the dedicated `?page=comfyui-operations` tab so server maintainers can inspect the future live-adapter boundary without making a network request.
+## ComfyUI Runtime Diagnostic Snapshots
+
+Phase 62D adds `comfyui_runtime_diagnostic_snapshots`, `POST /api/v1/comfyui-runtime/diagnostic-snapshots`, and `GET /api/v1/comfyui-runtime/diagnostic-snapshots` for persisted no-network maintainer audit trails. Snapshot creation reuses Phase 62C diagnostics and stores `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, diagnostic checks, forbidden actions, the full diagnostic payload, operator note, and metadata. It never calls ComfyUI; it only records the current guarded readiness state so server maintainers can compare before/after configuration changes.
+
+The `ComfyUIRuntimeService` does not import or call a ComfyUI adapter, call ComfyUI endpoints, read queues, submit prompts, submit queue jobs, upload files, generate media, enable runtime switches, mutate environment/config, publish, run OpenClaw, control Browser Worker actions, contact external accounts, store or resolve secret values, or bypass approval. The Admin Dashboard exposes the contract and snapshots in the dedicated `?page=comfyui-operations` tab so server maintainers can inspect and retain the future live-adapter boundary without making a network request.
 
 ## Deliverables
 
@@ -594,6 +602,8 @@ POST /api/v1/commercial-operations/{operation_id}/comfyui-runtime-activations/{r
 GET /api/v1/comfyui-runtime/health
 GET /api/v1/comfyui-runtime/capabilities
 GET /api/v1/comfyui-runtime/diagnostics
+GET /api/v1/comfyui-runtime/diagnostic-snapshots
+POST /api/v1/comfyui-runtime/diagnostic-snapshots
 GET /api/v1/commercial-operations/{operation_id}/deliverables
 POST /api/v1/commercial-operations/{operation_id}/deliverables
 PATCH /api/v1/commercial-operations/{operation_id}/deliverables/{deliverable_id}
@@ -658,11 +668,11 @@ DELETE /api/v1/commercial-operations/{operation_id}/links/{link_id}
 
 All routes are workspace-scoped through `X-Workspace-Id`. A record created in one workspace is not visible from another workspace.
 
-Admin Dashboard separates the operator surfaces: `?page=commercial-operations` keeps the goal, plan, content, asset request, approval, delivery, execution, result, monitoring, optimization, evidence, dry-run, and link workflow concise, while `?page=comfyui-operations` hosts the ComfyUI handoff, preflight, adapter config, job request, execution plan, connection probe, adapter dispatch, runtime gate, runtime dry-run, and runtime activation controls for the selected operation.
+Admin Dashboard separates the operator surfaces: `?page=commercial-operations` keeps the goal, plan, content, asset request, approval, delivery, execution, result, monitoring, optimization, evidence, dry-run, and link workflow concise, while `?page=comfyui-operations` hosts the ComfyUI handoff, preflight, adapter config, job request, execution plan, connection probe, adapter dispatch, runtime gate, runtime dry-run, runtime activation, runtime diagnostics, and diagnostic snapshot controls.
 
 ## Safety Boundary
 
-Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation. Phase 61S is a metadata-only ComfyUI adapter config foundation. Phase 61T is a metadata-only ComfyUI job request foundation. Phase 61U is a metadata-only ComfyUI execution plan foundation. Phase 61V is a metadata-only ComfyUI connection probe foundation. Phase 61W is a metadata-only ComfyUI adapter dispatch foundation. Phase 61X is a metadata-only ComfyUI runtime gate foundation. Phase 61Y is a metadata-only ComfyUI runtime dry-run foundation. Phase 61Z is a metadata-only ComfyUI runtime activation foundation. Phase 62A is a disabled-by-default ComfyUI runtime adapter contract foundation. Phase 62B is a guarded read-only ComfyUI health probe foundation. Phase 62C is a no-network ComfyUI runtime diagnostics foundation.
+Phase 61A is a planning and project-record foundation. Phase 61B is an evidence and handoff-link foundation. Phase 61C is an approval-gate foundation. Phase 61D is a metadata-only dry-run foundation. Phase 61E is a content-draft foundation. Phase 61F is a first-class asset request foundation. Phase 61G is a deliverable packaging and Output Library handoff foundation. Phase 61H is a metadata-only execution request foundation. Phase 61I is a metadata-only execution run and recovery foundation. Phase 61J is an operator-observed commercial result foundation. Phase 61K is an operator-observed monitoring observation foundation. Phase 61L is an operator optimization decision foundation. Phase 61M is an operator-reviewed evidence snapshot foundation. Phase 61N is a draft RAG evidence generation foundation. Phase 61O is a draft RAG content generation foundation. Phase 61P is a draft RAG asset brief foundation. Phase 61Q is a metadata-only ComfyUI handoff foundation. Phase 61R is a metadata-only ComfyUI preflight foundation. Phase 61S is a metadata-only ComfyUI adapter config foundation. Phase 61T is a metadata-only ComfyUI job request foundation. Phase 61U is a metadata-only ComfyUI execution plan foundation. Phase 61V is a metadata-only ComfyUI connection probe foundation. Phase 61W is a metadata-only ComfyUI adapter dispatch foundation. Phase 61X is a metadata-only ComfyUI runtime gate foundation. Phase 61Y is a metadata-only ComfyUI runtime dry-run foundation. Phase 61Z is a metadata-only ComfyUI runtime activation foundation. Phase 62A is a disabled-by-default ComfyUI runtime adapter contract foundation. Phase 62B is a guarded read-only ComfyUI health probe foundation. Phase 62C is a no-network ComfyUI runtime diagnostics foundation. Phase 62D is a no-network ComfyUI runtime diagnostic snapshots foundation.
 
 It does not publish to social platforms.
 

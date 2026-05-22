@@ -4242,6 +4242,8 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/health`
 - `GET /api/v1/comfyui-runtime/capabilities`
 - `GET /api/v1/comfyui-runtime/diagnostics`
+- `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
+- `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
 Default configuration:
 
@@ -4280,3 +4282,9 @@ Phase 62C adds `GET /api/v1/comfyui-runtime/diagnostics`, a no-network readiness
 Diagnostic checks include `provider_guarded`, `runtime_enabled`, `network_gate`, `base_url_scheme`, `base_url_host_allowlist`, `read_only_probe_gate`, `health_path_allowlist`, and `execution_boundary`.
 
 Boundary: Phase 62C only explains guarded runtime readiness. It does not import adapters, call ComfyUI, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.
+
+## Phase 62D: ComfyUI Runtime Diagnostic Snapshots
+
+Phase 62D adds persisted no-network diagnostic snapshots for server maintainers. `POST /api/v1/comfyui-runtime/diagnostic-snapshots` calls the Phase 62C diagnostics path, stores the readiness result in `comfyui_runtime_diagnostic_snapshots`, and returns the saved snapshot with operator note, metadata, `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, diagnostic checks, forbidden actions, and the full diagnostic payload. `GET /api/v1/comfyui-runtime/diagnostic-snapshots` lists recent snapshots for the current workspace.
+
+Boundary: Phase 62D records diagnostics only. Snapshot creation does not call ComfyUI, does not run the guarded `/system_stats` probe, and does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.

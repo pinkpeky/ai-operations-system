@@ -9,10 +9,16 @@ from urllib.error import HTTPError
 from urllib.parse import urlparse, urlunparse
 from urllib.request import Request, urlopen
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import Settings, get_settings
+from app.models.comfyui_runtime import ComfyUIRuntimeDiagnosticSnapshot
 from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeCapabilitiesResponse,
     ComfyUIRuntimeDiagnosticCheck,
+    ComfyUIRuntimeDiagnosticSnapshotListResponse,
+    ComfyUIRuntimeDiagnosticSnapshotResponse,
     ComfyUIRuntimeDiagnosticsResponse,
     ComfyUIRuntimeHealthResponse,
 )
@@ -394,6 +400,80 @@ class ComfyUIRuntimeService:
                 "health_path_allowed": health_path_allowed,
                 "disabled_actions": self._disabled_actions(read_only_probe_ready=read_only_probe_ready),
             },
+        )
+
+    async def create_diagnostic_snapshot(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        user_id: str | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeDiagnosticSnapshotResponse:
+        """Persist a no-network diagnostics snapshot for maintainer audit trails."""
+
+        diagnostics = self.diagnostics(workspace_id=workspace_id)
+        snapshot_payload = diagnostics.model_dump(mode="json")
+        snapshot_metadata = {
+            **dict(metadata or {}),
+            "phase": "62D",
+            "source": "comfyui_runtime_diagnostics",
+            "no_network_call_performed": True,
+        }
+        snapshot = ComfyUIRuntimeDiagnosticSnapshot(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            provider=diagnostics.provider,
+            enabled=diagnostics.enabled,
+            guarded=diagnostics.guarded,
+            network_allowed=diagnostics.network_allowed,
+            read_only_probe_enabled=diagnostics.read_only_probe_enabled,
+            base_url=diagnostics.base_url,
+            parsed_host=diagnostics.parsed_host,
+            scheme_allowed=diagnostics.scheme_allowed,
+            host_allowed=diagnostics.host_allowed,
+            allowed_hosts=list(diagnostics.allowed_hosts),
+            health_path=diagnostics.health_path,
+            health_path_allowed=diagnostics.health_path_allowed,
+            allowed_health_paths=list(diagnostics.allowed_health_paths),
+            read_only_probe_ready=diagnostics.read_only_probe_ready,
+            readiness_status=diagnostics.readiness_status,
+            external_request_attempted=diagnostics.external_request_attempted,
+            runtime_calls_enabled=diagnostics.runtime_calls_enabled,
+            blocking_reasons=list(diagnostics.blocking_reasons),
+            recommended_actions=list(diagnostics.recommended_actions),
+            diagnostics=[check.model_dump(mode="json") for check in diagnostics.diagnostics],
+            forbidden_actions=list(diagnostics.forbidden_actions),
+            snapshot_payload=snapshot_payload,
+            operator_note=operator_note.strip() if operator_note else None,
+            snapshot_metadata=snapshot_metadata,
+        )
+        session.add(snapshot)
+        await session.commit()
+        await session.refresh(snapshot)
+        return ComfyUIRuntimeDiagnosticSnapshotResponse.from_model(snapshot)
+
+    async def list_diagnostic_snapshots(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        limit: int = 20,
+    ) -> ComfyUIRuntimeDiagnosticSnapshotListResponse:
+        """List recent persisted no-network diagnostics snapshots for one workspace."""
+
+        bounded_limit = max(1, min(limit, 100))
+        result = await session.execute(
+            select(ComfyUIRuntimeDiagnosticSnapshot)
+            .where(ComfyUIRuntimeDiagnosticSnapshot.workspace_id == workspace_id)
+            .order_by(ComfyUIRuntimeDiagnosticSnapshot.created_at.desc())
+            .limit(bounded_limit)
+        )
+        snapshots = result.scalars().all()
+        return ComfyUIRuntimeDiagnosticSnapshotListResponse(
+            workspace_id=workspace_id,
+            items=[ComfyUIRuntimeDiagnosticSnapshotResponse.from_model(snapshot) for snapshot in snapshots],
         )
 
     def _contract_error(
