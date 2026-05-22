@@ -4,9 +4,12 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  Database,
+  FileText,
   MessageCircle,
   Monitor,
   PauseCircle,
+  PencilLine,
   PlayCircle,
   RefreshCcw,
   RotateCcw,
@@ -15,6 +18,7 @@ import {
   Square,
   TerminalSquare,
   Trash2,
+  Upload,
   Wifi,
   WifiOff,
   XCircle,
@@ -49,6 +53,7 @@ import {
   WorkflowStep,
 } from "./api/workflowClient";
 import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
+import { knowledgeBaseClient, KnowledgeDocument } from "./api/knowledgeBaseClient";
 import {
   createLocalWorkerClient,
   LocalWorkerClient,
@@ -82,6 +87,8 @@ type ControlAction =
   | "restartRuntime"
   | "startHeartbeat"
   | "stopHeartbeat";
+
+type OperatorPage = "operations" | "knowledge";
 
 type ConnectionState = "connected" | "reconnecting" | "disconnected" | "online" | "offline" | "error";
 type RuntimeActionStatus =
@@ -143,11 +150,21 @@ type ClientCopy = {
   recoverySteps: string[];
   boundaryTitle: string;
   boundaryBody: string;
+  pageOperations: string;
+  pageKnowledge: string;
 };
 
 type TaskWorkbenchCopy = {
   title: string;
   subtitle: string;
+  operatorModeLabel: string;
+  simpleTitle: string;
+  simpleSubtitle: string;
+  simpleTemplateTitle: string;
+  simpleProgressTitle: string;
+  detailDrawerTitle: string;
+  maintenanceModeTitle: string;
+  simpleStart: string;
   templateTitle: string;
   selectedTemplateLabel: string;
   templatePlaybookLabel: string;
@@ -222,6 +239,58 @@ type WorkbenchGoalTemplate = {
   outcome: string;
 };
 
+type KnowledgeBaseCopy = {
+  title: string;
+  subtitle: string;
+  flowSteps: { title: string; body: string }[];
+  uploadTitle: string;
+  uploadHint: string;
+  chooseFiles: string;
+  collectionLabel: string;
+  collectionPlaceholder: string;
+  duplicateLabel: string;
+  duplicateSkip: string;
+  duplicateReplace: string;
+  uploadSelected: string;
+  emptyQueue: string;
+  editTitle: string;
+  sourceNameLabel: string;
+  sourceNamePlaceholder: string;
+  sourceIdLabel: string;
+  sourceIdPlaceholder: string;
+  contentLabel: string;
+  contentPlaceholder: string;
+  addText: string;
+  replaceText: string;
+  saveKnowledge: string;
+  textRequired: string;
+  sourceIdRequired: string;
+  libraryTitle: string;
+  refreshLibrary: string;
+  emptyLibrary: string;
+  editExisting: string;
+  queued: string;
+  uploading: string;
+  uploaded: string;
+  failed: string;
+  loading: string;
+  saved: string;
+  ready: string;
+  documentStatus: string;
+  documentChunks: string;
+  updatedAt: string;
+  requestFailed: string;
+};
+
+type KnowledgeQueueStatus = "queued" | "uploading" | "uploaded" | "failed";
+
+type KnowledgeQueueItem = {
+  id: string;
+  file: File;
+  status: KnowledgeQueueStatus;
+  message?: string;
+};
+
 const clientCopy: Record<ClientLanguage, ClientCopy> = {
   "zh-CN": {
     phase: "Phase 62I",
@@ -269,6 +338,8 @@ const clientCopy: Record<ClientLanguage, ClientCopy> = {
     boundaryTitle: "边界说明",
     boundaryBody:
       "Desktop Console 只控制当前客户机/工作站的本机 Worker。它不会直接调用 ComfyUI、OpenClaw、真实平台账号，也不会绕过审批。",
+    pageOperations: "任务操作",
+    pageKnowledge: "知识库修改与上传",
   },
   "en-US": {
     phase: "Phase 62I",
@@ -316,6 +387,8 @@ const clientCopy: Record<ClientLanguage, ClientCopy> = {
     boundaryTitle: "Boundary",
     boundaryBody:
       "Desktop Console controls only the local Worker on the current customer machine. It does not call ComfyUI, execute OpenClaw, control real accounts, or bypass approvals.",
+    pageOperations: "Task operation",
+    pageKnowledge: "Knowledge upload/edit",
   },
 };
 
@@ -323,6 +396,14 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
   "zh-CN": {
     title: "客户机任务工作台",
     subtitle: "把运营目标、审批、后台任务和失败恢复放在同一个入口，适合普通使用人员按下一步处理。",
+    operatorModeLabel: "操作模式",
+    simpleTitle: "今天要完成什么？",
+    simpleSubtitle: "输入目标，选择常用任务，然后开始。",
+    simpleTemplateTitle: "常用任务",
+    simpleProgressTitle: "当前进度",
+    detailDrawerTitle: "查看计划和状态细节",
+    maintenanceModeTitle: "审批、结果与维护",
+    simpleStart: "开始",
     templateTitle: "目标模板",
     selectedTemplateLabel: "当前模板",
     templatePlaybookLabel: "推荐剧本",
@@ -376,6 +457,14 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
   "en-US": {
     title: "Client Task Workbench",
     subtitle: "One entrypoint for goals, approvals, background tasks, and recovery so operators can follow the next action.",
+    operatorModeLabel: "Operator mode",
+    simpleTitle: "What should this machine do?",
+    simpleSubtitle: "Enter the goal, choose a common task, then start.",
+    simpleTemplateTitle: "Common tasks",
+    simpleProgressTitle: "Current progress",
+    detailDrawerTitle: "Show plan and status details",
+    maintenanceModeTitle: "Approvals, results, and maintenance",
+    simpleStart: "Start",
     templateTitle: "Goal templates",
     selectedTemplateLabel: "Selected template",
     templatePlaybookLabel: "Recommended playbook",
@@ -425,6 +514,103 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     outputsSummary: "Output Library",
     workflowSummary: "Workflow State",
     tasksSummary: "Background tasks and recovery",
+  },
+};
+
+const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
+  "zh-CN": {
+    title: "知识库修改与上传",
+    subtitle: "把文档上传、文字补充、已有资料更新和入库状态放在一个可视化页面里。",
+    flowSteps: [
+      { title: "选择文件", body: "选择 PDF、Word、表格或文本资料。" },
+      { title: "检查与修改", body: "补充来源名称、分组和替换方式。" },
+      { title: "上传入库", body: "提交后自动切分并写入 RAG。" },
+      { title: "验证可用", body: "刷新列表确认资料已可检索。" },
+    ],
+    uploadTitle: "上传知识文件",
+    uploadHint: "拖放或选择要加入知识库的资料。",
+    chooseFiles: "选择文件",
+    collectionLabel: "知识分组",
+    collectionPlaceholder: "例如：marketing 或 operations",
+    duplicateLabel: "遇到重复资料",
+    duplicateSkip: "保留现有版本",
+    duplicateReplace: "替换并重新入库",
+    uploadSelected: "上传选中文件",
+    emptyQueue: "还没有选择文件。",
+    editTitle: "修改或补充文字资料",
+    sourceNameLabel: "资料名称",
+    sourceNamePlaceholder: "例如：新品活动 FAQ",
+    sourceIdLabel: "资料编号",
+    sourceIdPlaceholder: "更新已有资料时填写",
+    contentLabel: "资料内容",
+    contentPlaceholder: "粘贴需要加入知识库的文字内容。",
+    addText: "新增资料",
+    replaceText: "更新已有资料",
+    saveKnowledge: "保存到知识库",
+    textRequired: "请先填写资料内容。",
+    sourceIdRequired: "更新已有资料时需要填写资料编号。",
+    libraryTitle: "当前知识资料",
+    refreshLibrary: "刷新资料",
+    emptyLibrary: "暂未读取到知识资料。",
+    editExisting: "修改",
+    queued: "等待上传",
+    uploading: "上传中",
+    uploaded: "已入库",
+    failed: "需重试",
+    loading: "读取中",
+    saved: "已保存",
+    ready: "可用",
+    documentStatus: "状态",
+    documentChunks: "分段",
+    updatedAt: "更新时间",
+    requestFailed: "知识库服务暂时不可用，请检查 AI Server 连接后重试。",
+  },
+  "en-US": {
+    title: "Knowledge Base Upload and Edit",
+    subtitle: "Upload files, add text, update existing sources, and confirm ingestion from one visual page.",
+    flowSteps: [
+      { title: "Choose files", body: "Select PDFs, Word files, sheets, or text sources." },
+      { title: "Review and edit", body: "Add source name, collection, and duplicate handling." },
+      { title: "Upload to RAG", body: "Submit files for chunking and ingestion." },
+      { title: "Confirm ready", body: "Refresh the library to verify search readiness." },
+    ],
+    uploadTitle: "Upload knowledge files",
+    uploadHint: "Drop or choose material for the knowledge base.",
+    chooseFiles: "Choose files",
+    collectionLabel: "Collection",
+    collectionPlaceholder: "Example: marketing or operations",
+    duplicateLabel: "When duplicated",
+    duplicateSkip: "Keep existing version",
+    duplicateReplace: "Replace and re-ingest",
+    uploadSelected: "Upload selected files",
+    emptyQueue: "No files selected yet.",
+    editTitle: "Edit or add text material",
+    sourceNameLabel: "Source name",
+    sourceNamePlaceholder: "Example: Launch FAQ",
+    sourceIdLabel: "Source ID",
+    sourceIdPlaceholder: "Required when updating an existing source",
+    contentLabel: "Source content",
+    contentPlaceholder: "Paste text that should become searchable knowledge.",
+    addText: "Add material",
+    replaceText: "Update existing",
+    saveKnowledge: "Save to knowledge base",
+    textRequired: "Add source content first.",
+    sourceIdRequired: "Source ID is required when updating existing material.",
+    libraryTitle: "Current knowledge material",
+    refreshLibrary: "Refresh library",
+    emptyLibrary: "No knowledge material loaded yet.",
+    editExisting: "Edit",
+    queued: "Queued",
+    uploading: "Uploading",
+    uploaded: "Ingested",
+    failed: "Retry needed",
+    loading: "Loading",
+    saved: "Saved",
+    ready: "Ready",
+    documentStatus: "Status",
+    documentChunks: "Chunks",
+    updatedAt: "Updated",
+    requestFailed: "Knowledge service is unavailable. Check AI Server connection and retry.",
   },
 };
 
@@ -1304,6 +1490,11 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
       detail: `${artifacts.length} ${workbenchCopy.metricArtifacts}`,
     },
   ];
+  const simpleCurrentStage =
+    goalStatusStages.find((stage) => stage.status === "needs-action") ??
+    goalStatusStages.find((stage) => stage.status === "current") ??
+    goalStatusStages.find((stage) => stage.status === "done") ??
+    goalStatusStages[0];
   const suggestedAction =
     pendingApprovals.length > 0
       ? workbenchCopy.nextApproval
@@ -1341,110 +1532,151 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
         </div>
       </div>
       <section className="client-task-workbench" aria-label={workbenchCopy.title}>
-        <div className="workbench-intro">
-          <p>{workbenchCopy.subtitle}</p>
-          <div className="workbench-next-action">
-            <span>{workbenchCopy.nextActionTitle}</span>
-            <strong>{suggestedAction}</strong>
+        <div className="simple-operator-workbench">
+          <div className="simple-operator-header">
+            <span>{workbenchCopy.operatorModeLabel}</span>
+            <h3>{workbenchCopy.simpleTitle}</h3>
+            <p>{workbenchCopy.simpleSubtitle}</p>
           </div>
-        </div>
-        <div className="workbench-metrics" aria-label="Client task workbench status">
-          <div className={pendingApprovals.length > 0 ? "needs-action" : ""}>
-            <span>{workbenchCopy.metricApprovals}</span>
-            <strong>{pendingApprovals.length}</strong>
-          </div>
-          <div className={activeTaskRuns.length > 0 ? "in-progress" : ""}>
-            <span>{workbenchCopy.metricActiveTasks}</span>
-            <strong>{activeTaskRuns.length}</strong>
-          </div>
-          <div className={failedTaskRuns.length > 0 ? "needs-action" : ""}>
-            <span>{workbenchCopy.metricFailedTasks}</span>
-            <strong>{failedTaskRuns.length}</strong>
-          </div>
-          <div>
-            <span>{workbenchCopy.metricArtifacts}</span>
-            <strong>{artifacts.length}</strong>
-          </div>
-        </div>
-        <div className="workbench-template-strip" aria-label={workbenchCopy.templateTitle}>
-          <div className="workbench-template-header">
-            <span>{workbenchCopy.templateTitle}</span>
-            <strong>{workbenchCopy.selectedTemplateLabel}: {selectedGoalTemplate.title}</strong>
-          </div>
-          <div className="workbench-template-grid">
+          <div className="simple-template-row" aria-label={workbenchCopy.simpleTemplateTitle}>
             {goalTemplates.map((template) => (
               <button
                 key={template.id}
                 type="button"
-                className={`workbench-template-card ${selectedGoalTemplate.id === template.id ? "selected" : ""}`}
+                className={`simple-template-chip ${selectedGoalTemplate.id === template.id ? "selected" : ""}`}
                 aria-pressed={selectedGoalTemplate.id === template.id}
                 onClick={() => applyGoalTemplate(template)}
               >
-                <span>{template.title}</span>
-                <p>{template.description}</p>
-                <small>
-                  {workbenchCopy.templatePlaybookLabel}: {template.playbookName} | {template.runMode === "background" ? workbenchCopy.templateModeBackground : workbenchCopy.templateModeNow}
-                </small>
+                {template.title}
               </button>
             ))}
           </div>
         </div>
-        <div className="workbench-plan-preview" aria-label={workbenchCopy.planTitle}>
-          <div className="workbench-plan-header">
-            <span>{workbenchCopy.planTitle}</span>
-            <strong>{workbenchCopy.planOutcomeLabel}: {selectedGoalTemplate.outcome}</strong>
-          </div>
-          <ol className="workbench-plan-steps">
-            {selectedGoalTemplate.planSteps.map((step, index) => (
-              <li key={step}>
-                <span>{workbenchCopy.planStepLabel} {index + 1}</span>
-                <strong>{step}</strong>
-              </li>
-            ))}
-          </ol>
-          <p className="workbench-plan-gate">
-            <span>{workbenchCopy.planGateLabel}</span>
-            {selectedGoalTemplate.reviewGate}
-          </p>
-        </div>
-        <div className="workbench-status-tracker" aria-label={workbenchCopy.statusTrackerTitle}>
-          <div className="workbench-status-header">
-            <div>
-              <span>{workbenchCopy.statusTrackerTitle}</span>
-              <p>{workbenchCopy.statusTrackerSubtitle}</p>
-            </div>
-            <strong>{workbenchCopy.statusRunLabel}: {runStatus}</strong>
-          </div>
-          <div className="workbench-status-stages">
-            {goalStatusStages.map((stage) => (
-              <div key={stage.id} className={`workbench-status-stage ${stage.status}`}>
-                <span>{stage.label}</span>
-                <strong>{goalStatusStateLabels[stage.status]}</strong>
-                <p>{stage.detail}</p>
-              </div>
-            ))}
-          </div>
-          <div className="workbench-status-meta">
-            <span>{workbenchCopy.statusThreadLabel}: {threadId ?? "-"}</span>
-            <span>{workbenchCopy.statusTaskLabel}: {selectedTaskRunId ?? "-"}</span>
-          </div>
-        </div>
-        <div className="chat-input-row command-input-row">
+        <div className="chat-input-row command-input-row simple-goal-box">
           <textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder={workbenchCopy.goalPlaceholder}
           />
-          <button className="action-button primary-action" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
-            <Send size={16} />
-            {workbenchCopy.immediateRun}
-          </button>
-          <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
-            <PlayCircle size={16} />
-            {workbenchCopy.backgroundRun}
-          </button>
+          <div className="simple-action-row">
+            <button className="action-button primary-action" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
+              <Send size={16} />
+              {workbenchCopy.simpleStart}
+            </button>
+            <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
+              <PlayCircle size={16} />
+              {workbenchCopy.backgroundRun}
+            </button>
+          </div>
         </div>
+        <div className={`simple-progress-card ${simpleCurrentStage.status}`} aria-label={workbenchCopy.simpleProgressTitle}>
+          <div className="simple-progress-header">
+            <span>{workbenchCopy.simpleProgressTitle}</span>
+            <strong>{simpleCurrentStage.label}: {goalStatusStateLabels[simpleCurrentStage.status]}</strong>
+          </div>
+          <p>{suggestedAction}</p>
+          <div className="simple-progress-stages">
+            {goalStatusStages.map((stage) => (
+              <span key={stage.id} className={`simple-progress-stage ${stage.status}`}>
+                {stage.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <details className="operator-detail-drawer">
+          <summary>{workbenchCopy.detailDrawerTitle}</summary>
+          <div className="workbench-intro">
+            <p>{workbenchCopy.subtitle}</p>
+            <div className="workbench-next-action">
+              <span>{workbenchCopy.nextActionTitle}</span>
+              <strong>{suggestedAction}</strong>
+            </div>
+          </div>
+          <div className="workbench-metrics" aria-label="Client task workbench status">
+            <div className={pendingApprovals.length > 0 ? "needs-action" : ""}>
+              <span>{workbenchCopy.metricApprovals}</span>
+              <strong>{pendingApprovals.length}</strong>
+            </div>
+            <div className={activeTaskRuns.length > 0 ? "in-progress" : ""}>
+              <span>{workbenchCopy.metricActiveTasks}</span>
+              <strong>{activeTaskRuns.length}</strong>
+            </div>
+            <div className={failedTaskRuns.length > 0 ? "needs-action" : ""}>
+              <span>{workbenchCopy.metricFailedTasks}</span>
+              <strong>{failedTaskRuns.length}</strong>
+            </div>
+            <div>
+              <span>{workbenchCopy.metricArtifacts}</span>
+              <strong>{artifacts.length}</strong>
+            </div>
+          </div>
+          <div className="workbench-template-strip" aria-label={workbenchCopy.templateTitle}>
+            <div className="workbench-template-header">
+              <span>{workbenchCopy.templateTitle}</span>
+              <strong>{workbenchCopy.selectedTemplateLabel}: {selectedGoalTemplate.title}</strong>
+            </div>
+            <div className="workbench-template-grid">
+              {goalTemplates.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  className={`workbench-template-card ${selectedGoalTemplate.id === template.id ? "selected" : ""}`}
+                  aria-pressed={selectedGoalTemplate.id === template.id}
+                  onClick={() => applyGoalTemplate(template)}
+                >
+                  <span>{template.title}</span>
+                  <p>{template.description}</p>
+                  <small>
+                    {workbenchCopy.templatePlaybookLabel}: {template.playbookName} | {template.runMode === "background" ? workbenchCopy.templateModeBackground : workbenchCopy.templateModeNow}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="workbench-plan-preview" aria-label={workbenchCopy.planTitle}>
+            <div className="workbench-plan-header">
+              <span>{workbenchCopy.planTitle}</span>
+              <strong>{workbenchCopy.planOutcomeLabel}: {selectedGoalTemplate.outcome}</strong>
+            </div>
+            <ol className="workbench-plan-steps">
+              {selectedGoalTemplate.planSteps.map((step, index) => (
+                <li key={step}>
+                  <span>{workbenchCopy.planStepLabel} {index + 1}</span>
+                  <strong>{step}</strong>
+                </li>
+              ))}
+            </ol>
+            <p className="workbench-plan-gate">
+              <span>{workbenchCopy.planGateLabel}</span>
+              {selectedGoalTemplate.reviewGate}
+            </p>
+          </div>
+          <div className="workbench-status-tracker" aria-label={workbenchCopy.statusTrackerTitle}>
+            <div className="workbench-status-header">
+              <div>
+                <span>{workbenchCopy.statusTrackerTitle}</span>
+                <p>{workbenchCopy.statusTrackerSubtitle}</p>
+              </div>
+              <strong>{workbenchCopy.statusRunLabel}: {runStatus}</strong>
+            </div>
+            <div className="workbench-status-stages">
+              {goalStatusStages.map((stage) => (
+                <div key={stage.id} className={`workbench-status-stage ${stage.status}`}>
+                  <span>{stage.label}</span>
+                  <strong>{goalStatusStateLabels[stage.status]}</strong>
+                  <p>{stage.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="workbench-status-meta">
+              <span>{workbenchCopy.statusThreadLabel}: {threadId ?? "-"}</span>
+              <span>{workbenchCopy.statusTaskLabel}: {selectedTaskRunId ?? "-"}</span>
+            </div>
+          </div>
+        </details>
       </section>
+      <details className="maintenance-drawer" open={pendingApprovals.length > 0 || failedTaskRuns.length > 0}>
+        <summary>{workbenchCopy.maintenanceModeTitle}</summary>
       <details className="chat-settings-panel">
         <summary>{workbenchCopy.connectionSettings}</summary>
         <div className="chat-config-grid">
@@ -1814,6 +2046,7 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
           <div className="empty-chat">Select a task run to inspect its timeline.</div>
         )}
       </details>
+      </details>
     </section>
   );
 }
@@ -2025,6 +2258,374 @@ function BrowserSessionsPanel() {
   );
 }
 
+function loadStoredConversationSettings(storageKey: string): ConversationSettings {
+  const stored = window.localStorage.getItem(storageKey);
+  if (!stored) {
+    return conversationClient.defaultSettings;
+  }
+  try {
+    return { ...conversationClient.defaultSettings, ...JSON.parse(stored) };
+  } catch {
+    return conversationClient.defaultSettings;
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function documentDisplayName(document: KnowledgeDocument): string {
+  return document.source_name || document.filename || document.source_id || document.id || "Untitled material";
+}
+
+function knowledgeQueueId(file: File): string {
+  return `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`;
+}
+
+function KnowledgeBasePanel({
+  language,
+  settingsStorageKey,
+}: {
+  language: ClientLanguage;
+  settingsStorageKey: string;
+}) {
+  const copy = knowledgeBaseCopy[language];
+  const [settings] = useState<ConversationSettings>(() => loadStoredConversationSettings(settingsStorageKey));
+  const [collectionName, setCollectionName] = useState("operations");
+  const [duplicateStrategy, setDuplicateStrategy] = useState<"skip" | "force_reingest">("skip");
+  const [queue, setQueue] = useState<KnowledgeQueueItem[]>([]);
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [libraryState, setLibraryState] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<"add" | "replace">("add");
+  const [sourceName, setSourceName] = useState("");
+  const [sourceId, setSourceId] = useState("");
+  const [sourceText, setSourceText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const queueStatusLabels: Record<KnowledgeQueueStatus, string> = {
+    queued: copy.queued,
+    uploading: copy.uploading,
+    uploaded: copy.uploaded,
+    failed: copy.failed,
+  };
+
+  const refreshDocuments = useCallback(async () => {
+    setLibraryState("loading");
+    try {
+      const response = await knowledgeBaseClient.documents(settings);
+      setDocuments(response.items);
+      setLibraryState("ready");
+    } catch {
+      setDocuments([]);
+      setLibraryState("failed");
+      setMessage(copy.requestFailed);
+    }
+  }, [copy.requestFailed, settings]);
+
+  useEffect(() => {
+    void refreshDocuments();
+  }, [refreshDocuments]);
+
+  const addFiles = (files: FileList | File[]) => {
+    const nextFiles = Array.from(files);
+    if (nextFiles.length === 0) {
+      return;
+    }
+    setQueue((current) => [
+      ...nextFiles.map((file) => ({ id: knowledgeQueueId(file), file, status: "queued" as KnowledgeQueueStatus })),
+      ...current,
+    ]);
+    setMessage(null);
+  };
+
+  const uploadSelectedFiles = async () => {
+    const pendingItems = queue.filter((item) => item.status === "queued" || item.status === "failed");
+    if (pendingItems.length === 0) {
+      return;
+    }
+    setUploading(true);
+    setMessage(null);
+    for (const item of pendingItems) {
+      setQueue((current) =>
+        current.map((queueItem) =>
+          queueItem.id === item.id ? { ...queueItem, status: "uploading", message: undefined } : queueItem,
+        ),
+      );
+      try {
+        await knowledgeBaseClient.uploadFile(
+          {
+            file: item.file,
+            collectionName: collectionName.trim() || undefined,
+            duplicateStrategy,
+          },
+          settings,
+        );
+        setQueue((current) =>
+          current.map((queueItem) =>
+            queueItem.id === item.id ? { ...queueItem, status: "uploaded", message: copy.uploaded } : queueItem,
+          ),
+        );
+      } catch {
+        setQueue((current) =>
+          current.map((queueItem) =>
+            queueItem.id === item.id ? { ...queueItem, status: "failed", message: copy.requestFailed } : queueItem,
+          ),
+        );
+      }
+    }
+    setUploading(false);
+    setMessage(copy.uploaded);
+    await refreshDocuments();
+  };
+
+  const saveTextKnowledge = async () => {
+    const text = sourceText.trim();
+    const resolvedSourceId = sourceId.trim();
+    if (!text) {
+      setMessage(copy.textRequired);
+      return;
+    }
+    if (editMode === "replace" && !resolvedSourceId) {
+      setMessage(copy.sourceIdRequired);
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      if (editMode === "replace") {
+        await knowledgeBaseClient.reingestText(
+          {
+            text,
+            sourceId: resolvedSourceId,
+            sourceName: sourceName.trim() || resolvedSourceId,
+            collectionName: collectionName.trim() || undefined,
+          },
+          settings,
+        );
+      } else {
+        await knowledgeBaseClient.ingestText(
+          {
+            text,
+            sourceName: sourceName.trim() || undefined,
+            sourceId: resolvedSourceId || undefined,
+            collectionName: collectionName.trim() || undefined,
+          },
+          settings,
+        );
+      }
+      setSourceText("");
+      setMessage(copy.saved);
+      await refreshDocuments();
+    } catch {
+      setMessage(copy.requestFailed);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectDocumentForEdit = (document: KnowledgeDocument) => {
+    setEditMode("replace");
+    setSourceName(documentDisplayName(document));
+    setSourceId(document.source_id || document.id || "");
+    setMessage(null);
+  };
+
+  return (
+    <section id="knowledge-base-panel" className="panel knowledge-base-panel">
+      <div className="panel-title logs-title">
+        <span>
+          <Database size={18} />
+          <h2>{copy.title}</h2>
+        </span>
+        <button className="refresh-button" onClick={() => void refreshDocuments()} disabled={libraryState === "loading"}>
+          <RefreshCcw size={15} />
+          {copy.refreshLibrary}
+        </button>
+      </div>
+      <div className="knowledge-hero">
+        <p>{copy.subtitle}</p>
+        <div className="knowledge-flow-grid">
+          {copy.flowSteps.map((step, index) => (
+            <div className="knowledge-flow-step" key={step.title}>
+              <span>{index + 1}</span>
+              <strong>{step.title}</strong>
+              <p>{step.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="knowledge-action-grid">
+        <section className="knowledge-upload-card" aria-label={copy.uploadTitle}>
+          <div className="knowledge-card-title">
+            <Upload size={17} />
+            <div>
+              <h3>{copy.uploadTitle}</h3>
+              <p>{copy.uploadHint}</p>
+            </div>
+          </div>
+          <label
+            className="knowledge-upload-drop"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              addFiles(event.dataTransfer.files);
+            }}
+          >
+            <Upload size={24} />
+            <strong>{copy.chooseFiles}</strong>
+            <span>{copy.uploadHint}</span>
+            <input
+              type="file"
+              multiple
+              onChange={(event) => {
+                if (event.target.files) {
+                  addFiles(event.target.files);
+                  event.currentTarget.value = "";
+                }
+              }}
+            />
+          </label>
+          <div className="knowledge-form-row">
+            <label>
+              {copy.collectionLabel}
+              <input
+                value={collectionName}
+                placeholder={copy.collectionPlaceholder}
+                onChange={(event) => setCollectionName(event.target.value)}
+              />
+            </label>
+            <label>
+              {copy.duplicateLabel}
+              <select
+                value={duplicateStrategy}
+                onChange={(event) => setDuplicateStrategy(event.target.value as "skip" | "force_reingest")}
+              >
+                <option value="skip">{copy.duplicateSkip}</option>
+                <option value="force_reingest">{copy.duplicateReplace}</option>
+              </select>
+            </label>
+          </div>
+          <button className="action-button primary-action" onClick={() => void uploadSelectedFiles()} disabled={uploading || queue.length === 0}>
+            <Upload size={16} />
+            {copy.uploadSelected}
+          </button>
+          <div className="knowledge-queue">
+            {queue.length > 0 ? (
+              queue.map((item) => (
+                <div className={`knowledge-file-card ${item.status}`} key={item.id}>
+                  <FileText size={17} />
+                  <div>
+                    <strong>{item.file.name}</strong>
+                    <span>{formatFileSize(item.file.size)}</span>
+                    {item.message ? <p>{item.message}</p> : null}
+                  </div>
+                  <span className={`knowledge-status-badge ${item.status}`}>{queueStatusLabels[item.status]}</span>
+                </div>
+              ))
+            ) : (
+              <div className="knowledge-empty">{copy.emptyQueue}</div>
+            )}
+          </div>
+        </section>
+        <section className="knowledge-edit-card" aria-label={copy.editTitle}>
+          <div className="knowledge-card-title">
+            <PencilLine size={17} />
+            <div>
+              <h3>{copy.editTitle}</h3>
+              <p>{editMode === "replace" ? copy.replaceText : copy.addText}</p>
+            </div>
+          </div>
+          <div className="knowledge-mode-toggle">
+            <button className={editMode === "add" ? "active" : ""} onClick={() => setEditMode("add")} type="button">
+              {copy.addText}
+            </button>
+            <button className={editMode === "replace" ? "active" : ""} onClick={() => setEditMode("replace")} type="button">
+              {copy.replaceText}
+            </button>
+          </div>
+          <div className="knowledge-form-row">
+            <label>
+              {copy.sourceNameLabel}
+              <input
+                value={sourceName}
+                placeholder={copy.sourceNamePlaceholder}
+                onChange={(event) => setSourceName(event.target.value)}
+              />
+            </label>
+            <label>
+              {copy.sourceIdLabel}
+              <input
+                value={sourceId}
+                placeholder={copy.sourceIdPlaceholder}
+                onChange={(event) => setSourceId(event.target.value)}
+              />
+            </label>
+          </div>
+          <label className="knowledge-textarea-label">
+            {copy.contentLabel}
+            <textarea
+              value={sourceText}
+              placeholder={copy.contentPlaceholder}
+              onChange={(event) => setSourceText(event.target.value)}
+            />
+          </label>
+          <button className="action-button primary-action" onClick={() => void saveTextKnowledge()} disabled={saving}>
+            <FileText size={16} />
+            {copy.saveKnowledge}
+          </button>
+          {message ? <div className="knowledge-message">{message}</div> : null}
+        </section>
+      </div>
+      <section className="knowledge-library-section" aria-label={copy.libraryTitle}>
+        <div className="knowledge-library-header">
+          <div>
+            <span>{libraryState === "loading" ? copy.loading : libraryState === "failed" ? copy.failed : copy.ready}</span>
+            <h3>{copy.libraryTitle}</h3>
+          </div>
+          <button className="refresh-button" onClick={() => void refreshDocuments()} disabled={libraryState === "loading"}>
+            <RefreshCcw size={15} />
+            {copy.refreshLibrary}
+          </button>
+        </div>
+        <div className="knowledge-document-grid">
+          {documents.length > 0 ? (
+            documents.slice(0, 12).map((document) => (
+              <article className="knowledge-document-card" key={document.id ?? document.source_id ?? documentDisplayName(document)}>
+                <div className="knowledge-document-main">
+                  <FileText size={18} />
+                  <div>
+                    <strong>{documentDisplayName(document)}</strong>
+                    <span>{document.collection_name ?? collectionName}</span>
+                  </div>
+                </div>
+                <div className="knowledge-document-meta">
+                  <span>{copy.documentStatus}: {document.status ?? copy.ready}</span>
+                  <span>{copy.documentChunks}: {document.chunk_count ?? "-"}</span>
+                  <span>{copy.updatedAt}: {document.updated_at ?? document.created_at ?? "-"}</span>
+                </div>
+                <button className="refresh-button" onClick={() => selectDocumentForEdit(document)}>
+                  <PencilLine size={14} />
+                  {copy.editExisting}
+                </button>
+              </article>
+            ))
+          ) : (
+            <div className="knowledge-empty">{copy.emptyLibrary}</div>
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
 function App() {
   const [settings, setSettings] = useState<DesktopSettings>(defaultDesktopSettings);
   const [status, setStatus] = useState<WorkerStatus>(fallbackStatus);
@@ -2034,6 +2635,7 @@ function App() {
     const stored = window.localStorage.getItem("desktopConsoleLanguage");
     return stored === "en-US" ? "en-US" : "zh-CN";
   });
+  const [operatorPage, setOperatorPage] = useState<OperatorPage>("operations");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<ControlAction | null>(null);
   const [controlMessage, setControlMessage] = useState<string | null>(null);
@@ -2264,7 +2866,30 @@ function App() {
         onRunControl={(action) => void runControl(action)}
       />
 
-      <ChatPanel language={language} />
+      <section className="operator-page-tabs" aria-label="Client operation pages">
+        <button
+          className={operatorPage === "operations" ? "active" : ""}
+          onClick={() => setOperatorPage("operations")}
+          type="button"
+        >
+          <MessageCircle size={16} />
+          {copy.pageOperations}
+        </button>
+        <button
+          className={operatorPage === "knowledge" ? "active" : ""}
+          onClick={() => setOperatorPage("knowledge")}
+          type="button"
+        >
+          <Database size={16} />
+          {copy.pageKnowledge}
+        </button>
+      </section>
+
+      {operatorPage === "knowledge" ? (
+        <KnowledgeBasePanel language={language} settingsStorageKey="desktopConversationSettings" />
+      ) : (
+        <ChatPanel language={language} />
+      )}
 
       <details className="advanced-diagnostics">
         <summary>{copy.advancedSummary}</summary>

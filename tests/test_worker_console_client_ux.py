@@ -8,8 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WEB_MAIN = ROOT / "worker_console/src/main.tsx"
 WEB_STYLES = ROOT / "worker_console/src/styles.css"
+WEB_KNOWLEDGE_CLIENT = ROOT / "worker_console/src/api/knowledgeBaseClient.ts"
 DESKTOP_MAIN = ROOT / "worker_console_desktop/src/main.tsx"
 DESKTOP_STYLES = ROOT / "worker_console_desktop/src/styles.css"
+DESKTOP_KNOWLEDGE_CLIENT = ROOT / "worker_console_desktop/src/api/knowledgeBaseClient.ts"
 
 
 def test_worker_console_web_exposes_phase_62i_operator_home() -> None:
@@ -380,5 +382,94 @@ def test_phase_62o_goal_status_tracker_is_documented() -> None:
     ):
         assert "Phase 62O Customer Console Goal Status Tracker" in text
         assert "codex/phase-62o-client-goal-status-tracker" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_62p_simple_operator_and_knowledge_page() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    web_client = WEB_KNOWLEDGE_CLIENT.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_KNOWLEDGE_CLIENT.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "KnowledgeBasePanel",
+            "knowledge-base-panel",
+            "operator-page-tabs",
+            "pageKnowledge",
+            "Knowledge Base Upload and Edit",
+            "知识库修改与上传",
+            "simple-operator-workbench",
+            "simple-template-chip",
+            "simple-progress-card",
+            "operator-detail-drawer",
+            "maintenance-drawer",
+            "simpleCurrentStage",
+            "open={pendingApprovals.length > 0 || failedTaskRuns.length > 0}",
+            "knowledge-upload-drop",
+            "knowledge-document-card",
+        ]:
+            assert token in text
+        knowledge_panel = text.split("function KnowledgeBasePanel", 1)[1].split("function App", 1)[0]
+        assert "<pre" not in knowledge_panel
+        assert "<code" not in knowledge_panel
+
+    for client in (web_client, desktop_client):
+        for token in [
+            "knowledgeBaseClient",
+            "uploadFile",
+            "ingestText",
+            "reingestText",
+            '"/files/upload"',
+            '"/rag/ingest"',
+            '"/documents/reingest"',
+            "FormData",
+        ]:
+            assert token in client
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".operator-page-tabs",
+            ".simple-operator-workbench",
+            ".simple-template-chip",
+            ".simple-progress-card",
+            ".operator-detail-drawer",
+            ".maintenance-drawer",
+            ".knowledge-base-panel",
+            ".knowledge-upload-drop",
+            ".knowledge-flow-grid",
+            ".knowledge-document-card",
+        ]:
+            assert token in styles
+
+
+def test_phase_62p_simple_operator_mode_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 62P Customer Console Simple Operator Mode" in text
+        assert "codex/phase-62p-client-simple-operator-mode" in text
+        assert "knowledge base upload/edit page" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
