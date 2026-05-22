@@ -29,6 +29,10 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeManualApplyEvidenceDecisionRequest,
     ComfyUIRuntimeManualApplyEvidenceListResponse,
     ComfyUIRuntimeManualApplyEvidenceResponse,
+    ComfyUIRuntimePostManualReadinessCheckCreateRequest,
+    ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    ComfyUIRuntimePostManualReadinessCheckListResponse,
+    ComfyUIRuntimePostManualReadinessCheckResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -441,6 +445,184 @@ async def archive_comfyui_runtime_manual_apply_evidence(
 
     return await _set_manual_apply_evidence_status(
         evidence_id=evidence_id,
+        status="archived",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post(
+    "/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks",
+    response_model=ComfyUIRuntimePostManualReadinessCheckResponse,
+)
+async def create_comfyui_runtime_post_manual_readiness_check(
+    evidence_id: UUID,
+    request: ComfyUIRuntimePostManualReadinessCheckCreateRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    """Create a no-network readiness comparison from verified manual apply evidence."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).create_post_manual_readiness_check(
+            session,
+            workspace_id=context.workspace_id,
+            evidence_id=evidence_id,
+            user_id=context.user_id,
+            operator_note=request.operator_note,
+            metadata=request.metadata,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime manual apply evidence not found", status_code=404) from exc
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime post-manual readiness create API failed")
+        raise AppError("ComfyUI runtime post-manual readiness create failed", status_code=500) from exc
+
+
+@router.get("/post-manual-readiness-checks", response_model=ComfyUIRuntimePostManualReadinessCheckListResponse)
+async def list_comfyui_runtime_post_manual_readiness_checks(
+    limit: int = Query(default=20, ge=1, le=100),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckListResponse:
+    """List no-network post-manual readiness comparisons."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).list_post_manual_readiness_checks(
+            session,
+            workspace_id=context.workspace_id,
+            limit=limit,
+        )
+    except Exception as exc:
+        logger.exception("ComfyUI runtime post-manual readiness list API failed")
+        raise AppError("ComfyUI runtime post-manual readiness list failed", status_code=500) from exc
+
+
+async def _set_post_manual_readiness_check_status(
+    *,
+    check_id: UUID,
+    status: str,
+    request: ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    context: WorkspaceContext,
+    settings: Settings,
+    session: AsyncSession,
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    try:
+        return await ComfyUIRuntimeService(settings=settings).update_post_manual_readiness_check_status(
+            session,
+            workspace_id=context.workspace_id,
+            check_id=check_id,
+            status=status,
+            reviewer_notes=request.reviewer_notes,
+            metadata=request.metadata,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime post-manual readiness check not found", status_code=404) from exc
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime post-manual readiness status API failed", extra={"check_id": str(check_id)})
+        raise AppError("ComfyUI runtime post-manual readiness status update failed", status_code=500) from exc
+
+
+@router.post("/post-manual-readiness-checks/{check_id}/ready", response_model=ComfyUIRuntimePostManualReadinessCheckResponse)
+async def ready_comfyui_runtime_post_manual_readiness_check(
+    check_id: UUID,
+    request: ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    """Mark post-manual readiness check ready for review."""
+
+    return await _set_post_manual_readiness_check_status(
+        check_id=check_id,
+        status="ready_for_review",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/post-manual-readiness-checks/{check_id}/approve", response_model=ComfyUIRuntimePostManualReadinessCheckResponse)
+async def approve_comfyui_runtime_post_manual_readiness_check(
+    check_id: UUID,
+    request: ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    """Approve post-manual readiness for a later guarded read-only probe."""
+
+    return await _set_post_manual_readiness_check_status(
+        check_id=check_id,
+        status="approved_for_read_only_probe",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/post-manual-readiness-checks/{check_id}/reject", response_model=ComfyUIRuntimePostManualReadinessCheckResponse)
+async def reject_comfyui_runtime_post_manual_readiness_check(
+    check_id: UUID,
+    request: ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    """Reject post-manual readiness check."""
+
+    return await _set_post_manual_readiness_check_status(
+        check_id=check_id,
+        status="rejected",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/post-manual-readiness-checks/{check_id}/fail", response_model=ComfyUIRuntimePostManualReadinessCheckResponse)
+async def fail_comfyui_runtime_post_manual_readiness_check(
+    check_id: UUID,
+    request: ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    """Mark post-manual readiness check failed."""
+
+    return await _set_post_manual_readiness_check_status(
+        check_id=check_id,
+        status="failed",
+        request=request,
+        context=context,
+        settings=settings,
+        session=session,
+    )
+
+
+@router.post("/post-manual-readiness-checks/{check_id}/archive", response_model=ComfyUIRuntimePostManualReadinessCheckResponse)
+async def archive_comfyui_runtime_post_manual_readiness_check(
+    check_id: UUID,
+    request: ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimePostManualReadinessCheckResponse:
+    """Archive post-manual readiness check."""
+
+    return await _set_post_manual_readiness_check_status(
+        check_id=check_id,
         status="archived",
         request=request,
         context=context,

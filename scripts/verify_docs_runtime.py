@@ -715,6 +715,8 @@ class DocsRuntimeVerifier:
             "/api/v1/comfyui-runtime/config-change-requests",
             "/api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence",
             "/api/v1/comfyui-runtime/manual-apply-evidence",
+            "/api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks",
+            "/api/v1/comfyui-runtime/post-manual-readiness-checks",
             "/api/v1/comfyui-runtime/diagnostic-snapshots",
             "/api/v1/conversations",
             "/api/v1/conversations/{thread_id}",

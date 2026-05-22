@@ -360,6 +360,33 @@ async def test_comfyui_runtime_config_change_request_persists_without_network(se
         status="verified",
         reviewer_notes="verified metadata evidence",
     )
+    readiness_check = await service.create_post_manual_readiness_check(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        evidence_id=verified_evidence.id,
+        user_id="user-comfyui",
+        operator_note="compare readiness after manual apply",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    listed_readiness_checks = await service.list_post_manual_readiness_checks(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        limit=10,
+    )
+    ready_readiness_check = await service.update_post_manual_readiness_check_status(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        check_id=readiness_check.id,
+        status="ready_for_review",
+        reviewer_notes="ready to compare",
+    )
+    rejected_readiness_check = await service.update_post_manual_readiness_check_status(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        check_id=readiness_check.id,
+        status="rejected",
+        reviewer_notes="blocked gates still need maintainer action",
+    )
 
     assert change_request.workspace_id == "workspace-comfyui-config-requests"
     assert change_request.user_id == "user-comfyui"
@@ -405,6 +432,31 @@ async def test_comfyui_runtime_config_change_request_persists_without_network(se
     assert ready_evidence.evidence_status == "ready_for_review"
     assert verified_evidence.evidence_status == "verified"
     assert verified_evidence.api_config_mutation_performed is False
+    assert readiness_check.workspace_id == "workspace-comfyui-config-requests"
+    assert readiness_check.user_id == "user-comfyui"
+    assert readiness_check.manual_apply_evidence_id == verified_evidence.id
+    assert readiness_check.config_change_request_id == approved.id
+    assert readiness_check.check_status == "draft"
+    assert readiness_check.comparison_status == "blocked"
+    assert readiness_check.readiness_status_current == "blocked"
+    assert readiness_check.external_request_attempted is False
+    assert readiness_check.runtime_calls_enabled is False
+    assert readiness_check.health_probe_executed is False
+    assert readiness_check.api_config_mutation_performed is False
+    assert readiness_check.manual_evidence_status == "verified"
+    assert readiness_check.manual_config_applied is True
+    assert readiness_check.service_restart_reported is True
+    assert readiness_check.metadata["phase"] == "62H"
+    assert readiness_check.metadata["no_network_call_performed"] is True
+    assert readiness_check.metadata["source_page"] == "comfyui-operations"
+    assert readiness_check.comparison_results["health_probe_executed"] is False
+    assert readiness_check.current_diagnostics_payload["raw"]["no_network_call_performed"] is True
+    assert any("read_only_probe_ready_current" in item for item in readiness_check.blocking_reasons)
+    assert len(listed_readiness_checks.items) == 1
+    assert listed_readiness_checks.items[0].id == readiness_check.id
+    assert ready_readiness_check.check_status == "ready_for_review"
+    assert rejected_readiness_check.check_status == "rejected"
+    assert rejected_readiness_check.api_config_mutation_performed is False
     assert calls == []
 
 
@@ -469,6 +521,22 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
             headers=headers,
             json={"reviewer_notes": "verified"},
         )
+        created_readiness_check = await client.post(
+            f"/api/v1/comfyui-runtime/manual-apply-evidence/{created_apply_evidence.json()['id']}/post-manual-readiness-checks",
+            headers=headers,
+            json={"operator_note": "compare post manual readiness", "metadata": {"source_page": "comfyui-operations"}},
+        )
+        readiness_check_list = await client.get("/api/v1/comfyui-runtime/post-manual-readiness-checks?limit=5", headers=headers)
+        ready_readiness_check = await client.post(
+            f"/api/v1/comfyui-runtime/post-manual-readiness-checks/{created_readiness_check.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "ready to compare"},
+        )
+        rejected_readiness_check = await client.post(
+            f"/api/v1/comfyui-runtime/post-manual-readiness-checks/{created_readiness_check.json()['id']}/reject",
+            headers=headers,
+            json={"reviewer_notes": "blocked gates remain"},
+        )
         created_snapshot = await client.post(
             "/api/v1/comfyui-runtime/diagnostic-snapshots",
             headers=headers,
@@ -526,6 +594,25 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert verified_apply_evidence.status_code == 200
     assert verified_apply_evidence.json()["evidence_status"] == "verified"
     assert verified_apply_evidence.json()["api_config_mutation_performed"] is False
+    assert created_readiness_check.status_code == 200
+    assert created_readiness_check.json()["workspace_id"] == "workspace-comfyui-api"
+    assert created_readiness_check.json()["user_id"] == "user-comfyui"
+    assert created_readiness_check.json()["manual_apply_evidence_id"] == created_apply_evidence.json()["id"]
+    assert created_readiness_check.json()["check_status"] == "draft"
+    assert created_readiness_check.json()["comparison_status"] == "blocked"
+    assert created_readiness_check.json()["health_probe_executed"] is False
+    assert created_readiness_check.json()["api_config_mutation_performed"] is False
+    assert created_readiness_check.json()["external_request_attempted"] is False
+    assert created_readiness_check.json()["runtime_calls_enabled"] is False
+    assert created_readiness_check.json()["metadata"]["phase"] == "62H"
+    assert created_readiness_check.json()["comparison_results"]["health_probe_executed"] is False
+    assert readiness_check_list.status_code == 200
+    assert len(readiness_check_list.json()["items"]) == 1
+    assert ready_readiness_check.status_code == 200
+    assert ready_readiness_check.json()["check_status"] == "ready_for_review"
+    assert rejected_readiness_check.status_code == 200
+    assert rejected_readiness_check.json()["check_status"] == "rejected"
+    assert rejected_readiness_check.json()["api_config_mutation_performed"] is False
     assert created_snapshot.status_code == 200
     assert created_snapshot.json()["workspace_id"] == "workspace-comfyui-api"
     assert created_snapshot.json()["user_id"] == "user-comfyui"

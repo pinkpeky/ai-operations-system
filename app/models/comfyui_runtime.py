@@ -104,3 +104,43 @@ class ComfyUIRuntimeManualApplyEvidence(IdTimestampMixin, Base):
     operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     evidence_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class ComfyUIRuntimePostManualReadinessCheck(IdTimestampMixin, Base):
+    """Workspace-scoped no-network readiness comparison after manual ComfyUI config apply."""
+
+    __tablename__ = "comfyui_runtime_post_manual_readiness_checks"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    manual_apply_evidence_id: Mapped[UUID] = mapped_column(Uuid(), index=True, nullable=False)
+    config_change_request_id: Mapped[UUID] = mapped_column(Uuid(), index=True, nullable=False)
+    check_status: Mapped[str] = mapped_column(String(64), default="draft", index=True, nullable=False)
+    comparison_status: Mapped[str] = mapped_column(String(64), default="blocked", index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    readiness_status_before: Mapped[str] = mapped_column(String(64), default="blocked", nullable=False)
+    readiness_status_after_evidence: Mapped[str] = mapped_column(String(64), default="blocked", nullable=False)
+    readiness_status_current: Mapped[str] = mapped_column(String(64), default="blocked", index=True, nullable=False)
+    read_only_probe_ready_before: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    read_only_probe_ready_after_evidence: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    read_only_probe_ready_current: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    guarded_probe_ready: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    manual_evidence_status: Mapped[str] = mapped_column(String(64), default="verified", index=True, nullable=False)
+    manual_config_applied: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    service_restart_reported: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    external_request_attempted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    runtime_calls_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    health_probe_executed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    api_config_mutation_performed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    requested_changes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    manual_apply_steps: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    restart_evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    evidence_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    current_diagnostics_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    comparison_results: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    blocking_reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    recommended_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    next_operator_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    check_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)

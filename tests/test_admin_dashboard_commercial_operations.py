@@ -26,10 +26,11 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Open ComfyUI tab" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
-    assert "Phase 61Z" in text
+    assert 'phase: "61Z"' in text
     assert "Runtime adapter contract" in text
     assert "Phase 62F" in text
     assert "Phase 62G" in text
+    assert "Phase 62H" in text
     assert "read_only_probe_enabled" in text
     assert "read_only_probe_attempted" in text
     assert "readiness_status" in text
@@ -50,16 +51,23 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "manual_apply_evidence_count" in text
     assert "latest_manual_apply_status" in text
     assert "latest_manual_apply_at" in text
+    assert "post_manual_readiness_count" in text
+    assert "latest_post_manual_check_status" in text
+    assert "latest_post_manual_comparison" in text
     assert "Config change requests" in text
     assert "Manual apply evidence" in text
+    assert "Post-manual readiness" in text
     assert "创建配置变更申请" in text
     assert "送审配置申请" in text
     assert "批准人工应用" in text
     assert "记录人工应用证据" in text
+    assert "创建就绪对比" in text
     assert "updateComfyuiRuntimeConfigChangeRequestStatus" in text
     assert "createComfyuiRuntimeConfigChangeRequest" in text
     assert "createComfyuiRuntimeManualApplyEvidence" in text
     assert "updateComfyuiRuntimeManualApplyEvidenceStatus" in text
+    assert "createComfyuiRuntimePostManualReadinessCheck" in text
+    assert "updateComfyuiRuntimePostManualReadinessCheckStatus" in text
     assert "saveComfyuiRuntimeDiagnosticSnapshot" in text
     assert "allowed_health_paths" in text
     assert "probe_latency_ms" in text
@@ -73,6 +81,9 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "comfyuiRuntimeApi.manualApplyEvidence" in text
     assert "comfyuiRuntimeApi.createManualApplyEvidence" in text
     assert "comfyuiRuntimeApi.updateManualApplyEvidenceStatus" in text
+    assert "comfyuiRuntimeApi.postManualReadinessChecks" in text
+    assert "comfyuiRuntimeApi.createPostManualReadinessCheck" in text
+    assert "comfyuiRuntimeApi.updatePostManualReadinessCheckStatus" in text
     assert "comfyuiRuntimeApi.diagnosticSnapshots" in text
     assert "comfyuiRuntimeApi.createDiagnosticSnapshot" in text
     assert "Approval gates" in text
@@ -304,6 +315,9 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/manual-apply-evidence" in text
     assert "/comfyui-runtime/config-change-requests/${encodeURIComponent(requestId)}/manual-apply-evidence" in text
     assert "/comfyui-runtime/manual-apply-evidence/${encodeURIComponent(evidenceId)}/${encodeURIComponent(action)}" in text
+    assert "/comfyui-runtime/post-manual-readiness-checks" in text
+    assert "/comfyui-runtime/manual-apply-evidence/${encodeURIComponent(evidenceId)}/post-manual-readiness-checks" in text
+    assert "/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/${encodeURIComponent(action)}" in text
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text

@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active ComfyUI runtime manual apply evidence slice."""
+    """Recovery docs should point to the active ComfyUI runtime post-manual readiness slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -131,9 +131,9 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
     for path in docs:
         text = path.read_text(encoding="utf-8")
         assert (
-            "phase-62g-comfyui-manual-apply-evidence" in text
-            or "ComfyUI Runtime Manual Apply Evidence" in text
-            or "manual apply evidence" in text
+            "phase-62h-comfyui-post-manual-readiness" in text
+            or "ComfyUI Runtime Post-Manual Readiness Checks" in text
+            or "post-manual readiness" in text
         ), path
         assert "/comfyui-runtime/health" in text, path
         assert "/comfyui-runtime/capabilities" in text, path
@@ -141,8 +141,10 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
         assert "/comfyui-runtime/maintenance-runbook" in text, path
         assert "/comfyui-runtime/config-change-requests" in text, path
         assert "/comfyui-runtime/manual-apply-evidence" in text, path
+        assert "/comfyui-runtime/post-manual-readiness-checks" in text, path
         assert "/comfyui-runtime/diagnostic-snapshots" in text, path
         assert "api_config_mutation_performed" in text or "manual_config_applied" in text, path
+        assert "guarded_probe_ready" in text or "health_probe_executed" in text, path
         assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
 
@@ -171,7 +173,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 62G should be the active ComfyUI manual evidence slice."""
+    """Phase 61A-61P should be merged and Phase 62H should be the active ComfyUI readiness slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -593,3 +595,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_62_lines["62G"]
     assert "TBD" not in phase_62_lines["62G"]
     assert "In progress" not in phase_62_lines["62G"]
+
+    assert "62H" in phase_62_lines
+    assert "phase-62h-comfyui-post-manual-readiness" in phase_62_lines["62H"]
+    assert "ComfyUI Runtime Post-Manual Readiness Checks" in phase_62_lines["62H"]
+    assert "/api/v1/comfyui-runtime/post-manual-readiness-checks" in phase_62_lines["62H"]
+    assert "comfyui_runtime_post_manual_readiness_checks" in phase_62_lines["62H"]
+    assert "health_probe_executed" in phase_62_lines["62H"]
+    assert "#74" in phase_62_lines["62H"]
+    assert "Draft PR" in phase_62_lines["62H"]
+    assert "TBD" not in phase_62_lines["62H"]
+    assert "In progress" not in phase_62_lines["62H"]
