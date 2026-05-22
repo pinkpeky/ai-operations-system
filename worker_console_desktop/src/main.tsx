@@ -157,6 +157,20 @@ type TaskWorkbenchCopy = {
   planOutcomeLabel: string;
   planGateLabel: string;
   planStepLabel: string;
+  statusTrackerTitle: string;
+  statusTrackerSubtitle: string;
+  statusPrepared: string;
+  statusApproval: string;
+  statusExecution: string;
+  statusRecovery: string;
+  statusOutput: string;
+  statusDone: string;
+  statusCurrent: string;
+  statusWaiting: string;
+  statusNeedsAction: string;
+  statusRunLabel: string;
+  statusThreadLabel: string;
+  statusTaskLabel: string;
   goalPlaceholder: string;
   metricApprovals: string;
   metricActiveTasks: string;
@@ -186,6 +200,15 @@ type TaskWorkbenchCopy = {
 };
 
 type WorkbenchRunMode = "now" | "background";
+
+type GoalStatusStageState = "done" | "current" | "waiting" | "needs-action";
+
+type GoalStatusStage = {
+  id: string;
+  label: string;
+  status: GoalStatusStageState;
+  detail: string;
+};
 
 type WorkbenchGoalTemplate = {
   id: string;
@@ -309,6 +332,20 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     planOutcomeLabel: "预期产物",
     planGateLabel: "审批边界",
     planStepLabel: "步骤",
+    statusTrackerTitle: "目标状态",
+    statusTrackerSubtitle: "从准备、审批、执行、恢复到输出，按顺序查看当前卡点。",
+    statusPrepared: "准备",
+    statusApproval: "审批",
+    statusExecution: "执行",
+    statusRecovery: "恢复",
+    statusOutput: "输出",
+    statusDone: "已完成",
+    statusCurrent: "进行中",
+    statusWaiting: "等待",
+    statusNeedsAction: "需处理",
+    statusRunLabel: "运行状态",
+    statusThreadLabel: "会话",
+    statusTaskLabel: "任务",
     goalPlaceholder: "输入一个运营目标，例如：为新品活动生成三条短视频文案，并先进入审批。",
     metricApprovals: "待审批",
     metricActiveTasks: "运行中",
@@ -348,6 +385,20 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     planOutcomeLabel: "Expected output",
     planGateLabel: "Approval boundary",
     planStepLabel: "Step",
+    statusTrackerTitle: "Goal status",
+    statusTrackerSubtitle: "Track the goal from preparation through approval, execution, recovery, and output.",
+    statusPrepared: "Prepare",
+    statusApproval: "Approval",
+    statusExecution: "Execution",
+    statusRecovery: "Recovery",
+    statusOutput: "Output",
+    statusDone: "Done",
+    statusCurrent: "Current",
+    statusWaiting: "Waiting",
+    statusNeedsAction: "Action needed",
+    statusRunLabel: "Run status",
+    statusThreadLabel: "Thread",
+    statusTaskLabel: "Task",
     goalPlaceholder: "Tell this client machine what to do... Enter an operating goal, for example: generate three short-video drafts for a product launch and send them to approval first.",
     metricApprovals: "Approvals",
     metricActiveTasks: "Active",
@@ -1204,6 +1255,55 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
   const pendingApprovals = approvals.filter((approval) => approval.approval_status === "pending");
   const activeTaskRuns = taskRuns.filter((task) => ["queued", "running", "retrying", "waiting_approval"].includes(task.status));
   const failedTaskRuns = taskRuns.filter((task) => task.recoverable || ["failed", "expired"].includes(task.status));
+  const completedTaskRuns = taskRuns.filter((task) => task.status === "completed");
+  const hasRuntimeProgress = Boolean(messages.length > 0 || activeTaskRuns.length > 0 || completedTaskRuns.length > 0 || failedTaskRuns.length > 0 || artifacts.length > 0);
+  const hasSubmittedGoal = Boolean(
+    chatLoading ||
+      threadId ||
+      messages.length > 0 ||
+      approvals.length > 0 ||
+      taskRuns.length > 0 ||
+      artifacts.length > 0,
+  );
+  const statusStageNeedsAction = workbenchCopy.statusNeedsAction;
+  const goalStatusStateLabels: Record<GoalStatusStageState, string> = {
+    done: workbenchCopy.statusDone,
+    current: workbenchCopy.statusCurrent,
+    waiting: workbenchCopy.statusWaiting,
+    "needs-action": statusStageNeedsAction,
+  };
+  const goalStatusStages: GoalStatusStage[] = [
+    {
+      id: "prepared",
+      label: workbenchCopy.statusPrepared,
+      status: hasSubmittedGoal ? "done" : "current",
+      detail: selectedGoalTemplate.title,
+    },
+    {
+      id: "approval",
+      label: workbenchCopy.statusApproval,
+      status: pendingApprovals.length > 0 ? "needs-action" : approvals.length > 0 || hasRuntimeProgress ? "done" : hasSubmittedGoal ? "current" : "waiting",
+      detail: `${pendingApprovals.length}/${approvals.length} ${workbenchCopy.metricApprovals}`,
+    },
+    {
+      id: "execution",
+      label: workbenchCopy.statusExecution,
+      status: activeTaskRuns.length > 0 ? "current" : completedTaskRuns.length > 0 ? "done" : "waiting",
+      detail: `${activeTaskRuns.length} ${workbenchCopy.metricActiveTasks}`,
+    },
+    {
+      id: "recovery",
+      label: workbenchCopy.statusRecovery,
+      status: failedTaskRuns.length > 0 ? "needs-action" : taskRuns.length > 0 ? "done" : "waiting",
+      detail: `${failedTaskRuns.length} ${workbenchCopy.metricFailedTasks}`,
+    },
+    {
+      id: "output",
+      label: workbenchCopy.statusOutput,
+      status: artifacts.length > 0 ? "done" : completedTaskRuns.length > 0 ? "current" : "waiting",
+      detail: `${artifacts.length} ${workbenchCopy.metricArtifacts}`,
+    },
+  ];
   const suggestedAction =
     pendingApprovals.length > 0
       ? workbenchCopy.nextApproval
@@ -1306,6 +1406,28 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
             <span>{workbenchCopy.planGateLabel}</span>
             {selectedGoalTemplate.reviewGate}
           </p>
+        </div>
+        <div className="workbench-status-tracker" aria-label={workbenchCopy.statusTrackerTitle}>
+          <div className="workbench-status-header">
+            <div>
+              <span>{workbenchCopy.statusTrackerTitle}</span>
+              <p>{workbenchCopy.statusTrackerSubtitle}</p>
+            </div>
+            <strong>{workbenchCopy.statusRunLabel}: {runStatus}</strong>
+          </div>
+          <div className="workbench-status-stages">
+            {goalStatusStages.map((stage) => (
+              <div key={stage.id} className={`workbench-status-stage ${stage.status}`}>
+                <span>{stage.label}</span>
+                <strong>{goalStatusStateLabels[stage.status]}</strong>
+                <p>{stage.detail}</p>
+              </div>
+            ))}
+          </div>
+          <div className="workbench-status-meta">
+            <span>{workbenchCopy.statusThreadLabel}: {threadId ?? "-"}</span>
+            <span>{workbenchCopy.statusTaskLabel}: {selectedTaskRunId ?? "-"}</span>
+          </div>
         </div>
         <div className="chat-input-row command-input-row">
           <textarea

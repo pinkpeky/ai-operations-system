@@ -641,6 +641,22 @@ Operator workflow:
 
 边界：Phase 62N 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
 
+## Phase 62O Customer Console Goal Status Tracker
+
+Status: in progress on `codex/phase-62o-client-goal-status-tracker`.
+
+Phase 62O adds a compact goal status tracker to `worker_console` and `worker_console_desktop` for customer-machine operators.
+
+Operator workflow:
+
+- Choose a goal template and review the plan preview.
+- Check prepare, approval, execution, recovery, and output status from one tracker.
+- See current run status, thread id, task id, pending approvals, active tasks, failed/recoverable tasks, and artifacts.
+- Continue with existing run-now, background, approval, and recovery actions.
+- Keep advanced maintenance and diagnostics behind a separate disclosure.
+
+Boundary: Phase 62O is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

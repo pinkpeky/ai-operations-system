@@ -823,6 +823,104 @@ textarea {
   line-height: 1.4;
 }
 
+.workbench-status-tracker {
+  display: grid;
+  gap: 10px;
+  margin: 12px 14px 0;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.workbench-status-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workbench-status-header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workbench-status-header span,
+.workbench-status-stage span,
+.workbench-status-meta span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workbench-status-header p,
+.workbench-status-stage p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.workbench-status-header strong {
+  flex: 0 0 auto;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.workbench-status-stages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workbench-status-stage {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.workbench-status-stage strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.workbench-status-stage.done {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #ecfdf5;
+}
+
+.workbench-status-stage.current {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: #eff6ff;
+}
+
+.workbench-status-stage.needs-action {
+  border-color: rgba(180, 83, 9, 0.3);
+  background: #fffbeb;
+}
+
+.workbench-status-stage.waiting {
+  color: #64748b;
+}
+
+.workbench-status-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding-top: 2px;
+}
+
 .browser-sessions-panel {
   grid-column: 1 / -1;
 }
@@ -1317,6 +1415,7 @@ textarea {
   .workbench-metrics,
   .workbench-template-grid,
   .workbench-plan-steps,
+  .workbench-status-stages,
   .operator-status-grid,
   .operator-support-grid {
     grid-template-columns: 1fr;
@@ -1328,9 +1427,15 @@ textarea {
 
   .workbench-template-header,
   .workbench-plan-header,
-  .workbench-plan-gate {
+  .workbench-plan-gate,
+  .workbench-status-header,
+  .workbench-status-meta {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .workbench-status-header strong {
+    text-align: left;
   }
 
   .workbench-next-action {
