@@ -693,7 +693,7 @@ Boundary: Phase 62Q is frontend-only. It does not call ComfyUI, execute OpenClaw
 
 ## Phase 62R Customer Console Knowledge Activity Timeline
 
-Status: active branch `codex/phase-62r-knowledge-activity-timeline`, draft PR pending.
+Status: active branch `codex/phase-62r-knowledge-activity-timeline`, draft PR #84.
 
 Phase 62R improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with a knowledge activity timeline. It keeps the page operator-facing and does not display code or JSON.
 
