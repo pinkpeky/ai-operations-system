@@ -12,7 +12,7 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 Current effective phase: Phase 62N Customer Console Goal Plan Preview. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-62n-client-goal-plan-preview`. It stacks after draft PR #79 and adds compact customer-machine goal plan previews for selected templates. The previews show planned steps, approval boundary, and expected output while preserving existing approval-gated execution paths. It is frontend-only and is not a ComfyUI adapter import/call, prompt submission, queue read/submission, upload, media generation, runtime switch enablement, OpenClaw execution, publishing, account-control, installer-signing, auto-update, captcha/proxy/fingerprint, or live-platform automation phase.
+The current fresh branch is `codex/phase-62n-client-goal-plan-preview` and draft PR #80. It stacks after draft PR #79 and adds compact customer-machine goal plan previews for selected templates. The previews show planned steps, approval boundary, and expected output while preserving existing approval-gated execution paths. It is frontend-only and is not a ComfyUI adapter import/call, prompt submission, queue read/submission, upload, media generation, runtime switch enablement, OpenClaw execution, publishing, account-control, installer-signing, auto-update, captcha/proxy/fingerprint, or live-platform automation phase.
 
 ## Open PR List
 
@@ -96,7 +96,7 @@ The current fresh branch is `codex/phase-62n-client-goal-plan-preview`. It stack
 | #77 | Phase 62K Customer Console Codex-like UX Simplification | `codex/phase-62k-customer-console-codex-ux` | Draft PR |
 | #78 | Phase 62L Customer Console Task Workbench | `codex/phase-62l-client-task-workbench` | Draft PR |
 | #79 | Phase 62M Customer Console Goal Templates | `codex/phase-62m-client-goal-templates` | Draft PR |
-| TBD | Phase 62N Customer Console Goal Plan Preview | `codex/phase-62n-client-goal-plan-preview` | Local branch |
+| #80 | Phase 62N Customer Console Goal Plan Preview | `codex/phase-62n-client-goal-plan-preview` | Draft PR |
 
 ## Phase Timeline Table
 
@@ -220,7 +220,7 @@ The current fresh branch is `codex/phase-62n-client-goal-plan-preview`. It stack
 | 62K | Customer Console Codex-like UX Simplification | `codex/phase-62k-customer-console-codex-ux` | #77 | Draft PR | Refactors `worker_console` and `worker_console_desktop` into a simpler customer-machine command surface with status rail, next-step guidance, first-screen conversation input, collapsed advanced diagnostics, and neutral operational styling while preserving local runtime/heartbeat controls, Chinese/English switching, approvals, playbooks, outputs, tasks, logs, and server/client boundary warnings. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
 | 62L | Customer Console Task Workbench | `codex/phase-62l-client-task-workbench` | #78 | Draft PR | Adds a concise task workbench to `worker_console` and `worker_console_desktop` with operating-goal input, suggested next action, pending approval count, active task count, failed/recoverable task count, artifact count, and expandable details for playbooks, templates, approvals, messages, outputs, workflows, and tasks. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
 | 62M | Customer Console Goal Templates | `codex/phase-62m-client-goal-templates` | #79 | Draft PR | Adds launch content, RAG evidence, asset brief, and page report templates to `worker_console` and `worker_console_desktop`; selecting a template preloads the operating goal and recommended playbook while preserving existing approval-gated run paths. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
-| 62N | Customer Console Goal Plan Preview | `codex/phase-62n-client-goal-plan-preview` | TBD | Local branch | Adds compact plan previews to `worker_console` and `worker_console_desktop` for selected goal templates, showing planned steps, approval boundary, and expected output before run-now/background actions. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
+| 62N | Customer Console Goal Plan Preview | `codex/phase-62n-client-goal-plan-preview` | #80 | Draft PR | Adds compact plan previews to `worker_console` and `worker_console_desktop` for selected goal templates, showing planned steps, approval boundary, and expected output before run-now/background actions. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
 
 ## Runtime Evolution
 
