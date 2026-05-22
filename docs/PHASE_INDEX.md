@@ -12,7 +12,7 @@ PR #3-#14 are marked merged after PR #17 because their changes are contained in 
 
 Current effective phase: Phase 62O Customer Console Goal Status Tracker. Phase 56 was reverted and is not active. The old reverted Phase 56 branch is not active, not part of the accepted baseline, and should not be reused.
 
-The current fresh branch is `codex/phase-62o-client-goal-status-tracker` with PR pending creation. It stacks after draft PR #80 and adds a compact customer-machine goal status tracker for selected goals. The tracker shows prepare, approval, execution, recovery, and output status while preserving existing approval-gated execution paths. It is frontend-only and is not a ComfyUI adapter import/call, prompt submission, queue read/submission, upload, media generation, runtime switch enablement, OpenClaw execution, publishing, account-control, installer-signing, auto-update, captcha/proxy/fingerprint, or live-platform automation phase.
+The current fresh branch is `codex/phase-62o-client-goal-status-tracker` and draft PR #81. It stacks after draft PR #80 and adds a compact customer-machine goal status tracker for selected goals. The tracker shows prepare, approval, execution, recovery, and output status while preserving existing approval-gated execution paths. It is frontend-only and is not a ComfyUI adapter import/call, prompt submission, queue read/submission, upload, media generation, runtime switch enablement, OpenClaw execution, publishing, account-control, installer-signing, auto-update, captcha/proxy/fingerprint, or live-platform automation phase.
 
 ## Open PR List
 
@@ -97,7 +97,7 @@ The current fresh branch is `codex/phase-62o-client-goal-status-tracker` with PR
 | #78 | Phase 62L Customer Console Task Workbench | `codex/phase-62l-client-task-workbench` | Draft PR |
 | #79 | Phase 62M Customer Console Goal Templates | `codex/phase-62m-client-goal-templates` | Draft PR |
 | #80 | Phase 62N Customer Console Goal Plan Preview | `codex/phase-62n-client-goal-plan-preview` | Draft PR |
-| TBD | Phase 62O Customer Console Goal Status Tracker | `codex/phase-62o-client-goal-status-tracker` | Local branch |
+| #81 | Phase 62O Customer Console Goal Status Tracker | `codex/phase-62o-client-goal-status-tracker` | Draft PR |
 
 ## Phase Timeline Table
 
@@ -222,7 +222,7 @@ The current fresh branch is `codex/phase-62o-client-goal-status-tracker` with PR
 | 62L | Customer Console Task Workbench | `codex/phase-62l-client-task-workbench` | #78 | Draft PR | Adds a concise task workbench to `worker_console` and `worker_console_desktop` with operating-goal input, suggested next action, pending approval count, active task count, failed/recoverable task count, artifact count, and expandable details for playbooks, templates, approvals, messages, outputs, workflows, and tasks. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
 | 62M | Customer Console Goal Templates | `codex/phase-62m-client-goal-templates` | #79 | Draft PR | Adds launch content, RAG evidence, asset brief, and page report templates to `worker_console` and `worker_console_desktop`; selecting a template preloads the operating goal and recommended playbook while preserving existing approval-gated run paths. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
 | 62N | Customer Console Goal Plan Preview | `codex/phase-62n-client-goal-plan-preview` | #80 | Draft PR | Adds compact plan previews to `worker_console` and `worker_console_desktop` for selected goal templates, showing planned steps, approval boundary, and expected output before run-now/background actions. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
-| 62O | Customer Console Goal Status Tracker | `codex/phase-62o-client-goal-status-tracker` | TBD | Local branch | Adds a compact status tracker to `worker_console` and `worker_console_desktop` for selected goals, showing prepare, approval, execution, recovery, and output stages with current run status, thread/task ids, pending approvals, active tasks, failed/recoverable tasks, and artifacts. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
+| 62O | Customer Console Goal Status Tracker | `codex/phase-62o-client-goal-status-tracker` | #81 | Draft PR | Adds a compact status tracker to `worker_console` and `worker_console_desktop` for selected goals, showing prepare, approval, execution, recovery, and output stages with current run status, thread/task ids, pending approvals, active tasks, failed/recoverable tasks, and artifacts. No ComfyUI calls, OpenClaw execution, publishing, account control, installer signing, auto-update, captcha/proxy/fingerprint bypass, secret resolution, or approval bypass. |
 
 ## Runtime Evolution
 

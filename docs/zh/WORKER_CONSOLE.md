@@ -643,7 +643,7 @@ Operator workflow:
 
 ## Phase 62O Customer Console Goal Status Tracker
 
-Status: in progress on `codex/phase-62o-client-goal-status-tracker`.
+Status: in progress on `codex/phase-62o-client-goal-status-tracker`, draft PR #81.
 
 Phase 62O adds a compact goal status tracker to `worker_console` and `worker_console_desktop` for customer-machine operators.
 
