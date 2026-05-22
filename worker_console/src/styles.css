@@ -570,6 +570,154 @@ h2 {
   background: #f8fafc;
 }
 
+.client-operation-desk {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid #e6ebf2;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  background: #ffffff;
+}
+
+.client-operation-header {
+  display: grid;
+  gap: 5px;
+  max-width: 920px;
+}
+
+.client-operation-header span,
+.client-operation-current span,
+.client-operation-result span,
+.client-operation-step span,
+.client-operation-deliverable span,
+.client-operation-knowledge-card span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.client-operation-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.client-operation-header p,
+.client-operation-current p,
+.client-operation-result p,
+.client-operation-step p,
+.client-operation-deliverable p,
+.client-operation-knowledge-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.client-operation-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(190px, 0.7fr);
+  gap: 10px;
+}
+
+.client-operation-current,
+.client-operation-result,
+.client-operation-step,
+.client-operation-deliverable,
+.client-operation-knowledge-card {
+  min-width: 0;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.client-operation-current,
+.client-operation-result {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.client-operation-current strong,
+.client-operation-result strong,
+.client-operation-step strong,
+.client-operation-deliverable strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.client-operation-current.current,
+.client-operation-step.current,
+.client-operation-deliverable.current {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: #eff6ff;
+}
+
+.client-operation-current.done,
+.client-operation-step.done,
+.client-operation-deliverable.done {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #ecfdf5;
+}
+
+.client-operation-current.needs-action,
+.client-operation-step.needs-action,
+.client-operation-deliverable.needs-action {
+  border-color: rgba(180, 83, 9, 0.3);
+  background: #fffbeb;
+}
+
+.client-operation-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-content: start;
+}
+
+.client-operation-controls .refresh-button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.client-operation-loop {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.client-operation-step,
+.client-operation-deliverable {
+  display: grid;
+  gap: 5px;
+  min-height: 98px;
+  padding: 10px;
+}
+
+.client-operation-deliverables {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.client-operation-knowledge-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  background: #fff7ed;
+  border-color: rgba(194, 65, 12, 0.22);
+}
+
+.client-operation-knowledge-card svg {
+  color: #c2410c;
+}
+
 .simple-operator-workbench {
   display: grid;
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
@@ -2837,11 +2985,14 @@ h2 {
   .chat-config-grid,
   .workbench-metrics,
   .workbench-template-grid,
-  .workbench-plan-steps,
-  .workbench-status-stages,
-  .simple-operator-workbench,
-  .simple-template-row,
-  .simple-progress-stages,
+    .workbench-plan-steps,
+    .workbench-status-stages,
+    .client-operation-status,
+    .client-operation-loop,
+    .client-operation-deliverables,
+    .simple-operator-workbench,
+    .simple-template-row,
+    .simple-progress-stages,
   .knowledge-flow-grid,
   .knowledge-readiness-strip,
   .knowledge-action-grid,

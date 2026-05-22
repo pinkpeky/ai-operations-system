@@ -133,6 +133,18 @@ type ClientCopy = {
   pageKnowledge: string;
 };
 
+type OperationLoopStepCopy = {
+  id: string;
+  label: string;
+  detail: string;
+};
+
+type OperationDeliverableCopy = {
+  id: string;
+  label: string;
+  detail: string;
+};
+
 type TaskWorkbenchCopy = {
   title: string;
   subtitle: string;
@@ -144,6 +156,22 @@ type TaskWorkbenchCopy = {
   detailDrawerTitle: string;
   maintenanceModeTitle: string;
   simpleStart: string;
+  operationDeskTitle: string;
+  operationDeskSubtitle: string;
+  operationCurrentLabel: string;
+  operationResultLabel: string;
+  operationControlLabel: string;
+  operationLoopTitle: string;
+  operationDeliverablesTitle: string;
+  operationKnowledgeTitle: string;
+  operationKnowledgeBody: string;
+  operationOpenKnowledge: string;
+  operationViewOutputs: string;
+  operationPause: string;
+  operationContinue: string;
+  operationOpenClawLabel: string;
+  operationLoopSteps: OperationLoopStepCopy[];
+  operationDeliverables: OperationDeliverableCopy[];
   templateTitle: string;
   selectedTemplateLabel: string;
   templatePlaybookLabel: string;
@@ -546,6 +574,36 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     detailDrawerTitle: "查看计划和状态细节",
     maintenanceModeTitle: "审批、结果与维护",
     simpleStart: "开始",
+    operationDeskTitle: "产品运营任务台",
+    operationDeskSubtitle: "输入产品或运营题材后，按闭环查看规划、知识、内容、审批、客户机执行、结果和下一轮改进。",
+    operationCurrentLabel: "当前进程",
+    operationResultLabel: "执行结果",
+    operationControlLabel: "执行控制",
+    operationLoopTitle: "运营闭环",
+    operationDeliverablesTitle: "交付内容",
+    operationKnowledgeTitle: "知识库内容",
+    operationKnowledgeBody: "上传产品资料、品牌资料、竞品资料或素材文件，让系统先调用知识库再生产内容。",
+    operationOpenKnowledge: "上传知识库内容",
+    operationViewOutputs: "查看交付内容",
+    operationPause: "中断任务",
+    operationContinue: "继续任务",
+    operationOpenClawLabel: "审批后由 OpenClaw 调度 Playwright 在客户机执行发布。",
+    operationLoopSteps: [
+      { id: "plan", label: "规划任务", detail: "系统拆解运营目标和执行顺序。" },
+      { id: "knowledge", label: "调用知识库", detail: "检索产品、品牌、竞品和素材资料。" },
+      { id: "content", label: "生产内容", detail: "生成文案、视频脚本、数据分析和运营方向。" },
+      { id: "approval", label: "人工审批", detail: "发布和外部动作必须先确认。" },
+      { id: "client", label: "客户机执行", detail: "OpenClaw/Playwright 执行授权后的发布任务。" },
+      { id: "result", label: "记录结果", detail: "回传链接、截图、日志和失败原因。" },
+      { id: "data", label: "观察数据", detail: "记录曝光、互动、线索和转化表现。" },
+      { id: "improve", label: "分析改进", detail: "生成下一轮内容和运营建议。" },
+    ],
+    operationDeliverables: [
+      { id: "copy", label: "文案", detail: "标题、正文、短视频口播和社媒说明。" },
+      { id: "video", label: "视频", detail: "脚本、镜头、素材 Brief 和生成需求。" },
+      { id: "data", label: "数据分析", detail: "目标指标、观察口径和复盘依据。" },
+      { id: "direction", label: "运营方向", detail: "人群、渠道、节奏和下一轮优化。" },
+    ],
     templateTitle: "目标模板",
     selectedTemplateLabel: "当前模板",
     templatePlaybookLabel: "推荐剧本",
@@ -607,6 +665,36 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     detailDrawerTitle: "Show plan and status details",
     maintenanceModeTitle: "Approvals, results, and maintenance",
     simpleStart: "Start",
+    operationDeskTitle: "Product operation desk",
+    operationDeskSubtitle: "Enter a product or campaign topic, then follow planning, knowledge, content, approval, client execution, results, and the next improvement cycle.",
+    operationCurrentLabel: "Current process",
+    operationResultLabel: "Execution result",
+    operationControlLabel: "Execution controls",
+    operationLoopTitle: "Operation loop",
+    operationDeliverablesTitle: "Deliverables",
+    operationKnowledgeTitle: "Knowledge material",
+    operationKnowledgeBody: "Upload product, brand, competitor, or asset files so the system uses the knowledge base before producing content.",
+    operationOpenKnowledge: "Upload knowledge",
+    operationViewOutputs: "View deliverables",
+    operationPause: "Interrupt task",
+    operationContinue: "Continue task",
+    operationOpenClawLabel: "After approval, OpenClaw schedules Playwright to execute publishing on this client machine.",
+    operationLoopSteps: [
+      { id: "plan", label: "Plan tasks", detail: "Break down the operating goal and execution order." },
+      { id: "knowledge", label: "Use knowledge", detail: "Search product, brand, competitor, and asset material." },
+      { id: "content", label: "Produce content", detail: "Create copy, video scripts, data analysis, and operating direction." },
+      { id: "approval", label: "Human approval", detail: "Publishing and external actions must be confirmed first." },
+      { id: "client", label: "Client execution", detail: "OpenClaw/Playwright runs approved publishing tasks." },
+      { id: "result", label: "Record result", detail: "Return links, screenshots, logs, and failure reasons." },
+      { id: "data", label: "Observe data", detail: "Track impressions, engagement, leads, and conversions." },
+      { id: "improve", label: "Improve content", detail: "Create next-cycle content and operating recommendations." },
+    ],
+    operationDeliverables: [
+      { id: "copy", label: "Copy", detail: "Titles, body copy, short-video narration, and social captions." },
+      { id: "video", label: "Video", detail: "Scripts, shots, asset briefs, and generation requests." },
+      { id: "data", label: "Data analysis", detail: "Target metrics, observation rules, and review evidence." },
+      { id: "direction", label: "Direction", detail: "Audience, channels, cadence, and next optimization." },
+    ],
     templateTitle: "Goal templates",
     selectedTemplateLabel: "Selected template",
     templatePlaybookLabel: "Recommended playbook",
@@ -1305,7 +1393,7 @@ function WorkstationHome({
   );
 }
 
-function ChatPanel({ language }: { language: ClientLanguage }) {
+function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; onOpenKnowledge: () => void }) {
   const workbenchCopy = taskWorkbenchCopy[language];
   const goalTemplates = workbenchGoalTemplates[language];
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -1820,6 +1908,56 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
           : taskRuns.some((task) => task.status === "completed")
             ? workbenchCopy.nextComplete
             : workbenchCopy.nextSubmit;
+  const operationStageStatus = (stageId: string): GoalStatusStageState => {
+    if (stageId === "plan") {
+      return hasSubmittedGoal ? "done" : "current";
+    }
+    if (stageId === "knowledge") {
+      return artifacts.length > 0 || messages.length > 0 ? "done" : hasSubmittedGoal ? "current" : "waiting";
+    }
+    if (stageId === "content") {
+      return artifacts.length > 0 ? "done" : hasSubmittedGoal ? "current" : "waiting";
+    }
+    if (stageId === "approval") {
+      return pendingApprovals.length > 0 ? "needs-action" : approvals.length > 0 ? "done" : hasSubmittedGoal ? "current" : "waiting";
+    }
+    if (stageId === "client") {
+      return activeTaskRuns.length > 0 ? "current" : completedTaskRuns.length > 0 ? "done" : approvals.length > 0 ? "waiting" : "waiting";
+    }
+    if (stageId === "result") {
+      return completedTaskRuns.length > 0 || artifacts.length > 0 ? "done" : activeTaskRuns.length > 0 ? "current" : "waiting";
+    }
+    if (stageId === "data") {
+      return completedTaskRuns.length > 0 ? "current" : "waiting";
+    }
+    return completedTaskRuns.length > 0 || artifacts.length > 0 ? "current" : "waiting";
+  };
+  const operationLoopStages = workbenchCopy.operationLoopSteps.map((stage) => ({
+    ...stage,
+    status: operationStageStatus(stage.id),
+  }));
+  const operationCurrentStage =
+    operationLoopStages.find((stage) => stage.status === "needs-action") ??
+    operationLoopStages.find((stage) => stage.status === "current") ??
+    operationLoopStages[0];
+  const operationDeliverables: Array<OperationDeliverableCopy & { status: GoalStatusStageState }> = workbenchCopy.operationDeliverables.map((deliverable, index) => ({
+    ...deliverable,
+    status: artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
+  }));
+  const operationResultSummary =
+    artifacts.length > 0
+      ? `${workbenchCopy.metricArtifacts}: ${artifacts.length}`
+      : completedTaskRuns.length > 0
+        ? workbenchCopy.nextComplete
+        : suggestedAction;
+
+  const openOutputDetails = () => {
+    const outputsPanel = document.getElementById("outputs-panel") as HTMLDetailsElement | null;
+    if (outputsPanel) {
+      outputsPanel.open = true;
+      outputsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   const applyGoalTemplate = (template: WorkbenchGoalTemplate) => {
     setSelectedGoalTemplateId(template.id);
@@ -1847,6 +1985,84 @@ function ChatPanel({ language }: { language: ClientLanguage }) {
         </div>
       </div>
       <section className="client-task-workbench" aria-label={workbenchCopy.title}>
+        <div className="client-operation-desk" aria-label={workbenchCopy.operationDeskTitle}>
+          <div className="client-operation-header">
+            <span>{workbenchCopy.operationCurrentLabel}</span>
+            <h3>{workbenchCopy.operationDeskTitle}</h3>
+            <p>{workbenchCopy.operationDeskSubtitle}</p>
+          </div>
+          <div className="client-operation-status">
+            <div className={`client-operation-current ${operationCurrentStage.status}`}>
+              <span>{operationCurrentStage.label}</span>
+              <strong>{goalStatusStateLabels[operationCurrentStage.status]}</strong>
+              <p>{operationCurrentStage.detail}</p>
+            </div>
+            <div className="client-operation-result">
+              <span>{workbenchCopy.operationResultLabel}</span>
+              <strong>{operationResultSummary}</strong>
+              <p>{workbenchCopy.operationOpenClawLabel}</p>
+            </div>
+            <div className="client-operation-controls" aria-label={workbenchCopy.operationControlLabel}>
+              <button
+                className="refresh-button"
+                onClick={() => {
+                  if (selectedTaskRunId) {
+                    void mutateTaskRun(selectedTaskRunId, "cancel");
+                  }
+                }}
+                disabled={!selectedTaskRunId || chatLoading}
+              >
+                <PauseCircle size={14} />
+                {workbenchCopy.operationPause}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => {
+                  if (selectedTaskRunId) {
+                    void mutateTaskRun(selectedTaskRunId, "resume");
+                  }
+                }}
+                disabled={!selectedTaskRunId || chatLoading}
+              >
+                <PlayCircle size={14} />
+                {workbenchCopy.operationContinue}
+              </button>
+              <button className="refresh-button" onClick={openOutputDetails}>
+                <FileText size={14} />
+                {workbenchCopy.operationViewOutputs}
+              </button>
+              <button className="refresh-button" onClick={onOpenKnowledge}>
+                <Upload size={14} />
+                {workbenchCopy.operationOpenKnowledge}
+              </button>
+            </div>
+          </div>
+          <div className="client-operation-loop" aria-label={workbenchCopy.operationLoopTitle}>
+            {operationLoopStages.map((stage) => (
+              <article className={`client-operation-step ${stage.status}`} key={stage.id}>
+                <span>{stage.label}</span>
+                <strong>{goalStatusStateLabels[stage.status]}</strong>
+                <p>{stage.detail}</p>
+              </article>
+            ))}
+          </div>
+          <div className="client-operation-deliverables" aria-label={workbenchCopy.operationDeliverablesTitle}>
+            <div className="client-operation-knowledge-card">
+              <Database size={16} />
+              <div>
+                <span>{workbenchCopy.operationKnowledgeTitle}</span>
+                <p>{workbenchCopy.operationKnowledgeBody}</p>
+              </div>
+            </div>
+            {operationDeliverables.map((deliverable) => (
+              <article className={`client-operation-deliverable ${deliverable.status}`} key={deliverable.id}>
+                <span>{deliverable.label}</span>
+                <strong>{goalStatusStateLabels[deliverable.status]}</strong>
+                <p>{deliverable.detail}</p>
+              </article>
+            ))}
+          </div>
+        </div>
         <div className="simple-operator-workbench">
           <div className="simple-operator-header">
             <span>{workbenchCopy.operatorModeLabel}</span>
@@ -4027,7 +4243,7 @@ function App() {
       {operatorPage === "knowledge" ? (
         <KnowledgeBasePanel language={language} settingsStorageKey="workerConsoleConversationSettings" />
       ) : (
-        <ChatPanel language={language} />
+        <ChatPanel language={language} onOpenKnowledge={() => setOperatorPage("knowledge")} />
       )}
 
       <details className="advanced-diagnostics">

@@ -789,6 +789,25 @@ Operator workflow:
 
 Boundary: Phase 62W is frontend-only. It uses existing file upload, document list, text ingest, reingest, and RAG search APIs. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62X Customer Console Product Operation Desk
+
+Branch: `codex/phase-62x-client-operation-desk`
+
+Phase 62X moves `worker_console` and `worker_console_desktop` toward the actual customer-machine operation loop with a product operation desk. The first task surface now highlights product/campaign topic input, current process, execution result, interrupt/continue controls, deliverables, and knowledge upload access.
+
+Operator-facing loop:
+- Product or campaign topic
+- System task planning
+- Knowledge base use
+- Content production for copy, video, data analysis, and operating direction
+- Human approval
+- OpenClaw/Playwright client execution positioning
+- Result recording
+- Data observation
+- Data analysis and content improvement
+
+Boundary: Phase 62X is frontend-only. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval. It only makes the customer-machine product operation desk easier for ordinary operators to understand before real guarded execution adapters are enabled.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
