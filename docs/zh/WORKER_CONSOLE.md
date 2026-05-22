@@ -759,7 +759,7 @@ Boundary: Phase 62U is frontend-only. It uses existing file upload, document lis
 
 ## Phase 62V Customer Console Knowledge Validation Guidance
 
-Status: active branch `codex/phase-62v-knowledge-validation-guidance`.
+Status: active branch `codex/phase-62v-knowledge-validation-guidance`, draft PR #88.
 
 Phase 62V continues the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with knowledge validation guidance. It helps customer-machine operators validate selected or newly uploaded material without inventing search terms and without reading code or JSON.
 
