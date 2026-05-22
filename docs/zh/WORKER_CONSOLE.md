@@ -676,7 +676,7 @@ Boundary: Phase 62P is frontend-only. It does not call ComfyUI, execute OpenClaw
 
 ## Phase 62Q Customer Console Knowledge Upload Readiness
 
-Status: active branch `codex/phase-62q-knowledge-upload-readiness`, draft PR pending.
+Status: active branch `codex/phase-62q-knowledge-upload-readiness`, draft PR #83.
 
 Phase 62Q continues the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop`. It adds knowledge upload readiness so customer-machine operators can upload and recover knowledge files without reading code or JSON.
 
