@@ -16,9 +16,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    linear-gradient(180deg, rgba(246, 248, 251, 0.96), rgba(238, 243, 249, 0.98)),
-    #f6f8fb;
+  background: #f6f8fb;
 }
 
 button,
@@ -28,9 +26,9 @@ textarea {
 }
 
 .app-shell {
-  width: min(1280px, calc(100vw - 32px));
+  width: min(1160px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 24px 0 32px;
+  padding: 18px 0 32px;
 }
 
 .topbar {
@@ -122,7 +120,8 @@ h2 {
 
 .operator-home {
   display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
   margin-top: 18px;
   padding: 18px;
   border: 1px solid #d8dee8;
@@ -132,10 +131,7 @@ h2 {
 }
 
 .operator-home-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  display: block;
 }
 
 .operator-home-header h2 {
@@ -183,6 +179,87 @@ h2 {
 .language-switch button.active {
   background: #0f172a;
   color: #ffffff;
+}
+
+.client-status-rail {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding-right: 16px;
+  border-right: 1px solid #e6ebf2;
+}
+
+.client-status-rail .language-switch {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.client-status-rail .operator-status-grid {
+  grid-template-columns: 1fr;
+}
+
+.client-command-center {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.client-next-step {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.client-next-step span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.client-next-step strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.client-next-step.ready {
+  border-color: rgba(21, 128, 61, 0.22);
+  background: #f0fdf4;
+}
+
+.client-command-box {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.client-command-copy {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #1d4ed8;
+}
+
+.client-command-copy span {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.client-command-copy p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .operator-status-grid {
@@ -303,7 +380,30 @@ h2 {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
   gap: 16px;
-  margin-top: 18px;
+  margin-top: 14px;
+}
+
+.advanced-diagnostics {
+  margin-top: 16px;
+}
+
+.advanced-diagnostics > summary,
+.chat-settings-panel > summary {
+  cursor: pointer;
+  min-height: 38px;
+  padding: 10px 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.advanced-diagnostics[open] > summary,
+.chat-settings-panel[open] > summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .panel {
@@ -390,6 +490,19 @@ h2 {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.primary-action {
+  border-color: #0f172a;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.primary-action:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
 }
 
 .action-button:hover,
@@ -415,6 +528,7 @@ h2 {
 
 .chat-panel {
   grid-column: 1 / -1;
+  margin-top: 16px;
 }
 
 .browser-sessions-panel {
@@ -433,6 +547,14 @@ h2 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   padding: 14px 16px 0;
+}
+
+.chat-settings-panel {
+  margin: 10px 16px 0;
+}
+
+.chat-settings-panel .chat-config-grid {
+  padding: 12px 0 0;
 }
 
 .chat-config-grid label {
@@ -699,9 +821,14 @@ h2 {
 
 .chat-input-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   padding: 12px 16px 16px;
+}
+
+.command-input-row {
+  padding-top: 16px;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .chat-input-row textarea {
@@ -788,7 +915,18 @@ h2 {
   }
 
   .operator-home-header {
-    flex-direction: column;
+    display: block;
+  }
+
+  .operator-home {
+    grid-template-columns: 1fr;
+  }
+
+  .client-status-rail {
+    padding-right: 0;
+    padding-bottom: 14px;
+    border-right: 0;
+    border-bottom: 1px solid #e6ebf2;
   }
 
   .session-row {

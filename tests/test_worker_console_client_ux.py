@@ -87,3 +87,51 @@ def test_phase_62i_plan_is_documented() -> None:
         assert "worker_console" in text
         assert "worker_console_desktop" in text
         assert "Chinese/English language switching" in text
+
+
+def test_worker_consoles_expose_phase_62k_codex_like_surface() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "codex-like-client-shell",
+            "client-command-center",
+            "What should this client machine do?",
+            "Tell this client machine what to do...",
+            "Advanced maintenance and diagnostics",
+            "chat-settings-panel",
+            "advanced-diagnostics",
+            "command-input-row",
+        ]:
+            assert token in text
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".client-status-rail",
+            ".client-command-box",
+            ".client-next-step",
+            ".advanced-diagnostics",
+            ".chat-settings-panel",
+            ".command-input-row",
+            ".primary-action",
+        ]:
+            assert token in styles
+
+
+def test_phase_62k_plan_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (phase_index, current_next, project_status, en_status, zh_status, en_console, zh_console):
+        assert "Phase 62K Customer Console Codex-like UX Simplification" in text
+        assert "codex/phase-62k-customer-console-codex-ux" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
