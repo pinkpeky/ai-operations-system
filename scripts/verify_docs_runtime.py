@@ -711,6 +711,7 @@ class DocsRuntimeVerifier:
             "/api/v1/comfyui-runtime/health",
             "/api/v1/comfyui-runtime/capabilities",
             "/api/v1/comfyui-runtime/diagnostics",
+            "/api/v1/comfyui-runtime/diagnostic-snapshots",
             "/api/v1/conversations",
             "/api/v1/conversations/{thread_id}",
             "/api/v1/conversations/{thread_id}/messages",

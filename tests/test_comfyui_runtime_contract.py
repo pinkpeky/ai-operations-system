@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes import comfyui_runtime as comfyui_runtime_routes
 from app.comfyui_runtime import ComfyUIRuntimeService
@@ -229,22 +230,70 @@ def test_comfyui_runtime_guarded_read_only_probe_reports_network_error() -> None
 
 
 @pytest.mark.asyncio
-async def test_comfyui_runtime_contract_api(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+async def test_comfyui_runtime_diagnostic_snapshot_persists_without_network(session: AsyncSession) -> None:
+    """Persisted diagnostics snapshots should retain readiness state without touching ComfyUI."""
+
+    calls: list[tuple[str, float]] = []
+    service = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {"status_code": 200},
+    )
+
+    snapshot = await service.create_diagnostic_snapshot(
+        session,
+        workspace_id="workspace-comfyui-snapshots",
+        user_id="user-comfyui",
+        operator_note="baseline before enabling guarded runtime",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    listed = await service.list_diagnostic_snapshots(
+        session,
+        workspace_id="workspace-comfyui-snapshots",
+        limit=10,
+    )
+
+    assert snapshot.workspace_id == "workspace-comfyui-snapshots"
+    assert snapshot.user_id == "user-comfyui"
+    assert snapshot.readiness_status == "blocked"
+    assert snapshot.external_request_attempted is False
+    assert snapshot.runtime_calls_enabled is False
+    assert snapshot.snapshot_payload["raw"]["no_network_call_performed"] is True
+    assert snapshot.metadata["phase"] == "62D"
+    assert snapshot.metadata["no_network_call_performed"] is True
+    assert snapshot.metadata["source_page"] == "comfyui-operations"
+    assert snapshot.operator_note == "baseline before enabling guarded runtime"
+    assert len(listed.items) == 1
+    assert listed.items[0].id == snapshot.id
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) -> None:  # type: ignore[no-untyped-def]
     """API should expose health and capabilities without a database or ComfyUI call."""
 
     settings = Settings()
     monkeypatch.setattr(comfyui_runtime_routes, "get_settings", lambda: settings)
 
+    async def override_get_session():  # type: ignore[no-untyped-def]
+        yield session
+
     app = FastAPI()
     app.add_exception_handler(AppError, app_error_handler)
     app.include_router(comfyui_runtime_routes.router, prefix="/api/v1")
     app.dependency_overrides[comfyui_runtime_routes.get_settings] = lambda: settings
+    app.dependency_overrides[comfyui_runtime_routes.get_session] = override_get_session
 
     headers = {"X-Workspace-Id": "workspace-comfyui-api", "X-User-Id": "user-comfyui"}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         health = await client.get("/api/v1/comfyui-runtime/health", headers=headers)
         capabilities = await client.get("/api/v1/comfyui-runtime/capabilities", headers=headers)
         diagnostics = await client.get("/api/v1/comfyui-runtime/diagnostics", headers=headers)
+        created_snapshot = await client.post(
+            "/api/v1/comfyui-runtime/diagnostic-snapshots",
+            headers=headers,
+            json={"operator_note": "saved from api test", "metadata": {"source_page": "comfyui-operations"}},
+        )
+        snapshot_list = await client.get("/api/v1/comfyui-runtime/diagnostic-snapshots?limit=5", headers=headers)
 
     assert health.status_code == 200
     assert health.json()["workspace_id"] == "workspace-comfyui-api"
@@ -257,3 +306,13 @@ async def test_comfyui_runtime_contract_api(monkeypatch) -> None:  # type: ignor
     assert diagnostics.json()["external_request_attempted"] is False
     assert diagnostics.json()["readiness_status"] == "blocked"
     assert "provider_guarded" in diagnostics.json()["diagnostics"][0]["key"]
+    assert created_snapshot.status_code == 200
+    assert created_snapshot.json()["workspace_id"] == "workspace-comfyui-api"
+    assert created_snapshot.json()["user_id"] == "user-comfyui"
+    assert created_snapshot.json()["operator_note"] == "saved from api test"
+    assert created_snapshot.json()["metadata"]["phase"] == "62D"
+    assert created_snapshot.json()["external_request_attempted"] is False
+    assert snapshot_list.status_code == 200
+    assert snapshot_list.json()["workspace_id"] == "workspace-comfyui-api"
+    assert len(snapshot_list.json()["items"]) == 1
+    assert snapshot_list.json()["items"][0]["id"] == created_snapshot.json()["id"]

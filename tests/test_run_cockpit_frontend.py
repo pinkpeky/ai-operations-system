@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active ComfyUI runtime diagnostics slice."""
+    """Recovery docs should point to the active ComfyUI runtime diagnostic snapshots slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,10 +130,11 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-62c-comfyui-runtime-diagnostics" in text or "ComfyUI Runtime Diagnostics" in text, path
+        assert "phase-62d-comfyui-runtime-diagnostic-snapshots" in text or "ComfyUI Runtime Diagnostic Snapshots" in text, path
         assert "/comfyui-runtime/health" in text, path
         assert "/comfyui-runtime/capabilities" in text, path
         assert "/comfyui-runtime/diagnostics" in text, path
+        assert "/comfyui-runtime/diagnostic-snapshots" in text, path
         assert "readiness_status" in text or "ComfyUIRuntimeService" in text, path
         assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
@@ -163,7 +164,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 62C should be the active ComfyUI diagnostics slice."""
+    """Phase 61A-61P should be merged and Phase 62D should be the active ComfyUI snapshots slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -543,3 +544,13 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_62_lines["62C"]
     assert "TBD" not in phase_62_lines["62C"]
     assert "In progress" not in phase_62_lines["62C"]
+
+    assert "62D" in phase_62_lines
+    assert "phase-62d-comfyui-runtime-diagnostic-snapshots" in phase_62_lines["62D"]
+    assert "ComfyUI Runtime Diagnostic Snapshots" in phase_62_lines["62D"]
+    assert "/api/v1/comfyui-runtime/diagnostic-snapshots" in phase_62_lines["62D"]
+    assert "comfyui_runtime_diagnostic_snapshots" in phase_62_lines["62D"]
+    assert "#70" in phase_62_lines["62D"]
+    assert "Draft PR" in phase_62_lines["62D"]
+    assert "TBD" not in phase_62_lines["62D"]
+    assert "In progress" not in phase_62_lines["62D"]

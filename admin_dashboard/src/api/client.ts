@@ -1910,6 +1910,10 @@ export const comfyuiRuntimeApi = {
   health: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/health", {}, settings),
   capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/capabilities", {}, settings),
   diagnostics: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/diagnostics", {}, settings),
+  diagnosticSnapshots: (settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>("/comfyui-runtime/diagnostic-snapshots?limit=20", {}, settings),
+  createDiagnosticSnapshot: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>("/comfyui-runtime/diagnostic-snapshots", { method: "POST", body: JSON.stringify(payload) }, settings),
 };
 
 export const auditApi = {
