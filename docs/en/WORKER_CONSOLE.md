@@ -724,6 +724,23 @@ Operator workflow:
 
 Boundary: Phase 62S is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62T Customer Console Knowledge Search Validation
+
+Status: active branch `codex/phase-62t-knowledge-search-validation`, draft PR #86.
+
+Phase 62T improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with knowledge search validation. It lets customer-machine operators confirm that uploaded or edited material can be retrieved without reading code or JSON.
+
+Operator workflow:
+
+- Enter a validation question for the current knowledge collection.
+- Choose hybrid, semantic, or keyword search.
+- Run validation through the existing RAG search endpoint.
+- Review matched snippets, source labels, chunk indexes, and score summaries as visual cards.
+- Use empty-result guidance to decide whether to adjust the query, check the collection, or upload material again.
+- Keep validation attempts in the recent activity timeline.
+
+Boundary: Phase 62T is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
