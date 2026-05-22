@@ -593,6 +593,22 @@ Operator workflow:
 
 Boundary: Phase 62K is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62L Customer Console Task Workbench
+
+Status: in progress on `codex/phase-62l-client-task-workbench`.
+
+Phase 62L builds on the Codex-like customer-machine surface by adding a focused task workbench to `worker_console` and `worker_console_desktop`.
+
+Operator workflow:
+
+- Enter an operating goal in the first workbench input.
+- Follow the suggested next action when approvals, active tasks, or failed/recoverable tasks exist.
+- See pending approval count, active task count, failed/recoverable task count, and artifact count without opening maintenance panels.
+- Keep playbooks, templates, approvals, messages/events, outputs, workflow state, and task recovery available as expandable detail sections.
+- Keep advanced maintenance and diagnostics behind a separate disclosure.
+
+Boundary: Phase 62L is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -593,6 +593,22 @@ Phase 62K 根据客户机真实界面反馈继续简化 `worker_console` 和 `wo
 
 边界：Phase 62K 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
 
+## Phase 62L Customer Console Task Workbench
+
+Status: in progress on `codex/phase-62l-client-task-workbench`.
+
+Phase 62L 在 Codex-like 客户机界面上继续增加任务工作台，让 `worker_console` 和 `worker_console_desktop` 更适合普通使用人员按下一步操作。
+
+Operator workflow:
+
+- 在首屏工作台输入运营目标。
+- 当存在待审批、运行中任务、失败/可恢复任务时，先看 suggested next action。
+- 不打开维护面板也能看到 pending approvals、active tasks、failed/recoverable tasks 和 artifacts 数量。
+- Playbooks、templates、approvals、messages/events、outputs、workflow state、task recovery 保持为可展开详情。
+- Advanced maintenance and diagnostics 继续放在独立折叠区。
+
+边界：Phase 62L 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
