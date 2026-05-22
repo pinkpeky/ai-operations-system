@@ -577,6 +577,22 @@ Phase 62I 面向客户机/工作站使用人员同步前端操作入口。`worke
 
 边界：Phase 62I 只是 frontend/readiness slice，不会调用 ComfyUI，不会执行 OpenClaw，不会发布到真实平台，不会控制真实账号，不会签名 installer，不会启用 auto-update，不会绕过 captcha，不会使用 proxy pools，不会绕过 fingerprints，不会解析 secrets，也不会绕过 approval。
 
+## Phase 62K Customer Console Codex-like UX Simplification
+
+Status: in progress on `codex/phase-62k-customer-console-codex-ux`.
+
+Phase 62K 根据客户机真实界面反馈继续简化 `worker_console` 和 `worker_console_desktop`。默认首屏从密集维护面板改为更接近 Codex 的命令式操作入口：左侧显示本机状态，中央显示下一步和对话输入，高级维护与诊断默认折叠。
+
+操作入口：
+
+- 在左侧状态栏查看本机 Worker API、runtime、heartbeat 和 recovery 状态。
+- 按中央下一步提示先恢复连接或启动 runtime/heartbeat。
+- 在首屏对话输入框直接提交客户机任务。
+- 通过快捷入口进入剧本、审批、产物、任务和日志。
+- 仅在维护时展开 advanced diagnostics。
+
+边界：Phase 62K 只是前端 UX 简化；不会调用 ComfyUI、不会执行 OpenClaw、不会发布真实平台、不会控制真实账号、不会签名安装包、不会启用自动更新、不会绕过 captcha/proxy/fingerprint、不会解析 secret，也不会绕过审批。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

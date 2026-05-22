@@ -101,6 +101,16 @@ type ClientCopy = {
   quickOutputs: string;
   quickTasks: string;
   quickLogs: string;
+  commandTitle: string;
+  commandHint: string;
+  nextStepTitle: string;
+  nextStepConnect: string;
+  nextStepRuntime: string;
+  nextStepHeartbeat: string;
+  nextStepWork: string;
+  openConversation: string;
+  openApprovals: string;
+  advancedSummary: string;
   recoveryTitle: string;
   recoverySteps: string[];
   boundaryTitle: string;
@@ -135,6 +145,16 @@ const clientCopy: Record<ClientLanguage, ClientCopy> = {
     quickOutputs: "产物库",
     quickTasks: "任务恢复",
     quickLogs: "本机日志",
+    commandTitle: "今天要让客户机做什么？",
+    commandHint: "输入运营目标、检查审批、运行剧本，或者处理失败任务。",
+    nextStepTitle: "下一步",
+    nextStepConnect: "先确认本机 Worker API 可以访问。",
+    nextStepRuntime: "先启动本机 Worker 运行时。",
+    nextStepHeartbeat: "运行时已启动，继续开启心跳上报。",
+    nextStepWork: "连接正常，可以进入对话、剧本或审批。",
+    openConversation: "进入对话",
+    openApprovals: "查看审批",
+    advancedSummary: "高级维护与诊断",
     recoveryTitle: "如果不可用",
     recoverySteps: [
       "确认本机 worker_client 已启动并监听 127.0.0.1:9100。",
@@ -172,6 +192,16 @@ const clientCopy: Record<ClientLanguage, ClientCopy> = {
     quickOutputs: "Output Library",
     quickTasks: "Task recovery",
     quickLogs: "Local logs",
+    commandTitle: "What should this client machine do?",
+    commandHint: "Enter an operating goal, review approvals, run a playbook, or recover failed work.",
+    nextStepTitle: "Next step",
+    nextStepConnect: "Confirm the local Worker API is reachable first.",
+    nextStepRuntime: "Start the local Worker runtime first.",
+    nextStepHeartbeat: "Runtime is running; start heartbeat reporting next.",
+    nextStepWork: "Connection is ready. Continue with conversation, playbooks, or approvals.",
+    openConversation: "Open conversation",
+    openApprovals: "Review approvals",
+    advancedSummary: "Advanced maintenance and diagnostics",
     recoveryTitle: "When unavailable",
     recoverySteps: [
       "Confirm worker_client is running locally on 127.0.0.1:9100.",
@@ -248,16 +278,19 @@ function WorkstationHome({
 }) {
   const copy = clientCopy[language];
   const connected = Boolean(health?.success);
+  const ready = connected && status.runtime_running && status.heartbeat_running;
   const recoveryState = error || status.last_error ? copy.recoveryCard : copy.connected;
+  const nextStep = !connected
+    ? copy.nextStepConnect
+    : !status.runtime_running
+      ? copy.nextStepRuntime
+      : !status.heartbeat_running
+        ? copy.nextStepHeartbeat
+        : copy.nextStepWork;
 
   return (
-    <section className="operator-home" aria-labelledby="operator-home-title">
-      <div className="operator-home-header">
-        <div>
-          <p className="eyeline">{copy.phase}</p>
-          <h2 id="operator-home-title">{copy.homeTitle}</h2>
-          <p>{copy.homeSummary}</p>
-        </div>
+    <section className="operator-home codex-like-client-shell" aria-labelledby="operator-home-title">
+      <aside className="client-status-rail" aria-label={copy.connectionCard}>
         <div className="language-switch" aria-label={copy.languageLabel}>
           <span>{copy.languageLabel}</span>
           <button className={language === "zh-CN" ? "active" : ""} onClick={() => onLanguageChange("zh-CN")}>
@@ -267,69 +300,96 @@ function WorkstationHome({
             English
           </button>
         </div>
-      </div>
-
-      <div className="operator-status-grid">
-        <div className={`operator-status-card ${connected ? "good" : "warn"}`}>
-          <span>{copy.connectionCard}</span>
-          <strong>{connected ? copy.connected : copy.disconnected}</strong>
-          <small>{localApi}</small>
-        </div>
-        <div className={`operator-status-card ${status.runtime_running ? "good" : "warn"}`}>
-          <span>{copy.runtimeCard}</span>
-          <strong>{status.runtime_running ? copy.running : copy.stopped}</strong>
-          <small>{status.current_status ?? "-"}</small>
-        </div>
-        <div className={`operator-status-card ${status.heartbeat_running ? "good" : "warn"}`}>
-          <span>{copy.heartbeatCard}</span>
-          <strong>{status.heartbeat_running ? copy.running : copy.stopped}</strong>
-          <small>{status.last_heartbeat_at ?? "-"}</small>
-        </div>
-        <div className={`operator-status-card ${error || status.last_error ? "warn" : "good"}`}>
-          <span>{copy.recoveryCard}</span>
-          <strong>{recoveryState}</strong>
-          <small>{error ?? status.last_error ?? "-"}</small>
-        </div>
-      </div>
-
-      <div className="operator-actions">
-        <button className="action-button" onClick={() => onRunControl("startRuntime")} disabled={Boolean(actionLoading)}>
-          <PlayCircle size={16} />
-          {copy.actionStartRuntime}
-        </button>
-        <button className="action-button" onClick={() => onRunControl("startHeartbeat")} disabled={Boolean(actionLoading)}>
-          <Wifi size={16} />
-          {copy.actionStartHeartbeat}
-        </button>
-        <button className="refresh-button" onClick={onRefresh}>
-          <RefreshCcw size={15} />
-          {copy.actionRefresh}
-        </button>
-      </div>
-
-      <div className="operator-support-grid">
-        <div>
-          <h3>{copy.quickTitle}</h3>
-          <div className="quick-link-grid">
-            <a href="#chat-panel">{copy.quickChat}</a>
-            <a href="#playbook-panel">{copy.quickPlaybooks}</a>
-            <a href="#approvals-panel">{copy.quickApprovals}</a>
-            <a href="#outputs-panel">{copy.quickOutputs}</a>
-            <a href="#tasks-panel">{copy.quickTasks}</a>
-            <a href="#logs-panel">{copy.quickLogs}</a>
+        <div className="operator-status-grid">
+          <div className={`operator-status-card ${connected ? "good" : "warn"}`}>
+            <span>{copy.connectionCard}</span>
+            <strong>{connected ? copy.connected : copy.disconnected}</strong>
+            <small>{localApi}</small>
+          </div>
+          <div className={`operator-status-card ${status.runtime_running ? "good" : "warn"}`}>
+            <span>{copy.runtimeCard}</span>
+            <strong>{status.runtime_running ? copy.running : copy.stopped}</strong>
+            <small>{status.current_status ?? "-"}</small>
+          </div>
+          <div className={`operator-status-card ${status.heartbeat_running ? "good" : "warn"}`}>
+            <span>{copy.heartbeatCard}</span>
+            <strong>{status.heartbeat_running ? copy.running : copy.stopped}</strong>
+            <small>{status.last_heartbeat_at ?? "-"}</small>
+          </div>
+          <div className={`operator-status-card ${error || status.last_error ? "warn" : "good"}`}>
+            <span>{copy.recoveryCard}</span>
+            <strong>{recoveryState}</strong>
+            <small>{error ?? status.last_error ?? "-"}</small>
           </div>
         </div>
-        <div>
-          <h3>{copy.recoveryTitle}</h3>
-          <ol className="recovery-list">
-            {copy.recoverySteps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+      </aside>
+
+      <div className="client-command-center">
+        <div className="operator-home-header">
+          <div>
+            <p className="eyeline">{copy.phase}</p>
+            <h2 id="operator-home-title">{copy.homeTitle}</h2>
+            <p>{copy.homeSummary}</p>
+          </div>
         </div>
-        <div>
-          <h3>{copy.boundaryTitle}</h3>
-          <p>{copy.boundaryBody}</p>
+
+        <div className={`client-next-step ${ready ? "ready" : "pending"}`}>
+          <span>{copy.nextStepTitle}</span>
+          <strong>{nextStep}</strong>
+        </div>
+
+        <div className="client-command-box" aria-label={copy.commandTitle}>
+          <div className="client-command-copy">
+            <MessageCircle size={18} />
+            <div>
+              <span>{copy.commandTitle}</span>
+              <p>{copy.commandHint}</p>
+            </div>
+          </div>
+          <div className="operator-actions">
+            <a className="action-button primary-action" href="#chat-panel">
+              <MessageCircle size={16} />
+              {copy.openConversation}
+            </a>
+            <button className="action-button" onClick={() => onRunControl("startRuntime")} disabled={Boolean(actionLoading)}>
+              <PlayCircle size={16} />
+              {copy.actionStartRuntime}
+            </button>
+            <button className="action-button" onClick={() => onRunControl("startHeartbeat")} disabled={Boolean(actionLoading)}>
+              <Wifi size={16} />
+              {copy.actionStartHeartbeat}
+            </button>
+            <button className="refresh-button" onClick={onRefresh}>
+              <RefreshCcw size={15} />
+              {copy.actionRefresh}
+            </button>
+          </div>
+        </div>
+
+        <div className="operator-support-grid">
+          <div>
+            <h3>{copy.quickTitle}</h3>
+            <div className="quick-link-grid">
+              <a href="#chat-panel">{copy.quickChat}</a>
+              <a href="#playbook-panel">{copy.quickPlaybooks}</a>
+              <a href="#approvals-panel">{copy.quickApprovals}</a>
+              <a href="#outputs-panel">{copy.quickOutputs}</a>
+              <a href="#tasks-panel">{copy.quickTasks}</a>
+              <a href="#logs-panel">{copy.quickLogs}</a>
+            </div>
+          </div>
+          <div>
+            <h3>{copy.recoveryTitle}</h3>
+            <ol className="recovery-list">
+              {copy.recoverySteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <h3>{copy.boundaryTitle}</h3>
+            <p>{copy.boundaryBody}</p>
+          </div>
         </div>
       </div>
     </section>
@@ -786,7 +846,7 @@ function ChatPanel() {
       <div className="panel-title logs-title">
         <span>
           <MessageCircle size={18} />
-          <h2>Chat Panel</h2>
+          <h2>Conversation</h2>
         </span>
         <div className="chat-actions">
           <button className="refresh-button" onClick={() => void createThread()} disabled={chatLoading}>
@@ -799,33 +859,51 @@ function ChatPanel() {
           </button>
         </div>
       </div>
-      <div className="chat-config-grid">
-        <label>
-          AI Server URL
-          <input
-            value={settings.aiServerUrl}
-            onChange={(event) => setSettings((current) => ({ ...current, aiServerUrl: event.target.value }))}
-          />
-        </label>
-        <label>
-          Workspace ID
-          <input
-            value={settings.workspaceId}
-            onChange={(event) => setSettings((current) => ({ ...current, workspaceId: event.target.value }))}
-          />
-        </label>
-        <label>
-          User ID
-          <input
-            value={settings.userId}
-            onChange={(event) => setSettings((current) => ({ ...current, userId: event.target.value }))}
-          />
-        </label>
-        <label>
-          Thread title
-          <input value={title} onChange={(event) => setTitle(event.target.value)} />
-        </label>
+      <div className="chat-input-row command-input-row">
+        <textarea
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="Tell this client machine what to do..."
+        />
+        <button className="action-button primary-action" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
+          <Send size={16} />
+          Send and run
+        </button>
+        <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
+          <PlayCircle size={16} />
+          Run background
+        </button>
       </div>
+      <details className="chat-settings-panel">
+        <summary>Connection settings</summary>
+        <div className="chat-config-grid">
+          <label>
+            AI Server URL
+            <input
+              value={settings.aiServerUrl}
+              onChange={(event) => setSettings((current) => ({ ...current, aiServerUrl: event.target.value }))}
+            />
+          </label>
+          <label>
+            Workspace ID
+            <input
+              value={settings.workspaceId}
+              onChange={(event) => setSettings((current) => ({ ...current, workspaceId: event.target.value }))}
+            />
+          </label>
+          <label>
+            User ID
+            <input
+              value={settings.userId}
+              onChange={(event) => setSettings((current) => ({ ...current, userId: event.target.value }))}
+            />
+          </label>
+          <label>
+            Thread title
+            <input value={title} onChange={(event) => setTitle(event.target.value)} />
+          </label>
+        </div>
+      </details>
       <div className="chat-meta">
         AI Server {connectionState} | thread: {threadId ?? "-"} | run status: {runStatus} | route: {lastRoute ?? "-"} | selected tool: {lastSelectedTool ?? "-"}
       </div>
@@ -1153,21 +1231,6 @@ function ChatPanel() {
           <div className="empty-chat">Select a task run to inspect its timeline.</div>
         )}
       </div>
-      <div className="chat-input-row">
-        <textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Type one sentence to trigger Planning / Agent / Tool / Worker runtime foundation..."
-        />
-        <button className="action-button" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
-          <Send size={16} />
-          Send and run
-        </button>
-        <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
-          <PlayCircle size={16} />
-          Run background
-        </button>
-      </div>
     </section>
   );
 }
@@ -1478,6 +1541,10 @@ function App() {
         onRunControl={(action) => void runControl(action)}
       />
 
+      <ChatPanel />
+
+      <details className="advanced-diagnostics">
+        <summary>{copy.advancedSummary}</summary>
       <section className="layout-grid">
         <section className="panel dashboard-panel">
           <div className="panel-title">
@@ -1593,7 +1660,6 @@ function App() {
           </p>
         </section>
 
-        <ChatPanel />
         <BrowserSessionsPanel />
 
         <section id="logs-panel" className="panel logs-panel">
@@ -1625,6 +1691,7 @@ function App() {
           </pre>
         </section>
       </section>
+      </details>
     </main>
   );
 }

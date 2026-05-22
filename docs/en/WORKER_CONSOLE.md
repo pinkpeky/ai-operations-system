@@ -577,6 +577,22 @@ Operator workflow:
 
 Boundary: Phase 62I is a frontend/readiness slice. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62K Customer Console Codex-like UX Simplification
+
+Status: in progress on `codex/phase-62k-customer-console-codex-ux`.
+
+Phase 62K simplifies the customer-machine frontends after live operator feedback. `worker_console` and `worker_console_desktop` now open with a Codex-like command surface instead of a dense maintenance dashboard.
+
+Operator workflow:
+
+- Read local Worker API, runtime, heartbeat, and recovery state in a left status rail.
+- Follow one clear next-step prompt before using advanced tools.
+- Use the first-screen conversation input to send and run a customer-machine task.
+- Keep playbooks, approvals, outputs, tasks, and logs reachable through shortcuts.
+- Open advanced maintenance and diagnostics only when needed.
+
+Boundary: Phase 62K is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
