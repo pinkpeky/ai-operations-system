@@ -1678,6 +1678,102 @@ h2 {
   background: #fff5f5;
 }
 
+.knowledge-validation-outcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.knowledge-validation-outcome.good {
+  border-color: rgba(21, 128, 61, 0.28);
+  background: #f0fdf4;
+}
+
+.knowledge-validation-outcome.warn {
+  border-color: rgba(185, 28, 28, 0.22);
+  background: #fff7ed;
+}
+
+.knowledge-validation-outcome-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.knowledge-validation-outcome-main svg {
+  margin-top: 2px;
+  color: #2563eb;
+}
+
+.knowledge-validation-outcome.good .knowledge-validation-outcome-main svg {
+  color: #15803d;
+}
+
+.knowledge-validation-outcome.warn .knowledge-validation-outcome-main svg {
+  color: #b45309;
+}
+
+.knowledge-validation-outcome-main div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.knowledge-validation-outcome-main span,
+.knowledge-validation-outcome-action span,
+.knowledge-validation-outcome-stat span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.knowledge-validation-outcome-main strong,
+.knowledge-validation-outcome-stat strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.knowledge-validation-outcome-main p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.knowledge-validation-outcome-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.knowledge-validation-outcome-stat {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.knowledge-validation-outcome-action {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  align-content: center;
+  min-width: 132px;
+}
+
 .knowledge-validation-results {
   display: grid;
   gap: 8px;
@@ -2755,6 +2851,8 @@ h2 {
   .knowledge-validation-targets,
   .knowledge-validation-suggestions,
   .knowledge-validation-form,
+  .knowledge-validation-outcome,
+  .knowledge-validation-outcome-stats,
   .knowledge-document-overview,
   .knowledge-document-workspace,
   .knowledge-document-grid,
