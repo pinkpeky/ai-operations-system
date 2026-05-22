@@ -12,6 +12,7 @@ import {
   PlayCircle,
   RefreshCcw,
   RotateCcw,
+  Search,
   Server,
   Send,
   Square,
@@ -51,7 +52,7 @@ import {
 } from "./api/workflowClient";
 import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
-import { knowledgeBaseClient, KnowledgeDocument } from "./api/knowledgeBaseClient";
+import { knowledgeBaseClient, KnowledgeDocument, KnowledgeSearchMode, KnowledgeSearchResult } from "./api/knowledgeBaseClient";
 import "./styles.css";
 
 const fallbackStatus: WorkerStatus = {
@@ -307,6 +308,28 @@ type KnowledgeBaseCopy = {
   activityInvalid: string;
   activityCollection: string;
   clearActivity: string;
+  validationTitle: string;
+  validationHint: string;
+  validationQueryLabel: string;
+  validationQueryPlaceholder: string;
+  validationModeLabel: string;
+  validationHybrid: string;
+  validationDense: string;
+  validationKeyword: string;
+  validationAction: string;
+  validationRunning: string;
+  validationEmpty: string;
+  validationNoResults: string;
+  validationResultsTitle: string;
+  validationQueryRequired: string;
+  validationScore: string;
+  validationSource: string;
+  validationChunk: string;
+  validationMode: string;
+  validationCollection: string;
+  validationSearchTitle: string;
+  validationFailedTitle: string;
+  validationClear: string;
 };
 
 type KnowledgeQueueStatus = "queued" | "uploading" | "uploaded" | "failed";
@@ -657,6 +680,28 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     activityInvalid: "不可用",
     activityCollection: "知识分组",
     clearActivity: "清空记录",
+    validationTitle: "检索验证",
+    validationHint: "输入一个运营问题，确认刚上传或修改的资料是否能被知识库命中。",
+    validationQueryLabel: "验证问题",
+    validationQueryPlaceholder: "例如：新品活动 FAQ 里有哪些禁用词？",
+    validationModeLabel: "检索方式",
+    validationHybrid: "混合",
+    validationDense: "语义",
+    validationKeyword: "关键词",
+    validationAction: "开始验证",
+    validationRunning: "正在检索知识库。",
+    validationEmpty: "还没有验证记录。输入问题后会显示命中的资料片段。",
+    validationNoResults: "没有命中资料，请检查分组、关键词或重新上传资料。",
+    validationResultsTitle: "验证命中",
+    validationQueryRequired: "请先输入要验证的问题。",
+    validationScore: "匹配度",
+    validationSource: "来源",
+    validationChunk: "分段",
+    validationMode: "方式",
+    validationCollection: "验证分组",
+    validationSearchTitle: "知识检索验证完成",
+    validationFailedTitle: "知识检索验证失败",
+    validationClear: "清空结果",
   },
   "en-US": {
     title: "Knowledge Base Upload and Edit",
@@ -759,6 +804,28 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     activityInvalid: "Unavailable",
     activityCollection: "Collection",
     clearActivity: "Clear activity",
+    validationTitle: "Search validation",
+    validationHint: "Enter an operating question to confirm uploaded or edited material can be found.",
+    validationQueryLabel: "Validation question",
+    validationQueryPlaceholder: "Example: What launch FAQ terms are restricted?",
+    validationModeLabel: "Search mode",
+    validationHybrid: "Hybrid",
+    validationDense: "Semantic",
+    validationKeyword: "Keyword",
+    validationAction: "Validate",
+    validationRunning: "Searching the knowledge base.",
+    validationEmpty: "No validation yet. Enter a question to see matched knowledge snippets.",
+    validationNoResults: "No material matched. Check the collection, keywords, or upload the material again.",
+    validationResultsTitle: "Validation matches",
+    validationQueryRequired: "Enter a validation question first.",
+    validationScore: "Match",
+    validationSource: "Source",
+    validationChunk: "Chunk",
+    validationMode: "Mode",
+    validationCollection: "Validation collection",
+    validationSearchTitle: "Knowledge search validation completed",
+    validationFailedTitle: "Knowledge search validation failed",
+    validationClear: "Clear results",
   },
 };
 
@@ -2348,6 +2415,34 @@ function knowledgeDocumentStatusTone(document: KnowledgeDocument): KnowledgeActi
   return "neutral";
 }
 
+function knowledgeMetadataText(metadata: Record<string, unknown> | undefined, keys: string[]): string | null {
+  if (!metadata) {
+    return null;
+  }
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+    if (typeof value === "number") {
+      return String(value);
+    }
+  }
+  return null;
+}
+
+function knowledgeSearchSourceLabel(result: KnowledgeSearchResult): string {
+  return knowledgeMetadataText(result.metadata, ["source_name", "filename", "source_id", "document_id"]) ?? result.id;
+}
+
+function knowledgeSearchScore(result: KnowledgeSearchResult): number | null {
+  return result.rerank_score ?? result.hybrid_score ?? result.similarity_score ?? result.dense_score ?? result.keyword_score ?? null;
+}
+
+function formatKnowledgeSearchScore(score: number | null): string {
+  return typeof score === "number" ? `${Math.round(score * 100)}%` : "-";
+}
+
 const KNOWLEDGE_MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_KNOWLEDGE_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv"];
 
@@ -2387,6 +2482,11 @@ function KnowledgeBasePanel({
   const [uploading, setUploading] = useState(false);
   const [activities, setActivities] = useState<KnowledgeActivityItem[]>([]);
   const [selectedDocumentKey, setSelectedDocumentKey] = useState<string | null>(null);
+  const [validationQuery, setValidationQuery] = useState("");
+  const [validationMode, setValidationMode] = useState<KnowledgeSearchMode>("hybrid");
+  const [validationState, setValidationState] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [validationResults, setValidationResults] = useState<KnowledgeSearchResult[]>([]);
+  const [validationSummary, setValidationSummary] = useState<string | null>(null);
 
   const addKnowledgeActivity = useCallback((activity: Omit<KnowledgeActivityItem, "id" | "time">) => {
     setActivities((current) => [
@@ -2697,6 +2797,48 @@ function KnowledgeBasePanel({
     setMessage(null);
   };
 
+  const runKnowledgeValidation = async () => {
+    const query = validationQuery.trim();
+    if (!query) {
+      setValidationSummary(copy.validationQueryRequired);
+      return;
+    }
+    setValidationState("loading");
+    setValidationSummary(null);
+    try {
+      const response = await knowledgeBaseClient.search(
+        {
+          query,
+          collectionName: collectionName.trim() || undefined,
+          searchMode: validationMode,
+          topK: 5,
+        },
+        settings,
+      );
+      setValidationResults(response.items);
+      setValidationState("ready");
+      const resultSummary =
+        response.items.length > 0 ? `${copy.activitySuccess}: ${response.items.length}` : copy.validationNoResults;
+      setValidationSummary(resultSummary);
+      addKnowledgeActivity({
+        title: copy.validationSearchTitle,
+        detail: resultSummary,
+        meta: `${copy.validationCollection}: ${response.collection_name}; ${copy.validationMode}: ${response.search_mode}`,
+        tone: response.items.length > 0 ? "good" : "warn",
+      });
+    } catch {
+      setValidationResults([]);
+      setValidationState("failed");
+      setValidationSummary(copy.requestFailed);
+      addKnowledgeActivity({
+        title: copy.validationFailedTitle,
+        detail: copy.requestFailed,
+        meta: `${copy.validationCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+        tone: "warn",
+      });
+    }
+  };
+
   return (
     <section id="knowledge-base-panel" className="panel knowledge-base-panel">
       <div className="panel-title logs-title">
@@ -2912,6 +3054,82 @@ function KnowledgeBasePanel({
           ) : (
             <div className="knowledge-empty">{copy.activityEmpty}</div>
           )}
+        </div>
+      </section>
+      <section className="knowledge-validation-panel" aria-label={copy.validationTitle}>
+        <div className="knowledge-validation-header">
+          <div className="knowledge-card-title">
+            <Search size={17} />
+            <div>
+              <span>{copy.validationCollection}: {collectionName.trim() || copy.collectionMissing}</span>
+              <h3>{copy.validationTitle}</h3>
+              <p>{copy.validationHint}</p>
+            </div>
+          </div>
+          <button
+            className="refresh-button"
+            onClick={() => {
+              setValidationResults([]);
+              setValidationSummary(null);
+              setValidationState("idle");
+            }}
+            disabled={validationResults.length === 0 && !validationSummary}
+          >
+            <XCircle size={15} />
+            {copy.validationClear}
+          </button>
+        </div>
+        <div className="knowledge-validation-form">
+          <label>
+            {copy.validationQueryLabel}
+            <input
+              value={validationQuery}
+              placeholder={copy.validationQueryPlaceholder}
+              onChange={(event) => setValidationQuery(event.target.value)}
+            />
+          </label>
+          <label>
+            {copy.validationModeLabel}
+            <select value={validationMode} onChange={(event) => setValidationMode(event.target.value as KnowledgeSearchMode)}>
+              <option value="hybrid">{copy.validationHybrid}</option>
+              <option value="dense">{copy.validationDense}</option>
+              <option value="keyword">{copy.validationKeyword}</option>
+            </select>
+          </label>
+          <button
+            className="action-button primary-action"
+            onClick={() => void runKnowledgeValidation()}
+            disabled={validationState === "loading" || !validationQuery.trim()}
+          >
+            <Search size={16} />
+            {copy.validationAction}
+          </button>
+        </div>
+        {validationSummary ? <div className={`knowledge-validation-summary ${validationState}`}>{validationSummary}</div> : null}
+        <div className="knowledge-validation-results" aria-label={copy.validationResultsTitle}>
+          {validationState === "loading" ? <div className="knowledge-empty">{copy.validationRunning}</div> : null}
+          {validationState !== "loading" && validationResults.length === 0 ? (
+            <div className="knowledge-empty">{validationState === "ready" ? copy.validationNoResults : copy.validationEmpty}</div>
+          ) : null}
+          {validationResults.map((result) => {
+            const score = knowledgeSearchScore(result);
+            return (
+              <article className="knowledge-validation-result-card" key={result.id}>
+                <div className="knowledge-validation-result-main">
+                  <FileText size={17} />
+                  <div>
+                    <strong>{knowledgeSearchSourceLabel(result)}</strong>
+                    <p>{result.text}</p>
+                  </div>
+                </div>
+                <div className="knowledge-validation-result-meta">
+                  <span>{copy.validationScore}: {formatKnowledgeSearchScore(score)}</span>
+                  <span>{copy.validationChunk}: {result.chunk_index ?? "-"}</span>
+                  <span>{copy.validationSource}: {knowledgeSearchSourceLabel(result)}</span>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
       <section className="knowledge-library-section" aria-label={copy.libraryTitle}>

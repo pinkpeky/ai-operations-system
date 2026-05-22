@@ -1289,6 +1289,150 @@ textarea {
   white-space: nowrap;
 }
 
+.knowledge-validation-panel {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.knowledge-validation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.knowledge-validation-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.knowledge-validation-header p {
+  margin: 2px 0 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.knowledge-validation-header span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.knowledge-validation-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.26fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.knowledge-validation-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.knowledge-validation-form input,
+.knowledge-validation-form select {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.knowledge-validation-summary {
+  padding: 10px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.knowledge-validation-summary.ready {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #ecfdf5;
+}
+
+.knowledge-validation-summary.failed {
+  border-color: rgba(185, 28, 28, 0.24);
+  background: #fff5f5;
+}
+
+.knowledge-validation-results {
+  display: grid;
+  gap: 8px;
+}
+
+.knowledge-validation-result-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.knowledge-validation-result-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.knowledge-validation-result-main div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.knowledge-validation-result-main strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.knowledge-validation-result-main p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.knowledge-validation-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.knowledge-validation-result-meta span {
+  display: inline-flex;
+  min-width: 0;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .knowledge-message,
 .knowledge-empty {
   padding: 10px;
@@ -2317,6 +2461,7 @@ textarea {
   .knowledge-readiness-strip,
   .knowledge-action-grid,
   .knowledge-form-row,
+  .knowledge-validation-form,
   .knowledge-document-overview,
   .knowledge-document-workspace,
   .knowledge-document-grid,
@@ -2327,6 +2472,7 @@ textarea {
 
   .simple-progress-header,
   .knowledge-activity-header,
+  .knowledge-validation-header,
   .knowledge-library-header {
     align-items: flex-start;
     flex-direction: column;

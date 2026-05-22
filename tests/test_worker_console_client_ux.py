@@ -700,3 +700,92 @@ def test_phase_62s_knowledge_document_details_are_documented() -> None:
         assert "knowledge document details" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_62t_knowledge_search_validation() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    web_client = WEB_KNOWLEDGE_CLIENT.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_KNOWLEDGE_CLIENT.read_text(encoding="utf-8")
+
+    for client in (web_client, desktop_client):
+        for token in [
+            "KnowledgeSearchMode",
+            "KnowledgeSearchResult",
+            "KnowledgeSearchResponse",
+            "search:",
+            '"/rag/search"',
+            "search_mode",
+            "collection_name",
+            "top_k",
+        ]:
+            assert token in client
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "validationQuery",
+            "validationMode",
+            "validationState",
+            "validationResults",
+            "validationSummary",
+            "runKnowledgeValidation",
+            "knowledgeSearchSourceLabel",
+            "knowledgeSearchScore",
+            "formatKnowledgeSearchScore",
+            "validationTitle",
+            "validationAction",
+            "validationSearchTitle",
+            "validationFailedTitle",
+            "knowledge-validation-panel",
+            "knowledge-validation-form",
+            "knowledge-validation-results",
+            "knowledge-validation-result-card",
+        ]:
+            assert token in text
+        knowledge_panel = text.split("function KnowledgeBasePanel", 1)[1].split("function App", 1)[0]
+        assert "<pre" not in knowledge_panel
+        assert "<code" not in knowledge_panel
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".knowledge-validation-panel",
+            ".knowledge-validation-header",
+            ".knowledge-validation-form",
+            ".knowledge-validation-summary",
+            ".knowledge-validation-results",
+            ".knowledge-validation-result-card",
+            ".knowledge-validation-result-main",
+            ".knowledge-validation-result-meta",
+        ]:
+            assert token in styles
+
+
+def test_phase_62t_knowledge_search_validation_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 62T Customer Console Knowledge Search Validation" in text
+        assert "codex/phase-62t-knowledge-search-validation" in text
+        assert "knowledge search validation" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text

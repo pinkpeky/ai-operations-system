@@ -18,6 +18,27 @@ export type KnowledgeUploadPayload = {
   duplicateStrategy?: "skip" | "force_reingest";
 };
 
+export type KnowledgeSearchMode = "dense" | "keyword" | "hybrid";
+
+export type KnowledgeSearchResult = {
+  id: string;
+  text: string;
+  similarity_score?: number;
+  rerank_score?: number | null;
+  dense_score?: number | null;
+  keyword_score?: number | null;
+  hybrid_score?: number | null;
+  metadata?: Record<string, unknown>;
+  chunk_index?: number | null;
+};
+
+export type KnowledgeSearchResponse = {
+  collection_name: string;
+  query: string;
+  search_mode: KnowledgeSearchMode;
+  items: KnowledgeSearchResult[];
+};
+
 async function requestJson<T>(
   path: string,
   init?: RequestInit,
@@ -104,6 +125,31 @@ export const knowledgeBaseClient = {
           metadata: { source: "worker_console_knowledge_page" },
           chunk_size: 500,
           chunk_overlap: 50,
+        }),
+      },
+      settings,
+    ),
+  search: (
+    payload: {
+      query: string;
+      collectionName?: string;
+      searchMode?: KnowledgeSearchMode;
+      topK?: number;
+      sourceId?: string;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<KnowledgeSearchResponse>(
+      "/rag/search",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: payload.query,
+          collection_name: payload.collectionName || undefined,
+          search_mode: payload.searchMode || "hybrid",
+          top_k: payload.topK ?? 5,
+          source_id: payload.sourceId || undefined,
         }),
       },
       settings,
