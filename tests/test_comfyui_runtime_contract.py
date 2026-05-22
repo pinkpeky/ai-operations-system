@@ -99,6 +99,31 @@ def test_comfyui_runtime_diagnostics_report_ready_without_probe_call() -> None:
     assert "call_comfyui_system_stats_read_only" not in diagnostics.forbidden_actions
 
 
+def test_comfyui_runtime_maintenance_runbook_is_no_network_and_actionable() -> None:
+    """Maintenance runbook should translate diagnostics into operator steps without network calls."""
+
+    calls: list[tuple[str, float]] = []
+    runbook = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {"status_code": 200},
+    ).maintenance_runbook(workspace_id="workspace-comfyui")
+
+    assert runbook.phase == "62E"
+    assert runbook.workspace_id == "workspace-comfyui"
+    assert runbook.readiness_status == "blocked"
+    assert runbook.external_request_attempted is False
+    assert runbook.runtime_calls_enabled is False
+    assert runbook.raw["no_network_call_performed"] is True
+    assert runbook.raw["source_endpoint"] == "/api/v1/comfyui-runtime/diagnostics"
+    assert runbook.snapshot_recommended is True
+    assert "COMFYUI_RUNTIME_PROVIDER=guarded" in runbook.next_operator_action
+    assert any(step.key == "check_provider_guarded" and step.blocking for step in runbook.steps)
+    assert any("Save a diagnostic snapshot" in action for action in runbook.recovery_actions)
+    assert "submit_prompt" in runbook.disabled_actions
+    assert runbook.configuration_summary["provider"] == "disabled"
+    assert calls == []
+
+
 def test_comfyui_runtime_contract_normalizes_guarded_config_without_calling_network() -> None:
     """Guarded settings still need the explicit read-only probe switch before network calls."""
 
@@ -288,6 +313,7 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
         health = await client.get("/api/v1/comfyui-runtime/health", headers=headers)
         capabilities = await client.get("/api/v1/comfyui-runtime/capabilities", headers=headers)
         diagnostics = await client.get("/api/v1/comfyui-runtime/diagnostics", headers=headers)
+        runbook = await client.get("/api/v1/comfyui-runtime/maintenance-runbook", headers=headers)
         created_snapshot = await client.post(
             "/api/v1/comfyui-runtime/diagnostic-snapshots",
             headers=headers,
@@ -306,6 +332,13 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert diagnostics.json()["external_request_attempted"] is False
     assert diagnostics.json()["readiness_status"] == "blocked"
     assert "provider_guarded" in diagnostics.json()["diagnostics"][0]["key"]
+    assert runbook.status_code == 200
+    assert runbook.json()["workspace_id"] == "workspace-comfyui-api"
+    assert runbook.json()["phase"] == "62E"
+    assert runbook.json()["external_request_attempted"] is False
+    assert runbook.json()["runtime_calls_enabled"] is False
+    assert runbook.json()["steps"][0]["key"] == "check_provider_guarded"
+    assert "Save a diagnostic snapshot" in " ".join(runbook.json()["recovery_actions"])
     assert created_snapshot.status_code == 200
     assert created_snapshot.json()["workspace_id"] == "workspace-comfyui-api"
     assert created_snapshot.json()["user_id"] == "user-comfyui"

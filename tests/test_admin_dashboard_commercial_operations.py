@@ -28,7 +28,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial operations center" in text
     assert "Phase 61Z" in text
     assert "Runtime adapter contract" in text
-    assert "Phase 62D" in text
+    assert "Phase 62E" in text
     assert "read_only_probe_enabled" in text
     assert "read_only_probe_attempted" in text
     assert "readiness_status" in text
@@ -38,12 +38,18 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "latest_snapshot_status" in text
     assert "latest_snapshot_at" in text
     assert "latest_snapshot_note" in text
+    assert "Maintenance runbook" in text
+    assert "maintenance_runbook_phase" in text
+    assert "next_operator_action" in text
+    assert "snapshot_recommended" in text
+    assert "recovery_actions" in text
     assert "saveComfyuiRuntimeDiagnosticSnapshot" in text
     assert "allowed_health_paths" in text
     assert "probe_latency_ms" in text
     assert "comfyuiRuntimeApi.health" in text
     assert "comfyuiRuntimeApi.capabilities" in text
     assert "comfyuiRuntimeApi.diagnostics" in text
+    assert "comfyuiRuntimeApi.maintenanceRunbook" in text
     assert "comfyuiRuntimeApi.diagnosticSnapshots" in text
     assert "comfyuiRuntimeApi.createDiagnosticSnapshot" in text
     assert "Approval gates" in text
@@ -269,6 +275,7 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/health" in text
     assert "/comfyui-runtime/capabilities" in text
     assert "/comfyui-runtime/diagnostics" in text
+    assert "/comfyui-runtime/maintenance-runbook" in text
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text

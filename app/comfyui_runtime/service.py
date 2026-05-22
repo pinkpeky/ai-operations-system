@@ -21,6 +21,8 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeDiagnosticSnapshotResponse,
     ComfyUIRuntimeDiagnosticsResponse,
     ComfyUIRuntimeHealthResponse,
+    ComfyUIRuntimeMaintenanceRunbookResponse,
+    ComfyUIRuntimeMaintenanceStep,
 )
 
 
@@ -399,6 +401,82 @@ class ComfyUIRuntimeService:
                 "host_allowed": host_allowed,
                 "health_path_allowed": health_path_allowed,
                 "disabled_actions": self._disabled_actions(read_only_probe_ready=read_only_probe_ready),
+            },
+        )
+
+    def maintenance_runbook(self, *, workspace_id: str | None = None) -> ComfyUIRuntimeMaintenanceRunbookResponse:
+        """Return an operator-facing, no-network maintenance runbook."""
+
+        diagnostics = self.diagnostics(workspace_id=workspace_id)
+        steps = [
+            ComfyUIRuntimeMaintenanceStep(
+                key=f"check_{check.key}",
+                title=check.label,
+                status=check.status,
+                audience="server_maintainer" if check.key != "execution_boundary" else "operations_reviewer",
+                detail=check.detail,
+                action=check.remediation,
+                blocking=check.status == "blocked",
+                source_check=check.key,
+            )
+            for check in diagnostics.diagnostics
+        ]
+        blocked_steps = [step for step in steps if step.blocking]
+        recovery_actions = list(diagnostics.recommended_actions)
+        snapshot_action = "Save a diagnostic snapshot before and after any runtime configuration change."
+        restart_action = "Restart the API service after changing ComfyUI runtime environment variables, then refresh this runbook."
+        boundary_action = (
+            "Keep prompt submission, queue reads/submissions, uploads, generation, secret resolution, and switch mutation disabled "
+            "until a later reviewed execution phase explicitly enables them."
+        )
+        for action in [snapshot_action, restart_action, boundary_action]:
+            if action not in recovery_actions:
+                recovery_actions.append(action)
+
+        if blocked_steps:
+            next_operator_action = blocked_steps[0].action or blocked_steps[0].detail
+        else:
+            next_operator_action = (
+                "All no-network gates pass. Save a diagnostic snapshot, then use the health endpoint for the explicitly "
+                "guarded GET /system_stats read-only probe only if the maintainer intends to test reachability."
+            )
+
+        return ComfyUIRuntimeMaintenanceRunbookResponse(
+            workspace_id=workspace_id,
+            title="ComfyUI runtime maintenance runbook",
+            summary=(
+                "No-network maintainer checklist for reviewing provider, runtime switch, network gate, host allowlist, "
+                "health path allowlist, and the execution boundary before any guarded read-only probe."
+            ),
+            readiness_status=diagnostics.readiness_status,
+            read_only_probe_ready=diagnostics.read_only_probe_ready,
+            external_request_attempted=False,
+            runtime_calls_enabled=False,
+            next_operator_action=next_operator_action,
+            snapshot_recommended=True,
+            steps=steps,
+            recovery_actions=recovery_actions,
+            disabled_actions=list(diagnostics.forbidden_actions),
+            configuration_summary={
+                "provider": diagnostics.provider,
+                "enabled": diagnostics.enabled,
+                "network_allowed": diagnostics.network_allowed,
+                "read_only_probe_enabled": diagnostics.read_only_probe_enabled,
+                "base_url": diagnostics.base_url,
+                "parsed_host": diagnostics.parsed_host,
+                "host_allowed": diagnostics.host_allowed,
+                "health_path": diagnostics.health_path,
+                "health_path_allowed": diagnostics.health_path_allowed,
+                "allowed_hosts": diagnostics.allowed_hosts,
+                "allowed_health_paths": diagnostics.allowed_health_paths,
+            },
+            diagnostics=diagnostics,
+            raw={
+                "phase": "62E",
+                "contract_mode": "guarded_runtime_maintenance_runbook",
+                "no_network_call_performed": True,
+                "source_endpoint": "/api/v1/comfyui-runtime/diagnostics",
+                "blocked_step_count": len(blocked_steps),
             },
         )
 

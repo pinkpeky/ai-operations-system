@@ -3648,6 +3648,7 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/health`
 - `GET /api/v1/comfyui-runtime/capabilities`
 - `GET /api/v1/comfyui-runtime/diagnostics`
+- `GET /api/v1/comfyui-runtime/maintenance-runbook`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -3692,5 +3693,11 @@ Phase 62C 增加 `GET /api/v1/comfyui-runtime/diagnostics`，这是给服务器�
 Phase 62D 新增服务器维护人员使用的无网络诊断快照。`POST /api/v1/comfyui-runtime/diagnostic-snapshots` 会复用 Phase 62C diagnostics 路径，把当前 readiness 结果保存到 `comfyui_runtime_diagnostic_snapshots`，并返回带有 operator note、metadata、`readiness_status`、`blocking_reasons`、`recommended_actions`、`read_only_probe_ready`、diagnostic checks、forbidden actions 和完整诊断 payload 的快照。`GET /api/v1/comfyui-runtime/diagnostic-snapshots` 用于列出当前 workspace 最近的诊断快照。
 
 边界：Phase 62D 只记录诊断，不会请求 ComfyUI，不会触发 guarded `/system_stats` 探测，不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、启用 runtime switch、修改 runtime configuration、读取 environment state 或解析 secret value。
+
+## Phase 62E: ComfyUI Runtime Maintenance Runbook
+
+Phase 62E 新增 `GET /api/v1/comfyui-runtime/maintenance-runbook`，给服务器维护人员和工作站操作人员提供无网络维护 runbook。它复用 Phase 62C diagnostics，返回有序 `steps`、`next_operator_action`、`recovery_actions`、`configuration_summary`、`snapshot_recommended`、disabled actions 和源 diagnostics payload，让 ComfyUI 页签能直接显示下一步该修复或确认什么。
+
+边界：Phase 62E 只解释和展示维护动作，不会请求 ComfyUI，不会触发 guarded `/system_stats` 探测，不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、启用 runtime switch、修改 runtime configuration、读取 environment state 或解析 secret value。
 
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。
