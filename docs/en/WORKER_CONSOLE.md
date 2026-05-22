@@ -657,6 +657,23 @@ Operator workflow:
 
 Boundary: Phase 62O is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62P Customer Console Simple Operator Mode
+
+Status: active branch `codex/phase-62p-client-simple-operator-mode`.
+
+Phase 62P simplifies `worker_console` and `worker_console_desktop` again after customer-machine feedback. The default task page now emphasizes one goal input, common task chips, a visual current-progress card, and collapsed maintenance details for approvals, playbooks, outputs, workflows, tasks, and diagnostics.
+
+Phase 62P also adds a separate knowledge base upload/edit page. The knowledge base upload/edit page is visual and does not display code or JSON. It supports:
+
+- file upload to the existing RAG ingest/file upload APIs
+- text material add/update
+- collection and duplicate handling controls
+- upload queue cards
+- document cards with edit shortcuts
+- refresh controls for the current knowledge material
+
+Boundary: Phase 62P is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

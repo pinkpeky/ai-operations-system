@@ -657,6 +657,23 @@ Operator workflow:
 
 Boundary: Phase 62O is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62P Customer Console Simple Operator Mode
+
+Status: active branch `codex/phase-62p-client-simple-operator-mode`.
+
+Phase 62P 继续简化 `worker_console` 和 `worker_console_desktop`。默认任务页只突出一个目标输入框、常用任务按钮、可视化当前进度卡片，以及折叠后的审批、剧本、产物、工作流、任务和诊断维护区。
+
+Phase 62P 同时新增独立的 knowledge base upload/edit page（知识库修改与上传分页）。该页是可视化操作页，不展示代码或 JSON。它支持：
+
+- 上传知识文件到已有 RAG ingest / file upload API
+- 新增或更新文字资料
+- 设置知识分组和重复资料处理方式
+- 查看上传队列卡片
+- 查看资料卡片并快速进入修改
+- 刷新当前知识资料列表
+
+Boundary: Phase 62P is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
