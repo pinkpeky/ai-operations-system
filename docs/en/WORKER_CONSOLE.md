@@ -757,6 +757,22 @@ Operator workflow:
 
 Boundary: Phase 62U is frontend-only. It uses existing file upload, document list, text ingest, reingest, and RAG search APIs. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62V Customer Console Knowledge Validation Guidance
+
+Status: active branch `codex/phase-62v-knowledge-validation-guidance`, draft PR #88.
+
+Phase 62V improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with knowledge validation guidance. It helps customer-machine operators validate selected or newly uploaded material without inventing search terms and without reading code or JSON.
+
+Operator workflow:
+
+- Use suggested validation questions for core content, risks and limits, and execution notes.
+- Validate the currently selected material or the latest upload from compact target cards.
+- Fill a validation question with one click, or run the suggested question immediately.
+- Keep validation results in the same visual search result cards and activity flow.
+- Keep the knowledge page focused on upload, ingestion, validation, and document readiness.
+
+Boundary: Phase 62V is frontend-only. It uses existing file upload, document list, text ingest, reingest, and RAG search APIs. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
