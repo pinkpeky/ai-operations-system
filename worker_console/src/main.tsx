@@ -278,9 +278,24 @@ type KnowledgeBaseCopy = {
   retryFailed: string;
   clearCompleted: string;
   removeFile: string;
+  activityTitle: string;
+  activityEmpty: string;
+  activitySelectedTitle: string;
+  activityUploadTitle: string;
+  activityTextSavedTitle: string;
+  activityRefreshTitle: string;
+  activityRemovedTitle: string;
+  activityClearedTitle: string;
+  activityFiles: string;
+  activitySuccess: string;
+  activityFailed: string;
+  activityInvalid: string;
+  activityCollection: string;
+  clearActivity: string;
 };
 
 type KnowledgeQueueStatus = "queued" | "uploading" | "uploaded" | "failed";
+type KnowledgeActivityTone = "good" | "warn" | "neutral";
 
 type KnowledgeQueueItem = {
   id: string;
@@ -288,6 +303,15 @@ type KnowledgeQueueItem = {
   status: KnowledgeQueueStatus;
   message?: string;
   retryable?: boolean;
+};
+
+type KnowledgeActivityItem = {
+  id: string;
+  title: string;
+  detail: string;
+  meta: string;
+  time: string;
+  tone: KnowledgeActivityTone;
 };
 
 const clientCopy: Record<ClientLanguage, ClientCopy> = {
@@ -589,6 +613,20 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     retryFailed: "重试失败项",
     clearCompleted: "清理已完成",
     removeFile: "移除",
+    activityTitle: "最近上传与修改记录",
+    activityEmpty: "还没有操作记录。选择文件、上传或保存文字后会显示在这里。",
+    activitySelectedTitle: "已选择文件",
+    activityUploadTitle: "上传批次完成",
+    activityTextSavedTitle: "文字资料已保存",
+    activityRefreshTitle: "资料列表已刷新",
+    activityRemovedTitle: "已移除队列文件",
+    activityClearedTitle: "已清理完成项",
+    activityFiles: "文件",
+    activitySuccess: "成功",
+    activityFailed: "失败",
+    activityInvalid: "不可用",
+    activityCollection: "知识分组",
+    clearActivity: "清空记录",
   },
   "en-US": {
     title: "Knowledge Base Upload and Edit",
@@ -662,6 +700,20 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     retryFailed: "Retry failed",
     clearCompleted: "Clear completed",
     removeFile: "Remove",
+    activityTitle: "Recent upload and edit activity",
+    activityEmpty: "No activity yet. Choosing files, uploading, or saving text will appear here.",
+    activitySelectedTitle: "Files selected",
+    activityUploadTitle: "Upload batch completed",
+    activityTextSavedTitle: "Text material saved",
+    activityRefreshTitle: "Library refreshed",
+    activityRemovedTitle: "Queue file removed",
+    activityClearedTitle: "Completed items cleared",
+    activityFiles: "Files",
+    activitySuccess: "Succeeded",
+    activityFailed: "Failed",
+    activityInvalid: "Unavailable",
+    activityCollection: "Collection",
+    clearActivity: "Clear activity",
   },
 };
 
@@ -2248,6 +2300,10 @@ function knowledgeQueueId(file: File): string {
   return `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`;
 }
 
+function knowledgeActivityId(): string {
+  return `knowledge-activity-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function KnowledgeBasePanel({
   language,
   settingsStorageKey,
@@ -2269,6 +2325,18 @@ function KnowledgeBasePanel({
   const [sourceText, setSourceText] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [activities, setActivities] = useState<KnowledgeActivityItem[]>([]);
+
+  const addKnowledgeActivity = useCallback((activity: Omit<KnowledgeActivityItem, "id" | "time">) => {
+    setActivities((current) => [
+      {
+        ...activity,
+        id: knowledgeActivityId(),
+        time: new Date().toLocaleString(),
+      },
+      ...current,
+    ].slice(0, 6));
+  }, []);
 
   const queueStatusLabels: Record<KnowledgeQueueStatus, string> = {
     queued: copy.queued,
@@ -2316,18 +2384,43 @@ function KnowledgeBasePanel({
     },
   ];
 
-  const refreshDocuments = useCallback(async () => {
+  const refreshDocuments = useCallback(async (recordActivity = false) => {
     setLibraryState("loading");
     try {
       const response = await knowledgeBaseClient.documents(settings);
       setDocuments(response.items);
       setLibraryState("ready");
+      if (recordActivity) {
+        addKnowledgeActivity({
+          title: copy.activityRefreshTitle,
+          detail: `${copy.activitySuccess}: ${response.items.length}`,
+          meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+          tone: "good",
+        });
+      }
     } catch {
       setDocuments([]);
       setLibraryState("failed");
       setMessage(copy.requestFailed);
+      if (recordActivity) {
+        addKnowledgeActivity({
+          title: copy.activityRefreshTitle,
+          detail: copy.requestFailed,
+          meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+          tone: "warn",
+        });
+      }
     }
-  }, [copy.requestFailed, settings]);
+  }, [
+    addKnowledgeActivity,
+    collectionName,
+    copy.activityCollection,
+    copy.activityRefreshTitle,
+    copy.activitySuccess,
+    copy.collectionMissing,
+    copy.requestFailed,
+    settings,
+  ]);
 
   useEffect(() => {
     void refreshDocuments();
@@ -2338,7 +2431,7 @@ function KnowledgeBasePanel({
     if (nextFiles.length === 0) {
       return;
     }
-    let hasInvalidFile = false;
+    let invalidFileCount = 0;
     setQueue((current) => [
       ...nextFiles.map((file) => {
         const extension = knowledgeFileExtension(file.name);
@@ -2348,7 +2441,7 @@ function KnowledgeBasePanel({
             ? copy.fileTooLarge
             : null;
         if (validationMessage) {
-          hasInvalidFile = true;
+          invalidFileCount += 1;
         }
         return {
           id: knowledgeQueueId(file),
@@ -2360,7 +2453,13 @@ function KnowledgeBasePanel({
       }),
       ...current,
     ]);
-    setMessage(hasInvalidFile ? copy.nextStepRecover : null);
+    addKnowledgeActivity({
+      title: copy.activitySelectedTitle,
+      detail: `${copy.activityFiles}: ${nextFiles.length}; ${copy.activityInvalid}: ${invalidFileCount}`,
+      meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+      tone: invalidFileCount > 0 ? "warn" : "neutral",
+    });
+    setMessage(invalidFileCount > 0 ? copy.nextStepRecover : null);
   };
 
   const uploadSelectedFiles = async () => {
@@ -2371,6 +2470,8 @@ function KnowledgeBasePanel({
     setUploading(true);
     setMessage(null);
     let hasFailure = false;
+    let uploadedCount = 0;
+    let failedCount = 0;
     for (const item of pendingItems) {
       setQueue((current) =>
         current.map((queueItem) =>
@@ -2391,8 +2492,10 @@ function KnowledgeBasePanel({
             queueItem.id === item.id ? { ...queueItem, status: "uploaded", message: copy.uploaded } : queueItem,
           ),
         );
+        uploadedCount += 1;
       } catch {
         hasFailure = true;
+        failedCount += 1;
         setQueue((current) =>
           current.map((queueItem) =>
             queueItem.id === item.id ? { ...queueItem, status: "failed", message: copy.requestFailed, retryable: true } : queueItem,
@@ -2401,16 +2504,38 @@ function KnowledgeBasePanel({
       }
     }
     setUploading(false);
+    addKnowledgeActivity({
+      title: copy.activityUploadTitle,
+      detail: `${copy.activitySuccess}: ${uploadedCount}; ${copy.activityFailed}: ${failedCount}`,
+      meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+      tone: failedCount > 0 ? "warn" : "good",
+    });
     setMessage(hasFailure ? copy.nextStepRecover : copy.uploaded);
     await refreshDocuments();
   };
 
   const removeKnowledgeQueueItem = (queueItemId: string) => {
+    const removedItem = queue.find((item) => item.id === queueItemId);
     setQueue((current) => current.filter((item) => item.id !== queueItemId));
+    if (removedItem) {
+      addKnowledgeActivity({
+        title: copy.activityRemovedTitle,
+        detail: removedItem.file.name,
+        meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+        tone: "neutral",
+      });
+    }
   };
 
   const clearCompletedKnowledgeFiles = () => {
+    const completedCount = queue.filter((item) => item.status === "uploaded").length;
     setQueue((current) => current.filter((item) => item.status !== "uploaded"));
+    addKnowledgeActivity({
+      title: copy.activityClearedTitle,
+      detail: `${copy.activitySuccess}: ${completedCount}`,
+      meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+      tone: "neutral",
+    });
   };
 
   const saveTextKnowledge = async () => {
@@ -2450,9 +2575,21 @@ function KnowledgeBasePanel({
       }
       setSourceText("");
       setMessage(copy.saved);
+      addKnowledgeActivity({
+        title: copy.activityTextSavedTitle,
+        detail: sourceName.trim() || resolvedSourceId || copy.activityTextSavedTitle,
+        meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+        tone: "good",
+      });
       await refreshDocuments();
     } catch {
       setMessage(copy.requestFailed);
+      addKnowledgeActivity({
+        title: copy.activityTextSavedTitle,
+        detail: copy.requestFailed,
+        meta: `${copy.activityCollection}: ${collectionName.trim() || copy.collectionMissing}`,
+        tone: "warn",
+      });
     } finally {
       setSaving(false);
     }
@@ -2472,7 +2609,7 @@ function KnowledgeBasePanel({
           <Database size={18} />
           <h2>{copy.title}</h2>
         </span>
-        <button className="refresh-button" onClick={() => void refreshDocuments()} disabled={libraryState === "loading"}>
+        <button className="refresh-button" onClick={() => void refreshDocuments(true)} disabled={libraryState === "loading"}>
           <RefreshCcw size={15} />
           {copy.refreshLibrary}
         </button>
@@ -2650,13 +2787,45 @@ function KnowledgeBasePanel({
           {message ? <div className="knowledge-message">{message}</div> : null}
         </section>
       </div>
+      <section className="knowledge-activity-panel" aria-label={copy.activityTitle}>
+        <div className="knowledge-activity-header">
+          <div className="knowledge-card-title">
+            <Activity size={17} />
+            <div>
+              <span>{copy.ready}</span>
+              <h3>{copy.activityTitle}</h3>
+            </div>
+          </div>
+          <button className="refresh-button" onClick={() => setActivities([])} disabled={activities.length === 0}>
+            <XCircle size={15} />
+            {copy.clearActivity}
+          </button>
+        </div>
+        <div className="knowledge-activity-list">
+          {activities.length > 0 ? (
+            activities.map((activity) => (
+              <article className={`knowledge-activity-item ${activity.tone}`} key={activity.id}>
+                <span className="knowledge-activity-dot" />
+                <div>
+                  <strong>{activity.title}</strong>
+                  <p>{activity.detail}</p>
+                  <span>{activity.meta}</span>
+                </div>
+                <time>{activity.time}</time>
+              </article>
+            ))
+          ) : (
+            <div className="knowledge-empty">{copy.activityEmpty}</div>
+          )}
+        </div>
+      </section>
       <section className="knowledge-library-section" aria-label={copy.libraryTitle}>
         <div className="knowledge-library-header">
           <div>
             <span>{libraryState === "loading" ? copy.loading : libraryState === "failed" ? copy.failed : copy.ready}</span>
             <h3>{copy.libraryTitle}</h3>
           </div>
-          <button className="refresh-button" onClick={() => void refreshDocuments()} disabled={libraryState === "loading"}>
+          <button className="refresh-button" onClick={() => void refreshDocuments(true)} disabled={libraryState === "loading"}>
             <RefreshCcw size={15} />
             {copy.refreshLibrary}
           </button>
