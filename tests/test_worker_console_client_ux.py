@@ -550,3 +550,76 @@ def test_phase_62q_knowledge_upload_readiness_is_documented() -> None:
         assert "knowledge upload readiness" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_62r_knowledge_activity_timeline() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "KnowledgeActivityItem",
+            "KnowledgeActivityTone",
+            "knowledgeActivityId",
+            "activities",
+            "setActivities",
+            "addKnowledgeActivity",
+            "activityTitle",
+            "activityUploadTitle",
+            "activityTextSavedTitle",
+            "activityRefreshTitle",
+            "activityRemovedTitle",
+            "activityClearedTitle",
+            "clearActivity",
+            "knowledge-activity-panel",
+            "knowledge-activity-list",
+            "knowledge-activity-item",
+            "knowledge-activity-dot",
+        ]:
+            assert token in text
+        knowledge_panel = text.split("function KnowledgeBasePanel", 1)[1].split("function App", 1)[0]
+        assert "<pre" not in knowledge_panel
+        assert "<code" not in knowledge_panel
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".knowledge-activity-panel",
+            ".knowledge-activity-header",
+            ".knowledge-activity-list",
+            ".knowledge-activity-item",
+            ".knowledge-activity-item.good",
+            ".knowledge-activity-item.warn",
+            ".knowledge-activity-dot",
+        ]:
+            assert token in styles
+
+
+def test_phase_62r_knowledge_activity_timeline_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 62R Customer Console Knowledge Activity Timeline" in text
+        assert "codex/phase-62r-knowledge-activity-timeline" in text
+        assert "knowledge activity timeline" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text

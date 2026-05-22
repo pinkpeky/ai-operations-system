@@ -691,6 +691,23 @@ Operator workflow:
 
 Boundary: Phase 62Q is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62R Customer Console Knowledge Activity Timeline
+
+Status: active branch `codex/phase-62r-knowledge-activity-timeline`, draft PR pending.
+
+Phase 62R continues the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with a knowledge activity timeline. It helps customer-machine operators understand recent upload and edit actions without reading code or JSON.
+
+Operator workflow:
+
+- Select files and see a recent activity record for the selected batch.
+- Upload files and see success/failure counts in the activity timeline.
+- Save text material and see a plain activity record with collection context.
+- Refresh the library and see whether the refresh succeeded or failed.
+- Remove queue files or clear completed items and keep those actions visible.
+- Clear activity when the operator no longer needs the local timeline.
+
+Boundary: Phase 62R is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

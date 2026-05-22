@@ -1188,6 +1188,107 @@ textarea {
   opacity: 0.55;
 }
 
+.knowledge-activity-panel {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.knowledge-activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.knowledge-activity-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.knowledge-activity-header span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.knowledge-activity-list {
+  display: grid;
+  gap: 8px;
+}
+
+.knowledge-activity-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.knowledge-activity-item.good {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #ecfdf5;
+}
+
+.knowledge-activity-item.warn {
+  border-color: rgba(180, 83, 9, 0.26);
+  background: #fffbeb;
+}
+
+.knowledge-activity-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: #64748b;
+}
+
+.knowledge-activity-item.good .knowledge-activity-dot {
+  background: #15803d;
+}
+
+.knowledge-activity-item.warn .knowledge-activity-dot {
+  background: #b45309;
+}
+
+.knowledge-activity-item div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.knowledge-activity-item strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.knowledge-activity-item p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.knowledge-activity-item span,
+.knowledge-activity-item time {
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.knowledge-activity-item time {
+  white-space: nowrap;
+}
+
 .knowledge-message,
 .knowledge-empty {
   padding: 10px;
@@ -2060,6 +2161,7 @@ textarea {
   }
 
   .simple-progress-header,
+  .knowledge-activity-header,
   .knowledge-library-header {
     align-items: flex-start;
     flex-direction: column;
@@ -2077,6 +2179,15 @@ textarea {
   .knowledge-file-remove {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+
+  .knowledge-activity-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .knowledge-activity-item time {
+    grid-column: 1 / -1;
+    white-space: normal;
   }
 
   .workbench-intro {
