@@ -823,6 +823,67 @@ h2 {
   line-height: 1.45;
 }
 
+.knowledge-readiness-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.knowledge-readiness-card {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.knowledge-readiness-card.good {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #ecfdf5;
+}
+
+.knowledge-readiness-card.warn {
+  border-color: rgba(180, 83, 9, 0.26);
+  background: #fffbeb;
+}
+
+.knowledge-readiness-card span,
+.knowledge-next-step-card span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.knowledge-readiness-card strong,
+.knowledge-next-step-card strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.knowledge-next-step-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.knowledge-next-step-card.ready {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: #eff6ff;
+}
+
+.knowledge-next-step-card.warn {
+  border-color: rgba(180, 83, 9, 0.28);
+  background: #fffbeb;
+}
+
 .knowledge-action-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -876,6 +937,26 @@ h2 {
 
 .knowledge-upload-drop input {
   display: none;
+}
+
+.knowledge-file-rules {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.knowledge-file-rules strong {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.knowledge-file-rules span {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .knowledge-form-row {
@@ -938,6 +1019,13 @@ h2 {
   color: #ffffff;
 }
 
+.knowledge-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .knowledge-queue,
 .knowledge-document-grid {
   display: grid;
@@ -947,7 +1035,7 @@ h2 {
 .knowledge-file-card,
 .knowledge-document-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   min-width: 0;
@@ -1011,6 +1099,28 @@ h2 {
 .knowledge-status-badge.failed {
   background: #fee2e2;
   color: #b91c1c;
+}
+
+.knowledge-file-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.knowledge-file-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .knowledge-message,
@@ -1856,6 +1966,7 @@ h2 {
   .simple-template-row,
   .simple-progress-stages,
   .knowledge-flow-grid,
+  .knowledge-readiness-strip,
   .knowledge-action-grid,
   .knowledge-form-row,
   .knowledge-document-grid,
@@ -1875,6 +1986,11 @@ h2 {
   }
 
   .knowledge-status-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .knowledge-file-remove {
     grid-column: 1 / -1;
     justify-self: start;
   }

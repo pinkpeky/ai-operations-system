@@ -674,6 +674,23 @@ Phase 62P also adds a separate knowledge base upload/edit page. The knowledge ba
 
 Boundary: Phase 62P is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62Q Customer Console Knowledge Upload Readiness
+
+Status: active branch `codex/phase-62q-knowledge-upload-readiness`, draft PR pending.
+
+Phase 62Q improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop`. It keeps the page operator-facing and does not display code or JSON.
+
+Operator workflow:
+
+- Check knowledge upload readiness before selecting files.
+- Confirm connection, collection, queue, and library status from visual cards.
+- See supported file rules for PDF, DOCX, TXT, MD, and CSV.
+- Block unsupported files and files larger than 20 MB before upload.
+- Retry failed uploadable files, remove queue items, and clear completed files.
+- Follow the next-step card to choose files, wait for upload, recover failures, or use the knowledge library.
+
+Boundary: Phase 62Q is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
