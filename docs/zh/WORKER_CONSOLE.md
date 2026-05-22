@@ -726,7 +726,7 @@ Boundary: Phase 62S is frontend-only. It does not call ComfyUI, execute OpenClaw
 
 ## Phase 62T Customer Console Knowledge Search Validation
 
-Status: active branch `codex/phase-62t-knowledge-search-validation`, draft PR pending.
+Status: active branch `codex/phase-62t-knowledge-search-validation`, draft PR #86.
 
 Phase 62T continues the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with knowledge search validation. It lets customer-machine operators confirm that uploaded or edited material can be retrieved without reading code or JSON.
 
