@@ -561,6 +561,22 @@ Boundaries: Phase 52 is not Kubernetes/Helm/Terraform, not Ansible, not producti
 Keywords: Phase 52; Deployment Profiles & Environment Bootstrap; local-dev; server-docker; client-worker; desktop-client; staging; production-like; generate_env.py; check_dependencies.py; check_ports.py; verify_environment.py; env generation; dependency checks; port checks; health verification; profile bootstrap docs; Kubernetes/Helm/Terraform.
 <!-- PHASE52_SYNC:END -->
 
+## Phase 62I Workstation/Customer Client Frontend UX Alignment
+
+Status: in progress on `codex/phase-62i-workstation-client-ux`.
+
+Phase 62I 面向客户机/工作站使用人员同步前端操作入口。`worker_console` 和 `worker_console_desktop` 现在提供更简洁的操作首页，集中展示本机连接、Worker runtime、heartbeat 和 recovery 状态。
+
+操作流程：
+
+- 先确认本机 Worker API 是否可达。
+- 在客户机控制台启动本机 runtime 或 heartbeat。
+- 直接跳转到 conversation、playbook、approvals、outputs、task runs 和 logs。
+- 前端界面支持 Chinese/English language switching。
+- 首屏展示 setup、help、recovery 以及 server-vs-customer-machine boundary guidance。
+
+边界：Phase 62I 只是 frontend/readiness slice，不会调用 ComfyUI，不会执行 OpenClaw，不会发布到真实平台，不会控制真实账号，不会签名 installer，不会启用 auto-update，不会绕过 captcha，不会使用 proxy pools，不会绕过 fingerprints，不会解析 secrets，也不会绕过 approval。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
