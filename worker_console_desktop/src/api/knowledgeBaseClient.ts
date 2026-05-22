@@ -4,9 +4,13 @@ export type KnowledgeDocument = {
   id?: string;
   source_id?: string;
   source_name?: string;
+  source_type?: string;
   filename?: string;
   collection_name?: string;
   status?: string;
+  ingest_status?: string;
+  error_message?: string | null;
+  metadata?: Record<string, unknown>;
   chunk_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -16,6 +20,23 @@ export type KnowledgeUploadPayload = {
   file: File;
   collectionName?: string;
   duplicateStrategy?: "skip" | "force_reingest";
+};
+
+export type KnowledgeUploadResponse = {
+  filename: string;
+  file_type: string;
+  file_size: number;
+  file_hash: string;
+  collection_name: string;
+  source_id: string;
+  document_id?: string | null;
+  version?: number | null;
+  chunk_count: number;
+  chunk_ids: string[];
+  ingest_status: string;
+  ingest_error?: string | null;
+  skipped_duplicate: boolean;
+  metadata?: Record<string, unknown>;
 };
 
 export type KnowledgeSearchMode = "dense" | "keyword" | "hybrid";
@@ -73,7 +94,7 @@ export const knowledgeBaseClient = {
     if (payload.collectionName) {
       form.set("collection_name", payload.collectionName);
     }
-    return requestJson<Record<string, unknown>>("/files/upload", { method: "POST", body: form }, settings);
+    return requestJson<KnowledgeUploadResponse>("/files/upload", { method: "POST", body: form }, settings);
   },
   ingestText: (
     payload: {
