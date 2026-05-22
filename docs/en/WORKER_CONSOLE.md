@@ -659,7 +659,7 @@ Boundary: Phase 62O is frontend-only. It does not call ComfyUI, execute OpenClaw
 
 ## Phase 62P Customer Console Simple Operator Mode
 
-Status: active branch `codex/phase-62p-client-simple-operator-mode`.
+Status: active branch `codex/phase-62p-client-simple-operator-mode`, draft PR #82.
 
 Phase 62P simplifies `worker_console` and `worker_console_desktop` again after customer-machine feedback. The default task page now emphasizes one goal input, common task chips, a visual current-progress card, and collapsed maintenance details for approvals, playbooks, outputs, workflows, tasks, and diagnostics.
 
