@@ -279,6 +279,21 @@ type KnowledgeBaseCopy = {
   documentStatus: string;
   documentChunks: string;
   updatedAt: string;
+  documentOverviewTitle: string;
+  documentOverviewTotal: string;
+  documentOverviewReady: string;
+  documentOverviewNeedsReview: string;
+  documentOverviewSelected: string;
+  detailTitle: string;
+  detailEmpty: string;
+  detailSourceId: string;
+  detailCollection: string;
+  detailCreatedAt: string;
+  detailHealthReady: string;
+  detailHealthNeedsReview: string;
+  detailHealthUnknown: string;
+  viewDetails: string;
+  useForUpdate: string;
   requestFailed: string;
   readinessTitle: string;
   connectionLabel: string;
@@ -614,6 +629,21 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     documentStatus: "状态",
     documentChunks: "分段",
     updatedAt: "更新时间",
+    documentOverviewTitle: "资料处理概览",
+    documentOverviewTotal: "资料总数",
+    documentOverviewReady: "可检索资料",
+    documentOverviewNeedsReview: "需要关注",
+    documentOverviewSelected: "当前查看",
+    detailTitle: "资料详情",
+    detailEmpty: "选择一份资料后，会显示来源编号、分组、分段、更新时间和处理状态。",
+    detailSourceId: "来源编号",
+    detailCollection: "所在分组",
+    detailCreatedAt: "创建时间",
+    detailHealthReady: "资料已可检索",
+    detailHealthNeedsReview: "需要检查处理状态",
+    detailHealthUnknown: "等待确认状态",
+    viewDetails: "查看详情",
+    useForUpdate: "用此资料更新",
     requestFailed: "知识库服务暂时不可用，请检查 AI Server 连接后重试。",
     readinessTitle: "上传就绪状态",
     connectionLabel: "知识库连接",
@@ -701,6 +731,21 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     documentStatus: "Status",
     documentChunks: "Chunks",
     updatedAt: "Updated",
+    documentOverviewTitle: "Material processing overview",
+    documentOverviewTotal: "Total material",
+    documentOverviewReady: "Search-ready",
+    documentOverviewNeedsReview: "Needs review",
+    documentOverviewSelected: "Now viewing",
+    detailTitle: "Material details",
+    detailEmpty: "Choose material to see source ID, collection, chunks, updated time, and processing status.",
+    detailSourceId: "Source ID",
+    detailCollection: "Collection",
+    detailCreatedAt: "Created",
+    detailHealthReady: "Material is searchable",
+    detailHealthNeedsReview: "Check processing status",
+    detailHealthUnknown: "Status needs confirmation",
+    viewDetails: "View details",
+    useForUpdate: "Use for update",
     requestFailed: "Knowledge service is unavailable. Check AI Server connection and retry.",
     readinessTitle: "Upload readiness",
     connectionLabel: "Knowledge connection",
@@ -2415,6 +2460,21 @@ function documentDisplayName(document: KnowledgeDocument): string {
   return document.source_name || document.filename || document.source_id || document.id || "Untitled material";
 }
 
+function knowledgeDocumentKey(document: KnowledgeDocument): string {
+  return document.id ?? document.source_id ?? document.filename ?? documentDisplayName(document);
+}
+
+function knowledgeDocumentStatusTone(document: KnowledgeDocument): KnowledgeActivityTone {
+  const status = (document.status ?? "").toLowerCase();
+  if (/fail|error|invalid|missing/.test(status)) {
+    return "warn";
+  }
+  if (/ready|complete|completed|ingested|indexed|available|success/.test(status) || (!status && (document.chunk_count ?? 0) > 0)) {
+    return "good";
+  }
+  return "neutral";
+}
+
 const KNOWLEDGE_MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_KNOWLEDGE_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv"];
 
@@ -2453,6 +2513,7 @@ function KnowledgeBasePanel({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activities, setActivities] = useState<KnowledgeActivityItem[]>([]);
+  const [selectedDocumentKey, setSelectedDocumentKey] = useState<string | null>(null);
 
   const addKnowledgeActivity = useCallback((activity: Omit<KnowledgeActivityItem, "id" | "time">) => {
     setActivities((current) => [
@@ -2510,6 +2571,39 @@ function KnowledgeBasePanel({
       state: documents.length > 0 ? "good" : "warn",
     },
   ];
+  const selectedDocument = useMemo(() => {
+    if (documents.length === 0) {
+      return null;
+    }
+    return documents.find((document) => knowledgeDocumentKey(document) === selectedDocumentKey) ?? documents[0];
+  }, [documents, selectedDocumentKey]);
+  const selectedDocumentTone = selectedDocument ? knowledgeDocumentStatusTone(selectedDocument) : "neutral";
+  const readyDocumentCount = documents.filter((document) => knowledgeDocumentStatusTone(document) === "good").length;
+  const reviewDocumentCount = documents.filter((document) => knowledgeDocumentStatusTone(document) === "warn").length;
+  const selectedDocumentStatusLabel =
+    selectedDocument?.status ||
+    (selectedDocumentTone === "good"
+      ? copy.detailHealthReady
+      : selectedDocumentTone === "warn"
+        ? copy.detailHealthNeedsReview
+        : copy.detailHealthUnknown);
+  const selectedDocumentHealthLabel =
+    selectedDocumentTone === "good"
+      ? copy.detailHealthReady
+      : selectedDocumentTone === "warn"
+        ? copy.detailHealthNeedsReview
+        : copy.detailHealthUnknown;
+
+  useEffect(() => {
+    if (documents.length === 0) {
+      setSelectedDocumentKey(null);
+      return;
+    }
+    if (selectedDocumentKey && documents.some((document) => knowledgeDocumentKey(document) === selectedDocumentKey)) {
+      return;
+    }
+    setSelectedDocumentKey(knowledgeDocumentKey(documents[0]));
+  }, [documents, selectedDocumentKey]);
 
   const refreshDocuments = useCallback(async (recordActivity = false) => {
     setLibraryState("loading");
@@ -2724,6 +2818,7 @@ function KnowledgeBasePanel({
 
   const selectDocumentForEdit = (document: KnowledgeDocument) => {
     setEditMode("replace");
+    setSelectedDocumentKey(knowledgeDocumentKey(document));
     setSourceName(documentDisplayName(document));
     setSourceId(document.source_id || document.id || "");
     setMessage(null);
@@ -2957,31 +3052,117 @@ function KnowledgeBasePanel({
             {copy.refreshLibrary}
           </button>
         </div>
-        <div className="knowledge-document-grid">
-          {documents.length > 0 ? (
-            documents.slice(0, 12).map((document) => (
-              <article className="knowledge-document-card" key={document.id ?? document.source_id ?? documentDisplayName(document)}>
-                <div className="knowledge-document-main">
-                  <FileText size={18} />
+        <div className="knowledge-document-overview" aria-label={copy.documentOverviewTitle}>
+          <div className="knowledge-document-overview-card">
+            <span>{copy.documentOverviewTotal}</span>
+            <strong>{documents.length}</strong>
+          </div>
+          <div className="knowledge-document-overview-card good">
+            <span>{copy.documentOverviewReady}</span>
+            <strong>{readyDocumentCount}</strong>
+          </div>
+          <div className="knowledge-document-overview-card warn">
+            <span>{copy.documentOverviewNeedsReview}</span>
+            <strong>{reviewDocumentCount}</strong>
+          </div>
+          <div className="knowledge-document-overview-card">
+            <span>{copy.documentOverviewSelected}</span>
+            <strong>{selectedDocument ? documentDisplayName(selectedDocument) : "-"}</strong>
+          </div>
+        </div>
+        <div className="knowledge-document-workspace">
+          <div className="knowledge-document-grid">
+            {documents.length > 0 ? (
+              documents.slice(0, 12).map((document) => {
+                const documentKey = knowledgeDocumentKey(document);
+                const documentTone = knowledgeDocumentStatusTone(document);
+                const documentStatusLabel =
+                  document.status ||
+                  (documentTone === "good"
+                    ? copy.detailHealthReady
+                    : documentTone === "warn"
+                      ? copy.detailHealthNeedsReview
+                      : copy.detailHealthUnknown);
+                return (
+                  <article
+                    className={`knowledge-document-card ${documentTone} ${selectedDocumentKey === documentKey ? "selected" : ""}`}
+                    key={documentKey}
+                  >
+                    <div className="knowledge-document-main">
+                      <FileText size={18} />
+                      <div>
+                        <strong>{documentDisplayName(document)}</strong>
+                        <span>{document.collection_name ?? collectionName}</span>
+                      </div>
+                    </div>
+                    <div className="knowledge-document-meta">
+                      <span>{copy.documentStatus}: {documentStatusLabel}</span>
+                      <span>{copy.documentChunks}: {document.chunk_count ?? "-"}</span>
+                      <span>{copy.updatedAt}: {document.updated_at ?? document.created_at ?? "-"}</span>
+                    </div>
+                    <div className="knowledge-document-actions">
+                      <button className="refresh-button" onClick={() => setSelectedDocumentKey(documentKey)}>
+                        <FileText size={14} />
+                        {copy.viewDetails}
+                      </button>
+                      <button className="refresh-button" onClick={() => selectDocumentForEdit(document)}>
+                        <PencilLine size={14} />
+                        {copy.editExisting}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="knowledge-empty">{copy.emptyLibrary}</div>
+            )}
+          </div>
+          <aside className={`knowledge-document-detail-panel ${selectedDocumentTone}`} aria-label={copy.detailTitle}>
+            {selectedDocument ? (
+              <>
+                <div className="knowledge-detail-health">
+                  {selectedDocumentTone === "warn" ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
                   <div>
-                    <strong>{documentDisplayName(document)}</strong>
-                    <span>{document.collection_name ?? collectionName}</span>
+                    <span>{copy.detailTitle}</span>
+                    <strong>{selectedDocumentHealthLabel}</strong>
                   </div>
                 </div>
-                <div className="knowledge-document-meta">
-                  <span>{copy.documentStatus}: {document.status ?? copy.ready}</span>
-                  <span>{copy.documentChunks}: {document.chunk_count ?? "-"}</span>
-                  <span>{copy.updatedAt}: {document.updated_at ?? document.created_at ?? "-"}</span>
-                </div>
-                <button className="refresh-button" onClick={() => selectDocumentForEdit(document)}>
-                  <PencilLine size={14} />
-                  {copy.editExisting}
+                <h4>{documentDisplayName(selectedDocument)}</h4>
+                <dl className="knowledge-detail-list">
+                  <div>
+                    <dt>{copy.detailSourceId}</dt>
+                    <dd>{selectedDocument.source_id ?? selectedDocument.id ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>{copy.detailCollection}</dt>
+                    <dd>{selectedDocument.collection_name ?? collectionName}</dd>
+                  </div>
+                  <div>
+                    <dt>{copy.documentStatus}</dt>
+                    <dd>{selectedDocumentStatusLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>{copy.documentChunks}</dt>
+                    <dd>{selectedDocument.chunk_count ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>{copy.detailCreatedAt}</dt>
+                    <dd>{selectedDocument.created_at ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>{copy.updatedAt}</dt>
+                    <dd>{selectedDocument.updated_at ?? selectedDocument.created_at ?? "-"}</dd>
+                  </div>
+                </dl>
+                <button className="action-button primary-action" onClick={() => selectDocumentForEdit(selectedDocument)}>
+                  <PencilLine size={16} />
+                  {copy.useForUpdate}
                 </button>
-              </article>
-            ))
-          ) : (
-            <div className="knowledge-empty">{copy.emptyLibrary}</div>
-          )}
+              </>
+            ) : (
+              <div className="knowledge-empty">{copy.detailEmpty}</div>
+            )}
+          </aside>
         </div>
       </section>
     </section>
