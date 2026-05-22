@@ -708,6 +708,22 @@ Operator workflow:
 
 Boundary: Phase 62R is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62S Customer Console Knowledge Document Details
+
+Status: active branch `codex/phase-62s-knowledge-document-details`, draft PR pending.
+
+Phase 62S improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with knowledge document details. It keeps the page operator-facing and does not display code or JSON.
+
+Operator workflow:
+
+- Review the document processing overview for total material, search-ready material, items needing review, and the currently selected material.
+- Select a document card to view plain details without opening diagnostics.
+- Confirm source id, collection, status, chunk count, created time, and updated time from the details panel.
+- Use the selected document for update so the edit form is prefilled with the document identity.
+- Keep upload readiness and recent activity visible while inspecting document readiness.
+
+Boundary: Phase 62S is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
