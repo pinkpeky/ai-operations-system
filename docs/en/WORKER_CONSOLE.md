@@ -741,6 +741,22 @@ Operator workflow:
 
 Boundary: Phase 62T is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62U Customer Console Knowledge Ingestion Status Loop
+
+Status: active branch `codex/phase-62u-knowledge-ingestion-status`, draft PR pending.
+
+Phase 62U improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with a knowledge ingestion status loop. It lets customer-machine operators understand what happened after upload or text update without reading code or JSON.
+
+Operator workflow:
+
+- See queued, uploading, processing, search-ready, and needs-review counts.
+- Follow a simple selected -> upload -> chunk/index -> search validation pipeline.
+- Review latest upload results with source IDs, document IDs, chunk counts, duplicate-skip notes, and failure reasons.
+- Refresh document status or retry recoverable failed uploads from the same visual panel.
+- Inspect selected-document ingestion status and error messages in the details panel.
+
+Boundary: Phase 62U is frontend-only. It uses existing file upload, document list, text ingest, reingest, and RAG search APIs. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -52,7 +52,13 @@ import {
 } from "./api/workflowClient";
 import { workflowTemplateClient, WorkflowTemplate, WorkflowTemplateRun } from "./api/workflowTemplateClient";
 import { localWorkerClient, WorkerHealth, WorkerLogs, WorkerStatus } from "./api/localWorkerClient";
-import { knowledgeBaseClient, KnowledgeDocument, KnowledgeSearchMode, KnowledgeSearchResult } from "./api/knowledgeBaseClient";
+import {
+  knowledgeBaseClient,
+  KnowledgeDocument,
+  KnowledgeSearchMode,
+  KnowledgeSearchResult,
+  KnowledgeUploadResponse,
+} from "./api/knowledgeBaseClient";
 import "./styles.css";
 
 const fallbackStatus: WorkerStatus = {
@@ -330,10 +336,35 @@ type KnowledgeBaseCopy = {
   validationSearchTitle: string;
   validationFailedTitle: string;
   validationClear: string;
+  ingestionTitle: string;
+  ingestionHint: string;
+  ingestionNextAction: string;
+  ingestionTimelineTitle: string;
+  ingestionStepSelect: string;
+  ingestionStepUpload: string;
+  ingestionStepIndex: string;
+  ingestionStepValidate: string;
+  ingestionReady: string;
+  ingestionProcessing: string;
+  ingestionNeedsReview: string;
+  ingestionFailed: string;
+  ingestionQueued: string;
+  ingestionUploaded: string;
+  ingestionSearchable: string;
+  ingestionNoBatch: string;
+  ingestionLatestBatch: string;
+  ingestionRefresh: string;
+  ingestionRetry: string;
+  ingestionSkipped: string;
+  ingestionSourceId: string;
+  ingestionDocumentId: string;
+  ingestionError: string;
+  ingestionSelectedStatus: string;
 };
 
 type KnowledgeQueueStatus = "queued" | "uploading" | "uploaded" | "failed";
 type KnowledgeActivityTone = "good" | "warn" | "neutral";
+type KnowledgeIngestionStage = "ready" | "processing" | "failed" | "waiting";
 
 type KnowledgeQueueItem = {
   id: string;
@@ -341,6 +372,13 @@ type KnowledgeQueueItem = {
   status: KnowledgeQueueStatus;
   message?: string;
   retryable?: boolean;
+  upload?: KnowledgeUploadResponse;
+  sourceId?: string;
+  documentId?: string | null;
+  chunkCount?: number;
+  ingestStatus?: string;
+  ingestError?: string | null;
+  uploadedAt?: string;
 };
 
 type KnowledgeActivityItem = {
@@ -702,6 +740,30 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     validationSearchTitle: "知识检索验证完成",
     validationFailedTitle: "知识检索验证失败",
     validationClear: "清空结果",
+    ingestionTitle: "入库状态闭环",
+    ingestionHint: "查看资料从选择、上传、切分入库到检索验证的当前状态和失败原因。",
+    ingestionNextAction: "当前建议",
+    ingestionTimelineTitle: "处理步骤",
+    ingestionStepSelect: "已选择",
+    ingestionStepUpload: "上传",
+    ingestionStepIndex: "切分入库",
+    ingestionStepValidate: "检索验证",
+    ingestionReady: "可检索",
+    ingestionProcessing: "处理中",
+    ingestionNeedsReview: "需处理",
+    ingestionFailed: "失败",
+    ingestionQueued: "待上传",
+    ingestionUploaded: "已上传",
+    ingestionSearchable: "可用于检索",
+    ingestionNoBatch: "还没有上传批次。选择文件或保存文字后，这里会显示处理状态。",
+    ingestionLatestBatch: "最近处理",
+    ingestionRefresh: "刷新状态",
+    ingestionRetry: "重试失败",
+    ingestionSkipped: "检测到重复，已保留现有版本。",
+    ingestionSourceId: "来源编号",
+    ingestionDocumentId: "文档编号",
+    ingestionError: "失败原因",
+    ingestionSelectedStatus: "入库状态",
   },
   "en-US": {
     title: "Knowledge Base Upload and Edit",
@@ -826,6 +888,30 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     validationSearchTitle: "Knowledge search validation completed",
     validationFailedTitle: "Knowledge search validation failed",
     validationClear: "Clear results",
+    ingestionTitle: "Ingestion status loop",
+    ingestionHint: "Track material from selection and upload through chunking, indexing, and search validation.",
+    ingestionNextAction: "Current suggestion",
+    ingestionTimelineTitle: "Processing steps",
+    ingestionStepSelect: "Selected",
+    ingestionStepUpload: "Upload",
+    ingestionStepIndex: "Chunk and index",
+    ingestionStepValidate: "Search validation",
+    ingestionReady: "Search-ready",
+    ingestionProcessing: "Processing",
+    ingestionNeedsReview: "Needs action",
+    ingestionFailed: "Failed",
+    ingestionQueued: "Queued",
+    ingestionUploaded: "Uploaded",
+    ingestionSearchable: "Searchable",
+    ingestionNoBatch: "No upload batch yet. Choose files or save text to see processing status here.",
+    ingestionLatestBatch: "Latest processing",
+    ingestionRefresh: "Refresh status",
+    ingestionRetry: "Retry failed",
+    ingestionSkipped: "Duplicate detected; the existing version was kept.",
+    ingestionSourceId: "Source ID",
+    ingestionDocumentId: "Document ID",
+    ingestionError: "Failure reason",
+    ingestionSelectedStatus: "Ingestion status",
   },
 };
 
@@ -2405,7 +2491,7 @@ function knowledgeDocumentKey(document: KnowledgeDocument): string {
 }
 
 function knowledgeDocumentStatusTone(document: KnowledgeDocument): KnowledgeActivityTone {
-  const status = (document.status ?? "").toLowerCase();
+  const status = `${document.status ?? ""} ${document.ingest_status ?? ""} ${document.error_message ?? ""}`.trim().toLowerCase();
   if (/fail|error|invalid|missing/.test(status)) {
     return "warn";
   }
@@ -2413,6 +2499,47 @@ function knowledgeDocumentStatusTone(document: KnowledgeDocument): KnowledgeActi
     return "good";
   }
   return "neutral";
+}
+
+function knowledgeDocumentIngestionStage(document: KnowledgeDocument): KnowledgeIngestionStage {
+  const status = `${document.status ?? ""} ${document.ingest_status ?? ""}`.trim().toLowerCase();
+  if (document.error_message || /fail|error|invalid|missing/.test(status)) {
+    return "failed";
+  }
+  if (/ready|complete|completed|ingested|indexed|available|success|active/.test(status) || (document.chunk_count ?? 0) > 0) {
+    return "ready";
+  }
+  if (/queued|pending|uploading|processing|running|ingest/.test(status)) {
+    return "processing";
+  }
+  return "waiting";
+}
+
+function knowledgeIngestionProgressForQueue(item: KnowledgeQueueItem): number {
+  if (item.status === "failed") {
+    return item.ingestStatus ? 75 : 35;
+  }
+  if (item.status === "uploaded") {
+    return item.chunkCount && item.chunkCount > 0 ? 100 : 85;
+  }
+  if (item.status === "uploading") {
+    return 55;
+  }
+  return 25;
+}
+
+function knowledgeIngestionProgressForDocument(document: KnowledgeDocument): number {
+  const stage = knowledgeDocumentIngestionStage(document);
+  if (stage === "ready") {
+    return 100;
+  }
+  if (stage === "processing") {
+    return 65;
+  }
+  if (stage === "failed") {
+    return 75;
+  }
+  return 20;
 }
 
 function knowledgeMetadataText(metadata: Record<string, unknown> | undefined, keys: string[]): string | null {
@@ -2553,6 +2680,57 @@ function KnowledgeBasePanel({
   const selectedDocumentTone = selectedDocument ? knowledgeDocumentStatusTone(selectedDocument) : "neutral";
   const readyDocumentCount = documents.filter((document) => knowledgeDocumentStatusTone(document) === "good").length;
   const reviewDocumentCount = documents.filter((document) => knowledgeDocumentStatusTone(document) === "warn").length;
+  const processingDocumentCount = documents.filter((document) => knowledgeDocumentIngestionStage(document) === "processing").length;
+  const ingestionNeedsActionCount = failedFileCount + reviewDocumentCount;
+  const ingestionPanelTone =
+    ingestionNeedsActionCount > 0 || libraryState === "failed"
+      ? "warn"
+      : uploadingFileCount > 0 || queuedFileCount > 0 || processingDocumentCount > 0
+        ? "neutral"
+        : readyDocumentCount > 0
+          ? "good"
+          : "neutral";
+  const ingestionPipelineSteps = [
+    {
+      label: copy.ingestionStepSelect,
+      state: queue.length > 0 || documents.length > 0 ? "done" : "waiting",
+    },
+    {
+      label: copy.ingestionStepUpload,
+      state:
+        failedFileCount > 0
+          ? "needs-action"
+          : uploadingFileCount > 0
+            ? "current"
+            : uploadedFileCount > 0 || documents.length > 0
+              ? "done"
+              : queuedFileCount > 0
+                ? "current"
+                : "waiting",
+    },
+    {
+      label: copy.ingestionStepIndex,
+      state:
+        reviewDocumentCount > 0
+          ? "needs-action"
+          : processingDocumentCount > 0
+            ? "current"
+            : readyDocumentCount > 0 || uploadedFileCount > 0
+              ? "done"
+              : "waiting",
+    },
+    {
+      label: copy.ingestionStepValidate,
+      state:
+        validationState === "failed" || (validationState === "ready" && validationResults.length === 0)
+          ? "needs-action"
+          : validationState === "loading"
+            ? "current"
+            : validationState === "ready" && validationResults.length > 0
+              ? "done"
+              : "waiting",
+    },
+  ];
   const selectedDocumentStatusLabel =
     selectedDocument?.status ||
     (selectedDocumentTone === "good"
@@ -2566,6 +2744,7 @@ function KnowledgeBasePanel({
       : selectedDocumentTone === "warn"
         ? copy.detailHealthNeedsReview
         : copy.detailHealthUnknown;
+  const selectedDocumentIngestLabel = selectedDocument?.ingest_status || selectedDocumentStatusLabel;
 
   useEffect(() => {
     if (documents.length === 0) {
@@ -2673,7 +2852,7 @@ function KnowledgeBasePanel({
         ),
       );
       try {
-        await knowledgeBaseClient.uploadFile(
+        const response = await knowledgeBaseClient.uploadFile(
           {
             file: item.file,
             collectionName: collectionName.trim() || undefined,
@@ -2681,12 +2860,37 @@ function KnowledgeBasePanel({
           },
           settings,
         );
+        const responseFailed = Boolean(response.ingest_error) || /fail|error/.test(response.ingest_status.toLowerCase());
+        const nextMessage = responseFailed
+          ? response.ingest_error || copy.requestFailed
+          : response.skipped_duplicate
+            ? copy.ingestionSkipped
+            : `${copy.documentChunks}: ${response.chunk_count}`;
         setQueue((current) =>
           current.map((queueItem) =>
-            queueItem.id === item.id ? { ...queueItem, status: "uploaded", message: copy.uploaded } : queueItem,
+            queueItem.id === item.id
+              ? {
+                  ...queueItem,
+                  status: responseFailed ? "failed" : "uploaded",
+                  message: nextMessage,
+                  retryable: responseFailed,
+                  upload: response,
+                  sourceId: response.source_id,
+                  documentId: response.document_id ?? null,
+                  chunkCount: response.chunk_count,
+                  ingestStatus: response.ingest_status,
+                  ingestError: response.ingest_error ?? null,
+                  uploadedAt: new Date().toLocaleString(),
+                }
+              : queueItem,
           ),
         );
-        uploadedCount += 1;
+        if (responseFailed) {
+          hasFailure = true;
+          failedCount += 1;
+        } else {
+          uploadedCount += 1;
+        }
       } catch {
         hasFailure = true;
         failedCount += 1;
@@ -3024,6 +3228,111 @@ function KnowledgeBasePanel({
           {message ? <div className="knowledge-message">{message}</div> : null}
         </section>
       </div>
+      <section className={`knowledge-ingestion-panel ${ingestionPanelTone}`} aria-label={copy.ingestionTitle}>
+        <div className="knowledge-ingestion-header">
+          <div className="knowledge-card-title">
+            {ingestionNeedsActionCount > 0 || libraryState === "failed" ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}
+            <div>
+              <span>{copy.ingestionNextAction}</span>
+              <h3>{copy.ingestionTitle}</h3>
+              <p>{copy.ingestionHint}</p>
+              <strong>{nextKnowledgeStep}</strong>
+            </div>
+          </div>
+          <div className="knowledge-ingestion-actions">
+            <button className="refresh-button" onClick={() => void refreshDocuments(true)} disabled={libraryState === "loading"}>
+              <RefreshCcw size={15} />
+              {copy.ingestionRefresh}
+            </button>
+            {retryableFailedCount > 0 ? (
+              <button className="refresh-button" onClick={() => void uploadSelectedFiles()} disabled={uploading}>
+                <RefreshCcw size={15} />
+                {copy.ingestionRetry}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className="knowledge-ingestion-stats">
+          <div className={`knowledge-ingestion-stat-card ${queuedFileCount > 0 ? "warn" : "good"}`}>
+            <span>{copy.ingestionQueued}</span>
+            <strong>{queuedFileCount}</strong>
+          </div>
+          <div className={`knowledge-ingestion-stat-card ${uploadingFileCount > 0 || processingDocumentCount > 0 ? "neutral" : "good"}`}>
+            <span>{copy.ingestionProcessing}</span>
+            <strong>{uploadingFileCount + processingDocumentCount}</strong>
+          </div>
+          <div className="knowledge-ingestion-stat-card good">
+            <span>{copy.ingestionReady}</span>
+            <strong>{readyDocumentCount}</strong>
+          </div>
+          <div className={`knowledge-ingestion-stat-card ${ingestionNeedsActionCount > 0 ? "warn" : "good"}`}>
+            <span>{copy.ingestionNeedsReview}</span>
+            <strong>{ingestionNeedsActionCount}</strong>
+          </div>
+        </div>
+        <div className="knowledge-ingestion-pipeline" aria-label={copy.ingestionTimelineTitle}>
+          {ingestionPipelineSteps.map((step, index) => (
+            <div className={`knowledge-ingestion-step ${step.state}`} key={step.label}>
+              <span>{index + 1}</span>
+              <strong>{step.label}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="knowledge-ingestion-list" aria-label={copy.ingestionLatestBatch}>
+          {queue.length > 0
+            ? queue.slice(0, 6).map((item) => {
+                const progress = knowledgeIngestionProgressForQueue(item);
+                return (
+                  <article className={`knowledge-ingestion-item ${item.status}`} key={item.id}>
+                    <div className="knowledge-ingestion-item-main">
+                      <FileText size={17} />
+                      <div>
+                        <strong>{item.file.name}</strong>
+                        <span>{item.ingestStatus || queueStatusLabels[item.status]}</span>
+                      </div>
+                    </div>
+                    <div className="knowledge-ingestion-progress" aria-label={`${copy.ingestionProcessing}: ${progress}%`}>
+                      <span style={{ width: `${progress}%` }} />
+                    </div>
+                    <div className="knowledge-ingestion-meta">
+                      <span>{copy.ingestionSourceId}: {item.sourceId ?? "-"}</span>
+                      <span>{copy.ingestionDocumentId}: {item.documentId ?? "-"}</span>
+                      <span>{copy.documentChunks}: {item.chunkCount ?? "-"}</span>
+                      {item.ingestError || item.message ? (
+                        <span>{copy.ingestionError}: {item.ingestError ?? item.message}</span>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })
+            : documents.length > 0
+              ? documents.slice(0, 4).map((document) => {
+                  const stage = knowledgeDocumentIngestionStage(document);
+                  const progress = knowledgeIngestionProgressForDocument(document);
+                  return (
+                    <article className={`knowledge-ingestion-item ${stage}`} key={knowledgeDocumentKey(document)}>
+                      <div className="knowledge-ingestion-item-main">
+                        <FileText size={17} />
+                        <div>
+                          <strong>{documentDisplayName(document)}</strong>
+                          <span>{document.ingest_status || document.status || copy.detailHealthUnknown}</span>
+                        </div>
+                      </div>
+                      <div className="knowledge-ingestion-progress" aria-label={`${copy.ingestionProcessing}: ${progress}%`}>
+                        <span style={{ width: `${progress}%` }} />
+                      </div>
+                      <div className="knowledge-ingestion-meta">
+                        <span>{copy.ingestionSourceId}: {document.source_id ?? "-"}</span>
+                        <span>{copy.detailCollection}: {document.collection_name ?? collectionName}</span>
+                        <span>{copy.documentChunks}: {document.chunk_count ?? "-"}</span>
+                        {document.error_message ? <span>{copy.ingestionError}: {document.error_message}</span> : null}
+                      </div>
+                    </article>
+                  );
+                })
+              : <div className="knowledge-empty">{copy.ingestionNoBatch}</div>}
+        </div>
+      </section>
       <section className="knowledge-activity-panel" aria-label={copy.activityTitle}>
         <div className="knowledge-activity-header">
           <div className="knowledge-card-title">
@@ -3233,9 +3542,19 @@ function KnowledgeBasePanel({
                     <dd>{selectedDocumentStatusLabel}</dd>
                   </div>
                   <div>
+                    <dt>{copy.ingestionSelectedStatus}</dt>
+                    <dd>{selectedDocumentIngestLabel}</dd>
+                  </div>
+                  <div>
                     <dt>{copy.documentChunks}</dt>
                     <dd>{selectedDocument.chunk_count ?? "-"}</dd>
                   </div>
+                  {selectedDocument.error_message ? (
+                    <div>
+                      <dt>{copy.ingestionError}</dt>
+                      <dd>{selectedDocument.error_message}</dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt>{copy.detailCreatedAt}</dt>
                     <dd>{selectedDocument.created_at ?? "-"}</dd>
