@@ -322,6 +322,44 @@ async def test_comfyui_runtime_config_change_request_persists_without_network(se
         status="ready_for_review",
         reviewer_notes="ready for maintainer review",
     )
+    approved = await service.update_config_change_request_status(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        request_id=change_request.id,
+        status="approved_for_manual_apply",
+        reviewer_notes="approved for a human maintainer only",
+    )
+    evidence = await service.create_manual_apply_evidence(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        request_id=approved.id,
+        user_id="user-comfyui",
+        service_restart_reported=True,
+        restart_evidence={"restart_mode": "manual_api_restart"},
+        rollback_notes="restore previous COMFYUI_RUNTIME_* values if readiness regresses",
+        verification_notes="no-network diagnostics captured after manual apply",
+        operator_note="human changed env outside the API",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    listed_evidence = await service.list_manual_apply_evidence(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        limit=10,
+    )
+    ready_evidence = await service.update_manual_apply_evidence_status(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        evidence_id=evidence.id,
+        status="ready_for_review",
+        reviewer_notes="ready to verify",
+    )
+    verified_evidence = await service.update_manual_apply_evidence_status(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        evidence_id=evidence.id,
+        status="verified",
+        reviewer_notes="verified metadata evidence",
+    )
 
     assert change_request.workspace_id == "workspace-comfyui-config-requests"
     assert change_request.user_id == "user-comfyui"
@@ -343,6 +381,30 @@ async def test_comfyui_runtime_config_change_request_persists_without_network(se
     assert ready.change_status == "ready_for_review"
     assert ready.reviewer_notes == "ready for maintainer review"
     assert ready.config_mutation_performed is False
+    assert approved.change_status == "approved_for_manual_apply"
+    assert evidence.workspace_id == "workspace-comfyui-config-requests"
+    assert evidence.user_id == "user-comfyui"
+    assert evidence.config_change_request_id == approved.id
+    assert evidence.evidence_status == "draft"
+    assert evidence.readiness_status_before == "blocked"
+    assert evidence.readiness_status_after == "blocked"
+    assert evidence.external_request_attempted is False
+    assert evidence.runtime_calls_enabled is False
+    assert evidence.api_config_mutation_performed is False
+    assert evidence.manual_config_applied is True
+    assert evidence.service_restart_reported is True
+    assert evidence.metadata["phase"] == "62G"
+    assert evidence.metadata["no_network_call_performed"] is True
+    assert evidence.metadata["api_config_mutation_performed"] is False
+    assert evidence.metadata["source_page"] == "comfyui-operations"
+    assert evidence.verification_results["health_probe_executed"] is False
+    assert evidence.diagnostics_payload["raw"]["no_network_call_performed"] is True
+    assert evidence.operator_note == "human changed env outside the API"
+    assert len(listed_evidence.items) == 1
+    assert listed_evidence.items[0].id == evidence.id
+    assert ready_evidence.evidence_status == "ready_for_review"
+    assert verified_evidence.evidence_status == "verified"
+    assert verified_evidence.api_config_mutation_performed is False
     assert calls == []
 
 
@@ -378,6 +440,34 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
             f"/api/v1/comfyui-runtime/config-change-requests/{created_config_request.json()['id']}/ready",
             headers=headers,
             json={"reviewer_notes": "send to maintainer"},
+        )
+        approved_config_request = await client.post(
+            f"/api/v1/comfyui-runtime/config-change-requests/{created_config_request.json()['id']}/approve",
+            headers=headers,
+            json={"reviewer_notes": "approved for manual maintainer apply"},
+        )
+        created_apply_evidence = await client.post(
+            f"/api/v1/comfyui-runtime/config-change-requests/{created_config_request.json()['id']}/manual-apply-evidence",
+            headers=headers,
+            json={
+                "service_restart_reported": True,
+                "restart_evidence": {"restart_mode": "manual_api_restart"},
+                "rollback_notes": "restore previous runtime env values",
+                "verification_notes": "no-network diagnostics captured",
+                "operator_note": "operator manually applied approved values",
+                "metadata": {"source_page": "comfyui-operations"},
+            },
+        )
+        apply_evidence_list = await client.get("/api/v1/comfyui-runtime/manual-apply-evidence?limit=5", headers=headers)
+        ready_apply_evidence = await client.post(
+            f"/api/v1/comfyui-runtime/manual-apply-evidence/{created_apply_evidence.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "ready to verify"},
+        )
+        verified_apply_evidence = await client.post(
+            f"/api/v1/comfyui-runtime/manual-apply-evidence/{created_apply_evidence.json()['id']}/verify",
+            headers=headers,
+            json={"reviewer_notes": "verified"},
         )
         created_snapshot = await client.post(
             "/api/v1/comfyui-runtime/diagnostic-snapshots",
@@ -416,6 +506,26 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert ready_config_request.status_code == 200
     assert ready_config_request.json()["change_status"] == "ready_for_review"
     assert ready_config_request.json()["config_mutation_performed"] is False
+    assert approved_config_request.status_code == 200
+    assert approved_config_request.json()["change_status"] == "approved_for_manual_apply"
+    assert created_apply_evidence.status_code == 200
+    assert created_apply_evidence.json()["workspace_id"] == "workspace-comfyui-api"
+    assert created_apply_evidence.json()["user_id"] == "user-comfyui"
+    assert created_apply_evidence.json()["evidence_status"] == "draft"
+    assert created_apply_evidence.json()["config_change_request_id"] == created_config_request.json()["id"]
+    assert created_apply_evidence.json()["service_restart_reported"] is True
+    assert created_apply_evidence.json()["external_request_attempted"] is False
+    assert created_apply_evidence.json()["runtime_calls_enabled"] is False
+    assert created_apply_evidence.json()["api_config_mutation_performed"] is False
+    assert created_apply_evidence.json()["metadata"]["phase"] == "62G"
+    assert created_apply_evidence.json()["verification_results"]["health_probe_executed"] is False
+    assert apply_evidence_list.status_code == 200
+    assert len(apply_evidence_list.json()["items"]) == 1
+    assert ready_apply_evidence.status_code == 200
+    assert ready_apply_evidence.json()["evidence_status"] == "ready_for_review"
+    assert verified_apply_evidence.status_code == 200
+    assert verified_apply_evidence.json()["evidence_status"] == "verified"
+    assert verified_apply_evidence.json()["api_config_mutation_performed"] is False
     assert created_snapshot.status_code == 200
     assert created_snapshot.json()["workspace_id"] == "workspace-comfyui-api"
     assert created_snapshot.json()["user_id"] == "user-comfyui"

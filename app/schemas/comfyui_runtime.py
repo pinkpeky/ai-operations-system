@@ -8,7 +8,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.comfyui_runtime import ComfyUIRuntimeConfigChangeRequest, ComfyUIRuntimeDiagnosticSnapshot
+from app.models.comfyui_runtime import (
+    ComfyUIRuntimeConfigChangeRequest,
+    ComfyUIRuntimeDiagnosticSnapshot,
+    ComfyUIRuntimeManualApplyEvidence,
+)
 
 
 class ComfyUIRuntimeHealthResponse(BaseModel):
@@ -214,6 +218,114 @@ class ComfyUIRuntimeConfigChangeRequestListResponse(BaseModel):
     success: bool = True
     workspace_id: str
     items: list[ComfyUIRuntimeConfigChangeRequestResponse] = Field(default_factory=list)
+
+
+class ComfyUIRuntimeManualApplyEvidenceCreateRequest(BaseModel):
+    """Record metadata-only evidence for a human-applied ComfyUI runtime configuration change."""
+
+    before_snapshot_id: UUID | None = None
+    after_snapshot_id: UUID | None = None
+    manual_config_applied: bool = True
+    service_restart_reported: bool = False
+    manual_apply_steps: list[dict[str, Any]] = Field(default_factory=list)
+    restart_evidence: dict[str, Any] = Field(default_factory=dict)
+    rollback_notes: str | None = Field(default=None, max_length=4000)
+    verification_notes: str | None = Field(default=None, max_length=4000)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeManualApplyEvidenceDecisionRequest(BaseModel):
+    """Review metadata-only manual apply evidence."""
+
+    reviewer_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeManualApplyEvidenceResponse(BaseModel):
+    """Persisted ComfyUI runtime manual apply evidence response."""
+
+    success: bool = True
+    id: UUID
+    workspace_id: str
+    user_id: str | None = None
+    config_change_request_id: UUID
+    before_snapshot_id: UUID | None = None
+    after_snapshot_id: UUID | None = None
+    evidence_status: str
+    provider: str
+    readiness_status_before: str
+    readiness_status_after: str
+    read_only_probe_ready_before: bool
+    read_only_probe_ready_after: bool
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    api_config_mutation_performed: bool
+    manual_config_applied: bool
+    service_restart_reported: bool
+    config_change_request_payload: dict[str, Any] = Field(default_factory=dict)
+    current_configuration_before: dict[str, Any] = Field(default_factory=dict)
+    current_configuration_after: dict[str, Any] = Field(default_factory=dict)
+    requested_changes: list[dict[str, Any]] = Field(default_factory=list)
+    manual_apply_steps: list[dict[str, Any]] = Field(default_factory=list)
+    restart_evidence: dict[str, Any] = Field(default_factory=dict)
+    verification_results: dict[str, Any] = Field(default_factory=dict)
+    diagnostics_payload: dict[str, Any] = Field(default_factory=dict)
+    rollback_notes: str | None = None
+    verification_notes: str | None = None
+    operator_note: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        evidence: ComfyUIRuntimeManualApplyEvidence,
+    ) -> "ComfyUIRuntimeManualApplyEvidenceResponse":
+        return cls(
+            id=evidence.id,
+            workspace_id=evidence.workspace_id,
+            user_id=evidence.user_id,
+            config_change_request_id=evidence.config_change_request_id,
+            before_snapshot_id=evidence.before_snapshot_id,
+            after_snapshot_id=evidence.after_snapshot_id,
+            evidence_status=evidence.evidence_status,
+            provider=evidence.provider,
+            readiness_status_before=evidence.readiness_status_before,
+            readiness_status_after=evidence.readiness_status_after,
+            read_only_probe_ready_before=evidence.read_only_probe_ready_before,
+            read_only_probe_ready_after=evidence.read_only_probe_ready_after,
+            external_request_attempted=evidence.external_request_attempted,
+            runtime_calls_enabled=evidence.runtime_calls_enabled,
+            api_config_mutation_performed=evidence.api_config_mutation_performed,
+            manual_config_applied=evidence.manual_config_applied,
+            service_restart_reported=evidence.service_restart_reported,
+            config_change_request_payload=evidence.config_change_request_payload or {},
+            current_configuration_before=evidence.current_configuration_before or {},
+            current_configuration_after=evidence.current_configuration_after or {},
+            requested_changes=evidence.requested_changes or [],
+            manual_apply_steps=evidence.manual_apply_steps or [],
+            restart_evidence=evidence.restart_evidence or {},
+            verification_results=evidence.verification_results or {},
+            diagnostics_payload=evidence.diagnostics_payload or {},
+            rollback_notes=evidence.rollback_notes,
+            verification_notes=evidence.verification_notes,
+            operator_note=evidence.operator_note,
+            reviewer_notes=evidence.reviewer_notes,
+            metadata=evidence.evidence_metadata or {},
+            created_at=evidence.created_at,
+            updated_at=evidence.updated_at,
+        )
+
+
+class ComfyUIRuntimeManualApplyEvidenceListResponse(BaseModel):
+    """List response for ComfyUI runtime manual apply evidence."""
+
+    success: bool = True
+    workspace_id: str
+    items: list[ComfyUIRuntimeManualApplyEvidenceResponse] = Field(default_factory=list)
 
 
 class ComfyUIRuntimeDiagnosticSnapshotCreateRequest(BaseModel):

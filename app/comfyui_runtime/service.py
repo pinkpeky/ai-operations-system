@@ -14,7 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.models.comfyui_runtime import ComfyUIRuntimeConfigChangeRequest, ComfyUIRuntimeDiagnosticSnapshot
+from app.models.comfyui_runtime import (
+    ComfyUIRuntimeConfigChangeRequest,
+    ComfyUIRuntimeDiagnosticSnapshot,
+    ComfyUIRuntimeManualApplyEvidence,
+)
 from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeCapabilitiesResponse,
     ComfyUIRuntimeConfigChangeRequestListResponse,
@@ -26,6 +30,8 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeHealthResponse,
     ComfyUIRuntimeMaintenanceRunbookResponse,
     ComfyUIRuntimeMaintenanceStep,
+    ComfyUIRuntimeManualApplyEvidenceListResponse,
+    ComfyUIRuntimeManualApplyEvidenceResponse,
 )
 
 
@@ -47,6 +53,14 @@ COMFYUI_RUNTIME_CONFIG_CHANGE_STATUSES = {
     "approved_for_manual_apply",
     "rejected",
     "cancelled",
+    "archived",
+}
+COMFYUI_RUNTIME_MANUAL_APPLY_EVIDENCE_STATUSES = {
+    "draft",
+    "ready_for_review",
+    "verified",
+    "rejected",
+    "failed",
     "archived",
 }
 
@@ -602,6 +616,162 @@ class ComfyUIRuntimeService:
         await session.refresh(request)
         return ComfyUIRuntimeConfigChangeRequestResponse.from_model(request)
 
+    async def create_manual_apply_evidence(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        request_id: UUID,
+        user_id: str | None = None,
+        before_snapshot_id: UUID | None = None,
+        after_snapshot_id: UUID | None = None,
+        manual_config_applied: bool = True,
+        service_restart_reported: bool = False,
+        manual_apply_steps: list[Mapping[str, Any]] | None = None,
+        restart_evidence: Mapping[str, Any] | None = None,
+        rollback_notes: str | None = None,
+        verification_notes: str | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeManualApplyEvidenceResponse:
+        """Record human-applied configuration evidence without mutating runtime configuration."""
+
+        result = await session.execute(
+            select(ComfyUIRuntimeConfigChangeRequest).where(
+                ComfyUIRuntimeConfigChangeRequest.id == request_id,
+                ComfyUIRuntimeConfigChangeRequest.workspace_id == workspace_id,
+            )
+        )
+        change_request = result.scalar_one_or_none()
+        if change_request is None:
+            raise LookupError("ComfyUI runtime config change request not found")
+        if change_request.change_status != "approved_for_manual_apply":
+            raise ValueError("ComfyUI runtime config change request must be approved_for_manual_apply before manual apply evidence can be recorded")
+
+        diagnostics = self.diagnostics(workspace_id=workspace_id)
+        diagnostics_payload = diagnostics.model_dump(mode="json")
+        normalized_steps = [dict(item) for item in manual_apply_steps or []]
+        if not normalized_steps:
+            normalized_steps = self._manual_apply_steps_from_request(change_request)
+        config_request_payload = ComfyUIRuntimeConfigChangeRequestResponse.from_model(change_request).model_dump(mode="json")
+        evidence_metadata = {
+            **dict(metadata or {}),
+            "phase": "62G",
+            "source": "comfyui_runtime_manual_apply_evidence",
+            "no_network_call_performed": True,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
+        verification_results = {
+            "post_change_diagnostics_captured": True,
+            "health_probe_executed": False,
+            "readiness_status_after": diagnostics.readiness_status,
+            "read_only_probe_ready_after": diagnostics.read_only_probe_ready,
+            "service_restart_reported": service_restart_reported,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
+        evidence = ComfyUIRuntimeManualApplyEvidence(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            config_change_request_id=request_id,
+            before_snapshot_id=before_snapshot_id,
+            after_snapshot_id=after_snapshot_id,
+            evidence_status="draft",
+            provider=diagnostics.provider,
+            readiness_status_before=change_request.readiness_status,
+            readiness_status_after=diagnostics.readiness_status,
+            read_only_probe_ready_before=change_request.read_only_probe_ready,
+            read_only_probe_ready_after=diagnostics.read_only_probe_ready,
+            external_request_attempted=False,
+            runtime_calls_enabled=False,
+            api_config_mutation_performed=False,
+            manual_config_applied=manual_config_applied,
+            service_restart_reported=service_restart_reported,
+            config_change_request_payload=config_request_payload,
+            current_configuration_before=change_request.current_configuration or {},
+            current_configuration_after=self._configuration_summary_from_diagnostics(diagnostics),
+            requested_changes=change_request.requested_changes or [],
+            manual_apply_steps=normalized_steps,
+            restart_evidence=dict(restart_evidence or {}),
+            verification_results=verification_results,
+            diagnostics_payload=diagnostics_payload,
+            rollback_notes=rollback_notes.strip() if rollback_notes else None,
+            verification_notes=verification_notes.strip() if verification_notes else None,
+            operator_note=operator_note.strip() if operator_note else None,
+            evidence_metadata=evidence_metadata,
+        )
+        session.add(evidence)
+        await session.commit()
+        await session.refresh(evidence)
+        return ComfyUIRuntimeManualApplyEvidenceResponse.from_model(evidence)
+
+    async def list_manual_apply_evidence(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        limit: int = 20,
+    ) -> ComfyUIRuntimeManualApplyEvidenceListResponse:
+        """List recent metadata-only manual apply evidence for one workspace."""
+
+        bounded_limit = max(1, min(limit, 100))
+        result = await session.execute(
+            select(ComfyUIRuntimeManualApplyEvidence)
+            .where(ComfyUIRuntimeManualApplyEvidence.workspace_id == workspace_id)
+            .order_by(ComfyUIRuntimeManualApplyEvidence.created_at.desc())
+            .limit(bounded_limit)
+        )
+        evidence = result.scalars().all()
+        return ComfyUIRuntimeManualApplyEvidenceListResponse(
+            workspace_id=workspace_id,
+            items=[ComfyUIRuntimeManualApplyEvidenceResponse.from_model(item) for item in evidence],
+        )
+
+    async def update_manual_apply_evidence_status(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        evidence_id: UUID,
+        status: str,
+        reviewer_notes: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeManualApplyEvidenceResponse:
+        """Update manual apply evidence review status without performing runtime actions."""
+
+        if status not in COMFYUI_RUNTIME_MANUAL_APPLY_EVIDENCE_STATUSES:
+            raise ValueError(f"Unsupported ComfyUI runtime manual apply evidence status: {status}")
+        result = await session.execute(
+            select(ComfyUIRuntimeManualApplyEvidence).where(
+                ComfyUIRuntimeManualApplyEvidence.id == evidence_id,
+                ComfyUIRuntimeManualApplyEvidence.workspace_id == workspace_id,
+            )
+        )
+        evidence = result.scalar_one_or_none()
+        if evidence is None:
+            raise LookupError("ComfyUI runtime manual apply evidence not found")
+        evidence.evidence_status = status
+        evidence.reviewer_notes = reviewer_notes.strip() if reviewer_notes else evidence.reviewer_notes
+        evidence.api_config_mutation_performed = False
+        evidence.external_request_attempted = False
+        evidence.runtime_calls_enabled = False
+        evidence.evidence_metadata = {
+            **(evidence.evidence_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "62G",
+            "last_review_status": status,
+            "no_network_call_performed": True,
+            "api_config_mutation_performed": False,
+            "external_request_attempted": False,
+            "runtime_calls_enabled": False,
+        }
+        await session.commit()
+        await session.refresh(evidence)
+        return ComfyUIRuntimeManualApplyEvidenceResponse.from_model(evidence)
+
     async def create_diagnostic_snapshot(
         self,
         session: AsyncSession,
@@ -722,6 +892,57 @@ class ComfyUIRuntimeService:
                 }
             )
         return changes
+
+    @staticmethod
+    def _manual_apply_steps_from_request(
+        request: ComfyUIRuntimeConfigChangeRequest,
+    ) -> list[dict[str, Any]]:
+        steps: list[dict[str, Any]] = []
+        for item in request.requested_changes or []:
+            steps.append(
+                {
+                    "key": item.get("key"),
+                    "source_check": item.get("source_check"),
+                    "title": item.get("title"),
+                    "status": "operator_reported",
+                    "target_env": item.get("target_env"),
+                    "suggested_value": item.get("suggested_value"),
+                    "requires_api_restart": item.get("requires_api_restart", True),
+                    "api_config_mutation_performed": False,
+                }
+            )
+        if not steps:
+            steps.append(
+                {
+                    "key": "manual_apply_review",
+                    "source_check": None,
+                    "title": "Manual apply evidence review",
+                    "status": "operator_reported",
+                    "target_env": None,
+                    "suggested_value": None,
+                    "requires_api_restart": False,
+                    "api_config_mutation_performed": False,
+                }
+            )
+        return steps
+
+    @staticmethod
+    def _configuration_summary_from_diagnostics(
+        diagnostics: ComfyUIRuntimeDiagnosticsResponse,
+    ) -> dict[str, Any]:
+        return {
+            "provider": diagnostics.provider,
+            "enabled": diagnostics.enabled,
+            "network_allowed": diagnostics.network_allowed,
+            "read_only_probe_enabled": diagnostics.read_only_probe_enabled,
+            "base_url": diagnostics.base_url,
+            "parsed_host": diagnostics.parsed_host,
+            "host_allowed": diagnostics.host_allowed,
+            "health_path": diagnostics.health_path,
+            "health_path_allowed": diagnostics.health_path_allowed,
+            "allowed_hosts": diagnostics.allowed_hosts,
+            "allowed_health_paths": diagnostics.allowed_health_paths,
+        }
 
     def _contract_error(
         self,

@@ -19,7 +19,11 @@ from app.models.browser import (
 from app.models.browser_worker import BrowserWorker, BrowserWorkerAction, BrowserWorkerSession
 from app.models.browser_runtime import BrowserRuntimeEvent, BrowserRuntimeReplay, BrowserRuntimeSession, BrowserRuntimeSnapshot
 from app.models.collection_metadata import CollectionMetadata
-from app.models.comfyui_runtime import ComfyUIRuntimeConfigChangeRequest, ComfyUIRuntimeDiagnosticSnapshot
+from app.models.comfyui_runtime import (
+    ComfyUIRuntimeConfigChangeRequest,
+    ComfyUIRuntimeDiagnosticSnapshot,
+    ComfyUIRuntimeManualApplyEvidence,
+)
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
@@ -222,6 +226,7 @@ __all__ = [
     "CollectionMetadataStatus",
     "ComfyUIRuntimeConfigChangeRequest",
     "ComfyUIRuntimeDiagnosticSnapshot",
+    "ComfyUIRuntimeManualApplyEvidence",
     "CommercialOperation",
     "CommercialOperationApproval",
     "CommercialOperationApprovalStatus",

@@ -713,6 +713,8 @@ class DocsRuntimeVerifier:
             "/api/v1/comfyui-runtime/diagnostics",
             "/api/v1/comfyui-runtime/maintenance-runbook",
             "/api/v1/comfyui-runtime/config-change-requests",
+            "/api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence",
+            "/api/v1/comfyui-runtime/manual-apply-evidence",
             "/api/v1/comfyui-runtime/diagnostic-snapshots",
             "/api/v1/conversations",
             "/api/v1/conversations/{thread_id}",
