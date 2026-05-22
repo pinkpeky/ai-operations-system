@@ -1113,9 +1113,9 @@ function useAutoRefresh(enabled: boolean, intervalMs: number, callback: () => vo
 
 function StatusPill({ value }: { value: React.ReactNode }) {
   const label = String(value ?? "unknown");
-  const variant = /online|active|healthy|completed|success|true/i.test(label)
+  const variant = /online|active|healthy|completed|success|pass|ready|true/i.test(label)
     ? "ok"
-    : /failed|error|offline|timeout|false|revoked/i.test(label)
+    : /failed|error|offline|timeout|blocked|false|revoked/i.test(label)
       ? "bad"
       : "muted";
   return <span className={`status-pill status-pill-${variant}`}>{label}</span>;
@@ -1265,7 +1265,7 @@ function Table({
 }
 
 function renderCell(value: unknown): React.ReactNode {
-  if (typeof value === "string" && /^(active|online|offline|failed|completed|pending|running|healthy|warning|error|true|false)$/i.test(value)) {
+  if (typeof value === "string" && /^(active|online|offline|failed|completed|pending|running|healthy|warning|error|blocked|pass|ready|true|false)$/i.test(value)) {
     return <StatusPill value={value} />;
   }
   if (typeof value === "boolean") {
@@ -4655,10 +4655,12 @@ function CommercialOperationsPage({
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作和最近诊断快照。Phase 62D 可保存无网络诊断快照；只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作、最近诊断快照和 Phase 62E 维护 runbook。只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
           runtimeRefresh: "刷新适配器状态",
           runtimeSnapshot: "保存诊断快照",
           runtimeCapabilities: "能力与护栏",
+          runtimeRunbook: "维护 runbook",
+          runtimeRunbookEmpty: "暂无维护检查项。",
         }
       : {
           title: "ComfyUI operations workspace",
@@ -4670,10 +4672,12 @@ function CommercialOperationsPage({
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, and recent diagnostic snapshots. Phase 62D can persist no-network diagnostics snapshots; /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, recent diagnostic snapshots, and the Phase 62E maintenance runbook. /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
           runtimeRefresh: "Refresh adapter status",
           runtimeSnapshot: "Save diagnostics snapshot",
           runtimeCapabilities: "Capabilities and guardrails",
+          runtimeRunbook: "Maintenance runbook",
+          runtimeRunbookEmpty: "No maintenance steps yet.",
         };
   const contentCopy =
     language === "zh-CN"
@@ -5923,14 +5927,15 @@ function CommercialOperationsPage({
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [health, capabilities, diagnostics, snapshots] = await Promise.all([
+      const [health, capabilities, diagnostics, runbook, snapshots] = await Promise.all([
         comfyuiRuntimeApi.health(settings),
         comfyuiRuntimeApi.capabilities(settings),
         comfyuiRuntimeApi.diagnostics(settings),
+        comfyuiRuntimeApi.maintenanceRunbook(settings),
         comfyuiRuntimeApi.diagnosticSnapshots(settings),
       ]);
       setComfyuiRuntimeAdapterState({
-        data: { health, capabilities, diagnostics, snapshots: toItems(snapshots) },
+        data: { health, capabilities, diagnostics, runbook, snapshots: toItems(snapshots) },
         error: null,
         loading: false,
         updatedAt: nowLabel(),
@@ -5954,7 +5959,7 @@ function CommercialOperationsPage({
             language === "zh-CN"
               ? "从 Admin Dashboard ComfyUI 运行诊断保存。"
               : "Saved from Admin Dashboard ComfyUI runtime diagnostics.",
-          metadata: { source_page: "comfyui-operations", phase: "62D", ui_language: language },
+          metadata: { source_page: "comfyui-operations", phase: "62E", ui_language: language },
         },
         settings,
       );
@@ -9217,6 +9222,10 @@ function CommercialOperationsPage({
   const comfyuiRuntimeActivations = comfyuiRuntimeActivationsState.data || [];
   const comfyuiRuntimeDiagnosticSnapshots = toItems(comfyuiRuntimeAdapterState.data?.snapshots);
   const latestComfyuiRuntimeDiagnosticSnapshot = comfyuiRuntimeDiagnosticSnapshots[0] ?? null;
+  const comfyuiRuntimeRunbook = comfyuiRuntimeAdapterState.data?.runbook as JsonRecord | undefined;
+  const comfyuiRuntimeRunbookSteps = Array.isArray(comfyuiRuntimeRunbook?.steps)
+    ? (comfyuiRuntimeRunbook.steps as JsonRecord[])
+    : [];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -9836,7 +9845,22 @@ function CommercialOperationsPage({
             <Field label="allowed_hosts" value={shortJson((comfyuiRuntimeAdapterState.data?.health as JsonRecord | undefined)?.allowed_hosts, 120)} />
             <Field label="error" value={valueAt(comfyuiRuntimeAdapterState.data?.health as JsonRecord, ["error"], "-")} />
             <Field label={comfyuiSurfaceCopy.runtimeCapabilities} value={shortJson((comfyuiRuntimeAdapterState.data?.capabilities as JsonRecord | undefined)?.guardrails, 180)} />
+            <Field label="maintenance_runbook_phase" value={valueAt(comfyuiRuntimeRunbook, ["phase"], "-")} />
+            <Field label="next_operator_action" value={valueAt(comfyuiRuntimeRunbook, ["next_operator_action"], "-")} />
+            <Field label="snapshot_recommended" value={<StatusPill value={valueAt(comfyuiRuntimeRunbook, ["snapshot_recommended"], "false")} />} />
+            <Field label="recovery_actions" value={shortJson(comfyuiRuntimeRunbook?.recovery_actions, 180)} />
           </div>
+          <h3>{comfyuiSurfaceCopy.runtimeRunbook}</h3>
+          <Table
+            rows={comfyuiRuntimeRunbookSteps}
+            emptyLabel={comfyuiSurfaceCopy.runtimeRunbookEmpty}
+            columns={[
+              { key: "title", label: "check" },
+              { key: "status", label: "status" },
+              { key: "audience", label: "audience" },
+              { key: "action", label: "action" },
+            ]}
+          />
           <div className="commercial-action-row">
             <button className="ghost-button" onClick={() => void loadComfyuiRuntimeAdapter()} disabled={comfyuiRuntimeAdapterState.loading}>
               <RefreshCcw size={15} />

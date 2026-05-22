@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active ComfyUI runtime diagnostic snapshots slice."""
+    """Recovery docs should point to the active ComfyUI runtime maintenance runbook slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,12 +130,13 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-62d-comfyui-runtime-diagnostic-snapshots" in text or "ComfyUI Runtime Diagnostic Snapshots" in text, path
+        assert "phase-62e-comfyui-maintenance-console" in text or "ComfyUI Runtime Maintenance Runbook" in text, path
         assert "/comfyui-runtime/health" in text, path
         assert "/comfyui-runtime/capabilities" in text, path
         assert "/comfyui-runtime/diagnostics" in text, path
+        assert "/comfyui-runtime/maintenance-runbook" in text, path
         assert "/comfyui-runtime/diagnostic-snapshots" in text, path
-        assert "readiness_status" in text or "ComfyUIRuntimeService" in text, path
+        assert "next_operator_action" in text or "readiness_status" in text or "ComfyUIRuntimeService" in text, path
         assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
 
@@ -164,7 +165,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 62D should be the active ComfyUI snapshots slice."""
+    """Phase 61A-61P should be merged and Phase 62E should be the active ComfyUI runbook slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -554,3 +555,13 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_62_lines["62D"]
     assert "TBD" not in phase_62_lines["62D"]
     assert "In progress" not in phase_62_lines["62D"]
+
+    assert "62E" in phase_62_lines
+    assert "phase-62e-comfyui-maintenance-console" in phase_62_lines["62E"]
+    assert "ComfyUI Runtime Maintenance Runbook" in phase_62_lines["62E"]
+    assert "/api/v1/comfyui-runtime/maintenance-runbook" in phase_62_lines["62E"]
+    assert "next_operator_action" in phase_62_lines["62E"]
+    assert "#71" in phase_62_lines["62E"]
+    assert "Draft PR" in phase_62_lines["62E"]
+    assert "TBD" not in phase_62_lines["62E"]
+    assert "In progress" not in phase_62_lines["62E"]

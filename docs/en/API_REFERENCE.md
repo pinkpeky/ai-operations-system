@@ -4242,6 +4242,7 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/health`
 - `GET /api/v1/comfyui-runtime/capabilities`
 - `GET /api/v1/comfyui-runtime/diagnostics`
+- `GET /api/v1/comfyui-runtime/maintenance-runbook`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -4288,3 +4289,9 @@ Boundary: Phase 62C only explains guarded runtime readiness. It does not import 
 Phase 62D adds persisted no-network diagnostic snapshots for server maintainers. `POST /api/v1/comfyui-runtime/diagnostic-snapshots` calls the Phase 62C diagnostics path, stores the readiness result in `comfyui_runtime_diagnostic_snapshots`, and returns the saved snapshot with operator note, metadata, `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, diagnostic checks, forbidden actions, and the full diagnostic payload. `GET /api/v1/comfyui-runtime/diagnostic-snapshots` lists recent snapshots for the current workspace.
 
 Boundary: Phase 62D records diagnostics only. Snapshot creation does not call ComfyUI, does not run the guarded `/system_stats` probe, and does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.
+
+## Phase 62E: ComfyUI Runtime Maintenance Runbook
+
+Phase 62E adds `GET /api/v1/comfyui-runtime/maintenance-runbook`, a no-network runbook for server maintainers and workstation operators. It reuses Phase 62C diagnostics and returns ordered `steps`, `next_operator_action`, `recovery_actions`, `configuration_summary`, `snapshot_recommended`, disabled actions, and the source diagnostics payload so the ComfyUI tab can show what to fix or verify next.
+
+Boundary: Phase 62E explains and displays maintenance actions only. The runbook does not call ComfyUI, does not run the guarded `/system_stats` probe, and does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.

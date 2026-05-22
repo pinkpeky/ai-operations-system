@@ -19,6 +19,7 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeDiagnosticSnapshotResponse,
     ComfyUIRuntimeDiagnosticsResponse,
     ComfyUIRuntimeHealthResponse,
+    ComfyUIRuntimeMaintenanceRunbookResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,20 @@ async def get_comfyui_runtime_diagnostics(
     except Exception as exc:
         logger.exception("ComfyUI runtime diagnostics API failed")
         raise AppError("ComfyUI runtime diagnostics failed", status_code=500) from exc
+
+
+@router.get("/maintenance-runbook", response_model=ComfyUIRuntimeMaintenanceRunbookResponse)
+async def get_comfyui_runtime_maintenance_runbook(
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+) -> ComfyUIRuntimeMaintenanceRunbookResponse:
+    """Return a no-network ComfyUI runtime maintenance runbook."""
+
+    try:
+        return ComfyUIRuntimeService(settings=settings).maintenance_runbook(workspace_id=context.workspace_id)
+    except Exception as exc:
+        logger.exception("ComfyUI runtime maintenance runbook API failed")
+        raise AppError("ComfyUI runtime maintenance runbook failed", status_code=500) from exc
 
 
 @router.post("/diagnostic-snapshots", response_model=ComfyUIRuntimeDiagnosticSnapshotResponse)

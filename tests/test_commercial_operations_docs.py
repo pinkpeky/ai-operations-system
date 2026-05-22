@@ -42,6 +42,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 62B",
         "Phase 62C",
         "Phase 62D",
+        "Phase 62E",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -112,6 +113,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/comfyui-runtime/health",
         "/api/v1/comfyui-runtime/capabilities",
         "/api/v1/comfyui-runtime/diagnostics",
+        "/api/v1/comfyui-runtime/maintenance-runbook",
         "/api/v1/comfyui-runtime/diagnostic-snapshots",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
@@ -144,6 +146,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Guarded Read-Only Probe",
         "ComfyUI Runtime Diagnostics",
         "ComfyUI Runtime Diagnostic Snapshots",
+        "ComfyUI Runtime Maintenance Runbook",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -161,7 +164,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_62d_comfyui_runtime_diagnostic_snapshots() -> None:
+def test_recovery_docs_point_to_phase_62e_comfyui_runtime_maintenance_runbook() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -174,10 +177,11 @@ def test_recovery_docs_point_to_phase_62d_comfyui_runtime_diagnostic_snapshots()
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 62D" in text or "62D" in text, relative
-        assert "ComfyUI Runtime Diagnostic Snapshots" in text or "diagnostic snapshots" in text, relative
+        assert "Phase 62E" in text or "62E" in text, relative
+        assert "ComfyUI Runtime Maintenance Runbook" in text or "maintenance runbook" in text, relative
         assert "/comfyui-runtime/health" in text, relative
         assert "/comfyui-runtime/capabilities" in text, relative
         assert "/comfyui-runtime/diagnostics" in text, relative
+        assert "/comfyui-runtime/maintenance-runbook" in text, relative
         assert "/comfyui-runtime/diagnostic-snapshots" in text, relative
-        assert "readiness_status" in text or "read_only_probe" in text, relative
+        assert "next_operator_action" in text or "readiness_status" in text or "read_only_probe" in text, relative

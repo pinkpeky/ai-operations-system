@@ -99,6 +99,41 @@ class ComfyUIRuntimeDiagnosticsResponse(BaseModel):
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
+class ComfyUIRuntimeMaintenanceStep(BaseModel):
+    """One operator-facing ComfyUI runtime maintenance step."""
+
+    key: str
+    title: str
+    status: str
+    audience: str
+    detail: str
+    action: str | None = None
+    blocking: bool = False
+    source_check: str | None = None
+
+
+class ComfyUIRuntimeMaintenanceRunbookResponse(BaseModel):
+    """No-network ComfyUI runtime maintenance runbook for server operators."""
+
+    success: bool = True
+    phase: str = "62E"
+    workspace_id: str | None = None
+    title: str
+    summary: str
+    readiness_status: str
+    read_only_probe_ready: bool = False
+    external_request_attempted: bool = False
+    runtime_calls_enabled: bool = False
+    next_operator_action: str
+    snapshot_recommended: bool = True
+    steps: list[ComfyUIRuntimeMaintenanceStep] = Field(default_factory=list)
+    recovery_actions: list[str] = Field(default_factory=list)
+    disabled_actions: list[str] = Field(default_factory=list)
+    configuration_summary: dict[str, Any] = Field(default_factory=dict)
+    diagnostics: ComfyUIRuntimeDiagnosticsResponse
+    raw: dict[str, Any] = Field(default_factory=dict)
+
+
 class ComfyUIRuntimeDiagnosticSnapshotCreateRequest(BaseModel):
     """Create a persisted no-network ComfyUI runtime diagnostic snapshot."""
 
