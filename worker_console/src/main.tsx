@@ -252,6 +252,32 @@ type KnowledgeBaseCopy = {
   documentChunks: string;
   updatedAt: string;
   requestFailed: string;
+  readinessTitle: string;
+  connectionLabel: string;
+  collectionStatusLabel: string;
+  queueStatusLabel: string;
+  libraryStatusLabel: string;
+  fileRulesTitle: string;
+  fileRulesBody: string;
+  nextStepTitle: string;
+  nextStepChoose: string;
+  nextStepUpload: string;
+  nextStepWait: string;
+  nextStepRecover: string;
+  nextStepReady: string;
+  connectionReady: string;
+  connectionIssue: string;
+  collectionReady: string;
+  collectionMissing: string;
+  queueReady: string;
+  queueNeedsUpload: string;
+  libraryReady: string;
+  libraryEmpty: string;
+  unsupportedFile: string;
+  fileTooLarge: string;
+  retryFailed: string;
+  clearCompleted: string;
+  removeFile: string;
 };
 
 type KnowledgeQueueStatus = "queued" | "uploading" | "uploaded" | "failed";
@@ -261,6 +287,7 @@ type KnowledgeQueueItem = {
   file: File;
   status: KnowledgeQueueStatus;
   message?: string;
+  retryable?: boolean;
 };
 
 const clientCopy: Record<ClientLanguage, ClientCopy> = {
@@ -536,6 +563,32 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     documentChunks: "分段",
     updatedAt: "更新时间",
     requestFailed: "知识库服务暂时不可用，请检查 AI Server 连接后重试。",
+    readinessTitle: "上传就绪状态",
+    connectionLabel: "知识库连接",
+    collectionStatusLabel: "知识分组",
+    queueStatusLabel: "上传队列",
+    libraryStatusLabel: "资料列表",
+    fileRulesTitle: "上传前检查",
+    fileRulesBody: "支持 PDF、DOCX、TXT、MD、CSV；单个文件不超过 20 MB。",
+    nextStepTitle: "下一步",
+    nextStepChoose: "选择文件或粘贴文字资料，然后保存到知识库。",
+    nextStepUpload: "已有待上传文件，确认分组后点击上传选中文件。",
+    nextStepWait: "文件正在上传入库，请等待状态完成。",
+    nextStepRecover: "先处理失败项：检查连接、移除不支持的文件，或重试可恢复文件。",
+    nextStepReady: "资料已可用，可以回到任务操作页选择知识证据或内容生成。",
+    connectionReady: "连接可用",
+    connectionIssue: "需要检查连接",
+    collectionReady: "已设置",
+    collectionMissing: "建议填写",
+    queueReady: "队列空闲",
+    queueNeedsUpload: "待处理",
+    libraryReady: "已读取",
+    libraryEmpty: "暂无资料",
+    unsupportedFile: "文件类型暂不支持。",
+    fileTooLarge: "文件超过 20 MB。",
+    retryFailed: "重试失败项",
+    clearCompleted: "清理已完成",
+    removeFile: "移除",
   },
   "en-US": {
     title: "Knowledge Base Upload and Edit",
@@ -583,6 +636,32 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     documentChunks: "Chunks",
     updatedAt: "Updated",
     requestFailed: "Knowledge service is unavailable. Check AI Server connection and retry.",
+    readinessTitle: "Upload readiness",
+    connectionLabel: "Knowledge connection",
+    collectionStatusLabel: "Collection",
+    queueStatusLabel: "Upload queue",
+    libraryStatusLabel: "Library list",
+    fileRulesTitle: "Before upload",
+    fileRulesBody: "Supported: PDF, DOCX, TXT, MD, CSV. Each file must be 20 MB or smaller.",
+    nextStepTitle: "Next step",
+    nextStepChoose: "Choose files or paste text material, then save it to the knowledge base.",
+    nextStepUpload: "Files are waiting. Confirm the collection, then upload selected files.",
+    nextStepWait: "Files are being uploaded and ingested. Wait for completion.",
+    nextStepRecover: "Handle failed items first: check connection, remove unsupported files, or retry recoverable files.",
+    nextStepReady: "Knowledge is ready. Return to Task operation and choose evidence or content generation.",
+    connectionReady: "Connection ready",
+    connectionIssue: "Check connection",
+    collectionReady: "Set",
+    collectionMissing: "Recommended",
+    queueReady: "Queue idle",
+    queueNeedsUpload: "Needs action",
+    libraryReady: "Loaded",
+    libraryEmpty: "No material",
+    unsupportedFile: "Unsupported file type.",
+    fileTooLarge: "File is larger than 20 MB.",
+    retryFailed: "Retry failed",
+    clearCompleted: "Clear completed",
+    removeFile: "Remove",
   },
 };
 
@@ -2157,6 +2236,14 @@ function documentDisplayName(document: KnowledgeDocument): string {
   return document.source_name || document.filename || document.source_id || document.id || "Untitled material";
 }
 
+const KNOWLEDGE_MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const SUPPORTED_KNOWLEDGE_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv"];
+
+function knowledgeFileExtension(fileName: string): string {
+  const extension = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
+  return extension.startsWith(".") ? extension : "";
+}
+
 function knowledgeQueueId(file: File): string {
   return `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`;
 }
@@ -2189,6 +2276,45 @@ function KnowledgeBasePanel({
     uploaded: copy.uploaded,
     failed: copy.failed,
   };
+  const queuedFileCount = queue.filter((item) => item.status === "queued").length;
+  const uploadingFileCount = queue.filter((item) => item.status === "uploading").length;
+  const uploadedFileCount = queue.filter((item) => item.status === "uploaded").length;
+  const failedFileCount = queue.filter((item) => item.status === "failed").length;
+  const retryableFailedCount = queue.filter((item) => item.status === "failed" && item.retryable !== false).length;
+  const totalUploadableFileCount = queuedFileCount + retryableFailedCount;
+  const knowledgeConnectionReady = libraryState !== "failed";
+  const nextKnowledgeStep =
+    libraryState === "failed" || failedFileCount > 0
+      ? copy.nextStepRecover
+      : uploading || uploadingFileCount > 0
+        ? copy.nextStepWait
+        : queuedFileCount > 0
+          ? copy.nextStepUpload
+          : documents.length > 0
+            ? copy.nextStepReady
+            : copy.nextStepChoose;
+  const readinessCards = [
+    {
+      label: copy.connectionLabel,
+      value: knowledgeConnectionReady ? copy.connectionReady : copy.connectionIssue,
+      state: knowledgeConnectionReady ? "good" : "warn",
+    },
+    {
+      label: copy.collectionStatusLabel,
+      value: collectionName.trim() ? copy.collectionReady : copy.collectionMissing,
+      state: collectionName.trim() ? "good" : "warn",
+    },
+    {
+      label: copy.queueStatusLabel,
+      value: queuedFileCount > 0 || failedFileCount > 0 ? `${queuedFileCount + failedFileCount} ${copy.queueNeedsUpload}` : copy.queueReady,
+      state: totalUploadableFileCount > 0 || failedFileCount > 0 ? "warn" : "good",
+    },
+    {
+      label: copy.libraryStatusLabel,
+      value: documents.length > 0 ? `${documents.length} ${copy.libraryReady}` : copy.libraryEmpty,
+      state: documents.length > 0 ? "good" : "warn",
+    },
+  ];
 
   const refreshDocuments = useCallback(async () => {
     setLibraryState("loading");
@@ -2212,20 +2338,39 @@ function KnowledgeBasePanel({
     if (nextFiles.length === 0) {
       return;
     }
+    let hasInvalidFile = false;
     setQueue((current) => [
-      ...nextFiles.map((file) => ({ id: knowledgeQueueId(file), file, status: "queued" as KnowledgeQueueStatus })),
+      ...nextFiles.map((file) => {
+        const extension = knowledgeFileExtension(file.name);
+        const validationMessage = !SUPPORTED_KNOWLEDGE_EXTENSIONS.includes(extension)
+          ? copy.unsupportedFile
+          : file.size > KNOWLEDGE_MAX_FILE_SIZE_BYTES
+            ? copy.fileTooLarge
+            : null;
+        if (validationMessage) {
+          hasInvalidFile = true;
+        }
+        return {
+          id: knowledgeQueueId(file),
+          file,
+          status: (validationMessage ? "failed" : "queued") as KnowledgeQueueStatus,
+          message: validationMessage ?? undefined,
+          retryable: !validationMessage,
+        };
+      }),
       ...current,
     ]);
-    setMessage(null);
+    setMessage(hasInvalidFile ? copy.nextStepRecover : null);
   };
 
   const uploadSelectedFiles = async () => {
-    const pendingItems = queue.filter((item) => item.status === "queued" || item.status === "failed");
+    const pendingItems = queue.filter((item) => item.status === "queued" || (item.status === "failed" && item.retryable !== false));
     if (pendingItems.length === 0) {
       return;
     }
     setUploading(true);
     setMessage(null);
+    let hasFailure = false;
     for (const item of pendingItems) {
       setQueue((current) =>
         current.map((queueItem) =>
@@ -2247,16 +2392,25 @@ function KnowledgeBasePanel({
           ),
         );
       } catch {
+        hasFailure = true;
         setQueue((current) =>
           current.map((queueItem) =>
-            queueItem.id === item.id ? { ...queueItem, status: "failed", message: copy.requestFailed } : queueItem,
+            queueItem.id === item.id ? { ...queueItem, status: "failed", message: copy.requestFailed, retryable: true } : queueItem,
           ),
         );
       }
     }
     setUploading(false);
-    setMessage(copy.uploaded);
+    setMessage(hasFailure ? copy.nextStepRecover : copy.uploaded);
     await refreshDocuments();
+  };
+
+  const removeKnowledgeQueueItem = (queueItemId: string) => {
+    setQueue((current) => current.filter((item) => item.id !== queueItemId));
+  };
+
+  const clearCompletedKnowledgeFiles = () => {
+    setQueue((current) => current.filter((item) => item.status !== "uploaded"));
   };
 
   const saveTextKnowledge = async () => {
@@ -2334,6 +2488,18 @@ function KnowledgeBasePanel({
             </div>
           ))}
         </div>
+        <div className="knowledge-readiness-strip" aria-label={copy.readinessTitle}>
+          {readinessCards.map((card) => (
+            <div className={`knowledge-readiness-card ${card.state}`} key={card.label}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+            </div>
+          ))}
+        </div>
+        <div className={`knowledge-next-step-card ${knowledgeConnectionReady ? "ready" : "warn"}`}>
+          <span>{copy.nextStepTitle}</span>
+          <strong>{nextKnowledgeStep}</strong>
+        </div>
       </div>
       <div className="knowledge-action-grid">
         <section className="knowledge-upload-card" aria-label={copy.uploadTitle}>
@@ -2366,6 +2532,10 @@ function KnowledgeBasePanel({
               }}
             />
           </label>
+          <div className="knowledge-file-rules">
+            <strong>{copy.fileRulesTitle}</strong>
+            <span>{copy.fileRulesBody}</span>
+          </div>
           <div className="knowledge-form-row">
             <label>
               {copy.collectionLabel}
@@ -2386,10 +2556,24 @@ function KnowledgeBasePanel({
               </select>
             </label>
           </div>
-          <button className="action-button primary-action" onClick={() => void uploadSelectedFiles()} disabled={uploading || queue.length === 0}>
-            <Upload size={16} />
-            {copy.uploadSelected}
-          </button>
+          <div className="knowledge-button-row">
+            <button className="action-button primary-action" onClick={() => void uploadSelectedFiles()} disabled={uploading || totalUploadableFileCount === 0}>
+              <Upload size={16} />
+              {copy.uploadSelected}
+            </button>
+            {retryableFailedCount > 0 ? (
+              <button className="refresh-button" onClick={() => void uploadSelectedFiles()} disabled={uploading}>
+                <RefreshCcw size={15} />
+                {copy.retryFailed}
+              </button>
+            ) : null}
+            {uploadedFileCount > 0 ? (
+              <button className="refresh-button" onClick={clearCompletedKnowledgeFiles}>
+                <XCircle size={15} />
+                {copy.clearCompleted}
+              </button>
+            ) : null}
+          </div>
           <div className="knowledge-queue">
             {queue.length > 0 ? (
               queue.map((item) => (
@@ -2401,6 +2585,15 @@ function KnowledgeBasePanel({
                     {item.message ? <p>{item.message}</p> : null}
                   </div>
                   <span className={`knowledge-status-badge ${item.status}`}>{queueStatusLabels[item.status]}</span>
+                  <button
+                    className="knowledge-file-remove"
+                    onClick={() => removeKnowledgeQueueItem(item.id)}
+                    disabled={item.status === "uploading"}
+                    aria-label={`${copy.removeFile} ${item.file.name}`}
+                  >
+                    <XCircle size={14} />
+                    {copy.removeFile}
+                  </button>
                 </div>
               ))
             ) : (
