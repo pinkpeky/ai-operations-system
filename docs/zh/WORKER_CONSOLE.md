@@ -743,7 +743,7 @@ Boundary: Phase 62T is frontend-only. It does not call ComfyUI, execute OpenClaw
 
 ## Phase 62U Customer Console Knowledge Ingestion Status Loop
 
-Status: active branch `codex/phase-62u-knowledge-ingestion-status`, draft PR pending.
+Status: active branch `codex/phase-62u-knowledge-ingestion-status`, draft PR #87.
 
 Phase 62U improves the separate visual knowledge base upload/edit page in `worker_console` and `worker_console_desktop` with a knowledge ingestion status loop. It lets customer-machine operators understand what happened after upload or text update without reading code or JSON.
 
