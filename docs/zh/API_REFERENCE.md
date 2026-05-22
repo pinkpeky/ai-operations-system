@@ -3649,6 +3649,8 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/capabilities`
 - `GET /api/v1/comfyui-runtime/diagnostics`
 - `GET /api/v1/comfyui-runtime/maintenance-runbook`
+- `GET /api/v1/comfyui-runtime/config-change-requests`
+- `POST /api/v1/comfyui-runtime/config-change-requests`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -3699,5 +3701,19 @@ Phase 62D 新增服务器维护人员使用的无网络诊断快照。`POST /api
 Phase 62E 新增 `GET /api/v1/comfyui-runtime/maintenance-runbook`，给服务器维护人员和工作站操作人员提供无网络维护 runbook。它复用 Phase 62C diagnostics，返回有序 `steps`、`next_operator_action`、`recovery_actions`、`configuration_summary`、`snapshot_recommended`、disabled actions 和源 diagnostics payload，让 ComfyUI 页签能直接显示下一步该修复或确认什么。
 
 边界：Phase 62E 只解释和展示维护动作，不会请求 ComfyUI，不会触发 guarded `/system_stats` 探测，不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、启用 runtime switch、修改 runtime configuration、读取 environment state 或解析 secret value。
+
+## Phase 62F: ComfyUI Runtime Configuration Change Requests
+
+Phase 62F 新增服务器维护人员使用的 metadata-only 配置变更申请。`POST /api/v1/comfyui-runtime/config-change-requests` 会从 Phase 62E maintenance runbook 创建申请，把当前配置、`requested_changes`、runbook steps、recovery actions、disabled actions、`change_status`、reviewer notes 和 `config_mutation_performed=false` 保存到 `comfyui_runtime_config_change_requests`。`GET /api/v1/comfyui-runtime/config-change-requests` 用于列出当前 workspace 最近的配置变更申请。
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/ready`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/approve`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/reject`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/cancel`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/archive`
+
+边界：Phase 62F 只记录可审查申请，不会写入环境变量、不会重启服务、不会启用 runtime switch、不会请求 ComfyUI、不会触发 guarded `/system_stats` 探测、不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、读取 environment state、解析 secret value、发布、运行 OpenClaw、运行 Browser Worker actions 或绕过审批。
 
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。

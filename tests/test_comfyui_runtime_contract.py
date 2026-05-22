@@ -293,6 +293,60 @@ async def test_comfyui_runtime_diagnostic_snapshot_persists_without_network(sess
 
 
 @pytest.mark.asyncio
+async def test_comfyui_runtime_config_change_request_persists_without_network(session: AsyncSession) -> None:
+    """Config change requests should record runbook recommendations without mutating runtime settings."""
+
+    calls: list[tuple[str, float]] = []
+    service = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {"status_code": 200},
+    )
+
+    change_request = await service.create_config_change_request(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        user_id="user-comfyui",
+        change_reason="prepare guarded provider settings for review",
+        operator_note="do not apply automatically",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    listed = await service.list_config_change_requests(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        limit=10,
+    )
+    ready = await service.update_config_change_request_status(
+        session,
+        workspace_id="workspace-comfyui-config-requests",
+        request_id=change_request.id,
+        status="ready_for_review",
+        reviewer_notes="ready for maintainer review",
+    )
+
+    assert change_request.workspace_id == "workspace-comfyui-config-requests"
+    assert change_request.user_id == "user-comfyui"
+    assert change_request.change_status == "draft"
+    assert change_request.readiness_status == "blocked"
+    assert change_request.external_request_attempted is False
+    assert change_request.runtime_calls_enabled is False
+    assert change_request.config_mutation_performed is False
+    assert change_request.metadata["phase"] == "62F"
+    assert change_request.metadata["no_network_call_performed"] is True
+    assert change_request.metadata["config_mutation_performed"] is False
+    assert change_request.metadata["source_page"] == "comfyui-operations"
+    assert change_request.operator_note == "do not apply automatically"
+    assert any(item["source_check"] == "provider_guarded" for item in change_request.requested_changes)
+    assert "submit_prompt" in change_request.disabled_actions
+    assert change_request.runbook_payload["raw"]["no_network_call_performed"] is True
+    assert len(listed.items) == 1
+    assert listed.items[0].id == change_request.id
+    assert ready.change_status == "ready_for_review"
+    assert ready.reviewer_notes == "ready for maintainer review"
+    assert ready.config_mutation_performed is False
+    assert calls == []
+
+
+@pytest.mark.asyncio
 async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) -> None:  # type: ignore[no-untyped-def]
     """API should expose health and capabilities without a database or ComfyUI call."""
 
@@ -314,6 +368,17 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
         capabilities = await client.get("/api/v1/comfyui-runtime/capabilities", headers=headers)
         diagnostics = await client.get("/api/v1/comfyui-runtime/diagnostics", headers=headers)
         runbook = await client.get("/api/v1/comfyui-runtime/maintenance-runbook", headers=headers)
+        created_config_request = await client.post(
+            "/api/v1/comfyui-runtime/config-change-requests",
+            headers=headers,
+            json={"change_reason": "api review", "operator_note": "metadata only", "metadata": {"source_page": "comfyui-operations"}},
+        )
+        config_request_list = await client.get("/api/v1/comfyui-runtime/config-change-requests?limit=5", headers=headers)
+        ready_config_request = await client.post(
+            f"/api/v1/comfyui-runtime/config-change-requests/{created_config_request.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "send to maintainer"},
+        )
         created_snapshot = await client.post(
             "/api/v1/comfyui-runtime/diagnostic-snapshots",
             headers=headers,
@@ -339,6 +404,18 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert runbook.json()["runtime_calls_enabled"] is False
     assert runbook.json()["steps"][0]["key"] == "check_provider_guarded"
     assert "Save a diagnostic snapshot" in " ".join(runbook.json()["recovery_actions"])
+    assert created_config_request.status_code == 200
+    assert created_config_request.json()["workspace_id"] == "workspace-comfyui-api"
+    assert created_config_request.json()["user_id"] == "user-comfyui"
+    assert created_config_request.json()["change_status"] == "draft"
+    assert created_config_request.json()["metadata"]["phase"] == "62F"
+    assert created_config_request.json()["config_mutation_performed"] is False
+    assert created_config_request.json()["external_request_attempted"] is False
+    assert config_request_list.status_code == 200
+    assert len(config_request_list.json()["items"]) == 1
+    assert ready_config_request.status_code == 200
+    assert ready_config_request.json()["change_status"] == "ready_for_review"
+    assert ready_config_request.json()["config_mutation_performed"] is False
     assert created_snapshot.status_code == 200
     assert created_snapshot.json()["workspace_id"] == "workspace-comfyui-api"
     assert created_snapshot.json()["user_id"] == "user-comfyui"

@@ -4243,6 +4243,8 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/capabilities`
 - `GET /api/v1/comfyui-runtime/diagnostics`
 - `GET /api/v1/comfyui-runtime/maintenance-runbook`
+- `GET /api/v1/comfyui-runtime/config-change-requests`
+- `POST /api/v1/comfyui-runtime/config-change-requests`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -4295,3 +4297,17 @@ Boundary: Phase 62D records diagnostics only. Snapshot creation does not call Co
 Phase 62E adds `GET /api/v1/comfyui-runtime/maintenance-runbook`, a no-network runbook for server maintainers and workstation operators. It reuses Phase 62C diagnostics and returns ordered `steps`, `next_operator_action`, `recovery_actions`, `configuration_summary`, `snapshot_recommended`, disabled actions, and the source diagnostics payload so the ComfyUI tab can show what to fix or verify next.
 
 Boundary: Phase 62E explains and displays maintenance actions only. The runbook does not call ComfyUI, does not run the guarded `/system_stats` probe, and does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, mutate runtime configuration, read environment state, or resolve secret values.
+
+## Phase 62F: ComfyUI Runtime Configuration Change Requests
+
+Phase 62F adds metadata-only configuration change requests for server maintainers. `POST /api/v1/comfyui-runtime/config-change-requests` creates a request from the Phase 62E maintenance runbook, stores current configuration, `requested_changes`, runbook steps, recovery actions, disabled actions, `change_status`, reviewer notes, and `config_mutation_performed=false` in `comfyui_runtime_config_change_requests`. `GET /api/v1/comfyui-runtime/config-change-requests` lists recent requests for the current workspace.
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/ready`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/approve`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/reject`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/cancel`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/archive`
+
+Boundary: Phase 62F records a reviewable request only. It does not write environment variables, restart services, enable runtime switches, call ComfyUI, run the guarded `/system_stats` probe, import adapters, submit prompts, read queues, submit queues, upload files, generate media, read environment state, resolve secret values, publish, run OpenClaw, run Browser Worker actions, or bypass approval.

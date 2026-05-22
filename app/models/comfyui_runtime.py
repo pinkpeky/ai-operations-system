@@ -41,3 +41,29 @@ class ComfyUIRuntimeDiagnosticSnapshot(IdTimestampMixin, Base):
     snapshot_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     snapshot_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class ComfyUIRuntimeConfigChangeRequest(IdTimestampMixin, Base):
+    """Workspace-scoped, metadata-only ComfyUI runtime configuration change request."""
+
+    __tablename__ = "comfyui_runtime_config_change_requests"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    change_status: Mapped[str] = mapped_column(String(64), default="draft", index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    readiness_status: Mapped[str] = mapped_column(String(64), default="blocked", index=True, nullable=False)
+    read_only_probe_ready: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    external_request_attempted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    runtime_calls_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    config_mutation_performed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    current_configuration: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    requested_changes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    runbook_steps: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    recovery_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    disabled_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    runbook_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    change_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    request_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
