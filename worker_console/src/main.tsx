@@ -352,6 +352,25 @@ type KnowledgeBaseCopy = {
   validationSuggestionSummaryQuery: string;
   validationSuggestionRiskQuery: string;
   validationSuggestionActionQuery: string;
+  validationOutcomeTitle: string;
+  validationOutcomeHint: string;
+  validationOutcomeReady: string;
+  validationOutcomeNeedsEvidence: string;
+  validationOutcomeNeedsReview: string;
+  validationOutcomeIdle: string;
+  validationOutcomeReadyDetail: string;
+  validationOutcomeNeedsEvidenceDetail: string;
+  validationOutcomeNeedsReviewDetail: string;
+  validationOutcomeIdleDetail: string;
+  validationOutcomeMatches: string;
+  validationOutcomeMaterial: string;
+  validationOutcomeMode: string;
+  validationOutcomeNextStep: string;
+  validationOutcomeMarkReady: string;
+  validationOutcomeRetry: string;
+  validationOutcomeRunFirst: string;
+  validationOutcomeMarkedTitle: string;
+  validationOutcomeMarked: string;
   ingestionTitle: string;
   ingestionHint: string;
   ingestionNextAction: string;
@@ -780,6 +799,25 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     validationSuggestionSummaryQuery: "请总结《{material}》中和当前运营目标相关的关键内容。",
     validationSuggestionRiskQuery: "《{material}》中有哪些禁用词、合规风险或需要人工确认的信息？",
     validationSuggestionActionQuery: "根据《{material}》，下一步运营执行需要注意哪些要点？",
+    validationOutcomeTitle: "验证结论",
+    validationOutcomeHint: "把检索结果转换为能否进入后续运营的可用性判断。",
+    validationOutcomeReady: "可用于后续运营",
+    validationOutcomeNeedsEvidence: "需要补充资料",
+    validationOutcomeNeedsReview: "需要人工复核",
+    validationOutcomeIdle: "等待验证",
+    validationOutcomeReadyDetail: "已检索到相关证据，可以作为后续运营任务的知识依据。",
+    validationOutcomeNeedsEvidenceDetail: "未命中可用证据，建议调整问题、检查分组或继续上传资料。",
+    validationOutcomeNeedsReviewDetail: "验证请求失败或资料状态异常，请检查连接、分组或资料入库状态。",
+    validationOutcomeIdleDetail: "先选择建议问题或输入验证问题，再运行检索验证。",
+    validationOutcomeMatches: "命中证据",
+    validationOutcomeMaterial: "验证资料",
+    validationOutcomeMode: "验证方式",
+    validationOutcomeNextStep: "下一步",
+    validationOutcomeMarkReady: "标记可用于运营",
+    validationOutcomeRetry: "重新验证",
+    validationOutcomeRunFirst: "运行验证",
+    validationOutcomeMarkedTitle: "验证结论已确认",
+    validationOutcomeMarked: "已标记为可用于后续运营。",
     ingestionTitle: "入库状态闭环",
     ingestionHint: "查看资料从选择、上传、切分入库到检索验证的当前状态和失败原因。",
     ingestionNextAction: "当前建议",
@@ -944,6 +982,25 @@ const knowledgeBaseCopy: Record<ClientLanguage, KnowledgeBaseCopy> = {
     validationSuggestionSummaryQuery: "Summarize the key content in \"{material}\" that is relevant to the current operating goal.",
     validationSuggestionRiskQuery: "What restricted terms, compliance risks, or human-review items appear in \"{material}\"?",
     validationSuggestionActionQuery: "Based on \"{material}\", what should the operator pay attention to before the next execution step?",
+    validationOutcomeTitle: "Validation outcome",
+    validationOutcomeHint: "Turn search results into a clear usability decision for the next operating step.",
+    validationOutcomeReady: "Ready for operations",
+    validationOutcomeNeedsEvidence: "Needs more evidence",
+    validationOutcomeNeedsReview: "Needs human review",
+    validationOutcomeIdle: "Waiting for validation",
+    validationOutcomeReadyDetail: "Relevant evidence was found, so this material can support the next operating task.",
+    validationOutcomeNeedsEvidenceDetail: "No usable evidence was found. Adjust the question, check the collection, or upload more material.",
+    validationOutcomeNeedsReviewDetail: "The validation request failed or the material state needs attention. Check connection, collection, or ingestion status.",
+    validationOutcomeIdleDetail: "Choose a suggested question or enter a validation question, then run search validation.",
+    validationOutcomeMatches: "Evidence matches",
+    validationOutcomeMaterial: "Material",
+    validationOutcomeMode: "Mode",
+    validationOutcomeNextStep: "Next step",
+    validationOutcomeMarkReady: "Mark ready",
+    validationOutcomeRetry: "Retry validation",
+    validationOutcomeRunFirst: "Run validation",
+    validationOutcomeMarkedTitle: "Validation outcome confirmed",
+    validationOutcomeMarked: "Marked as ready for the next operating step.",
     ingestionTitle: "Ingestion status loop",
     ingestionHint: "Track material from selection and upload through chunking, indexing, and search validation.",
     ingestionNextAction: "Current suggestion",
@@ -2850,6 +2907,43 @@ function KnowledgeBasePanel({
         sourceId: latestUploadedQueueItem.sourceId,
       }
     : null;
+  const validationOutcomeMaterialLabel =
+    selectedDocument ? documentDisplayName(selectedDocument) : latestUploadedQueueItem?.file.name || collectionName.trim() || copy.collectionMissing;
+  const validationOutcomeTone: KnowledgeActivityTone =
+    validationState === "failed"
+      ? "warn"
+      : validationState === "ready" && validationResults.length === 0
+        ? "warn"
+        : validationState === "ready" && validationResults.length > 0
+          ? "good"
+          : "neutral";
+  const validationOutcomeLabel =
+    validationOutcomeTone === "good"
+      ? copy.validationOutcomeReady
+      : validationState === "ready" && validationResults.length === 0
+        ? copy.validationOutcomeNeedsEvidence
+        : validationState === "failed"
+          ? copy.validationOutcomeNeedsReview
+          : copy.validationOutcomeIdle;
+  const validationOutcomeDetail =
+    validationOutcomeTone === "good"
+      ? copy.validationOutcomeReadyDetail
+      : validationState === "ready" && validationResults.length === 0
+        ? copy.validationOutcomeNeedsEvidenceDetail
+        : validationState === "failed"
+          ? copy.validationOutcomeNeedsReviewDetail
+          : copy.validationOutcomeIdleDetail;
+  const validationOutcomeActionLabel =
+    validationOutcomeTone === "good"
+      ? copy.validationOutcomeMarkReady
+      : validationOutcomeTone === "warn"
+        ? copy.validationOutcomeRetry
+        : copy.validationOutcomeRunFirst;
+  const validationOutcomeStats = [
+    { label: copy.validationOutcomeMatches, value: validationState === "ready" ? String(validationResults.length) : "-" },
+    { label: copy.validationOutcomeMaterial, value: validationOutcomeMaterialLabel },
+    { label: copy.validationOutcomeMode, value: validationMode },
+  ];
 
   useEffect(() => {
     if (documents.length === 0) {
@@ -3164,6 +3258,16 @@ function KnowledgeBasePanel({
         tone: "warn",
       });
     }
+  };
+
+  const confirmKnowledgeValidationOutcome = () => {
+    setValidationSummary(copy.validationOutcomeMarked);
+    addKnowledgeActivity({
+      title: copy.validationOutcomeMarkedTitle,
+      detail: validationOutcomeMaterialLabel,
+      meta: `${copy.validationOutcomeMatches}: ${validationResults.length}; ${copy.validationOutcomeMode}: ${validationMode}`,
+      tone: "good",
+    });
   };
 
   return (
@@ -3596,6 +3700,47 @@ function KnowledgeBasePanel({
           </button>
         </div>
         {validationSummary ? <div className={`knowledge-validation-summary ${validationState}`}>{validationSummary}</div> : null}
+        <div className={`knowledge-validation-outcome ${validationOutcomeTone}`} aria-label={copy.validationOutcomeTitle}>
+          <div className="knowledge-validation-outcome-main">
+            {validationOutcomeTone === "good" ? (
+              <CheckCircle2 size={18} />
+            ) : validationOutcomeTone === "warn" ? (
+              <AlertTriangle size={18} />
+            ) : (
+              <Activity size={18} />
+            )}
+            <div>
+              <span>{copy.validationOutcomeTitle}</span>
+              <strong>{validationOutcomeLabel}</strong>
+              <p>{validationOutcomeDetail}</p>
+            </div>
+          </div>
+          <div className="knowledge-validation-outcome-stats">
+            {validationOutcomeStats.map((stat) => (
+              <div className="knowledge-validation-outcome-stat" key={stat.label}>
+                <span>{stat.label}</span>
+                <strong>{stat.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="knowledge-validation-outcome-action">
+            <span>{copy.validationOutcomeNextStep}</span>
+            <button
+              className="refresh-button"
+              onClick={() => {
+                if (validationOutcomeTone === "good") {
+                  confirmKnowledgeValidationOutcome();
+                  return;
+                }
+                void runKnowledgeValidation();
+              }}
+              disabled={validationState === "loading" || (validationOutcomeTone === "neutral" && !validationQuery.trim())}
+            >
+              {validationOutcomeTone === "good" ? <CheckCircle2 size={14} /> : <Search size={14} />}
+              {validationOutcomeActionLabel}
+            </button>
+          </div>
+        </div>
         <div className="knowledge-validation-results" aria-label={copy.validationResultsTitle}>
           {validationState === "loading" ? <div className="knowledge-empty">{copy.validationRunning}</div> : null}
           {validationState !== "loading" && validationResults.length === 0 ? (
