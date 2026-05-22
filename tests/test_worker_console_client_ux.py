@@ -1031,3 +1031,76 @@ def test_phase_62w_knowledge_validation_outcomes_are_documented() -> None:
         assert "knowledge validation outcomes" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_62x_client_operation_desk() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "OperationLoopStepCopy",
+            "OperationDeliverableCopy",
+            "operationDeskTitle",
+            "operationLoopSteps",
+            "operationDeliverables",
+            "operationStageStatus",
+            "operationLoopStages",
+            "operationCurrentStage",
+            "operationResultSummary",
+            "openOutputDetails",
+            "onOpenKnowledge",
+            "client-operation-desk",
+            "client-operation-loop",
+            "client-operation-controls",
+            "client-operation-deliverables",
+            "OpenClaw/Playwright",
+            "Product operation desk",
+        ]:
+            assert token in text
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".client-operation-desk",
+            ".client-operation-header",
+            ".client-operation-status",
+            ".client-operation-current",
+            ".client-operation-controls",
+            ".client-operation-loop",
+            ".client-operation-step",
+            ".client-operation-deliverables",
+            ".client-operation-deliverable",
+            ".client-operation-knowledge-card",
+        ]:
+            assert token in styles
+
+
+def test_phase_62x_client_operation_desk_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 62X Customer Console Product Operation Desk" in text
+        assert "codex/phase-62x-client-operation-desk" in text
+        assert "product operation desk" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
