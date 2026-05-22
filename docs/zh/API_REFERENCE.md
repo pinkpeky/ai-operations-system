@@ -3651,6 +3651,8 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/maintenance-runbook`
 - `GET /api/v1/comfyui-runtime/config-change-requests`
 - `POST /api/v1/comfyui-runtime/config-change-requests`
+- `GET /api/v1/comfyui-runtime/manual-apply-evidence`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -3715,5 +3717,19 @@ Review endpoints:
 - `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/archive`
 
 边界：Phase 62F 只记录可审查申请，不会写入环境变量、不会重启服务、不会启用 runtime switch、不会请求 ComfyUI、不会触发 guarded `/system_stats` 探测、不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、读取 environment state、解析 secret value、发布、运行 OpenClaw、运行 Browser Worker actions 或绕过审批。
+
+## Phase 62G: ComfyUI Runtime Manual Apply Evidence
+
+Phase 62G 新增服务器维护人员使用的 metadata-only 人工应用证据。`POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence` 只能从已经 `approved_for_manual_apply` 的 Phase 62F 申请创建证据，并把 before/after snapshot id、已批准申请 payload、manual apply steps、restart evidence、rollback notes、verification notes、无网络 diagnostics、`manual_config_applied=true`、`service_restart_reported`、`external_request_attempted=false`、`runtime_calls_enabled=false` 和 `api_config_mutation_performed=false` 保存到 `comfyui_runtime_manual_apply_evidence`。`GET /api/v1/comfyui-runtime/manual-apply-evidence` 用于列出当前 workspace 最近的人工应用证据。
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/ready`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/verify`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/reject`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/fail`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/archive`
+
+边界：Phase 62G 只记录维护人员证据，不会写入环境变量、不会重启服务、不会启用 runtime switch、不会通过 API 修改 runtime configuration、不会请求 ComfyUI、不会触发 guarded `/system_stats` 探测、不会 import adapter、提交 prompt、读取队列、提交队列、上传文件、生成媒体、读取 environment state、解析 secret value、发布、运行 OpenClaw、运行 Browser Worker actions 或绕过审批。
 
 边界：Phase 62A 只是契约与可见性层。即使提供 guarded settings，health 端点也只返回 readiness metadata，不会尝试网络请求。runtime call、queue read/submission、prompt submission、upload、media generation、runtime switch enablement 和 secret resolution 仍保持禁用。

@@ -1922,6 +1922,20 @@ export const comfyuiRuntimeApi = {
       { method: "POST", body: JSON.stringify(payload) },
       settings,
     ),
+  manualApplyEvidence: (settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>("/comfyui-runtime/manual-apply-evidence?limit=20", {}, settings),
+  createManualApplyEvidence: (requestId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/config-change-requests/${encodeURIComponent(requestId)}/manual-apply-evidence`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  updateManualApplyEvidenceStatus: (evidenceId: string, action: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/manual-apply-evidence/${encodeURIComponent(evidenceId)}/${encodeURIComponent(action)}`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
   diagnosticSnapshots: (settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>("/comfyui-runtime/diagnostic-snapshots?limit=20", {}, settings),
   createDiagnosticSnapshot: (payload: JsonRecord, settings?: AdminSettings) =>

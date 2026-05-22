@@ -4245,6 +4245,8 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/maintenance-runbook`
 - `GET /api/v1/comfyui-runtime/config-change-requests`
 - `POST /api/v1/comfyui-runtime/config-change-requests`
+- `GET /api/v1/comfyui-runtime/manual-apply-evidence`
+- `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -4311,3 +4313,17 @@ Review endpoints:
 - `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/archive`
 
 Boundary: Phase 62F records a reviewable request only. It does not write environment variables, restart services, enable runtime switches, call ComfyUI, run the guarded `/system_stats` probe, import adapters, submit prompts, read queues, submit queues, upload files, generate media, read environment state, resolve secret values, publish, run OpenClaw, run Browser Worker actions, or bypass approval.
+
+## Phase 62G: ComfyUI Runtime Manual Apply Evidence
+
+Phase 62G adds metadata-only manual apply evidence for server maintainers. `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence` creates evidence from a Phase 62F request that is already `approved_for_manual_apply`, stores before/after snapshot ids, the approved request payload, manual apply steps, restart evidence, rollback notes, verification notes, no-network diagnostics, `manual_config_applied=true`, `service_restart_reported`, `external_request_attempted=false`, `runtime_calls_enabled=false`, and `api_config_mutation_performed=false` in `comfyui_runtime_manual_apply_evidence`. `GET /api/v1/comfyui-runtime/manual-apply-evidence` lists recent evidence records for the current workspace.
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/ready`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/verify`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/reject`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/fail`
+- `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/archive`
+
+Boundary: Phase 62G records maintainer evidence only. It does not write environment variables, restart services, enable runtime switches, mutate runtime configuration through the API, call ComfyUI, run the guarded `/system_stats` probe, import adapters, submit prompts, read queues, submit queues, upload files, generate media, read environment state, resolve secret values, publish, run OpenClaw, run Browser Worker actions, or bypass approval.
