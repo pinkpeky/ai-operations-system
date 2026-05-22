@@ -45,6 +45,8 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/comfyui-runtime/capabilities",
         "/comfyui-runtime/diagnostics",
         "/comfyui-runtime/maintenance-runbook",
+        "/comfyui-runtime/config-change-requests",
+        "/comfyui-runtime/config-change-requests/${encodeURIComponent(requestId)}/${encodeURIComponent(action)}",
         "/comfyui-runtime/diagnostic-snapshots",
         "/commercial-operations/${encodeURIComponent(operationId)}",
         "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft",

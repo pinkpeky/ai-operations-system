@@ -28,7 +28,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Commercial operations center" in text
     assert "Phase 61Z" in text
     assert "Runtime adapter contract" in text
-    assert "Phase 62E" in text
+    assert "Phase 62F" in text
     assert "read_only_probe_enabled" in text
     assert "read_only_probe_attempted" in text
     assert "readiness_status" in text
@@ -43,6 +43,15 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "next_operator_action" in text
     assert "snapshot_recommended" in text
     assert "recovery_actions" in text
+    assert "config_change_request_count" in text
+    assert "latest_config_change_status" in text
+    assert "latest_config_change_at" in text
+    assert "Config change requests" in text
+    assert "创建配置变更申请" in text
+    assert "送审配置申请" in text
+    assert "批准人工应用" in text
+    assert "updateComfyuiRuntimeConfigChangeRequestStatus" in text
+    assert "createComfyuiRuntimeConfigChangeRequest" in text
     assert "saveComfyuiRuntimeDiagnosticSnapshot" in text
     assert "allowed_health_paths" in text
     assert "probe_latency_ms" in text
@@ -50,6 +59,9 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "comfyuiRuntimeApi.capabilities" in text
     assert "comfyuiRuntimeApi.diagnostics" in text
     assert "comfyuiRuntimeApi.maintenanceRunbook" in text
+    assert "comfyuiRuntimeApi.configChangeRequests" in text
+    assert "comfyuiRuntimeApi.createConfigChangeRequest" in text
+    assert "comfyuiRuntimeApi.updateConfigChangeRequestStatus" in text
     assert "comfyuiRuntimeApi.diagnosticSnapshots" in text
     assert "comfyuiRuntimeApi.createDiagnosticSnapshot" in text
     assert "Approval gates" in text
@@ -276,6 +288,8 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/capabilities" in text
     assert "/comfyui-runtime/diagnostics" in text
     assert "/comfyui-runtime/maintenance-runbook" in text
+    assert "/comfyui-runtime/config-change-requests" in text
+    assert "/comfyui-runtime/config-change-requests/${encodeURIComponent(requestId)}/${encodeURIComponent(action)}" in text
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text

@@ -43,6 +43,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 62C",
         "Phase 62D",
         "Phase 62E",
+        "Phase 62F",
         "commercial_operations",
         "commercial_operation_links",
         "commercial_operation_approvals",
@@ -60,6 +61,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "commercial_operation_comfyui_runtime_dry_runs",
         "commercial_operation_comfyui_runtime_activations",
         "comfyui_runtime_diagnostic_snapshots",
+        "comfyui_runtime_config_change_requests",
         "commercial_operation_deliverables",
         "commercial_operation_execution_requests",
         "commercial_operation_execution_runs",
@@ -84,6 +86,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "CommercialOperationComfyUIRuntimeDryRun",
         "CommercialOperationComfyUIRuntimeActivation",
         "ComfyUIRuntimeDiagnosticSnapshot",
+        "ComfyUIRuntimeConfigChangeRequest",
         "CommercialOperationDeliverable",
         "CommercialOperationExecutionRequest",
         "CommercialOperationExecutionRun",
@@ -115,6 +118,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/comfyui-runtime/diagnostics",
         "/api/v1/comfyui-runtime/maintenance-runbook",
         "/api/v1/comfyui-runtime/diagnostic-snapshots",
+        "/api/v1/comfyui-runtime/config-change-requests",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
         "/api/v1/commercial-operations/{operation_id}/execution-requests",
         "/api/v1/commercial-operations/{operation_id}/execution-runs",
@@ -147,6 +151,9 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Runtime Diagnostics",
         "ComfyUI Runtime Diagnostic Snapshots",
         "ComfyUI Runtime Maintenance Runbook",
+        "ComfyUI Runtime Configuration Change Requests",
+        "configuration change requests",
+        "config_mutation_performed",
         "Deliverable",
         "Execution Request",
         "Execution Run",
@@ -164,7 +171,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         assert marker in text
 
 
-def test_recovery_docs_point_to_phase_62e_comfyui_runtime_maintenance_runbook() -> None:
+def test_recovery_docs_point_to_phase_62f_comfyui_runtime_config_change_requests() -> None:
     for relative in (
         "docs/PHASE_INDEX.md",
         "docs/CURRENT_NEXT_PHASE.md",
@@ -177,11 +184,12 @@ def test_recovery_docs_point_to_phase_62e_comfyui_runtime_maintenance_runbook() 
         "docs/zh/API_REFERENCE.md",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "Phase 62E" in text or "62E" in text, relative
-        assert "ComfyUI Runtime Maintenance Runbook" in text or "maintenance runbook" in text, relative
+        assert "Phase 62F" in text or "62F" in text, relative
+        assert "ComfyUI Runtime Configuration Change Requests" in text or "configuration change requests" in text, relative
         assert "/comfyui-runtime/health" in text, relative
         assert "/comfyui-runtime/capabilities" in text, relative
         assert "/comfyui-runtime/diagnostics" in text, relative
         assert "/comfyui-runtime/maintenance-runbook" in text, relative
+        assert "/comfyui-runtime/config-change-requests" in text, relative
         assert "/comfyui-runtime/diagnostic-snapshots" in text, relative
-        assert "next_operator_action" in text or "readiness_status" in text or "read_only_probe" in text, relative
+        assert "config_mutation_performed" in text or "change_status" in text or "requested_changes" in text, relative

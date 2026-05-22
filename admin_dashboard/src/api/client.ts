@@ -1912,6 +1912,16 @@ export const comfyuiRuntimeApi = {
   diagnostics: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/diagnostics", {}, settings),
   maintenanceRunbook: (settings?: AdminSettings) =>
     requestJson<JsonRecord>("/comfyui-runtime/maintenance-runbook", {}, settings),
+  configChangeRequests: (settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>("/comfyui-runtime/config-change-requests?limit=20", {}, settings),
+  createConfigChangeRequest: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>("/comfyui-runtime/config-change-requests", { method: "POST", body: JSON.stringify(payload) }, settings),
+  updateConfigChangeRequestStatus: (requestId: string, action: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/config-change-requests/${encodeURIComponent(requestId)}/${encodeURIComponent(action)}`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
   diagnosticSnapshots: (settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>("/comfyui-runtime/diagnostic-snapshots?limit=20", {}, settings),
   createDiagnosticSnapshot: (payload: JsonRecord, settings?: AdminSettings) =>

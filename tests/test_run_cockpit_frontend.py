@@ -116,7 +116,7 @@ def test_run_cockpit_exposes_actions_and_feedback() -> None:
 
 
 def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
-    """Recovery docs should point to the active ComfyUI runtime maintenance runbook slice."""
+    """Recovery docs should point to the active ComfyUI runtime config request slice."""
 
     docs = [
         ROOT / "docs/RUN_COCKPIT_FOUNDATION.md",
@@ -130,13 +130,18 @@ def test_run_cockpit_docs_track_commercial_operations_slice() -> None:
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        assert "phase-62e-comfyui-maintenance-console" in text or "ComfyUI Runtime Maintenance Runbook" in text, path
+        assert (
+            "phase-62f-comfyui-config-change-requests" in text
+            or "ComfyUI Runtime Configuration Change Requests" in text
+            or "configuration change requests" in text
+        ), path
         assert "/comfyui-runtime/health" in text, path
         assert "/comfyui-runtime/capabilities" in text, path
         assert "/comfyui-runtime/diagnostics" in text, path
         assert "/comfyui-runtime/maintenance-runbook" in text, path
+        assert "/comfyui-runtime/config-change-requests" in text, path
         assert "/comfyui-runtime/diagnostic-snapshots" in text, path
-        assert "next_operator_action" in text or "readiness_status" in text or "ComfyUIRuntimeService" in text, path
+        assert "config_mutation_performed" in text or "change_status" in text or "requested_changes" in text, path
         assert "comfyui-operations" in text or "dedicated Admin Dashboard ComfyUI tab" in text or "Admin Dashboard ComfyUI page" in text or "独立 ComfyUI 页签" in text, path
 
 
@@ -165,7 +170,7 @@ def test_run_cockpit_phase_index_marks_merged_slices_complete() -> None:
 
 
 def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -> None:
-    """Phase 61A-61P should be merged and Phase 62E should be the active ComfyUI runbook slice."""
+    """Phase 61A-61P should be merged and Phase 62F should be the active ComfyUI config request slice."""
 
     text = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     phase_lines = {
@@ -565,3 +570,14 @@ def test_run_cockpit_phase_index_tracks_phase_61_commercial_operations_slice() -
     assert "Draft PR" in phase_62_lines["62E"]
     assert "TBD" not in phase_62_lines["62E"]
     assert "In progress" not in phase_62_lines["62E"]
+
+    assert "62F" in phase_62_lines
+    assert "phase-62f-comfyui-config-change-requests" in phase_62_lines["62F"]
+    assert "ComfyUI Runtime Configuration Change Requests" in phase_62_lines["62F"]
+    assert "/api/v1/comfyui-runtime/config-change-requests" in phase_62_lines["62F"]
+    assert "comfyui_runtime_config_change_requests" in phase_62_lines["62F"]
+    assert "config_mutation_performed" in phase_62_lines["62F"]
+    assert "#72" in phase_62_lines["62F"]
+    assert "Draft PR" in phase_62_lines["62F"]
+    assert "TBD" not in phase_62_lines["62F"]
+    assert "In progress" not in phase_62_lines["62F"]

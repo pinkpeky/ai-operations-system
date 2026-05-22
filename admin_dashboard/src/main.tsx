@@ -1113,9 +1113,9 @@ function useAutoRefresh(enabled: boolean, intervalMs: number, callback: () => vo
 
 function StatusPill({ value }: { value: React.ReactNode }) {
   const label = String(value ?? "unknown");
-  const variant = /online|active|healthy|completed|success|pass|ready|true/i.test(label)
+  const variant = /online|active|healthy|completed|success|pass|ready|approved|true/i.test(label)
     ? "ok"
-    : /failed|error|offline|timeout|blocked|false|revoked/i.test(label)
+    : /failed|error|offline|timeout|blocked|rejected|cancelled|false|revoked/i.test(label)
       ? "bad"
       : "muted";
   return <span className={`status-pill status-pill-${variant}`}>{label}</span>;
@@ -1265,7 +1265,7 @@ function Table({
 }
 
 function renderCell(value: unknown): React.ReactNode {
-  if (typeof value === "string" && /^(active|online|offline|failed|completed|pending|running|healthy|warning|error|blocked|pass|ready|true|false)$/i.test(value)) {
+  if (typeof value === "string" && /^(active|online|offline|failed|completed|pending|running|healthy|warning|error|blocked|pass|ready|draft|ready_for_review|approved_for_manual_apply|rejected|cancelled|archived|true|false)$/i.test(value)) {
     return <StatusPill value={value} />;
   }
   if (typeof value === "boolean") {
@@ -4655,12 +4655,20 @@ function CommercialOperationsPage({
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作、最近诊断快照和 Phase 62E 维护 runbook。只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作、最近诊断快照、Phase 62E 维护 runbook 和 Phase 62F 配置变更申请。只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
           runtimeRefresh: "刷新适配器状态",
           runtimeSnapshot: "保存诊断快照",
+          runtimeConfigRequest: "创建配置变更申请",
           runtimeCapabilities: "能力与护栏",
           runtimeRunbook: "维护 runbook",
           runtimeRunbookEmpty: "暂无维护检查项。",
+          runtimeConfigRequests: "配置变更申请",
+          runtimeConfigRequestsEmpty: "暂无配置变更申请。",
+          runtimeConfigReady: "送审配置申请",
+          runtimeConfigApprove: "批准人工应用",
+          runtimeConfigReject: "驳回申请",
+          runtimeConfigCancel: "取消申请",
+          runtimeConfigArchive: "归档申请",
         }
       : {
           title: "ComfyUI operations workspace",
@@ -4672,12 +4680,20 @@ function CommercialOperationsPage({
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, recent diagnostic snapshots, and the Phase 62E maintenance runbook. /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, recent diagnostic snapshots, the Phase 62E maintenance runbook, and Phase 62F config change requests. /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
           runtimeRefresh: "Refresh adapter status",
           runtimeSnapshot: "Save diagnostics snapshot",
+          runtimeConfigRequest: "Create config change request",
           runtimeCapabilities: "Capabilities and guardrails",
           runtimeRunbook: "Maintenance runbook",
           runtimeRunbookEmpty: "No maintenance steps yet.",
+          runtimeConfigRequests: "Config change requests",
+          runtimeConfigRequestsEmpty: "No config change requests yet.",
+          runtimeConfigReady: "Mark ready",
+          runtimeConfigApprove: "Approve manual apply",
+          runtimeConfigReject: "Reject request",
+          runtimeConfigCancel: "Cancel request",
+          runtimeConfigArchive: "Archive request",
         };
   const contentCopy =
     language === "zh-CN"
@@ -5927,15 +5943,16 @@ function CommercialOperationsPage({
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [health, capabilities, diagnostics, runbook, snapshots] = await Promise.all([
+      const [health, capabilities, diagnostics, runbook, configRequests, snapshots] = await Promise.all([
         comfyuiRuntimeApi.health(settings),
         comfyuiRuntimeApi.capabilities(settings),
         comfyuiRuntimeApi.diagnostics(settings),
         comfyuiRuntimeApi.maintenanceRunbook(settings),
+        comfyuiRuntimeApi.configChangeRequests(settings),
         comfyuiRuntimeApi.diagnosticSnapshots(settings),
       ]);
       setComfyuiRuntimeAdapterState({
-        data: { health, capabilities, diagnostics, runbook, snapshots: toItems(snapshots) },
+        data: { health, capabilities, diagnostics, runbook, configRequests: toItems(configRequests), snapshots: toItems(snapshots) },
         error: null,
         loading: false,
         updatedAt: nowLabel(),
@@ -5974,6 +5991,68 @@ function CommercialOperationsPage({
       });
     }
   }, [language, loadComfyuiRuntimeAdapter, settings]);
+
+  const createComfyuiRuntimeConfigChangeRequest = useCallback(async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const changeRequest = await comfyuiRuntimeApi.createConfigChangeRequest(
+        {
+          change_reason:
+            language === "zh-CN"
+              ? "从 Phase 62F ComfyUI 维护 runbook 创建配置变更申请。"
+              : "Created from the Phase 62F ComfyUI maintenance runbook.",
+          operator_note:
+            language === "zh-CN"
+              ? "仅创建待审核记录，不修改环境变量，不启用 ComfyUI。"
+              : "Review record only; does not change environment variables or enable ComfyUI.",
+          metadata: { source_page: "comfyui-operations", phase: "62F", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: changeRequest, error: null, loading: false, updatedAt: nowLabel() });
+      await loadComfyuiRuntimeAdapter();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI runtime config change request unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [language, loadComfyuiRuntimeAdapter, settings]);
+
+  const updateComfyuiRuntimeConfigChangeRequestStatus = useCallback(
+    async (requestId: string, action: "ready" | "approve" | "reject" | "cancel" | "archive") => {
+      if (!requestId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const reviewed = await comfyuiRuntimeApi.updateConfigChangeRequestStatus(
+          requestId,
+          action,
+          {
+            reviewer_notes:
+              language === "zh-CN"
+                ? "从 Admin Dashboard 更新配置变更申请状态；仍不修改环境变量，不启用 ComfyUI。"
+                : "Updated from Admin Dashboard; still does not change environment variables or enable ComfyUI.",
+            metadata: { source_page: "comfyui-operations", phase: "62F", ui_language: language, action },
+          },
+          settings,
+        );
+        setActionState({ data: reviewed, error: null, loading: false, updatedAt: nowLabel() });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI runtime config change request review unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
 
   useEffect(() => {
     if (isComfyuiPage) {
@@ -9226,6 +9305,9 @@ function CommercialOperationsPage({
   const comfyuiRuntimeRunbookSteps = Array.isArray(comfyuiRuntimeRunbook?.steps)
     ? (comfyuiRuntimeRunbook.steps as JsonRecord[])
     : [];
+  const comfyuiRuntimeConfigRequests = toItems(comfyuiRuntimeAdapterState.data?.configRequests);
+  const latestComfyuiRuntimeConfigRequest = comfyuiRuntimeConfigRequests[0] ?? null;
+  const latestComfyuiRuntimeConfigRequestId = valueAt(latestComfyuiRuntimeConfigRequest, ["id"], "");
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -9849,6 +9931,9 @@ function CommercialOperationsPage({
             <Field label="next_operator_action" value={valueAt(comfyuiRuntimeRunbook, ["next_operator_action"], "-")} />
             <Field label="snapshot_recommended" value={<StatusPill value={valueAt(comfyuiRuntimeRunbook, ["snapshot_recommended"], "false")} />} />
             <Field label="recovery_actions" value={shortJson(comfyuiRuntimeRunbook?.recovery_actions, 180)} />
+            <Field label="config_change_request_count" value={String(comfyuiRuntimeConfigRequests.length)} />
+            <Field label="latest_config_change_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeConfigRequest, ["change_status"], "none")} />} />
+            <Field label="latest_config_change_at" value={valueAt(latestComfyuiRuntimeConfigRequest, ["created_at"], "-")} />
           </div>
           <h3>{comfyuiSurfaceCopy.runtimeRunbook}</h3>
           <Table
@@ -9861,6 +9946,18 @@ function CommercialOperationsPage({
               { key: "action", label: "action" },
             ]}
           />
+          <h3>{comfyuiSurfaceCopy.runtimeConfigRequests}</h3>
+          <Table
+            rows={comfyuiRuntimeConfigRequests}
+            emptyLabel={comfyuiSurfaceCopy.runtimeConfigRequestsEmpty}
+            columns={[
+              { key: "change_status", label: "status" },
+              { key: "readiness_status", label: "readiness" },
+              { key: "requested_changes", label: "requested_changes" },
+              { key: "operator_note", label: "note" },
+              { key: "created_at", label: "created_at" },
+            ]}
+          />
           <div className="commercial-action-row">
             <button className="ghost-button" onClick={() => void loadComfyuiRuntimeAdapter()} disabled={comfyuiRuntimeAdapterState.loading}>
               <RefreshCcw size={15} />
@@ -9869,6 +9966,50 @@ function CommercialOperationsPage({
             <button className="primary-button" onClick={() => void saveComfyuiRuntimeDiagnosticSnapshot()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
               <HardDrive size={15} />
               {comfyuiSurfaceCopy.runtimeSnapshot}
+            </button>
+            <button className="primary-button" onClick={() => void createComfyuiRuntimeConfigChangeRequest()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
+              <ClipboardList size={15} />
+              {comfyuiSurfaceCopy.runtimeConfigRequest}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeConfigChangeRequestStatus(latestComfyuiRuntimeConfigRequestId, "ready")}
+              disabled={!latestComfyuiRuntimeConfigRequestId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Send size={15} />
+              {comfyuiSurfaceCopy.runtimeConfigReady}
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => void updateComfyuiRuntimeConfigChangeRequestStatus(latestComfyuiRuntimeConfigRequestId, "approve")}
+              disabled={!latestComfyuiRuntimeConfigRequestId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <ShieldCheck size={15} />
+              {comfyuiSurfaceCopy.runtimeConfigApprove}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeConfigChangeRequestStatus(latestComfyuiRuntimeConfigRequestId, "reject")}
+              disabled={!latestComfyuiRuntimeConfigRequestId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <AlertTriangle size={15} />
+              {comfyuiSurfaceCopy.runtimeConfigReject}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeConfigChangeRequestStatus(latestComfyuiRuntimeConfigRequestId, "cancel")}
+              disabled={!latestComfyuiRuntimeConfigRequestId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <Crosshair size={15} />
+              {comfyuiSurfaceCopy.runtimeConfigCancel}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void updateComfyuiRuntimeConfigChangeRequestStatus(latestComfyuiRuntimeConfigRequestId, "archive")}
+              disabled={!latestComfyuiRuntimeConfigRequestId || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <History size={15} />
+              {comfyuiSurfaceCopy.runtimeConfigArchive}
             </button>
           </div>
         </Panel>

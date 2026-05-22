@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from time import perf_counter
 from typing import Any, Callable, Mapping
+from uuid import UUID
 from urllib.error import HTTPError
 from urllib.parse import urlparse, urlunparse
 from urllib.request import Request, urlopen
@@ -13,9 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.models.comfyui_runtime import ComfyUIRuntimeDiagnosticSnapshot
+from app.models.comfyui_runtime import ComfyUIRuntimeConfigChangeRequest, ComfyUIRuntimeDiagnosticSnapshot
 from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeCapabilitiesResponse,
+    ComfyUIRuntimeConfigChangeRequestListResponse,
+    ComfyUIRuntimeConfigChangeRequestResponse,
     ComfyUIRuntimeDiagnosticCheck,
     ComfyUIRuntimeDiagnosticSnapshotListResponse,
     ComfyUIRuntimeDiagnosticSnapshotResponse,
@@ -38,6 +41,14 @@ DISABLED_COMFYUI_RUNTIME_ACTIONS = [
     "enable_runtime_switch",
     "resolve_secret_value",
 ]
+COMFYUI_RUNTIME_CONFIG_CHANGE_STATUSES = {
+    "draft",
+    "ready_for_review",
+    "approved_for_manual_apply",
+    "rejected",
+    "cancelled",
+    "archived",
+}
 
 HttpGet = Callable[[str, float], Mapping[str, Any]]
 
@@ -480,6 +491,117 @@ class ComfyUIRuntimeService:
             },
         )
 
+    async def create_config_change_request(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        user_id: str | None = None,
+        change_reason: str | None = None,
+        requested_changes: list[Mapping[str, Any]] | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeConfigChangeRequestResponse:
+        """Persist a metadata-only configuration change request from the current runbook."""
+
+        runbook = self.maintenance_runbook(workspace_id=workspace_id)
+        normalized_changes = [dict(item) for item in requested_changes or []]
+        if not normalized_changes:
+            normalized_changes = self._recommended_config_changes(runbook)
+        request_metadata = {
+            **dict(metadata or {}),
+            "phase": "62F",
+            "source": "comfyui_runtime_maintenance_runbook",
+            "no_network_call_performed": True,
+            "config_mutation_performed": False,
+        }
+        change_request = ComfyUIRuntimeConfigChangeRequest(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            change_status="draft",
+            provider=runbook.diagnostics.provider,
+            readiness_status=runbook.readiness_status,
+            read_only_probe_ready=runbook.read_only_probe_ready,
+            external_request_attempted=False,
+            runtime_calls_enabled=False,
+            config_mutation_performed=False,
+            current_configuration=dict(runbook.configuration_summary),
+            requested_changes=normalized_changes,
+            runbook_steps=[step.model_dump(mode="json") for step in runbook.steps],
+            recovery_actions=list(runbook.recovery_actions),
+            disabled_actions=list(runbook.disabled_actions),
+            runbook_payload=runbook.model_dump(mode="json"),
+            change_reason=change_reason.strip() if change_reason else None,
+            operator_note=operator_note.strip() if operator_note else None,
+            request_metadata=request_metadata,
+        )
+        session.add(change_request)
+        await session.commit()
+        await session.refresh(change_request)
+        return ComfyUIRuntimeConfigChangeRequestResponse.from_model(change_request)
+
+    async def list_config_change_requests(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        limit: int = 20,
+    ) -> ComfyUIRuntimeConfigChangeRequestListResponse:
+        """List recent metadata-only configuration change requests for one workspace."""
+
+        bounded_limit = max(1, min(limit, 100))
+        result = await session.execute(
+            select(ComfyUIRuntimeConfigChangeRequest)
+            .where(ComfyUIRuntimeConfigChangeRequest.workspace_id == workspace_id)
+            .order_by(ComfyUIRuntimeConfigChangeRequest.created_at.desc())
+            .limit(bounded_limit)
+        )
+        requests = result.scalars().all()
+        return ComfyUIRuntimeConfigChangeRequestListResponse(
+            workspace_id=workspace_id,
+            items=[ComfyUIRuntimeConfigChangeRequestResponse.from_model(request) for request in requests],
+        )
+
+    async def update_config_change_request_status(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        request_id: UUID,
+        status: str,
+        reviewer_notes: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeConfigChangeRequestResponse:
+        """Update review status without mutating ComfyUI runtime configuration."""
+
+        if status not in COMFYUI_RUNTIME_CONFIG_CHANGE_STATUSES:
+            raise ValueError(f"Unsupported ComfyUI runtime config change status: {status}")
+        result = await session.execute(
+            select(ComfyUIRuntimeConfigChangeRequest).where(
+                ComfyUIRuntimeConfigChangeRequest.id == request_id,
+                ComfyUIRuntimeConfigChangeRequest.workspace_id == workspace_id,
+            )
+        )
+        request = result.scalar_one_or_none()
+        if request is None:
+            raise LookupError("ComfyUI runtime config change request not found")
+        request.change_status = status
+        request.reviewer_notes = reviewer_notes.strip() if reviewer_notes else request.reviewer_notes
+        request.config_mutation_performed = False
+        request.external_request_attempted = False
+        request.runtime_calls_enabled = False
+        request.request_metadata = {
+            **(request.request_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "62F",
+            "last_review_status": status,
+            "no_network_call_performed": True,
+            "config_mutation_performed": False,
+        }
+        await session.commit()
+        await session.refresh(request)
+        return ComfyUIRuntimeConfigChangeRequestResponse.from_model(request)
+
     async def create_diagnostic_snapshot(
         self,
         session: AsyncSession,
@@ -553,6 +675,53 @@ class ComfyUIRuntimeService:
             workspace_id=workspace_id,
             items=[ComfyUIRuntimeDiagnosticSnapshotResponse.from_model(snapshot) for snapshot in snapshots],
         )
+
+    def _recommended_config_changes(
+        self,
+        runbook: ComfyUIRuntimeMaintenanceRunbookResponse,
+    ) -> list[dict[str, Any]]:
+        changes: list[dict[str, Any]] = []
+        env_targets = {
+            "provider_guarded": ("COMFYUI_RUNTIME_PROVIDER", "guarded"),
+            "runtime_enabled": ("COMFYUI_RUNTIME_ENABLED", "true"),
+            "network_gate": ("COMFYUI_RUNTIME_ALLOW_NETWORK", "true"),
+            "base_url_scheme": ("COMFYUI_RUNTIME_BASE_URL", "http://127.0.0.1:8188"),
+            "base_url_host_allowlist": ("COMFYUI_RUNTIME_ALLOWED_HOSTS", runbook.configuration_summary.get("parsed_host")),
+            "read_only_probe_gate": ("COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED", "true"),
+            "health_path_allowlist": ("COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS", runbook.configuration_summary.get("health_path")),
+        }
+        for step in runbook.steps:
+            if not step.blocking:
+                continue
+            target_env, suggested_value = env_targets.get(step.source_check or "", (None, None))
+            changes.append(
+                {
+                    "key": step.key,
+                    "source_check": step.source_check,
+                    "title": step.title,
+                    "status": "requested",
+                    "target_env": target_env,
+                    "suggested_value": suggested_value,
+                    "action": step.action,
+                    "requires_api_restart": True,
+                    "config_mutation_performed": False,
+                }
+            )
+        if not changes:
+            changes.append(
+                {
+                    "key": "save_snapshot_and_probe",
+                    "source_check": "read_only_probe_ready",
+                    "title": "Ready for guarded read-only probe",
+                    "status": "requested",
+                    "target_env": None,
+                    "suggested_value": None,
+                    "action": runbook.next_operator_action,
+                    "requires_api_restart": False,
+                    "config_mutation_performed": False,
+                }
+            )
+        return changes
 
     def _contract_error(
         self,

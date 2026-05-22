@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.comfyui_runtime import ComfyUIRuntimeDiagnosticSnapshot
+from app.models.comfyui_runtime import ComfyUIRuntimeConfigChangeRequest, ComfyUIRuntimeDiagnosticSnapshot
 
 
 class ComfyUIRuntimeHealthResponse(BaseModel):
@@ -132,6 +132,88 @@ class ComfyUIRuntimeMaintenanceRunbookResponse(BaseModel):
     configuration_summary: dict[str, Any] = Field(default_factory=dict)
     diagnostics: ComfyUIRuntimeDiagnosticsResponse
     raw: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeConfigChangeRequestCreateRequest(BaseModel):
+    """Create a metadata-only ComfyUI runtime configuration change request."""
+
+    change_reason: str | None = Field(default=None, max_length=2000)
+    requested_changes: list[dict[str, Any]] = Field(default_factory=list)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeConfigChangeDecisionRequest(BaseModel):
+    """Review a metadata-only ComfyUI runtime configuration change request."""
+
+    reviewer_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeConfigChangeRequestResponse(BaseModel):
+    """Persisted ComfyUI runtime configuration change request response."""
+
+    success: bool = True
+    id: UUID
+    workspace_id: str
+    user_id: str | None = None
+    change_status: str
+    provider: str
+    readiness_status: str
+    read_only_probe_ready: bool
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    config_mutation_performed: bool
+    current_configuration: dict[str, Any] = Field(default_factory=dict)
+    requested_changes: list[dict[str, Any]] = Field(default_factory=list)
+    runbook_steps: list[dict[str, Any]] = Field(default_factory=list)
+    recovery_actions: list[str] = Field(default_factory=list)
+    disabled_actions: list[str] = Field(default_factory=list)
+    runbook_payload: dict[str, Any] = Field(default_factory=dict)
+    change_reason: str | None = None
+    operator_note: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        request: ComfyUIRuntimeConfigChangeRequest,
+    ) -> "ComfyUIRuntimeConfigChangeRequestResponse":
+        return cls(
+            id=request.id,
+            workspace_id=request.workspace_id,
+            user_id=request.user_id,
+            change_status=request.change_status,
+            provider=request.provider,
+            readiness_status=request.readiness_status,
+            read_only_probe_ready=request.read_only_probe_ready,
+            external_request_attempted=request.external_request_attempted,
+            runtime_calls_enabled=request.runtime_calls_enabled,
+            config_mutation_performed=request.config_mutation_performed,
+            current_configuration=request.current_configuration or {},
+            requested_changes=request.requested_changes or [],
+            runbook_steps=request.runbook_steps or [],
+            recovery_actions=request.recovery_actions or [],
+            disabled_actions=request.disabled_actions or [],
+            runbook_payload=request.runbook_payload or {},
+            change_reason=request.change_reason,
+            operator_note=request.operator_note,
+            reviewer_notes=request.reviewer_notes,
+            metadata=request.request_metadata or {},
+            created_at=request.created_at,
+            updated_at=request.updated_at,
+        )
+
+
+class ComfyUIRuntimeConfigChangeRequestListResponse(BaseModel):
+    """List response for ComfyUI runtime configuration change requests."""
+
+    success: bool = True
+    workspace_id: str
+    items: list[ComfyUIRuntimeConfigChangeRequestResponse] = Field(default_factory=list)
 
 
 class ComfyUIRuntimeDiagnosticSnapshotCreateRequest(BaseModel):
