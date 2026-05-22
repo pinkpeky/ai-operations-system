@@ -259,3 +259,63 @@ def test_phase_62m_plan_is_documented() -> None:
         assert "codex/phase-62m-client-goal-templates" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_62n_goal_plan_preview() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "planTitle",
+            "planSteps",
+            "reviewGate",
+            "outcome",
+            "Plan preview",
+            "Approval boundary",
+            "workbench-plan-preview",
+            "workbench-plan-steps",
+            "workbench-plan-gate",
+            "selectedGoalTemplate.planSteps.map",
+        ]:
+            assert token in text
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".workbench-plan-preview",
+            ".workbench-plan-header",
+            ".workbench-plan-steps",
+            ".workbench-plan-steps li",
+            ".workbench-plan-gate",
+        ]:
+            assert token in styles
+
+
+def test_phase_62n_plan_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 62N Customer Console Goal Plan Preview" in text
+        assert "codex/phase-62n-client-goal-plan-preview" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text

@@ -625,6 +625,22 @@ Operator workflow:
 
 Boundary: Phase 62M is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 62N Customer Console Goal Plan Preview
+
+Status: in progress on `codex/phase-62n-client-goal-plan-preview`.
+
+Phase 62N adds a compact plan preview to the selected customer-machine goal template in `worker_console` and `worker_console_desktop`.
+
+Operator workflow:
+
+- Choose a goal template.
+- Review the planned steps before running.
+- Confirm the approval boundary and expected output.
+- Continue with the existing run-now or background actions.
+- Keep advanced maintenance and diagnostics behind a separate disclosure.
+
+Boundary: Phase 62N is frontend-only. It does not call ComfyUI, execute OpenClaw, publish to real platforms, control real accounts, sign installers, enable auto-update, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
