@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from app.models.comfyui_runtime import (
     ComfyUIRuntimeConfigChangeRequest,
     ComfyUIRuntimeDiagnosticSnapshot,
+    ComfyUIRuntimeGuardedProbeExecution,
     ComfyUIRuntimeManualApplyEvidence,
     ComfyUIRuntimePostManualReadinessCheck,
 )
@@ -435,6 +436,112 @@ class ComfyUIRuntimePostManualReadinessCheckListResponse(BaseModel):
     success: bool = True
     workspace_id: str
     items: list[ComfyUIRuntimePostManualReadinessCheckResponse] = Field(default_factory=list)
+
+
+class ComfyUIRuntimeGuardedProbeExecutionCreateRequest(BaseModel):
+    """Create an approval-gated read-only ComfyUI probe execution record."""
+
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeGuardedProbeExecutionDecisionRequest(BaseModel):
+    """Review or execute an approval-gated read-only ComfyUI probe record."""
+
+    reviewer_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeGuardedProbeExecutionResponse(BaseModel):
+    """Persisted guarded read-only ComfyUI probe execution response."""
+
+    success: bool = True
+    id: UUID
+    workspace_id: str
+    user_id: str | None = None
+    post_manual_readiness_check_id: UUID
+    manual_apply_evidence_id: UUID
+    config_change_request_id: UUID
+    execution_status: str
+    provider: str
+    readiness_status_current: str
+    read_only_probe_ready_current: bool
+    guarded_probe_ready: bool
+    base_url: str
+    health_path: str
+    allowed_hosts: list[str] = Field(default_factory=list)
+    allowed_health_paths: list[str] = Field(default_factory=list)
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    health_probe_executed: bool
+    read_only_probe_attempted: bool
+    api_config_mutation_performed: bool
+    probe_status_code: int | None = None
+    probe_latency_ms: float | None = None
+    probe_result_status: str
+    readiness_check_payload: dict[str, Any] = Field(default_factory=dict)
+    current_diagnostics_payload: dict[str, Any] = Field(default_factory=dict)
+    probe_request: dict[str, Any] = Field(default_factory=dict)
+    probe_response: dict[str, Any] = Field(default_factory=dict)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    disabled_actions: list[str] = Field(default_factory=list)
+    operator_note: str | None = None
+    reviewer_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        execution: ComfyUIRuntimeGuardedProbeExecution,
+    ) -> "ComfyUIRuntimeGuardedProbeExecutionResponse":
+        return cls(
+            id=execution.id,
+            workspace_id=execution.workspace_id,
+            user_id=execution.user_id,
+            post_manual_readiness_check_id=execution.post_manual_readiness_check_id,
+            manual_apply_evidence_id=execution.manual_apply_evidence_id,
+            config_change_request_id=execution.config_change_request_id,
+            execution_status=execution.execution_status,
+            provider=execution.provider,
+            readiness_status_current=execution.readiness_status_current,
+            read_only_probe_ready_current=execution.read_only_probe_ready_current,
+            guarded_probe_ready=execution.guarded_probe_ready,
+            base_url=execution.base_url,
+            health_path=execution.health_path,
+            allowed_hosts=execution.allowed_hosts or [],
+            allowed_health_paths=execution.allowed_health_paths or [],
+            external_request_attempted=execution.external_request_attempted,
+            runtime_calls_enabled=execution.runtime_calls_enabled,
+            health_probe_executed=execution.health_probe_executed,
+            read_only_probe_attempted=execution.read_only_probe_attempted,
+            api_config_mutation_performed=execution.api_config_mutation_performed,
+            probe_status_code=execution.probe_status_code,
+            probe_latency_ms=execution.probe_latency_ms,
+            probe_result_status=execution.probe_result_status,
+            readiness_check_payload=execution.readiness_check_payload or {},
+            current_diagnostics_payload=execution.current_diagnostics_payload or {},
+            probe_request=execution.probe_request or {},
+            probe_response=execution.probe_response or {},
+            blocking_reasons=execution.blocking_reasons or [],
+            recommended_actions=execution.recommended_actions or [],
+            disabled_actions=execution.disabled_actions or [],
+            operator_note=execution.operator_note,
+            reviewer_notes=execution.reviewer_notes,
+            metadata=execution.execution_metadata or {},
+            created_at=execution.created_at,
+            updated_at=execution.updated_at,
+        )
+
+
+class ComfyUIRuntimeGuardedProbeExecutionListResponse(BaseModel):
+    """List response for guarded read-only ComfyUI probe executions."""
+
+    success: bool = True
+    workspace_id: str
+    items: list[ComfyUIRuntimeGuardedProbeExecutionResponse] = Field(default_factory=list)
 
 
 class ComfyUIRuntimeDiagnosticSnapshotCreateRequest(BaseModel):

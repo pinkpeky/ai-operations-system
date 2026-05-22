@@ -1950,6 +1950,26 @@ export const comfyuiRuntimeApi = {
       { method: "POST", body: JSON.stringify(payload) },
       settings,
     ),
+  guardedProbeExecutions: (settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>("/comfyui-runtime/guarded-probe-executions?limit=20", {}, settings),
+  createGuardedProbeExecution: (checkId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/guarded-probe-executions`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  updateGuardedProbeExecutionStatus: (executionId: string, action: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(action)}`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  executeGuardedProbeExecution: (executionId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/execute`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
   diagnosticSnapshots: (settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>("/comfyui-runtime/diagnostic-snapshots?limit=20", {}, settings),
   createDiagnosticSnapshot: (payload: JsonRecord, settings?: AdminSettings) =>

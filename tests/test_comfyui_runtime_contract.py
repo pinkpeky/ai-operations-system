@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes import comfyui_runtime as comfyui_runtime_routes
 from app.comfyui_runtime import ComfyUIRuntimeService
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.errors import AppError, app_error_handler
 
 
@@ -461,6 +461,162 @@ async def test_comfyui_runtime_config_change_request_persists_without_network(se
 
 
 @pytest.mark.asyncio
+async def test_comfyui_runtime_guarded_probe_execution_is_approval_gated(session: AsyncSession) -> None:
+    """Guarded probe execution should call /system_stats only after explicit execution approval."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=5,
+    )
+    calls: list[tuple[str, float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        calls.append((url, timeout))
+        return {"status_code": 200, "json": {"system": {"os": "test"}}, "text": '{"system":{}}'}
+
+    service = ComfyUIRuntimeService(settings=settings, http_get=fake_http_get)
+    change_request = await service.create_config_change_request(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        user_id="user-comfyui",
+        change_reason="ready guarded config",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    await service.update_config_change_request_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        request_id=change_request.id,
+        status="ready_for_review",
+    )
+    approved_request = await service.update_config_change_request_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        request_id=change_request.id,
+        status="approved_for_manual_apply",
+    )
+    evidence = await service.create_manual_apply_evidence(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        request_id=approved_request.id,
+        user_id="user-comfyui",
+        service_restart_reported=True,
+        metadata={"source_page": "comfyui-operations"},
+    )
+    await service.update_manual_apply_evidence_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        evidence_id=evidence.id,
+        status="ready_for_review",
+    )
+    verified_evidence = await service.update_manual_apply_evidence_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        evidence_id=evidence.id,
+        status="verified",
+    )
+    readiness_check = await service.create_post_manual_readiness_check(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        evidence_id=verified_evidence.id,
+        user_id="user-comfyui",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    await service.update_post_manual_readiness_check_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        check_id=readiness_check.id,
+        status="ready_for_review",
+    )
+    approved_readiness_check = await service.update_post_manual_readiness_check_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        check_id=readiness_check.id,
+        status="approved_for_read_only_probe",
+    )
+    execution = await service.create_guarded_probe_execution(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        check_id=approved_readiness_check.id,
+        user_id="user-comfyui",
+        operator_note="prepare guarded read-only probe",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    listed = await service.list_guarded_probe_executions(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        limit=10,
+    )
+    ready_execution = await service.update_guarded_probe_execution_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        execution_id=execution.id,
+        status="ready_for_approval",
+        reviewer_notes="ready for execution approval",
+    )
+    approved_execution = await service.update_guarded_probe_execution_status(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        execution_id=execution.id,
+        status="approved_for_execution",
+        reviewer_notes="approve one read-only system_stats probe",
+    )
+
+    assert calls == []
+    assert approved_readiness_check.check_status == "approved_for_read_only_probe"
+    assert approved_readiness_check.guarded_probe_ready is True
+    assert execution.execution_status == "draft"
+    assert execution.probe_result_status == "not_started"
+    assert execution.post_manual_readiness_check_id == approved_readiness_check.id
+    assert execution.manual_apply_evidence_id == verified_evidence.id
+    assert execution.config_change_request_id == approved_request.id
+    assert execution.read_only_probe_ready_current is True
+    assert execution.guarded_probe_ready is True
+    assert execution.external_request_attempted is False
+    assert execution.health_probe_executed is False
+    assert execution.read_only_probe_attempted is False
+    assert execution.runtime_calls_enabled is False
+    assert execution.api_config_mutation_performed is False
+    assert execution.probe_request["url"] == "http://localhost:8188/system_stats"
+    assert execution.metadata["phase"] == "62J"
+    assert execution.metadata["no_network_call_performed"] is True
+    assert len(listed.items) == 1
+    assert listed.items[0].id == execution.id
+    assert ready_execution.execution_status == "ready_for_approval"
+    assert ready_execution.external_request_attempted is False
+    assert approved_execution.execution_status == "approved_for_execution"
+    assert calls == []
+
+    executed = await service.execute_guarded_probe_execution(
+        session,
+        workspace_id="workspace-comfyui-guarded-exec",
+        execution_id=approved_execution.id,
+        reviewer_notes="executed one approved read-only probe",
+        metadata={"source_page": "comfyui-operations"},
+    )
+
+    assert calls == [("http://localhost:8188/system_stats", 5.0)]
+    assert executed.execution_status == "succeeded"
+    assert executed.probe_result_status == "reachable"
+    assert executed.external_request_attempted is True
+    assert executed.health_probe_executed is True
+    assert executed.read_only_probe_attempted is True
+    assert executed.runtime_calls_enabled is False
+    assert executed.api_config_mutation_performed is False
+    assert executed.probe_status_code == 200
+    assert executed.probe_latency_ms is not None
+    assert executed.probe_response["reachable"] is True
+    assert executed.probe_response["raw"]["probe_path"] == "/system_stats"
+    assert executed.metadata["phase"] == "62J"
+    assert executed.metadata["no_network_call_performed"] is False
+    assert executed.metadata["external_request_attempted"] is True
+
+
+@pytest.mark.asyncio
 async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) -> None:  # type: ignore[no-untyped-def]
     """API should expose health and capabilities without a database or ComfyUI call."""
 
@@ -473,7 +629,7 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     app = FastAPI()
     app.add_exception_handler(AppError, app_error_handler)
     app.include_router(comfyui_runtime_routes.router, prefix="/api/v1")
-    app.dependency_overrides[comfyui_runtime_routes.get_settings] = lambda: settings
+    app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[comfyui_runtime_routes.get_session] = override_get_session
 
     headers = {"X-Workspace-Id": "workspace-comfyui-api", "X-User-Id": "user-comfyui"}
@@ -623,3 +779,137 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert snapshot_list.json()["workspace_id"] == "workspace-comfyui-api"
     assert len(snapshot_list.json()["items"]) == 1
     assert snapshot_list.json()["items"][0]["id"] == created_snapshot.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_comfyui_runtime_guarded_probe_execution_api(monkeypatch, session: AsyncSession) -> None:  # type: ignore[no-untyped-def]
+    """API should expose the approval-gated guarded probe execution chain."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=7,
+    )
+    calls: list[tuple[str, float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        calls.append((url, timeout))
+        return {"status_code": 200, "json": {"system": {"os": "api-test"}}, "text": '{"system":{}}'}
+
+    monkeypatch.setattr(comfyui_runtime_routes, "get_settings", lambda: settings)
+    monkeypatch.setattr(ComfyUIRuntimeService, "_default_http_get", staticmethod(fake_http_get))
+
+    async def override_get_session():  # type: ignore[no-untyped-def]
+        yield session
+
+    app = FastAPI()
+    app.add_exception_handler(AppError, app_error_handler)
+    app.include_router(comfyui_runtime_routes.router, prefix="/api/v1")
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[comfyui_runtime_routes.get_session] = override_get_session
+
+    headers = {"X-Workspace-Id": "workspace-comfyui-guarded-api", "X-User-Id": "user-comfyui"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        created_config_request = await client.post(
+            "/api/v1/comfyui-runtime/config-change-requests",
+            headers=headers,
+            json={"change_reason": "api guarded probe", "metadata": {"source_page": "comfyui-operations"}},
+        )
+        await client.post(
+            f"/api/v1/comfyui-runtime/config-change-requests/{created_config_request.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "ready"},
+        )
+        approved_config_request = await client.post(
+            f"/api/v1/comfyui-runtime/config-change-requests/{created_config_request.json()['id']}/approve",
+            headers=headers,
+            json={"reviewer_notes": "approved"},
+        )
+        created_apply_evidence = await client.post(
+            f"/api/v1/comfyui-runtime/config-change-requests/{approved_config_request.json()['id']}/manual-apply-evidence",
+            headers=headers,
+            json={
+                "service_restart_reported": True,
+                "restart_evidence": {"restart_mode": "manual_api_restart"},
+                "metadata": {"source_page": "comfyui-operations"},
+            },
+        )
+        await client.post(
+            f"/api/v1/comfyui-runtime/manual-apply-evidence/{created_apply_evidence.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "ready"},
+        )
+        verified_apply_evidence = await client.post(
+            f"/api/v1/comfyui-runtime/manual-apply-evidence/{created_apply_evidence.json()['id']}/verify",
+            headers=headers,
+            json={"reviewer_notes": "verified"},
+        )
+        created_readiness_check = await client.post(
+            f"/api/v1/comfyui-runtime/manual-apply-evidence/{verified_apply_evidence.json()['id']}/post-manual-readiness-checks",
+            headers=headers,
+            json={"operator_note": "ready comparison", "metadata": {"source_page": "comfyui-operations"}},
+        )
+        await client.post(
+            f"/api/v1/comfyui-runtime/post-manual-readiness-checks/{created_readiness_check.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "ready"},
+        )
+        approved_readiness_check = await client.post(
+            f"/api/v1/comfyui-runtime/post-manual-readiness-checks/{created_readiness_check.json()['id']}/approve",
+            headers=headers,
+            json={"reviewer_notes": "approved for read-only probe"},
+        )
+        created_execution = await client.post(
+            f"/api/v1/comfyui-runtime/post-manual-readiness-checks/{approved_readiness_check.json()['id']}/guarded-probe-executions",
+            headers=headers,
+            json={"operator_note": "create guarded probe execution", "metadata": {"source_page": "comfyui-operations"}},
+        )
+        execution_list = await client.get("/api/v1/comfyui-runtime/guarded-probe-executions?limit=5", headers=headers)
+        ready_execution = await client.post(
+            f"/api/v1/comfyui-runtime/guarded-probe-executions/{created_execution.json()['id']}/ready",
+            headers=headers,
+            json={"reviewer_notes": "ready"},
+        )
+        approved_execution = await client.post(
+            f"/api/v1/comfyui-runtime/guarded-probe-executions/{created_execution.json()['id']}/approve",
+            headers=headers,
+            json={"reviewer_notes": "approve one read-only probe"},
+        )
+        executed = await client.post(
+            f"/api/v1/comfyui-runtime/guarded-probe-executions/{created_execution.json()['id']}/execute",
+            headers=headers,
+            json={"reviewer_notes": "execute read-only probe"},
+        )
+
+    assert calls == [("http://localhost:8188/system_stats", 7.0)]
+    assert created_readiness_check.status_code == 200
+    assert created_readiness_check.json()["comparison_status"] == "ready_for_guarded_read_only_probe"
+    assert approved_readiness_check.status_code == 200
+    assert approved_readiness_check.json()["check_status"] == "approved_for_read_only_probe"
+    assert created_execution.status_code == 200
+    assert created_execution.json()["workspace_id"] == "workspace-comfyui-guarded-api"
+    assert created_execution.json()["user_id"] == "user-comfyui"
+    assert created_execution.json()["execution_status"] == "draft"
+    assert created_execution.json()["external_request_attempted"] is False
+    assert created_execution.json()["health_probe_executed"] is False
+    assert created_execution.json()["api_config_mutation_performed"] is False
+    assert created_execution.json()["metadata"]["phase"] == "62J"
+    assert execution_list.status_code == 200
+    assert len(execution_list.json()["items"]) == 1
+    assert ready_execution.status_code == 200
+    assert ready_execution.json()["execution_status"] == "ready_for_approval"
+    assert approved_execution.status_code == 200
+    assert approved_execution.json()["execution_status"] == "approved_for_execution"
+    assert executed.status_code == 200
+    assert executed.json()["execution_status"] == "succeeded"
+    assert executed.json()["probe_result_status"] == "reachable"
+    assert executed.json()["external_request_attempted"] is True
+    assert executed.json()["health_probe_executed"] is True
+    assert executed.json()["read_only_probe_attempted"] is True
+    assert executed.json()["runtime_calls_enabled"] is False
+    assert executed.json()["probe_status_code"] == 200
+    assert executed.json()["probe_response"]["reachable"] is True

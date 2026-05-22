@@ -4249,6 +4249,8 @@ Endpoints:
 - `POST /api/v1/comfyui-runtime/config-change-requests/{request_id}/manual-apply-evidence`
 - `GET /api/v1/comfyui-runtime/post-manual-readiness-checks`
 - `POST /api/v1/comfyui-runtime/manual-apply-evidence/{evidence_id}/post-manual-readiness-checks`
+- `GET /api/v1/comfyui-runtime/guarded-probe-executions`
+- `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/guarded-probe-executions`
 - `GET /api/v1/comfyui-runtime/diagnostic-snapshots`
 - `POST /api/v1/comfyui-runtime/diagnostic-snapshots`
 
@@ -4343,3 +4345,22 @@ Review endpoints:
 - `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/archive`
 
 Boundary: Phase 62H records maintainer readiness comparisons only. It does not write environment variables, restart services, enable runtime switches, mutate runtime configuration through the API, call ComfyUI, run the guarded `/system_stats` probe, import adapters, submit prompts, read queues, submit queues, upload files, generate media, read environment state, resolve secret values, publish, run OpenClaw, run Browser Worker actions, or bypass approval.
+
+## Phase 62J: ComfyUI Runtime Guarded Probe Execution Audit
+
+Phase 62J adds approval-gated guarded read-only probe execution records for server maintainers. `POST /api/v1/comfyui-runtime/post-manual-readiness-checks/{check_id}/guarded-probe-executions` creates a record from a Phase 62H check that is already `approved_for_read_only_probe` and still shows current no-network diagnostics with `read_only_probe_ready=true`. Creation stores readiness check payload, current diagnostics, the intended read-only probe request, disabled actions, `probe_result_status=not_started`, `external_request_attempted=false`, `health_probe_executed=false`, `runtime_calls_enabled=false`, and `api_config_mutation_performed=false` in `comfyui_runtime_guarded_probe_executions`. `GET /api/v1/comfyui-runtime/guarded-probe-executions` lists recent records for the current workspace.
+
+Review endpoints:
+
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/ready`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/approve`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/reject`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/fail`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/cancel`
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/archive`
+
+Execution endpoint:
+
+- `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/execute`
+
+Boundary: create/list/review endpoints remain no-network. The execute endpoint rechecks current diagnostics and can call only the existing guarded `GET /system_stats` health path after the execution record is `approved_for_execution`. It records `external_request_attempted`, `health_probe_executed`, `read_only_probe_attempted`, `probe_status_code`, `probe_latency_ms`, `probe_result_status`, and `probe_response`; it still does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, write environment variables, restart services, mutate runtime configuration, resolve secret values, publish, run OpenClaw, run Browser Worker actions, control accounts, or bypass approval.

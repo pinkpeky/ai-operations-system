@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Boolean, JSON, String, Text, Uuid
+from sqlalchemy import Boolean, Float, Integer, JSON, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, IdTimestampMixin
@@ -144,3 +144,42 @@ class ComfyUIRuntimePostManualReadinessCheck(IdTimestampMixin, Base):
     operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     check_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class ComfyUIRuntimeGuardedProbeExecution(IdTimestampMixin, Base):
+    """Workspace-scoped audit record for an approved guarded read-only ComfyUI probe."""
+
+    __tablename__ = "comfyui_runtime_guarded_probe_executions"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    post_manual_readiness_check_id: Mapped[UUID] = mapped_column(Uuid(), index=True, nullable=False)
+    manual_apply_evidence_id: Mapped[UUID] = mapped_column(Uuid(), index=True, nullable=False)
+    config_change_request_id: Mapped[UUID] = mapped_column(Uuid(), index=True, nullable=False)
+    execution_status: Mapped[str] = mapped_column(String(64), default="draft", index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    readiness_status_current: Mapped[str] = mapped_column(String(64), default="blocked", index=True, nullable=False)
+    read_only_probe_ready_current: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    guarded_probe_ready: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    base_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    health_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    allowed_hosts: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    allowed_health_paths: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    external_request_attempted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    runtime_calls_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    health_probe_executed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    read_only_probe_attempted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    api_config_mutation_performed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    probe_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    probe_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    probe_result_status: Mapped[str] = mapped_column(String(64), default="not_started", index=True, nullable=False)
+    readiness_check_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    current_diagnostics_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    probe_request: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    probe_response: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    blocking_reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    recommended_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    disabled_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    execution_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)

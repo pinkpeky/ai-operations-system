@@ -22,6 +22,7 @@ from app.models.collection_metadata import CollectionMetadata
 from app.models.comfyui_runtime import (
     ComfyUIRuntimeConfigChangeRequest,
     ComfyUIRuntimeDiagnosticSnapshot,
+    ComfyUIRuntimeGuardedProbeExecution,
     ComfyUIRuntimeManualApplyEvidence,
     ComfyUIRuntimePostManualReadinessCheck,
 )
@@ -227,6 +228,7 @@ __all__ = [
     "CollectionMetadataStatus",
     "ComfyUIRuntimeConfigChangeRequest",
     "ComfyUIRuntimeDiagnosticSnapshot",
+    "ComfyUIRuntimeGuardedProbeExecution",
     "ComfyUIRuntimeManualApplyEvidence",
     "ComfyUIRuntimePostManualReadinessCheck",
     "CommercialOperation",
