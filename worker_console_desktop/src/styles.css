@@ -596,6 +596,86 @@ textarea {
   margin-top: 16px;
 }
 
+.client-task-workbench {
+  margin: 14px 0 0;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.workbench-intro {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid #e6ebf2;
+}
+
+.workbench-intro p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.workbench-next-action {
+  display: grid;
+  gap: 4px;
+  min-width: min(320px, 42%);
+  padding: 10px 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.workbench-next-action span,
+.workbench-metrics span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workbench-next-action strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workbench-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+
+.workbench-metrics div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.workbench-metrics strong {
+  color: #0f172a;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.workbench-metrics .needs-action {
+  border-color: rgba(180, 83, 9, 0.28);
+  background: #fffbeb;
+}
+
+.workbench-metrics .in-progress {
+  border-color: rgba(29, 78, 216, 0.24);
+  background: #eff6ff;
+}
+
 .browser-sessions-panel {
   grid-column: 1 / -1;
 }
@@ -620,6 +700,100 @@ textarea {
 
 .chat-settings-panel .chat-config-grid {
   margin: 12px 0 0;
+}
+
+.workbench-run-details,
+.workbench-detail {
+  margin: 10px 0 0;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.workbench-run-details > summary,
+.workbench-detail > summary {
+  cursor: pointer;
+  min-height: 38px;
+  padding: 10px 12px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.workbench-run-details[open] > summary,
+.workbench-detail[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.workbench-detail > h3,
+.workbench-detail > h4 {
+  margin: 14px 16px 8px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.workbench-detail > select {
+  min-height: 34px;
+  max-width: calc(100% - 32px);
+  margin: 0 16px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.workbench-detail > .chat-actions {
+  margin: 10px 16px;
+}
+
+.workbench-detail > .empty-chat {
+  margin: 12px 16px 16px;
+}
+
+.approval-card,
+.workbench-detail > .event-item {
+  margin: 10px 16px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.approval-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-card-header strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.approval-card-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.approval-card p {
+  margin: 8px 0 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.metadata-preview {
+  max-height: 240px;
+  overflow: auto;
+  margin: 10px 16px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .chat-config-grid label {
@@ -993,9 +1167,18 @@ textarea {
   .chat-grid,
   .chat-input-row,
   .chat-config-grid,
+  .workbench-metrics,
   .operator-status-grid,
   .operator-support-grid {
     grid-template-columns: 1fr;
+  }
+
+  .workbench-intro {
+    flex-direction: column;
+  }
+
+  .workbench-next-action {
+    min-width: 0;
   }
 
   .operator-home-header {

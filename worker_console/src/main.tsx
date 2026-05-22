@@ -1,5 +1,5 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import {
   Activity,
   AlertTriangle,
@@ -117,6 +117,37 @@ type ClientCopy = {
   boundaryBody: string;
 };
 
+type TaskWorkbenchCopy = {
+  title: string;
+  subtitle: string;
+  goalPlaceholder: string;
+  metricApprovals: string;
+  metricActiveTasks: string;
+  metricFailedTasks: string;
+  metricArtifacts: string;
+  nextActionTitle: string;
+  nextSubmit: string;
+  nextApproval: string;
+  nextRecover: string;
+  nextRunning: string;
+  nextComplete: string;
+  immediateRun: string;
+  backgroundRun: string;
+  refreshWork: string;
+  createThread: string;
+  connectionSettings: string;
+  runDetails: string;
+  latestAssistant: string;
+  pollEvents: string;
+  playbookSummary: string;
+  templateSummary: string;
+  approvalsSummary: string;
+  messagesSummary: string;
+  outputsSummary: string;
+  workflowSummary: string;
+  tasksSummary: string;
+};
+
 const clientCopy: Record<ClientLanguage, ClientCopy> = {
   "zh-CN": {
     phase: "Phase 62I",
@@ -211,6 +242,69 @@ const clientCopy: Record<ClientLanguage, ClientCopy> = {
     boundaryTitle: "Boundary",
     boundaryBody:
       "This page controls only the local Worker on the current customer machine. It does not call ComfyUI, execute OpenClaw, control real accounts, or bypass approvals.",
+  },
+};
+
+const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
+  "zh-CN": {
+    title: "客户机任务工作台",
+    subtitle: "把运营目标、审批、后台任务和失败恢复放在同一个入口，适合普通使用人员按下一步处理。",
+    goalPlaceholder: "输入一个运营目标，例如：为新品活动生成三条短视频文案，并先进入审批。",
+    metricApprovals: "待审批",
+    metricActiveTasks: "运行中",
+    metricFailedTasks: "需恢复",
+    metricArtifacts: "产物",
+    nextActionTitle: "建议动作",
+    nextSubmit: "输入运营目标，然后选择立即执行或后台运行。",
+    nextApproval: "先处理待审批项，再继续执行或发布。",
+    nextRecover: "先恢复或重试失败任务，避免重复提交。",
+    nextRunning: "已有任务在运行，查看任务状态或等待结果。",
+    nextComplete: "暂无阻塞，可以提交新的运营目标。",
+    immediateRun: "立即执行",
+    backgroundRun: "后台运行",
+    refreshWork: "刷新任务",
+    createThread: "新建会话",
+    connectionSettings: "连接设置",
+    runDetails: "运行详情与事件",
+    latestAssistant: "最新助手结果",
+    pollEvents: "每 5 秒刷新事件",
+    playbookSummary: "剧本运行",
+    templateSummary: "模板库",
+    approvalsSummary: "审批队列",
+    messagesSummary: "对话与事件",
+    outputsSummary: "产物库",
+    workflowSummary: "工作流状态",
+    tasksSummary: "后台任务与恢复",
+  },
+  "en-US": {
+    title: "Client Task Workbench",
+    subtitle: "One entrypoint for goals, approvals, background tasks, and recovery so operators can follow the next action.",
+    goalPlaceholder: "Tell this client machine what to do... Enter an operating goal, for example: generate three short-video drafts for a product launch and send them to approval first.",
+    metricApprovals: "Approvals",
+    metricActiveTasks: "Active",
+    metricFailedTasks: "Recover",
+    metricArtifacts: "Artifacts",
+    nextActionTitle: "Suggested action",
+    nextSubmit: "Enter an operating goal, then choose immediate or background execution.",
+    nextApproval: "Clear pending approvals before continuing execution or publishing.",
+    nextRecover: "Recover or retry failed tasks before submitting duplicates.",
+    nextRunning: "A task is already running. Watch task status or wait for output.",
+    nextComplete: "No blockers. Submit the next operating goal.",
+    immediateRun: "Send and run",
+    backgroundRun: "Run background",
+    refreshWork: "Refresh messages/events",
+    createThread: "Create thread",
+    connectionSettings: "Connection settings",
+    runDetails: "Run details and events",
+    latestAssistant: "Latest assistant message",
+    pollEvents: "Poll events every 5 seconds",
+    playbookSummary: "Playbook run",
+    templateSummary: "Template Library",
+    approvalsSummary: "Approval queue",
+    messagesSummary: "Conversation and events",
+    outputsSummary: "Output Library",
+    workflowSummary: "Workflow State",
+    tasksSummary: "Background tasks and recovery",
   },
 };
 
@@ -396,7 +490,8 @@ function WorkstationHome({
   );
 }
 
-function ChatPanel() {
+function ChatPanel({ language }: { language: ClientLanguage }) {
+  const workbenchCopy = taskWorkbenchCopy[language];
   const [threadId, setThreadId] = useState<string | null>(null);
   const [title, setTitle] = useState("Worker Console conversation");
   const [input, setInput] = useState("请帮我生成一条短视频文案，并展示执行事件。");
@@ -840,42 +935,82 @@ function ChatPanel() {
 
   const assistantMessages = messages.filter((message) => message.role === "assistant");
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
+  const pendingApprovals = approvals.filter((approval) => approval.approval_status === "pending");
+  const activeTaskRuns = taskRuns.filter((task) => ["queued", "running", "retrying", "waiting_approval"].includes(task.status));
+  const failedTaskRuns = taskRuns.filter((task) => task.recoverable || ["failed", "expired"].includes(task.status));
+  const suggestedAction =
+    pendingApprovals.length > 0
+      ? workbenchCopy.nextApproval
+      : failedTaskRuns.length > 0
+        ? workbenchCopy.nextRecover
+        : activeTaskRuns.length > 0
+          ? workbenchCopy.nextRunning
+          : taskRuns.some((task) => task.status === "completed")
+            ? workbenchCopy.nextComplete
+            : workbenchCopy.nextSubmit;
 
   return (
     <section id="chat-panel" className="panel chat-panel">
       <div className="panel-title logs-title">
         <span>
           <MessageCircle size={18} />
-          <h2>Conversation</h2>
+          <h2>{workbenchCopy.title}</h2>
         </span>
         <div className="chat-actions">
           <button className="refresh-button" onClick={() => void createThread()} disabled={chatLoading}>
             <MessageCircle size={15} />
-            Create thread
+            {workbenchCopy.createThread}
           </button>
           <button className="refresh-button" onClick={() => void refreshConversation()} disabled={!threadId}>
             <RefreshCcw size={15} />
-            Refresh messages/events
+            {workbenchCopy.refreshWork}
           </button>
         </div>
       </div>
-      <div className="chat-input-row command-input-row">
-        <textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Tell this client machine what to do..."
-        />
-        <button className="action-button primary-action" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
-          <Send size={16} />
-          Send and run
-        </button>
-        <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
-          <PlayCircle size={16} />
-          Run background
-        </button>
-      </div>
+      <section className="client-task-workbench" aria-label={workbenchCopy.title}>
+        <div className="workbench-intro">
+          <p>{workbenchCopy.subtitle}</p>
+          <div className="workbench-next-action">
+            <span>{workbenchCopy.nextActionTitle}</span>
+            <strong>{suggestedAction}</strong>
+          </div>
+        </div>
+        <div className="workbench-metrics" aria-label="Client task workbench status">
+          <div className={pendingApprovals.length > 0 ? "needs-action" : ""}>
+            <span>{workbenchCopy.metricApprovals}</span>
+            <strong>{pendingApprovals.length}</strong>
+          </div>
+          <div className={activeTaskRuns.length > 0 ? "in-progress" : ""}>
+            <span>{workbenchCopy.metricActiveTasks}</span>
+            <strong>{activeTaskRuns.length}</strong>
+          </div>
+          <div className={failedTaskRuns.length > 0 ? "needs-action" : ""}>
+            <span>{workbenchCopy.metricFailedTasks}</span>
+            <strong>{failedTaskRuns.length}</strong>
+          </div>
+          <div>
+            <span>{workbenchCopy.metricArtifacts}</span>
+            <strong>{artifacts.length}</strong>
+          </div>
+        </div>
+        <div className="chat-input-row command-input-row">
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder={workbenchCopy.goalPlaceholder}
+          />
+          <button className="action-button primary-action" onClick={() => void sendConversationMessage()} disabled={chatLoading}>
+            <Send size={16} />
+            {workbenchCopy.immediateRun}
+          </button>
+          <button className="action-button" onClick={() => void sendBackgroundConversation()} disabled={chatLoading}>
+            <PlayCircle size={16} />
+            {workbenchCopy.backgroundRun}
+          </button>
+        </div>
+      </section>
       <details className="chat-settings-panel">
-        <summary>Connection settings</summary>
+        <summary>{workbenchCopy.connectionSettings}</summary>
         <div className="chat-config-grid">
           <label>
             AI Server URL
@@ -904,17 +1039,6 @@ function ChatPanel() {
           </label>
         </div>
       </details>
-      <div className="chat-meta">
-        AI Server {connectionState} | thread: {threadId ?? "-"} | run status: {runStatus} | route: {lastRoute ?? "-"} | selected tool: {lastSelectedTool ?? "-"}
-      </div>
-      <div className="latest-assistant">Latest assistant message: {latestAssistantMessage?.content ?? "-"}</div>
-      <pre className="event-payload">
-        {JSON.stringify(lastRunMetadata ?? { status: "run a conversation to see full bridge metadata" }, null, 2)}
-      </pre>
-      <label className="chat-checkbox">
-        <input type="checkbox" checked={pollEvents} onChange={(event) => setPollEvents(event.target.checked)} />
-        Poll events every 5 seconds
-      </label>
       {connectionState === "disconnected" ? (
         <div className="inline-error">
           <AlertTriangle size={16} />
@@ -927,10 +1051,25 @@ function ChatPanel() {
           {chatError}
         </div>
       ) : null}
-      <div className="chat-note">
-        Worker Console remains a local runtime console. This Chat Panel uses approval review_first by default, polling only, not WebSocket, not SSE, and not a full ChatGPT UI.
-      </div>
-      <div id="playbook-panel" className="approval-list">
+      <details className="workbench-run-details">
+        <summary>{workbenchCopy.runDetails}</summary>
+        <div className="chat-meta">
+          AI Server {connectionState} | thread: {threadId ?? "-"} | run status: {runStatus} | route: {lastRoute ?? "-"} | selected tool: {lastSelectedTool ?? "-"}
+        </div>
+        <div className="latest-assistant">{workbenchCopy.latestAssistant}: {latestAssistantMessage?.content ?? "-"}</div>
+        <pre className="event-payload">
+          {JSON.stringify(lastRunMetadata ?? { status: "run a conversation to see full bridge metadata" }, null, 2)}
+        </pre>
+        <label className="chat-checkbox">
+          <input type="checkbox" checked={pollEvents} onChange={(event) => setPollEvents(event.target.checked)} />
+          {workbenchCopy.pollEvents}
+        </label>
+        <div className="chat-note">
+          Worker Console remains a local runtime console. This Chat Panel uses approval review_first by default, polling only, not WebSocket, not SSE, and not a full ChatGPT UI.
+        </div>
+      </details>
+      <details id="playbook-panel" className="approval-list workbench-detail">
+        <summary>{workbenchCopy.playbookSummary}</summary>
         <h3>Playbook selector</h3>
         <select value={selectedPlaybookName} onChange={(event) => setSelectedPlaybookName(event.target.value)}>
           {playbooks.map((playbook) => (
@@ -963,8 +1102,9 @@ function ChatPanel() {
         )) : (
           <div className="empty-chat">No Playbook runs yet.</div>
         )}
-      </div>
-      <div id="templates-panel" className="approval-list">
+      </details>
+      <details id="templates-panel" className="approval-list workbench-detail">
+        <summary>{workbenchCopy.templateSummary}</summary>
         <h3>Template Library</h3>
         <div className="chat-note">
           Workflow Template Registry foundation with governance status, verification badges, and compatibility summary. This is not a public marketplace, not a visual DAG builder, and not a ComfyUI integration.
@@ -1014,8 +1154,9 @@ function ChatPanel() {
         )) : (
           <div className="empty-chat">No workflow template runs yet.</div>
         )}
-      </div>
-      <div id="approvals-panel" className="approval-list">
+      </details>
+      <details id="approvals-panel" className="approval-list workbench-detail" open={pendingApprovals.length > 0}>
+        <summary>{workbenchCopy.approvalsSummary}</summary>
         <h3>Pending approvals panel</h3>
         {approvals.length > 0 ? approvals.map((approval) => (
           <div key={approval.id} className={`approval-card approval-risk-${approval.risk_level}`}>
@@ -1035,7 +1176,9 @@ function ChatPanel() {
         )) : (
           <div className="empty-chat">No pending approvals yet. Medium/high risk tools wait here before execution.</div>
         )}
-      </div>
+      </details>
+      <details className="approval-list workbench-detail">
+        <summary>{workbenchCopy.messagesSummary}</summary>
       <div className="chat-grid">
         <div className="message-list">
           {messages.length > 0 ? (
@@ -1069,7 +1212,9 @@ function ChatPanel() {
           )}
         </div>
       </div>
-      <div id="outputs-panel" className="approval-list">
+      </details>
+      <details id="outputs-panel" className="approval-list workbench-detail">
+        <summary>{workbenchCopy.outputsSummary}</summary>
         <h3>Output Library</h3>
         <div className="chat-note">Generated artifacts from Playbook runs and saved assistant messages. This is not a full DAM.</div>
         {artifacts.length > 0 ? artifacts.slice(0, 5).map((artifact) => (
@@ -1101,8 +1246,9 @@ function ChatPanel() {
         )) : (
           <div className="empty-chat">No generated artifacts yet.</div>
         )}
-      </div>
-      <div id="workflow-panel" className="approval-list">
+      </details>
+      <details id="workflow-panel" className="approval-list workbench-detail">
+        <summary>{workbenchCopy.workflowSummary}</summary>
         <h3>Workflow State</h3>
         <div className="chat-note">
           Workflow State tracks current step, checkpoints, and Agent Memory Snapshots for Conversation / Playbook / Task execution. Foundation only; not a full workflow editor and not ComfyUI.
@@ -1184,8 +1330,9 @@ function ChatPanel() {
         )) : (
           <div className="empty-chat">No memory snapshots yet.</div>
         )}
-      </div>
-      <div id="tasks-panel" className="approval-list">
+      </details>
+      <details id="tasks-panel" className="approval-list workbench-detail" open={failedTaskRuns.length > 0 || activeTaskRuns.length > 0}>
+        <summary>{workbenchCopy.tasksSummary}</summary>
         <h3>Task Runs</h3>
         <div className="chat-note">
           Background execution uses the in-process queue with lease, recovery, retry, cancel, approval resume, task timeline, and artifact linkage. It is not Celery, not Kubernetes, and not production HA.
@@ -1230,7 +1377,7 @@ function ChatPanel() {
         )) : (
           <div className="empty-chat">Select a task run to inspect its timeline.</div>
         )}
-      </div>
+      </details>
     </section>
   );
 }
@@ -1541,7 +1688,7 @@ function App() {
         onRunControl={(action) => void runControl(action)}
       />
 
-      <ChatPanel />
+      <ChatPanel language={language} />
 
       <details className="advanced-diagnostics">
         <summary>{copy.advancedSummary}</summary>
@@ -1696,7 +1843,11 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root") as HTMLElement).render(
+const rootElement = document.getElementById("root") as HTMLElement & { aiOpsRoot?: Root };
+const root = rootElement.aiOpsRoot ?? createRoot(rootElement);
+rootElement.aiOpsRoot = root;
+
+root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
