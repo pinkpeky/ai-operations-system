@@ -67,6 +67,9 @@ import {
   CommercialOperationExecutionRun,
   CommercialOperationLoopStage,
   CommercialOperationLoopSummary,
+  CommercialOperationMonitoringObservation,
+  CommercialOperationOptimizationDecision,
+  CommercialOperationResult,
 } from "./api/commercialOperationClient";
 import "./styles.css";
 
@@ -195,6 +198,13 @@ type TaskWorkbenchCopy = {
   operationRunRetrying: string;
   operationExecutionRequestPending: string;
   operationExecutionRunPending: string;
+  operationCompleteFeedbackLoop: string;
+  operationFeedbackLoopCompleting: string;
+  operationFeedbackLoopComplete: string;
+  operationFeedbackLoopMissing: string;
+  operationResultRecordPending: string;
+  operationObservationPending: string;
+  operationOptimizationPending: string;
   operationLoopSourceLabel: string;
   operationLoopLoaded: string;
   operationLoopDisconnected: string;
@@ -683,6 +693,13 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationRunRetrying: "执行记录已进入重试，可再次开始",
     operationExecutionRequestPending: "执行准备待复核",
     operationExecutionRunPending: "执行记录状态",
+    operationCompleteFeedbackLoop: "记录结果并生成改进",
+    operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
+    operationFeedbackLoopComplete: "闭环已完成，可进入下一轮内容改进",
+    operationFeedbackLoopMissing: "请先创建执行运行记录",
+    operationResultRecordPending: "结果记录状态",
+    operationObservationPending: "数据观察状态",
+    operationOptimizationPending: "改进建议状态",
     operationLoopSourceLabel: "闭环来源",
     operationLoopLoaded: "已连接真实运营闭环",
     operationLoopDisconnected: "未连接真实闭环，当前显示本地任务状态",
@@ -802,6 +819,13 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationRunRetrying: "Execution run moved to retrying; start it again",
     operationExecutionRequestPending: "Execution prep pending review",
     operationExecutionRunPending: "Execution run status",
+    operationCompleteFeedbackLoop: "Record result and improve",
+    operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
+    operationFeedbackLoopComplete: "Loop complete and ready for the next content iteration",
+    operationFeedbackLoopMissing: "Create an execution run record first",
+    operationResultRecordPending: "Result record status",
+    operationObservationPending: "Data observation status",
+    operationOptimizationPending: "Improvement decision status",
     operationLoopSourceLabel: "Loop source",
     operationLoopLoaded: "Connected to real operation loop",
     operationLoopDisconnected: "No real loop connected; showing local task status",
@@ -1583,6 +1607,11 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const [commercialExecutionRuns, setCommercialExecutionRuns] = useState<CommercialOperationExecutionRun[]>([]);
   const [executionRunStatus, setExecutionRunStatus] = useState<string | null>(null);
   const [executionRunLoading, setExecutionRunLoading] = useState(false);
+  const [commercialResults, setCommercialResults] = useState<CommercialOperationResult[]>([]);
+  const [commercialMonitoringObservations, setCommercialMonitoringObservations] = useState<CommercialOperationMonitoringObservation[]>([]);
+  const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
+  const [feedbackLoopStatus, setFeedbackLoopStatus] = useState<string | null>(null);
+  const [feedbackLoopLoading, setFeedbackLoopLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("workerConsoleConversationSettings", JSON.stringify(settings));
@@ -1600,25 +1629,45 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         setCommercialApprovals([]);
         setCommercialExecutionRequests([]);
         setCommercialExecutionRuns([]);
+        setCommercialResults([]);
+        setCommercialMonitoringObservations([]);
+        setCommercialOptimizationDecisions([]);
         return;
       }
       setSelectedCommercialOperationId(nextOperationId);
-      const [loop, approvalResponse, executionRequestResponse, executionRunResponse] = await Promise.all([
+      const [
+        loop,
+        approvalResponse,
+        executionRequestResponse,
+        executionRunResponse,
+        resultResponse,
+        observationResponse,
+        optimizationResponse,
+      ] = await Promise.all([
         commercialOperationClient.operationLoop(nextOperationId, settings),
         commercialOperationClient.listApprovals(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
         commercialOperationClient.listExecutionRequests(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
         commercialOperationClient.listExecutionRuns(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
+        commercialOperationClient.listResults(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
+        commercialOperationClient.listMonitoringObservations(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
+        commercialOperationClient.listOptimizationDecisions(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
       ]);
       setOperationLoop(loop);
       setCommercialApprovals(approvalResponse.items);
       setCommercialExecutionRequests(executionRequestResponse.items);
       setCommercialExecutionRuns(executionRunResponse.items);
+      setCommercialResults(resultResponse.items);
+      setCommercialMonitoringObservations(observationResponse.items);
+      setCommercialOptimizationDecisions(optimizationResponse.items);
       setConnectionState("connected");
     } catch (nextError) {
       setOperationLoop(null);
       setCommercialApprovals([]);
       setCommercialExecutionRequests([]);
       setCommercialExecutionRuns([]);
+      setCommercialResults([]);
+      setCommercialMonitoringObservations([]);
+      setCommercialOptimizationDecisions([]);
       setOperationLoopError(nextError instanceof Error ? nextError.message : "Commercial operation loop unavailable");
     } finally {
       setOperationLoopLoading(false);
@@ -1650,6 +1699,9 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     setCommercialApprovals([]);
     setCommercialExecutionRequests([]);
     setCommercialExecutionRuns([]);
+    setCommercialResults([]);
+    setCommercialMonitoringObservations([]);
+    setCommercialOptimizationDecisions([]);
     setConnectionState("connected");
     return { operation, loop };
   };
@@ -2222,6 +2274,272 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     }
   };
 
+  const completeCommercialResultFeedbackLoop = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setFeedbackLoopLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setFeedbackLoopStatus(workbenchCopy.operationFeedbackLoopCompleting);
+    try {
+      if (!operationId) {
+        setFeedbackLoopStatus(workbenchCopy.operationFeedbackLoopMissing);
+        setRunStatus("commercial feedback loop missing");
+        return;
+      }
+      const executionRunResponse = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
+      const selectedRun =
+        executionRunResponse.items.find((run) => run.run_status === "succeeded") ??
+        executionRunResponse.items.find((run) => run.run_status === "running") ??
+        executionRunResponse.items.find((run) => run.run_status === "queued" || run.run_status === "retrying") ??
+        executionRunResponse.items.find((run) => run.run_status === "failed" || run.run_status === "cancelled") ??
+        commercialExecutionRuns.find((run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status)) ??
+        null;
+      if (!selectedRun) {
+        setFeedbackLoopStatus(workbenchCopy.operationFeedbackLoopMissing);
+        setRunStatus("commercial feedback loop missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+
+      let terminalRun = selectedRun;
+      if (terminalRun.run_status === "queued" || terminalRun.run_status === "retrying") {
+        terminalRun = await commercialOperationClient.startExecutionRun(
+          operationId,
+          terminalRun.id,
+          language === "zh-CN"
+            ? "客户机操作员为最小可用闭环标记 metadata-only 执行开始。"
+            : "Client operator marked the metadata-only execution run started for MVP loop completion.",
+          settings,
+        );
+      }
+      if (terminalRun.run_status === "running") {
+        terminalRun = await commercialOperationClient.succeedExecutionRun(
+          operationId,
+          terminalRun.id,
+          language === "zh-CN"
+            ? "客户机操作员确认 metadata-only 执行记录完成；未触发真实发布。"
+            : "Client operator confirmed the metadata-only execution record completed; no real publishing was triggered.",
+          {
+            external_execution_attempted: false,
+            publishing_performed: false,
+            source: "worker_console_result_feedback_loop",
+          },
+          settings,
+        );
+      }
+
+      const resultResponse = await commercialOperationClient.listResults(operationId, undefined, settings);
+      let resultRecord =
+        resultResponse.items.find(
+          (item) =>
+            item.execution_run_id === terminalRun.id &&
+            ["approved", "ready_for_review", "draft", "rejected"].includes(item.result_status),
+        ) ?? null;
+      if (!resultRecord) {
+        resultRecord = await commercialOperationClient.createResult(
+          operationId,
+          {
+            execution_run_id: terminalRun.id,
+            result_type: terminalRun.run_status === "failed" ? "failure_report" : "operator_report",
+            title:
+              language === "zh-CN"
+                ? `${terminalRun.title} 客户机结果记录`
+                : `${terminalRun.title} client result record`,
+            summary:
+              language === "zh-CN"
+                ? "客户机记录本次 metadata-only 执行结果，当前不代表真实平台发布。"
+                : "Client console recorded this metadata-only execution result; it does not represent real platform publishing.",
+            outcome_summary:
+              language === "zh-CN"
+                ? "已形成可复盘的结果记录，可继续观察数据并生成下一轮改进。"
+                : "A reviewable result record is available for observation and next-cycle improvement.",
+            observed_metrics: [
+              { name: "execution_recorded", value: "1", unit: "record" },
+              { name: "external_publish_attempted", value: "false" },
+            ],
+            commercial_signals: [
+              "metadata-only execution result recorded",
+              "manual observation required before next iteration",
+            ],
+            evidence_links: [{ title: "Execution run record", target_id: terminalRun.id, target_type: "execution_run" }],
+            follow_up_actions: ["record manual observation", "prepare next content improvement"],
+            result_payload: {
+              run_status: terminalRun.run_status,
+              external_execution_attempted: false,
+              publishing_performed: false,
+              source: "worker_console_result_feedback_loop",
+            },
+            recommendation_payload: {
+              next_operator_action: "observe results and approve an improvement decision",
+            },
+            metadata: {
+              source: "worker_console_result_feedback_loop",
+              phase: "63E",
+              execution_run_id: terminalRun.id,
+            },
+          },
+          settings,
+        );
+      }
+      if (resultRecord.result_status === "draft" || resultRecord.result_status === "rejected") {
+        resultRecord = await commercialOperationClient.readyResult(
+          operationId,
+          resultRecord.id,
+          language === "zh-CN" ? "客户机结果记录进入复核。" : "Client result record is ready for review.",
+          settings,
+        );
+      }
+      if (resultRecord.result_status === "ready_for_review") {
+        resultRecord = await commercialOperationClient.approveResult(
+          operationId,
+          resultRecord.id,
+          language === "zh-CN" ? "客户机操作员批准结果记录用于数据观察。" : "Client operator approved the result record for observation.",
+          settings,
+        );
+      }
+
+      const observationResponse = await commercialOperationClient.listMonitoringObservations(operationId, undefined, settings);
+      let observation =
+        observationResponse.items.find(
+          (item) =>
+            item.result_id === resultRecord.id &&
+            ["approved", "ready_for_review", "draft", "rejected"].includes(item.observation_status),
+        ) ?? null;
+      if (!observation) {
+        observation = await commercialOperationClient.createMonitoringObservation(
+          operationId,
+          {
+            result_id: resultRecord.id,
+            observation_type: "manual_snapshot",
+            title:
+              language === "zh-CN"
+                ? `${resultRecord.title} 数据观察`
+                : `${resultRecord.title} data observation`,
+            metric_snapshots: [
+              { name: "reach", value: "manual_pending" },
+              { name: "engagement", value: "manual_pending" },
+              { name: "lead_signal", value: "manual_pending" },
+              { name: "conversion_signal", value: "manual_pending" },
+            ],
+            qualitative_signals: [
+              "operator-visible result captured",
+              "manual metrics can be filled after real publishing is enabled",
+            ],
+            evidence_links: [{ title: "Result record", target_id: resultRecord.id, target_type: "commercial_result" }],
+            anomaly_flags: ["no automated platform analytics ingestion"],
+            recommended_actions: ["approve next content iteration", "keep human approval before runtime execution"],
+            observation_payload: {
+              analytics_ingested: false,
+              source: "worker_console_result_feedback_loop",
+            },
+            metadata: {
+              source: "worker_console_result_feedback_loop",
+              phase: "63E",
+              result_id: resultRecord.id,
+            },
+          },
+          settings,
+        );
+      }
+      if (observation.observation_status === "draft" || observation.observation_status === "rejected") {
+        observation = await commercialOperationClient.readyMonitoringObservation(
+          operationId,
+          observation.id,
+          language === "zh-CN" ? "客户机数据观察记录进入复核。" : "Client observation record is ready for review.",
+          settings,
+        );
+      }
+      if (observation.observation_status === "ready_for_review") {
+        observation = await commercialOperationClient.approveMonitoringObservation(
+          operationId,
+          observation.id,
+          language === "zh-CN" ? "客户机操作员批准数据观察用于改进建议。" : "Client operator approved the observation for improvement.",
+          settings,
+        );
+      }
+
+      const decisionResponse = await commercialOperationClient.listOptimizationDecisions(operationId, undefined, settings);
+      let decision =
+        decisionResponse.items.find(
+          (item) =>
+            item.observation_id === observation.id &&
+            ["approved", "ready_for_review", "draft", "rejected"].includes(item.decision_status),
+        ) ?? null;
+      if (!decision) {
+        decision = await commercialOperationClient.createOptimizationDecision(
+          operationId,
+          {
+            observation_id: observation.id,
+            decision_type: "iterate",
+            title:
+              language === "zh-CN"
+                ? `${observation.title} 下一轮改进建议`
+                : `${observation.title} next iteration decision`,
+            priority: "normal",
+            rationale:
+              language === "zh-CN"
+                ? "基于客户机结果记录和人工观察，进入下一轮内容优化；当前不自动优化或发布。"
+                : "Based on the client result record and manual observation, move to the next content iteration without automatic publishing.",
+            objective_updates: [
+              language === "zh-CN" ? "保留原运营目标，下一轮聚焦可验证商业信号。" : "Keep the original goal and focus the next iteration on verifiable commercial signals.",
+            ],
+            content_actions: [
+              language === "zh-CN" ? "根据观察结果调整标题、正文和行动号召。" : "Adjust headline, body copy, and call to action from the observation.",
+            ],
+            asset_actions: [
+              language === "zh-CN" ? "保留素材需求，下一轮按人工反馈更新 Brief。" : "Keep asset needs and update the brief from manual feedback next round.",
+            ],
+            audience_actions: [
+              language === "zh-CN" ? "复核人群和渠道，确认下一轮投放对象。" : "Review audience and channel before the next run.",
+            ],
+            execution_actions: [
+              language === "zh-CN" ? "下一轮仍需人工审批后才能交给 OpenClaw/Playwright。" : "Require human approval again before any OpenClaw/Playwright handoff.",
+            ],
+            risk_controls: ["human approval required", "no automatic publishing", "no account control"],
+            decision_payload: {
+              source: "worker_console_result_feedback_loop",
+              next_cycle_ready: true,
+            },
+            metadata: {
+              source: "worker_console_result_feedback_loop",
+              phase: "63E",
+              observation_id: observation.id,
+            },
+          },
+          settings,
+        );
+      }
+      if (decision.decision_status === "draft" || decision.decision_status === "rejected") {
+        decision = await commercialOperationClient.readyOptimizationDecision(
+          operationId,
+          decision.id,
+          language === "zh-CN" ? "客户机改进建议进入复核。" : "Client improvement decision is ready for review.",
+          settings,
+        );
+      }
+      if (decision.decision_status === "ready_for_review") {
+        decision = await commercialOperationClient.approveOptimizationDecision(
+          operationId,
+          decision.id,
+          language === "zh-CN" ? "客户机操作员批准下一轮改进建议。" : "Client operator approved the next iteration decision.",
+          settings,
+        );
+      }
+
+      await refreshCommercialOperationLoop(operationId);
+      setFeedbackLoopStatus(`${workbenchCopy.operationFeedbackLoopComplete}: ${decision.id}`);
+      setRunStatus(`commercial feedback loop complete: ${decision.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Commercial feedback loop failed";
+      setOperationLoopError(message);
+      setFeedbackLoopStatus(message);
+      setRunStatus("commercial feedback loop error");
+    } finally {
+      setFeedbackLoopLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
   const refreshPlaybooks = useCallback(async () => {
     try {
       const [playbookResponse, runResponse] = await Promise.all([
@@ -2632,6 +2950,12 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     commercialExecutionRuns.find((run) => run.run_status === "queued" || run.run_status === "retrying") ?? null;
   const runningCommercialExecutionRun = commercialExecutionRuns.find((run) => run.run_status === "running") ?? null;
   const failedCommercialExecutionRun = commercialExecutionRuns.find((run) => run.run_status === "failed") ?? null;
+  const latestCommercialResult = commercialResults[0] ?? null;
+  const latestCommercialObservation = commercialMonitoringObservations[0] ?? null;
+  const latestCommercialOptimizationDecision = commercialOptimizationDecisions[0] ?? null;
+  const feedbackCandidateExecutionRun =
+    commercialExecutionRuns.find((run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status)) ??
+    null;
   const activeTaskRuns = taskRuns.filter((task) => ["queued", "running", "retrying", "waiting_approval"].includes(task.status));
   const failedTaskRuns = taskRuns.filter((task) => task.recoverable || ["failed", "expired"].includes(task.status));
   const completedTaskRuns = taskRuns.filter((task) => task.status === "completed");
@@ -2735,12 +3059,24 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
                     : "waiting";
     }
     if (stageId === "result") {
-      return completedTaskRuns.length > 0 || artifacts.length > 0 ? "done" : activeTaskRuns.length > 0 ? "current" : "waiting";
+      return latestCommercialResult
+        ? "done"
+        : completedTaskRuns.length > 0 || artifacts.length > 0
+          ? "done"
+          : activeTaskRuns.length > 0 || latestCommercialExecutionRun
+            ? "current"
+            : "waiting";
     }
     if (stageId === "data") {
-      return completedTaskRuns.length > 0 ? "current" : "waiting";
+      return latestCommercialObservation ? "done" : latestCommercialResult ? "current" : completedTaskRuns.length > 0 ? "current" : "waiting";
     }
-    return completedTaskRuns.length > 0 || artifacts.length > 0 ? "current" : "waiting";
+    return latestCommercialOptimizationDecision
+      ? "done"
+      : latestCommercialObservation
+        ? "current"
+        : completedTaskRuns.length > 0 || artifacts.length > 0
+          ? "current"
+          : "waiting";
   };
   const operationLoopStages: Array<OperationLoopStepCopy & { status: GoalStatusStageState }> = operationLoop?.stages?.length
     ? operationLoop.stages.map((stage) => ({
@@ -2786,15 +3122,21 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       status: operationLoop ? connectedStatus : artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
     };
   });
-  const operationResultSummary = latestCommercialExecutionRun
-    ? `${workbenchCopy.operationExecutionRunPending}: ${latestCommercialExecutionRun.run_status}`
-    : operationLoop
-      ? `${Math.round(operationLoop.completion_ratio * 100)}% - ${operationLoop.next_action}`
-      : artifacts.length > 0
-        ? `${workbenchCopy.metricArtifacts}: ${artifacts.length}`
-        : completedTaskRuns.length > 0
-          ? workbenchCopy.nextComplete
-          : suggestedAction;
+  const operationResultSummary = latestCommercialOptimizationDecision
+    ? `${workbenchCopy.operationOptimizationPending}: ${latestCommercialOptimizationDecision.decision_status}`
+    : latestCommercialObservation
+      ? `${workbenchCopy.operationObservationPending}: ${latestCommercialObservation.observation_status}`
+      : latestCommercialResult
+        ? `${workbenchCopy.operationResultRecordPending}: ${latestCommercialResult.result_status}`
+        : latestCommercialExecutionRun
+          ? `${workbenchCopy.operationExecutionRunPending}: ${latestCommercialExecutionRun.run_status}`
+          : operationLoop
+            ? `${Math.round(operationLoop.completion_ratio * 100)}% - ${operationLoop.next_action}`
+            : artifacts.length > 0
+              ? `${workbenchCopy.metricArtifacts}: ${artifacts.length}`
+              : completedTaskRuns.length > 0
+                ? workbenchCopy.nextComplete
+                : suggestedAction;
   const operationLoopSourceText = operationLoop
     ? `${workbenchCopy.operationLoopLoaded}: ${operationLoop.title}`
     : workbenchCopy.operationLoopDisconnected;
@@ -2806,7 +3148,20 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const operationExecutionRunStatusText = latestCommercialExecutionRun
     ? `${workbenchCopy.operationExecutionRunPending}: ${latestCommercialExecutionRun.run_status}`
     : null;
+  const operationResultRecordStatusText = latestCommercialResult
+    ? `${workbenchCopy.operationResultRecordPending}: ${latestCommercialResult.result_status}`
+    : null;
+  const operationObservationStatusText = latestCommercialObservation
+    ? `${workbenchCopy.operationObservationPending}: ${latestCommercialObservation.observation_status}`
+    : null;
+  const operationOptimizationStatusText = latestCommercialOptimizationDecision
+    ? `${workbenchCopy.operationOptimizationPending}: ${latestCommercialOptimizationDecision.decision_status}`
+    : null;
   const operationReadableSourceText =
+    feedbackLoopStatus ||
+    operationOptimizationStatusText ||
+    operationObservationStatusText ||
+    operationResultRecordStatusText ||
     executionRunStatus ||
     operationExecutionRunStatusText ||
     operationExecutionRequestStatusText ||
@@ -2923,6 +3278,14 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
               >
                 <RotateCcw size={14} />
                 {workbenchCopy.operationRetryRun}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void completeCommercialResultFeedbackLoop()}
+                disabled={feedbackLoopLoading || operationLoopLoading || chatLoading || !feedbackCandidateExecutionRun}
+              >
+                <FileText size={14} />
+                {feedbackLoopLoading ? workbenchCopy.operationFeedbackLoopCompleting : workbenchCopy.operationCompleteFeedbackLoop}
               </button>
               <button className="refresh-button" onClick={() => void refreshCommercialOperationLoop()} disabled={operationLoopLoading}>
                 <RefreshCcw size={14} />
