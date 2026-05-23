@@ -808,6 +808,20 @@ Operator-facing loop:
 
 Boundary: Phase 62X is frontend-only. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval. It only makes the customer-machine product operation desk easier for ordinary operators to understand before real guarded execution adapters are enabled.
 
+## Phase 63A Customer Console Loop Protocol Binding
+
+Branch: `codex/phase-63a-client-loop-protocol-binding`
+
+Phase 63A 将 `worker_console` 和 `worker_console_desktop` 绑定到商业运营闭环协议。客户机任务页可以从当前运营目标创建 operation，刷新 `GET /api/v1/commercial-operations/{operation_id}/operation-loop`，显示共享的 operation-loop 状态，并在服务器闭环不可用时回退到本地任务状态。
+
+面向操作人员的行为：
+
+- 从一个运营目标创建闭环，不需要阅读 JSON。
+- 查看当前闭环阶段、下一步、交付内容和知识库上传入口。
+- 刷新真实 `operation-loop` 状态，同时保留中断、继续、查看产物和知识库操作。
+
+边界：Phase 63A 只是 API-bound UI。它不会执行 OpenClaw，不会运行 Playwright，不会发布到真实社媒，不会控制真实账号，不会调用 ComfyUI，不会绕过 captcha/proxy/fingerprint，不会解析 secrets，也不会绕过 approval。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

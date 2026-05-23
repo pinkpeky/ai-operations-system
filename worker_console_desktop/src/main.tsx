@@ -62,6 +62,11 @@ import {
   KnowledgeUploadResponse,
 } from "./api/knowledgeBaseClient";
 import {
+  commercialOperationClient,
+  CommercialOperationLoopStage,
+  CommercialOperationLoopSummary,
+} from "./api/commercialOperationClient";
+import {
   createLocalWorkerClient,
   LocalWorkerClient,
   WorkerHealth,
@@ -189,6 +194,11 @@ type TaskWorkbenchCopy = {
   operationCurrentLabel: string;
   operationResultLabel: string;
   operationControlLabel: string;
+  operationStartLoop: string;
+  operationRefreshLoop: string;
+  operationLoopSourceLabel: string;
+  operationLoopLoaded: string;
+  operationLoopDisconnected: string;
   operationLoopTitle: string;
   operationDeliverablesTitle: string;
   operationKnowledgeTitle: string;
@@ -261,6 +271,24 @@ type GoalStatusStage = {
   status: GoalStatusStageState;
   detail: string;
 };
+
+function operationLoopStatusToGoalState(status: CommercialOperationLoopStage["status"]): GoalStatusStageState {
+  if (status === "complete") {
+    return "done";
+  }
+  if (status === "review_required" || status === "blocked") {
+    return "needs-action";
+  }
+  if (status === "in_progress" || status === "missing") {
+    return "current";
+  }
+  return "waiting";
+}
+
+function operationLoopTitleFromGoal(goal: string): string {
+  const compact = goal.trim().replace(/\s+/g, " ");
+  return compact.length > 64 ? `${compact.slice(0, 64)}...` : compact || "Customer operation loop";
+}
 
 type WorkbenchGoalTemplate = {
   id: string;
@@ -607,6 +635,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationCurrentLabel: "当前进程",
     operationResultLabel: "执行结果",
     operationControlLabel: "执行控制",
+    operationStartLoop: "创建运营闭环",
+    operationRefreshLoop: "刷新闭环",
+    operationLoopSourceLabel: "闭环来源",
+    operationLoopLoaded: "已连接真实运营闭环",
+    operationLoopDisconnected: "未连接真实闭环，当前显示本地任务状态",
     operationLoopTitle: "运营闭环",
     operationDeliverablesTitle: "交付内容",
     operationKnowledgeTitle: "知识库内容",
@@ -698,6 +731,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationCurrentLabel: "Current process",
     operationResultLabel: "Execution result",
     operationControlLabel: "Execution controls",
+    operationStartLoop: "Create loop",
+    operationRefreshLoop: "Refresh loop",
+    operationLoopSourceLabel: "Loop source",
+    operationLoopLoaded: "Connected to real operation loop",
+    operationLoopDisconnected: "No real loop connected; showing local task status",
     operationLoopTitle: "Operation loop",
     operationDeliverablesTitle: "Deliverables",
     operationKnowledgeTitle: "Knowledge material",
@@ -1562,10 +1600,72 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const [runStatus, setRunStatus] = useState("idle");
   const [pollEvents, setPollEvents] = useState(false);
   const [selectedGoalTemplateId, setSelectedGoalTemplateId] = useState("launch_content");
+  const [selectedCommercialOperationId, setSelectedCommercialOperationId] = useState<string | null>(null);
+  const [operationLoop, setOperationLoop] = useState<CommercialOperationLoopSummary | null>(null);
+  const [operationLoopError, setOperationLoopError] = useState<string | null>(null);
+  const [operationLoopLoading, setOperationLoopLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("desktopConversationSettings", JSON.stringify(settings));
   }, [settings]);
+
+  const refreshCommercialOperationLoop = useCallback(async (operationId?: string | null) => {
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    try {
+      const response = await commercialOperationClient.list(settings);
+      const nextOperationId = operationId || selectedCommercialOperationId || response.items[0]?.id || null;
+      if (!nextOperationId) {
+        setSelectedCommercialOperationId(null);
+        setOperationLoop(null);
+        return;
+      }
+      setSelectedCommercialOperationId(nextOperationId);
+      const loop = await commercialOperationClient.operationLoop(nextOperationId, settings);
+      setOperationLoop(loop);
+      setConnectionState("connected");
+    } catch (nextError) {
+      setOperationLoop(null);
+      setOperationLoopError(nextError instanceof Error ? nextError.message : "Commercial operation loop unavailable");
+    } finally {
+      setOperationLoopLoading(false);
+    }
+  }, [selectedCommercialOperationId, settings]);
+
+  useEffect(() => {
+    void refreshCommercialOperationLoop();
+  }, [refreshCommercialOperationLoop]);
+
+  const createCommercialOperationLoop = async () => {
+    const objective = input.trim() || selectedGoalTemplate.prompt;
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    try {
+      const operation = await commercialOperationClient.create(
+        {
+          title: operationLoopTitleFromGoal(objective),
+          objective,
+          target_audience: language === "zh-CN" ? "待确认的客户群体" : "target audience to confirm",
+          channels: ["customer_console_desktop"],
+          knowledge_collection: "operations",
+          success_metrics: ["content_output", "approval_pass_rate", "commercial_signal"],
+          constraints: ["human approval required", "client execution through OpenClaw/Playwright after approval"],
+          metadata: { source: "worker_console_desktop", phase: "63A", goal_template: selectedGoalTemplate.id },
+        },
+        settings,
+      );
+      setSelectedCommercialOperationId(operation.id);
+      const loop = await commercialOperationClient.operationLoop(operation.id, settings);
+      setOperationLoop(loop);
+      setConnectionState("connected");
+      setRunStatus(`operation loop created: ${operation.title}`);
+    } catch (nextError) {
+      setOperationLoopError(nextError instanceof Error ? nextError.message : "Commercial operation loop unavailable");
+      setRunStatus("operation loop error");
+    } finally {
+      setOperationLoopLoading(false);
+    }
+  };
 
   const refreshPlaybooks = useCallback(async () => {
     try {
@@ -1670,12 +1770,13 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       await refreshPlaybooks();
       await refreshTaskRuns();
       await refreshWorkflows();
+      await refreshCommercialOperationLoop();
       setConnectionState("connected");
     } catch (nextError) {
       setConnectionState("disconnected");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
     }
-  }, [refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
+  }, [refreshCommercialOperationLoop, refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
 
   useEffect(() => {
     if (!pollEvents || !threadId) {
@@ -2059,24 +2160,60 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     }
     return completedTaskRuns.length > 0 || artifacts.length > 0 ? "current" : "waiting";
   };
-  const operationLoopStages = workbenchCopy.operationLoopSteps.map((stage) => ({
-    ...stage,
-    status: operationStageStatus(stage.id),
-  }));
+  const operationLoopStages: Array<OperationLoopStepCopy & { status: GoalStatusStageState }> = operationLoop?.stages?.length
+    ? operationLoop.stages.map((stage) => ({
+        id: stage.stage_key,
+        label: stage.title,
+        detail: stage.next_action || stage.summary,
+        status: operationLoopStatusToGoalState(stage.status),
+      }))
+    : workbenchCopy.operationLoopSteps.map((stage) => ({
+        ...stage,
+        status: operationStageStatus(stage.id),
+      }));
   const operationCurrentStage =
     operationLoopStages.find((stage) => stage.status === "needs-action") ??
     operationLoopStages.find((stage) => stage.status === "current") ??
     operationLoopStages[0];
-  const operationDeliverables: Array<OperationDeliverableCopy & { status: GoalStatusStageState }> = workbenchCopy.operationDeliverables.map((deliverable, index) => ({
-    ...deliverable,
-    status: artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
-  }));
-  const operationResultSummary =
-    artifacts.length > 0
+  const operationDeliverableCounts = operationLoop?.counts ?? {};
+  const operationDeliverables: Array<OperationDeliverableCopy & { status: GoalStatusStageState }> = workbenchCopy.operationDeliverables.map((deliverable, index) => {
+    const connectedStatus: GoalStatusStageState =
+      index === 0
+        ? (operationDeliverableCounts.content_drafts ?? 0) > 0
+          ? "done"
+          : "current"
+        : index === 1
+          ? (operationDeliverableCounts.asset_requests ?? 0) > 0 || (operationDeliverableCounts.execution_requests ?? 0) > 0
+            ? "done"
+            : (operationDeliverableCounts.content_drafts ?? 0) > 0
+              ? "current"
+              : "waiting"
+          : index === 2
+            ? (operationDeliverableCounts.results ?? 0) > 0 || (operationDeliverableCounts.monitoring_observations ?? 0) > 0
+              ? "done"
+              : (operationDeliverableCounts.execution_runs ?? 0) > 0
+                ? "current"
+                : "waiting"
+            : (operationDeliverableCounts.optimization_decisions ?? 0) > 0
+              ? "done"
+              : (operationDeliverableCounts.results ?? 0) > 0
+                ? "current"
+                : "waiting";
+    return {
+      ...deliverable,
+      status: operationLoop ? connectedStatus : artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
+    };
+  });
+  const operationResultSummary = operationLoop
+    ? `${Math.round(operationLoop.completion_ratio * 100)}% - ${operationLoop.next_action}`
+    : artifacts.length > 0
       ? `${workbenchCopy.metricArtifacts}: ${artifacts.length}`
       : completedTaskRuns.length > 0
         ? workbenchCopy.nextComplete
         : suggestedAction;
+  const operationLoopSourceText = operationLoop
+    ? `${workbenchCopy.operationLoopLoaded}: ${operationLoop.title}`
+    : workbenchCopy.operationLoopDisconnected;
 
   const openOutputDetails = () => {
     const outputsPanel = document.getElementById("outputs-panel") as HTMLDetailsElement | null;
@@ -2127,9 +2264,18 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
             <div className="client-operation-result">
               <span>{workbenchCopy.operationResultLabel}</span>
               <strong>{operationResultSummary}</strong>
+              <p>{operationLoopSourceText}</p>
               <p>{workbenchCopy.operationOpenClawLabel}</p>
             </div>
             <div className="client-operation-controls" aria-label={workbenchCopy.operationControlLabel}>
+              <button className="refresh-button" onClick={() => void createCommercialOperationLoop()} disabled={operationLoopLoading || chatLoading}>
+                <PlayCircle size={14} />
+                {workbenchCopy.operationStartLoop}
+              </button>
+              <button className="refresh-button" onClick={() => void refreshCommercialOperationLoop()} disabled={operationLoopLoading}>
+                <RefreshCcw size={14} />
+                {workbenchCopy.operationRefreshLoop}
+              </button>
               <button
                 className="refresh-button"
                 onClick={() => {
