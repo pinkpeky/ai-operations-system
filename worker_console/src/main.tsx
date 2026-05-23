@@ -205,6 +205,10 @@ type TaskWorkbenchCopy = {
   operationResultRecordPending: string;
   operationObservationPending: string;
   operationOptimizationPending: string;
+  operationPrepareNextCycleDraft: string;
+  operationNextCycleDraftPreparing: string;
+  operationNextCycleDraftReady: string;
+  operationNextCycleDecisionMissing: string;
   operationLoopSourceLabel: string;
   operationLoopLoaded: string;
   operationLoopDisconnected: string;
@@ -315,6 +319,43 @@ function firstDraftContentBody(objective: string, language: ClientLanguage): str
     "Video/asset direction: prepare a 30-60 second script and one hero visual request without calling ComfyUI.",
     "Data observation direction: after approved execution, record reach, engagement, leads, and conversion manually before optimization.",
     "Approval boundary: this draft only enters human review. It does not publish or control real accounts.",
+  ].join("\n");
+}
+
+function decisionList(values?: string[]): string {
+  return values && values.length > 0 ? values.map((value, index) => `${index + 1}. ${value}`).join("\n") : "-";
+}
+
+function nextCycleContentBody(objective: string, decision: CommercialOperationOptimizationDecision, language: ClientLanguage): string {
+  if (language === "zh-CN") {
+    return [
+      `运营目标：${objective}`,
+      `改进依据：${decision.title}`,
+      `改进理由：${decision.rationale || "基于上一轮结果记录、数据观察和人工复核生成。"}`,
+      "目标调整：",
+      decisionList(decision.objective_updates),
+      "内容动作：",
+      decisionList(decision.content_actions),
+      "素材动作：",
+      decisionList(decision.asset_actions),
+      "人群动作：",
+      decisionList(decision.audience_actions),
+      "执行边界：下一轮草稿仍需人工审批，审批前不会发布、不会控制真实账号、不会调用 OpenClaw/Playwright。",
+    ].join("\n");
+  }
+  return [
+    `Operation goal: ${objective}`,
+    `Improvement basis: ${decision.title}`,
+    `Rationale: ${decision.rationale || "Generated from the previous result record, observation, and human review."}`,
+    "Objective updates:",
+    decisionList(decision.objective_updates),
+    "Content actions:",
+    decisionList(decision.content_actions),
+    "Asset actions:",
+    decisionList(decision.asset_actions),
+    "Audience actions:",
+    decisionList(decision.audience_actions),
+    "Execution boundary: this next-cycle draft still requires human approval before publishing, account control, or OpenClaw/Playwright execution.",
   ].join("\n");
 }
 
@@ -700,6 +741,10 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationResultRecordPending: "结果记录状态",
     operationObservationPending: "数据观察状态",
     operationOptimizationPending: "改进建议状态",
+    operationPrepareNextCycleDraft: "生成下一轮草案",
+    operationNextCycleDraftPreparing: "正在生成下一轮草案",
+    operationNextCycleDraftReady: "下一轮草案已进入人工审批",
+    operationNextCycleDecisionMissing: "请先完成结果、观察和改进建议",
     operationLoopSourceLabel: "闭环来源",
     operationLoopLoaded: "已连接真实运营闭环",
     operationLoopDisconnected: "未连接真实闭环，当前显示本地任务状态",
@@ -826,6 +871,10 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationResultRecordPending: "Result record status",
     operationObservationPending: "Data observation status",
     operationOptimizationPending: "Improvement decision status",
+    operationPrepareNextCycleDraft: "Generate next draft",
+    operationNextCycleDraftPreparing: "Generating next-cycle draft",
+    operationNextCycleDraftReady: "Next-cycle draft is ready for approval",
+    operationNextCycleDecisionMissing: "Complete result, observation, and improvement first",
     operationLoopSourceLabel: "Loop source",
     operationLoopLoaded: "Connected to real operation loop",
     operationLoopDisconnected: "No real loop connected; showing local task status",
@@ -1612,6 +1661,8 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
   const [feedbackLoopStatus, setFeedbackLoopStatus] = useState<string | null>(null);
   const [feedbackLoopLoading, setFeedbackLoopLoading] = useState(false);
+  const [nextCycleDraftStatus, setNextCycleDraftStatus] = useState<string | null>(null);
+  const [nextCycleDraftLoading, setNextCycleDraftLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("workerConsoleConversationSettings", JSON.stringify(settings));
@@ -1632,6 +1683,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         setCommercialResults([]);
         setCommercialMonitoringObservations([]);
         setCommercialOptimizationDecisions([]);
+        setNextCycleDraftStatus(null);
         return;
       }
       setSelectedCommercialOperationId(nextOperationId);
@@ -1668,6 +1720,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       setCommercialResults([]);
       setCommercialMonitoringObservations([]);
       setCommercialOptimizationDecisions([]);
+      setNextCycleDraftStatus(null);
       setOperationLoopError(nextError instanceof Error ? nextError.message : "Commercial operation loop unavailable");
     } finally {
       setOperationLoopLoading(false);
@@ -1702,6 +1755,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     setCommercialResults([]);
     setCommercialMonitoringObservations([]);
     setCommercialOptimizationDecisions([]);
+    setNextCycleDraftStatus(null);
     setConnectionState("connected");
     return { operation, loop };
   };
@@ -2540,6 +2594,139 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     }
   };
 
+  const prepareNextCycleDraftFromDecision = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setNextCycleDraftLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setNextCycleDraftStatus(workbenchCopy.operationNextCycleDraftPreparing);
+    try {
+      if (!operationId) {
+        setNextCycleDraftStatus(workbenchCopy.operationNextCycleDecisionMissing);
+        setRunStatus("commercial next-cycle decision missing");
+        return;
+      }
+      const decisionResponse = await commercialOperationClient.listOptimizationDecisions(operationId, undefined, settings);
+      const decision =
+        decisionResponse.items.find((item) => item.decision_status === "approved") ??
+        commercialOptimizationDecisions.find((item) => item.decision_status === "approved") ??
+        null;
+      if (!decision) {
+        setNextCycleDraftStatus(workbenchCopy.operationNextCycleDecisionMissing);
+        setRunStatus("commercial next-cycle decision missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+
+      const objective = operationLoop?.objective || input.trim() || selectedGoalTemplate.prompt;
+      const draftResponse = await commercialOperationClient.listContentDrafts(operationId, undefined, settings);
+      let draft =
+        draftResponse.items.find(
+          (item) =>
+            metadataStringValue(item.metadata, "source") === "worker_console_next_cycle_content_draft" &&
+            metadataStringValue(item.metadata, "optimization_decision_id") === decision.id,
+        ) ?? null;
+      if (!draft) {
+        draft = await commercialOperationClient.createContentDraft(
+          operationId,
+          {
+            step_key: "content_production",
+            channel: "customer_console",
+            content_format: "next_cycle_copy",
+            title:
+              language === "zh-CN"
+                ? `${operationLoopTitleFromGoal(objective)} 下一轮内容草稿`
+                : `${operationLoopTitleFromGoal(objective)} next-cycle content draft`,
+            audience_segment: decision.audience_actions[0] ?? (language === "zh-CN" ? "沿用上一轮目标人群" : "carry over previous audience"),
+            content_body: nextCycleContentBody(objective, decision, language),
+            summary:
+              language === "zh-CN"
+                ? "根据已批准的改进建议生成下一轮可审批内容草案，用于继续闭环。"
+                : "Next-cycle reviewable content draft generated from the approved improvement decision.",
+            call_to_action: language === "zh-CN" ? "再次人工审批后再准备执行" : "Review again before execution prep",
+            source_materials: [
+              `commercial_optimization_decision:${decision.id}`,
+              `commercial_observation:${decision.observation_id}`,
+              `commercial_result:${decision.result_id}`,
+              "knowledge_collection:operations",
+            ],
+            asset_requests: [
+              {
+                title: language === "zh-CN" ? "下一轮素材更新需求" : "Next-cycle asset update request",
+                type: "asset_placeholder",
+                purpose:
+                  language === "zh-CN"
+                    ? "根据改进建议更新素材 Brief，当前不直接调用 ComfyUI。"
+                    : "Update the asset brief from the improvement decision without calling ComfyUI.",
+                execution_boundary: "no ComfyUI job is created in this phase",
+              },
+            ],
+            metadata: {
+              source: "worker_console_next_cycle_content_draft",
+              phase: "63F",
+              optimization_decision_id: decision.id,
+              observation_id: decision.observation_id,
+              result_id: decision.result_id,
+              previous_execution_run_id: decision.execution_run_id,
+              cycle: "next_iteration",
+            },
+          },
+          settings,
+        );
+      }
+      let readyDraft = draft;
+      if (readyDraft.draft_status === "draft" || readyDraft.draft_status === "rejected") {
+        readyDraft = await commercialOperationClient.readyContentDraft(
+          operationId,
+          readyDraft.id,
+          language === "zh-CN" ? "下一轮内容草案已准备好，等待人工审批。" : "Next-cycle content draft is ready for human approval.",
+          settings,
+        );
+      }
+
+      const approvalResponse = await commercialOperationClient.listApprovals(operationId, undefined, settings);
+      const existingApproval =
+        approvalResponse.items.find(
+          (item) =>
+            metadataStringValue(item.metadata, "source") === "worker_console_next_cycle_content_draft" &&
+            metadataStringValue(item.metadata, "content_draft_id") === readyDraft.id &&
+            !["rejected", "cancelled"].includes(item.approval_status),
+        ) ?? null;
+      const approval =
+        existingApproval ??
+        (await commercialOperationClient.createApproval(
+          operationId,
+          {
+            step_key: "human_review",
+            title: language === "zh-CN" ? "审批下一轮运营内容" : "Approve next-cycle operation content",
+            requested_action:
+              language === "zh-CN"
+                ? "请审核下一轮内容草案、素材更新需求和执行边界；审批前不会发布或执行客户机任务。"
+                : "Review the next-cycle content draft, asset update request, and execution boundary; no publishing or client execution happens before approval.",
+            risk_level: "medium",
+            metadata: {
+              source: "worker_console_next_cycle_content_draft",
+              phase: "63F",
+              content_draft_id: readyDraft.id,
+              optimization_decision_id: decision.id,
+            },
+          },
+          settings,
+        ));
+      await refreshCommercialOperationLoop(operationId);
+      setNextCycleDraftStatus(`${workbenchCopy.operationNextCycleDraftReady}: ${readyDraft.title}`);
+      setRunStatus(`next-cycle draft ready for approval: ${approval.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Next-cycle draft generation failed";
+      setOperationLoopError(message);
+      setNextCycleDraftStatus(message);
+      setRunStatus("commercial next-cycle draft error");
+    } finally {
+      setNextCycleDraftLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
   const refreshPlaybooks = useCallback(async () => {
     try {
       const [playbookResponse, runResponse] = await Promise.all([
@@ -2953,6 +3140,8 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const latestCommercialResult = commercialResults[0] ?? null;
   const latestCommercialObservation = commercialMonitoringObservations[0] ?? null;
   const latestCommercialOptimizationDecision = commercialOptimizationDecisions[0] ?? null;
+  const approvedCommercialOptimizationDecision =
+    commercialOptimizationDecisions.find((decision) => decision.decision_status === "approved") ?? null;
   const feedbackCandidateExecutionRun =
     commercialExecutionRuns.find((run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status)) ??
     null;
@@ -3122,21 +3311,23 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       status: operationLoop ? connectedStatus : artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
     };
   });
-  const operationResultSummary = latestCommercialOptimizationDecision
-    ? `${workbenchCopy.operationOptimizationPending}: ${latestCommercialOptimizationDecision.decision_status}`
-    : latestCommercialObservation
-      ? `${workbenchCopy.operationObservationPending}: ${latestCommercialObservation.observation_status}`
-      : latestCommercialResult
-        ? `${workbenchCopy.operationResultRecordPending}: ${latestCommercialResult.result_status}`
-        : latestCommercialExecutionRun
-          ? `${workbenchCopy.operationExecutionRunPending}: ${latestCommercialExecutionRun.run_status}`
-          : operationLoop
-            ? `${Math.round(operationLoop.completion_ratio * 100)}% - ${operationLoop.next_action}`
-            : artifacts.length > 0
-              ? `${workbenchCopy.metricArtifacts}: ${artifacts.length}`
-              : completedTaskRuns.length > 0
-                ? workbenchCopy.nextComplete
-                : suggestedAction;
+  const operationResultSummary = nextCycleDraftStatus
+    ? nextCycleDraftStatus
+    : latestCommercialOptimizationDecision
+      ? `${workbenchCopy.operationOptimizationPending}: ${latestCommercialOptimizationDecision.decision_status}`
+      : latestCommercialObservation
+        ? `${workbenchCopy.operationObservationPending}: ${latestCommercialObservation.observation_status}`
+        : latestCommercialResult
+          ? `${workbenchCopy.operationResultRecordPending}: ${latestCommercialResult.result_status}`
+          : latestCommercialExecutionRun
+            ? `${workbenchCopy.operationExecutionRunPending}: ${latestCommercialExecutionRun.run_status}`
+            : operationLoop
+              ? `${Math.round(operationLoop.completion_ratio * 100)}% - ${operationLoop.next_action}`
+              : artifacts.length > 0
+                ? `${workbenchCopy.metricArtifacts}: ${artifacts.length}`
+                : completedTaskRuns.length > 0
+                  ? workbenchCopy.nextComplete
+                  : suggestedAction;
   const operationLoopSourceText = operationLoop
     ? `${workbenchCopy.operationLoopLoaded}: ${operationLoop.title}`
     : workbenchCopy.operationLoopDisconnected;
@@ -3158,6 +3349,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     ? `${workbenchCopy.operationOptimizationPending}: ${latestCommercialOptimizationDecision.decision_status}`
     : null;
   const operationReadableSourceText =
+    nextCycleDraftStatus ||
     feedbackLoopStatus ||
     operationOptimizationStatusText ||
     operationObservationStatusText ||
@@ -3286,6 +3478,14 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
               >
                 <FileText size={14} />
                 {feedbackLoopLoading ? workbenchCopy.operationFeedbackLoopCompleting : workbenchCopy.operationCompleteFeedbackLoop}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void prepareNextCycleDraftFromDecision()}
+                disabled={nextCycleDraftLoading || operationLoopLoading || chatLoading || !approvedCommercialOptimizationDecision}
+              >
+                <PencilLine size={14} />
+                {nextCycleDraftLoading ? workbenchCopy.operationNextCycleDraftPreparing : workbenchCopy.operationPrepareNextCycleDraft}
               </button>
               <button className="refresh-button" onClick={() => void refreshCommercialOperationLoop()} disabled={operationLoopLoading}>
                 <RefreshCcw size={14} />

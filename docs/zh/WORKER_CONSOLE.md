@@ -890,6 +890,24 @@ The first deliverable product loop is therefore visible end to end: topic, task 
 
 Boundary: Phase 63E is result feedback and next-iteration planning only. It creates metadata-only result, observation, and optimization records. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63F Customer Console Next-Cycle Content Drafts
+
+Branch: `codex/phase-63f-next-cycle-content-drafts`
+
+Phase 63F connects the approved improvement decision back into content production for `worker_console` and `worker_console_desktop`. After Phase 63E completes the result, observation, and optimization records, the operator can generate the next-cycle content draft from the same product operation desk.
+
+The next-cycle draft action performs a guarded record-only sequence:
+
+- Require an approved optimization decision.
+- Create or reuse a next-cycle content draft linked to that decision.
+- Mark the draft ready for human review.
+- Create or reuse a human approval gate for the next-cycle draft.
+- Refresh `operation-loop` so the operator can continue into approval and execution prep again.
+
+This makes the first usable closed loop repeatable: topic, planning, knowledge/material use, first content draft, approval, execution prep, execution run, result, observation, optimization decision, and next-cycle content draft.
+
+Boundary: Phase 63F is next-cycle content draft and approval bootstrap only. It creates metadata-only content draft and approval records from approved optimization decisions. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
