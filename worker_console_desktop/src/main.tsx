@@ -207,10 +207,15 @@ type TaskWorkbenchCopy = {
   operationFirstDraftPreparing: string;
   operationFirstDraftReady: string;
   operationApproveAndPrepare: string;
+  operationApproveNextCycleAndPrepare: string;
   operationRejectDraft: string;
+  operationRejectNextCycleDraft: string;
   operationApprovalPreparing: string;
+  operationNextCycleApprovalPreparing: string;
   operationExecutionPrepReady: string;
+  operationNextCycleExecutionPrepReady: string;
   operationApprovalRejected: string;
+  operationNextCycleApprovalRejected: string;
   operationApprovalMissing: string;
   operationApprovalPending: string;
   operationReviewAndQueueRun: string;
@@ -390,6 +395,15 @@ function nextCycleContentBody(objective: string, decision: CommercialOperationOp
 function metadataStringValue(metadata: Record<string, unknown> | undefined, key: string): string | null {
   const value = metadata?.[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isNextCycleApproval(approval: CommercialOperationApproval): boolean {
+  const source = metadataStringValue(approval.metadata, "source") ?? "";
+  return (
+    source.includes("next_cycle_content_draft") ||
+    metadataStringValue(approval.metadata, "phase") === "63F" ||
+    Boolean(metadataStringValue(approval.metadata, "optimization_decision_id"))
+  );
 }
 
 type WorkbenchGoalTemplate = {
@@ -743,10 +757,15 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationFirstDraftPreparing: "正在准备首版产物",
     operationFirstDraftReady: "首版内容已进入人工审批",
     operationApproveAndPrepare: "审批并准备执行",
+    operationApproveNextCycleAndPrepare: "审批下一轮并准备执行",
     operationRejectDraft: "驳回首版内容",
+    operationRejectNextCycleDraft: "驳回下一轮草案",
     operationApprovalPreparing: "正在审批并准备客户机执行记录",
+    operationNextCycleApprovalPreparing: "正在审批下一轮并准备客户机执行记录",
     operationExecutionPrepReady: "客户机执行准备记录已生成，等待执行前复核",
+    operationNextCycleExecutionPrepReady: "下一轮客户机执行准备记录已生成，等待执行前复核",
     operationApprovalRejected: "首版内容已驳回，可修改后重新准备",
+    operationNextCycleApprovalRejected: "下一轮草案已驳回，可按改进建议重新生成",
     operationApprovalMissing: "请先准备首版产物并生成待审批记录",
     operationApprovalPending: "商业审批待处理",
     operationReviewAndQueueRun: "复核并创建执行记录",
@@ -873,10 +892,15 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationFirstDraftPreparing: "Preparing first draft",
     operationFirstDraftReady: "First draft is ready for approval",
     operationApproveAndPrepare: "Approve and prep execution",
+    operationApproveNextCycleAndPrepare: "Approve next cycle and prep",
     operationRejectDraft: "Reject first draft",
+    operationRejectNextCycleDraft: "Reject next-cycle draft",
     operationApprovalPreparing: "Approving and preparing the client execution record",
+    operationNextCycleApprovalPreparing: "Approving next cycle and preparing the client execution record",
     operationExecutionPrepReady: "Client execution prep record is ready for pre-run review",
+    operationNextCycleExecutionPrepReady: "Next-cycle client execution prep record is ready for pre-run review",
     operationApprovalRejected: "First draft rejected; revise it before preparing again",
+    operationNextCycleApprovalRejected: "Next-cycle draft rejected; regenerate it from the improvement decision",
     operationApprovalMissing: "Prepare the first draft and approval record first",
     operationApprovalPending: "Commercial approval pending",
     operationReviewAndQueueRun: "Review and queue run",
@@ -1983,12 +2007,20 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     operationId: string,
     approval: CommercialOperationApproval,
   ): Promise<CommercialOperationContentDraft | null> => {
+    const approvalIsNextCycle = isNextCycleApproval(approval);
+    const approveDraftNote = approvalIsNextCycle
+      ? language === "zh-CN"
+        ? "人工已审批下一轮内容，进入交付物打包。"
+        : "Human approved the next-cycle draft; package it as a deliverable."
+      : language === "zh-CN"
+        ? "人工已审批首版内容，进入交付物打包。"
+        : "Human approved the first draft; package it as a deliverable.";
     const draftId = metadataStringValue(approval.metadata, "content_draft_id");
     if (draftId) {
       return commercialOperationClient.approveContentDraft(
         operationId,
         draftId,
-        language === "zh-CN" ? "人工已审批首版内容，进入交付物打包。" : "Human approved the first draft; package it as a deliverable.",
+        approveDraftNote,
         settings,
       );
     }
@@ -2000,7 +2032,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     return commercialOperationClient.approveContentDraft(
       operationId,
       readyDraft.id,
-      language === "zh-CN" ? "人工已审批首版内容，进入交付物打包。" : "Human approved the first draft; package it as a deliverable.",
+      approveDraftNote,
       settings,
     );
   };
@@ -2018,17 +2050,35 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         return;
       }
       const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
-      const approval = pendingApprovalResponse.items[0] ?? commercialApprovals.find((item) => item.approval_status === "pending") ?? null;
+      const approval =
+        pendingApprovalResponse.items.find(isNextCycleApproval) ??
+        pendingApprovalResponse.items[0] ??
+        commercialApprovals.find((item) => item.approval_status === "pending" && isNextCycleApproval(item)) ??
+        commercialApprovals.find((item) => item.approval_status === "pending") ??
+        null;
       if (!approval) {
         setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
         setRunStatus("commercial approval missing");
         await refreshCommercialOperationLoop(operationId);
         return;
       }
+      const approvalIsNextCycle = isNextCycleApproval(approval);
+      const approvalPrepSource = approvalIsNextCycle
+        ? "worker_console_desktop_next_cycle_approval_execution_prep"
+        : "worker_console_approval_execution_prep";
+      const approvalPrepPhase = approvalIsNextCycle ? "63G" : "63C";
+      const optimizationDecisionId = metadataStringValue(approval.metadata, "optimization_decision_id");
+      setExecutionPrepStatus(approvalIsNextCycle ? workbenchCopy.operationNextCycleApprovalPreparing : workbenchCopy.operationApprovalPreparing);
       const approvedApproval = await commercialOperationClient.approveApproval(
         operationId,
         approval.id,
-        language === "zh-CN" ? "客户机操作员确认首版内容可进入执行准备。" : "Client operator approved the first draft for execution preparation.",
+        approvalIsNextCycle
+          ? language === "zh-CN"
+            ? "客户机操作员确认下一轮内容可进入执行准备。"
+            : "Client operator approved the next-cycle draft for execution preparation."
+          : language === "zh-CN"
+            ? "客户机操作员确认首版内容可进入执行准备。"
+            : "Client operator approved the first draft for execution preparation.",
         settings,
       );
       const approvedDraft = await resolveCommercialApprovalDraft(operationId, approval);
@@ -2043,15 +2093,19 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         {
           step_key: "content_production",
           content_draft_id: approvedDraft.id,
-          deliverable_type: "content_package",
+          deliverable_type: approvalIsNextCycle ? "next_cycle_content_package" : "content_package",
           title:
             language === "zh-CN"
-              ? `${approvedDraft.title} 客户机交付包`
-              : `${approvedDraft.title} client handoff package`,
+              ? `${approvedDraft.title} ${approvalIsNextCycle ? "下一轮客户机交付包" : "客户机交付包"}`
+              : `${approvedDraft.title} ${approvalIsNextCycle ? "next-cycle client handoff package" : "client handoff package"}`,
           summary:
-            language === "zh-CN"
-              ? "由客户机审批后的首版内容打包成可交付记录，用于后续 OpenClaw/Playwright 执行准备。"
-              : "A packaged record from the client-approved first draft for later OpenClaw/Playwright execution preparation.",
+            approvalIsNextCycle
+              ? language === "zh-CN"
+                ? "由客户机审批后的下一轮内容打包成可交付记录，用于继续闭环执行准备。"
+                : "A packaged record from the client-approved next-cycle draft for the next execution-prep pass."
+              : language === "zh-CN"
+                ? "由客户机审批后的首版内容打包成可交付记录，用于后续 OpenClaw/Playwright 执行准备。"
+                : "A packaged record from the client-approved first draft for later OpenClaw/Playwright execution preparation.",
           delivery_notes:
             language === "zh-CN"
               ? "当前只生成元数据和交付物记录，不发布、不登录真实平台、不控制账号。"
@@ -2059,16 +2113,19 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
           quality_checks: [
             "human approval gate approved",
             "content draft approved",
+            ...(approvalIsNextCycle ? ["next-cycle optimization decision linked"] : []),
             "no publishing",
             "no account control",
             "metadata-only packaging",
           ],
           metadata: {
-            source: "worker_console_approval_execution_prep",
+            source: approvalPrepSource,
             console: "worker_console_desktop",
-            phase: "63C",
+            phase: approvalPrepPhase,
             approval_id: approvedApproval.id,
             content_draft_id: approvedDraft.id,
+            optimization_decision_id: optimizationDecisionId,
+            cycle: approvalIsNextCycle ? "next_iteration" : "first_iteration",
           },
         },
         settings,
@@ -2105,17 +2162,22 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
               : `${packagedDeliverable.title} OpenClaw execution prep`,
           execution_target: "customer_machine_playwright",
           input_summary:
-            language === "zh-CN"
-              ? "为客户机 OpenClaw 调度 Playwright 发布任务准备元数据，不直接执行。"
-              : "Prepare metadata for future OpenClaw-scheduled Playwright publishing on the customer machine without executing it.",
+            approvalIsNextCycle
+              ? language === "zh-CN"
+                ? "为下一轮客户机 OpenClaw/Playwright 执行准备元数据，不直接执行。"
+                : "Prepare metadata for the next-cycle OpenClaw/Playwright handoff on the customer machine without executing it."
+              : language === "zh-CN"
+                ? "为客户机 OpenClaw 调度 Playwright 发布任务准备元数据，不直接执行。"
+                : "Prepare metadata for future OpenClaw-scheduled Playwright publishing on the customer machine without executing it.",
           runbook: [
-            { step: "Review packaged deliverable", owner: "operator" },
+            { step: approvalIsNextCycle ? "Review next-cycle packaged deliverable" : "Review packaged deliverable", owner: "operator" },
             { step: "Confirm target social/channel account", owner: "operator" },
             { step: "Run OpenClaw/Playwright only after explicit execution approval", owner: "client_machine" },
           ],
           readiness_checks: [
             "human_review approval approved",
             "packaged deliverable created",
+            ...(approvalIsNextCycle ? ["next-cycle approval execution prep"] : []),
             "metadata_only execution request",
             "OpenClaw/Playwright handoff not executed",
           ],
@@ -2130,12 +2192,14 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
             { item: "Keep screenshots/logs after future execution" },
           ],
           metadata: {
-            source: "worker_console_approval_execution_prep",
+            source: approvalPrepSource,
             console: "worker_console_desktop",
-            phase: "63C",
+            phase: approvalPrepPhase,
             approval_id: approvedApproval.id,
             content_draft_id: approvedDraft.id,
             deliverable_id: packagedDeliverable.id,
+            optimization_decision_id: optimizationDecisionId,
+            cycle: approvalIsNextCycle ? "next_iteration" : "first_iteration",
           },
         },
         settings,
@@ -2143,14 +2207,20 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       const readyExecutionRequest = await commercialOperationClient.readyExecutionRequest(
         operationId,
         executionRequest.id,
-        language === "zh-CN"
-          ? "客户机执行准备记录已生成，等待执行前复核。"
-          : "Client execution prep record is ready for pre-run review.",
+        approvalIsNextCycle
+          ? language === "zh-CN"
+            ? "下一轮客户机执行准备记录已生成，等待执行前复核。"
+            : "Next-cycle client execution prep record is ready for pre-run review."
+          : language === "zh-CN"
+            ? "客户机执行准备记录已生成，等待执行前复核。"
+            : "Client execution prep record is ready for pre-run review.",
         settings,
       );
       await refreshCommercialOperationLoop(operationId);
-      setExecutionPrepStatus(`${workbenchCopy.operationExecutionPrepReady}: ${readyExecutionRequest.id}`);
-      setRunStatus(`client execution prep ready: ${readyExecutionRequest.id}`);
+      setExecutionPrepStatus(
+        `${approvalIsNextCycle ? workbenchCopy.operationNextCycleExecutionPrepReady : workbenchCopy.operationExecutionPrepReady}: ${readyExecutionRequest.id}`,
+      );
+      setRunStatus(`${approvalIsNextCycle ? "next-cycle " : ""}client execution prep ready: ${readyExecutionRequest.id}`);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : "Commercial approval execution prep failed";
       setOperationLoopError(message);
@@ -2174,17 +2244,29 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         return;
       }
       const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
-      const approval = pendingApprovalResponse.items[0] ?? commercialApprovals.find((item) => item.approval_status === "pending") ?? null;
+      const approval =
+        pendingApprovalResponse.items.find(isNextCycleApproval) ??
+        pendingApprovalResponse.items[0] ??
+        commercialApprovals.find((item) => item.approval_status === "pending" && isNextCycleApproval(item)) ??
+        commercialApprovals.find((item) => item.approval_status === "pending") ??
+        null;
       if (!approval) {
         setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
         setRunStatus("commercial approval missing");
         await refreshCommercialOperationLoop(operationId);
         return;
       }
+      const approvalIsNextCycle = isNextCycleApproval(approval);
       await commercialOperationClient.rejectApproval(
         operationId,
         approval.id,
-        language === "zh-CN" ? "客户机操作员驳回首版内容，需要修改后重新准备。" : "Client operator rejected the first draft; revise before preparing again.",
+        approvalIsNextCycle
+          ? language === "zh-CN"
+            ? "客户机操作员驳回下一轮内容，需要按改进建议重新生成。"
+            : "Client operator rejected the next-cycle draft; regenerate it from the improvement decision."
+          : language === "zh-CN"
+            ? "客户机操作员驳回首版内容，需要修改后重新准备。"
+            : "Client operator rejected the first draft; revise before preparing again.",
         settings,
       );
       const draftId = metadataStringValue(approval.metadata, "content_draft_id");
@@ -2192,13 +2274,19 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         await commercialOperationClient.rejectContentDraft(
           operationId,
           draftId,
-          language === "zh-CN" ? "审批被驳回，首版内容需要修改。" : "Approval was rejected; the first draft needs revision.",
+          approvalIsNextCycle
+            ? language === "zh-CN"
+              ? "审批被驳回，下一轮内容需要重新生成。"
+              : "Approval was rejected; regenerate the next-cycle draft."
+            : language === "zh-CN"
+              ? "审批被驳回，首版内容需要修改。"
+              : "Approval was rejected; the first draft needs revision.",
           settings,
         ).catch(() => null);
       }
       await refreshCommercialOperationLoop(operationId);
-      setExecutionPrepStatus(workbenchCopy.operationApprovalRejected);
-      setRunStatus(`commercial approval rejected: ${approval.id}`);
+      setExecutionPrepStatus(approvalIsNextCycle ? workbenchCopy.operationNextCycleApprovalRejected : workbenchCopy.operationApprovalRejected);
+      setRunStatus(`${approvalIsNextCycle ? "next-cycle " : ""}commercial approval rejected: ${approval.id}`);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : "Commercial approval rejection failed";
       setOperationLoopError(message);
@@ -3270,6 +3358,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const selectedGoalTemplate = goalTemplates.find((template) => template.id === selectedGoalTemplateId) ?? goalTemplates[0];
   const pendingApprovals = approvals.filter((approval) => approval.approval_status === "pending");
   const pendingCommercialApprovals = commercialApprovals.filter((approval) => approval.approval_status === "pending");
+  const pendingNextCycleCommercialApproval = pendingCommercialApprovals.find(isNextCycleApproval) ?? null;
   const latestCommercialExecutionRequest = commercialExecutionRequests[0] ?? null;
   const latestCommercialExecutionRun = commercialExecutionRuns[0] ?? null;
   const queuedCommercialExecutionRun =
@@ -3568,7 +3657,13 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
                 disabled={executionPrepLoading || operationLoopLoading || chatLoading || pendingCommercialApprovals.length === 0}
               >
                 <CheckCircle2 size={14} />
-                {executionPrepLoading ? workbenchCopy.operationApprovalPreparing : workbenchCopy.operationApproveAndPrepare}
+                {executionPrepLoading
+                  ? pendingNextCycleCommercialApproval
+                    ? workbenchCopy.operationNextCycleApprovalPreparing
+                    : workbenchCopy.operationApprovalPreparing
+                  : pendingNextCycleCommercialApproval
+                    ? workbenchCopy.operationApproveNextCycleAndPrepare
+                    : workbenchCopy.operationApproveAndPrepare}
               </button>
               <button
                 className="refresh-button"
@@ -3576,7 +3671,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
                 disabled={executionPrepLoading || operationLoopLoading || chatLoading || pendingCommercialApprovals.length === 0}
               >
                 <XCircle size={14} />
-                {workbenchCopy.operationRejectDraft}
+                {pendingNextCycleCommercialApproval ? workbenchCopy.operationRejectNextCycleDraft : workbenchCopy.operationRejectDraft}
               </button>
               <button
                 className="refresh-button"
