@@ -209,6 +209,12 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  operationLoop: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/operation-loop`,
+      {},
+      settings,
+    ),
   approvals: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/approvals`, {}, settings),
   createApproval: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

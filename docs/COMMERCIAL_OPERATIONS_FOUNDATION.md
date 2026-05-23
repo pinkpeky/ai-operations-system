@@ -1,6 +1,6 @@
 # Commercial Operations Foundation
 
-Updated: 2026-05-22
+Updated: 2026-05-23
 
 ## Phase
 
@@ -12,10 +12,12 @@ Phase 61B adds evidence and handoff links to that project center. Phase 61C adds
 
 Phase 62B adds a guarded read-only ComfyUI health probe with provider, switch, base URL, timeout, host/path allowlists, disabled action, required configuration, probe status, and guardrail visibility. It makes no network request by default and only attempts `GET /system_stats` when every explicit gate is enabled. Phase 62C adds no-network ComfyUI Runtime Diagnostics so server maintainers can see `readiness_status`, `blocking_reasons`, `recommended_actions`, `read_only_probe_ready`, and each provider/switch/network/host/path gate before any probe is attempted. Phase 62D adds persisted no-network ComfyUI Runtime Diagnostic Snapshots so maintainers can save before/after readiness records with operator notes and metadata. Phase 62E adds a no-network ComfyUI Runtime Maintenance Runbook so maintainers can see ordered steps, the next safe action, recovery actions, configuration summary, and disabled actions in the dedicated ComfyUI page. Phase 62F adds metadata-only ComfyUI Runtime Configuration Change Requests so maintainers can create and review `requested_changes` from the runbook while `config_mutation_performed=false`. Phase 62G adds metadata-only ComfyUI Runtime Manual Apply Evidence so maintainers can record manually applied approved changes, restart evidence, rollback notes, and no-network verification while `api_config_mutation_performed=false`. Phase 62H adds metadata-only ComfyUI Runtime Post-Manual Readiness Checks so maintainers can compare verified manual evidence against current no-network diagnostics and decide whether a future guarded read-only probe is ready while `health_probe_executed=false`.
 
+Phase 62Y adds the Commercial Operation Loop Protocol: one read-only summary that maps the requested closed loop from operating topic, system task plan, knowledge context, content production, human approval, OpenClaw / Playwright customer-machine execution, result recording, data observation, data analysis, and content improvement. The summary is designed for both server maintenance UI and the customer-machine console so development can finish a full loop before adding more isolated page features. It does not execute OpenClaw, run Playwright, publish, control accounts, bypass approval, or call external runtimes.
+
 ## Branch
 
 ```text
-codex/phase-62h-comfyui-post-manual-readiness
+codex/phase-62y-operation-loop-protocol
 ```
 
 ## What This Phase Adds
@@ -75,8 +77,10 @@ codex/phase-62h-comfyui-post-manual-readiness
 - ORM model: `CommercialOperationOptimizationDecision`.
 - ORM model: `CommercialOperationEvidenceSnapshot`.
 - Service layer: `CommercialOperationService`.
+- Service method: `CommercialOperationService.get_operation_loop_summary`.
 - Service layer: `ComfyUIRuntimeService`.
 - API route group: `/api/v1/commercial-operations`.
+- API route: `/api/v1/commercial-operations/{operation_id}/operation-loop`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/links`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/approvals`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/dry-runs`.
@@ -110,6 +114,8 @@ codex/phase-62h-comfyui-post-manual-readiness
 - API route group: `/api/v1/commercial-operations/{operation_id}/optimization-decisions`.
 - API route group: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots`.
 - RAG generation route: `/api/v1/commercial-operations/{operation_id}/evidence-snapshots/generate-rag`.
+- API schema: `CommercialOperationLoopSummaryResponse`.
+- API schema: `CommercialOperationLoopStageResponse`.
 - Admin Dashboard page: `?page=commercial-operations`.
 - Admin Dashboard ComfyUI page: `?page=comfyui-operations`.
 - API client: `commercialOperationsApi`.

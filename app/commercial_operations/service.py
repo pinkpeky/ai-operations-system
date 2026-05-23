@@ -205,6 +205,80 @@ class CommercialOperationService:
         await self.session.refresh(operation)
         return operation
 
+    async def get_operation_loop_summary(self, *, workspace_id: str, operation_id: UUID) -> dict[str, Any]:
+        """Return one readable operation-loop protocol for server and customer consoles."""
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        approvals = await self._list_operation_records(
+            CommercialOperationApproval,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        content_drafts = await self._list_operation_records(
+            CommercialOperationContentDraft,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        asset_requests = await self._list_operation_records(
+            CommercialOperationAssetRequest,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        deliverables = await self._list_operation_records(
+            CommercialOperationDeliverable,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        evidence_snapshots = await self._list_operation_records(
+            CommercialOperationEvidenceSnapshot,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        execution_requests = await self._list_operation_records(
+            CommercialOperationExecutionRequest,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        execution_runs = await self._list_operation_records(
+            CommercialOperationExecutionRun,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        results = await self._list_operation_records(
+            CommercialOperationResult,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        monitoring_observations = await self._list_operation_records(
+            CommercialOperationMonitoringObservation,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        optimization_decisions = await self._list_operation_records(
+            CommercialOperationOptimizationDecision,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        links = await self._list_operation_records(
+            CommercialOperationLink,
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+        )
+        return self._build_operation_loop_summary(
+            operation=operation,
+            approvals=approvals,
+            content_drafts=content_drafts,
+            asset_requests=asset_requests,
+            deliverables=deliverables,
+            evidence_snapshots=evidence_snapshots,
+            execution_requests=execution_requests,
+            execution_runs=execution_runs,
+            results=results,
+            monitoring_observations=monitoring_observations,
+            optimization_decisions=optimization_decisions,
+            links=links,
+        )
+
     async def create_approval(
         self,
         *,
@@ -7328,6 +7402,569 @@ class CommercialOperationService:
                 "checks": ["task status", "failure reason", "retry or cancel", "result report"],
             },
         ]
+
+    async def _list_operation_records(
+        self,
+        model: type[Any],
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        limit: int = 500,
+    ) -> list[Any]:
+        result = await self.session.execute(
+            select(model)
+            .where(model.workspace_id == workspace_id, model.operation_id == operation_id)
+            .order_by(model.updated_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    def _build_operation_loop_summary(
+        self,
+        *,
+        operation: CommercialOperation,
+        approvals: list[Any],
+        content_drafts: list[Any],
+        asset_requests: list[Any],
+        deliverables: list[Any],
+        evidence_snapshots: list[Any],
+        execution_requests: list[Any],
+        execution_runs: list[Any],
+        results: list[Any],
+        monitoring_observations: list[Any],
+        optimization_decisions: list[Any],
+        links: list[Any],
+    ) -> dict[str, Any]:
+        approved = {"approved"}
+        review = {"pending", "ready_for_review"}
+        prepared = {"approved", "prepared", "packaged"}
+        running = {"queued", "running", "retrying"}
+        terminal_success = {"succeeded"}
+
+        rag_links = [
+            link
+            for link in links
+            if getattr(link, "link_type", "") in {"rag_document", "knowledge_source"}
+            or getattr(link, "target_type", "") in {"rag_document", "knowledge_source", "document", "source"}
+        ]
+        approved_evidence = self._has_record_status(evidence_snapshots, ("snapshot_status",), approved)
+        approved_source_drafts = [
+            draft
+            for draft in content_drafts
+            if getattr(draft, "draft_status", "") == "approved" and getattr(draft, "source_materials", [])
+        ]
+        knowledge_started = bool(operation.knowledge_collection or rag_links or evidence_snapshots or approved_source_drafts)
+        if approved_evidence or approved_source_drafts:
+            knowledge_status = "complete"
+            knowledge_next = "Use the approved knowledge evidence in content and execution handoff reviews."
+        elif self._has_record_status(evidence_snapshots, ("snapshot_status",), review):
+            knowledge_status = "review_required"
+            knowledge_next = "Review and approve the knowledge evidence snapshot before production moves forward."
+        elif knowledge_started:
+            knowledge_status = "in_progress"
+            knowledge_next = "Run or review a RAG evidence snapshot so the operation can prove which sources it used."
+        else:
+            knowledge_status = "missing"
+            knowledge_next = "Upload or link product knowledge, then create a RAG evidence snapshot."
+
+        content_records = [*content_drafts, *asset_requests, *deliverables]
+        content_complete = self._has_record_status(deliverables, ("deliverable_status",), {"approved", "packaged"})
+        content_complete = content_complete or self._has_record_status(content_drafts, ("draft_status",), approved)
+        content_review = self._has_record_status(
+            [*content_drafts, *asset_requests, *deliverables],
+            ("draft_status", "request_status", "deliverable_status"),
+            {"ready_for_review"},
+        )
+        if content_complete:
+            content_status = "complete"
+            content_next = "Keep the approved draft and deliverable attached to the operation loop."
+        elif content_review:
+            content_status = "review_required"
+            content_next = "Review the draft, asset request, or deliverable before preparing execution."
+        elif content_records:
+            content_status = "in_progress"
+            content_next = "Finish draft, video/asset brief, analysis report, and operation-direction deliverables."
+        elif knowledge_status in {"complete", "in_progress", "review_required"}:
+            content_status = "missing"
+            content_next = "Generate the first content draft and package it as an operator-facing deliverable."
+        else:
+            content_status = "blocked"
+            content_next = "Finish knowledge preparation before content production."
+
+        approval_complete = self._has_record_status(approvals, ("approval_status",), approved)
+        approval_complete = approval_complete or self._has_record_status(
+            [*content_drafts, *asset_requests, *deliverables, *evidence_snapshots, *execution_requests],
+            ("draft_status", "request_status", "deliverable_status", "snapshot_status"),
+            prepared,
+        )
+        approval_review = self._has_record_status(
+            [*approvals, *content_drafts, *asset_requests, *deliverables, *evidence_snapshots, *execution_requests],
+            ("approval_status", "draft_status", "request_status", "deliverable_status", "snapshot_status"),
+            review,
+        )
+        if approval_complete:
+            approval_status = "complete"
+            approval_next = "Keep approvals attached to the operation before any customer-machine execution."
+        elif approval_review:
+            approval_status = "review_required"
+            approval_next = "Approve or reject the pending operation, content, evidence, or execution gate."
+        elif content_status in {"complete", "in_progress", "review_required"}:
+            approval_status = "missing"
+            approval_next = "Create a human approval gate before any publishing or account-control action."
+        else:
+            approval_status = "blocked"
+            approval_next = "Prepare reviewable content before requesting approval."
+
+        execution_complete = self._has_record_status(execution_runs, ("run_status",), terminal_success)
+        execution_active = self._has_record_status(execution_runs, ("run_status",), running)
+        execution_ready = self._has_record_status(execution_requests, ("request_status",), prepared)
+        execution_review = self._has_record_status(execution_requests, ("request_status",), {"ready_for_review"})
+        if execution_complete:
+            execution_status = "complete"
+            execution_next = "Record the commercial result from the completed customer-machine handoff."
+        elif execution_active:
+            execution_status = "in_progress"
+            execution_next = "Watch the customer-machine execution run and capture evidence or failure reason."
+        elif execution_review:
+            execution_status = "review_required"
+            execution_next = "Approve the execution request before it can be prepared for OpenClaw/Playwright."
+        elif execution_ready:
+            execution_status = "in_progress"
+            execution_next = "Queue a monitored execution run for the customer machine."
+        elif execution_requests:
+            execution_status = "in_progress"
+            execution_next = "Resolve the current execution request status before creating a run."
+        elif approval_status == "complete":
+            execution_status = "missing"
+            execution_next = "Create an OpenClaw execution request with Playwright browser-operation runbook."
+        else:
+            execution_status = "blocked"
+            execution_next = "Complete human approval before customer-machine execution."
+
+        result_complete = self._has_record_status(results, ("result_status",), approved)
+        result_review = self._has_record_status(results, ("result_status",), {"ready_for_review"})
+        if result_complete:
+            result_status = "complete"
+            result_next = "Use the approved result as the source for monitoring and analysis."
+        elif result_review:
+            result_status = "review_required"
+            result_next = "Approve or reject the observed result before monitoring."
+        elif results:
+            result_status = "in_progress"
+            result_next = "Finish the result record with outcome, metrics, and evidence links."
+        elif execution_complete:
+            result_status = "missing"
+            result_next = "Record the execution outcome, evidence, and commercial signals."
+        else:
+            result_status = "blocked"
+            result_next = "Wait for a completed execution run before result recording."
+
+        observation_complete = self._has_record_status(monitoring_observations, ("observation_status",), approved)
+        observation_review = self._has_record_status(monitoring_observations, ("observation_status",), {"ready_for_review"})
+        if observation_complete:
+            observation_status = "complete"
+            observation_next = "Use the approved observation to analyze the next content change."
+        elif observation_review:
+            observation_status = "review_required"
+            observation_next = "Approve or reject the monitoring observation."
+        elif monitoring_observations:
+            observation_status = "in_progress"
+            observation_next = "Capture observed platform metrics, signals, and anomalies."
+        elif result_complete:
+            observation_status = "missing"
+            observation_next = "Create a monitoring observation from the approved result."
+        else:
+            observation_status = "blocked"
+            observation_next = "Approve the result before monitoring."
+
+        decision_exists = bool(optimization_decisions)
+        decision_complete = self._has_record_status(optimization_decisions, ("decision_status",), approved)
+        decision_review = self._has_record_status(optimization_decisions, ("decision_status",), {"ready_for_review"})
+        if decision_exists:
+            analysis_status = "complete"
+            analysis_next = "Use the optimization decision to improve the next production cycle."
+        elif observation_complete:
+            analysis_status = "missing"
+            analysis_next = "Analyze monitoring data and create an optimization decision."
+        else:
+            analysis_status = "blocked"
+            analysis_next = "Approve the monitoring observation before analysis."
+
+        if decision_complete:
+            improvement_status = "complete"
+            improvement_next = "Start the next production cycle using the approved improvement decision."
+        elif decision_review:
+            improvement_status = "review_required"
+            improvement_next = "Approve or reject the improvement decision before changing production."
+        elif decision_exists:
+            improvement_status = "in_progress"
+            improvement_next = "Finish content, asset, audience, execution, and risk-control improvement actions."
+        elif analysis_status == "missing":
+            improvement_status = "missing"
+            improvement_next = "Create a decision that states how content should improve."
+        else:
+            improvement_status = "blocked"
+            improvement_next = "Analyze observed data before changing production."
+
+        stages = [
+            self._operation_loop_stage(
+                "operation_topic",
+                "Operating topic",
+                "operator",
+                "complete",
+                operation.objective,
+                "Use this objective as the single source of truth for planning.",
+                related_records=[self._operation_ref(operation)],
+                operator_actions=["Confirm product, audience, channel, and success metric."],
+                server_actions=["Maintain the durable commercial operation record."],
+                client_actions=["Show the active topic clearly in the customer-machine console."],
+            ),
+            self._operation_loop_stage(
+                "task_planning",
+                "System task plan",
+                "server",
+                "complete" if operation.plan_outline else "missing",
+                f"{len(operation.plan_outline or [])} planned step(s) are attached.",
+                "Regenerate the plan if the topic or channel changes.",
+                related_records=self._plan_outline_refs(operation),
+                server_actions=["Keep plan_outline synchronized with operation updates."],
+                client_actions=["Display the current step instead of exposing raw plan data."],
+            ),
+            self._operation_loop_stage(
+                "knowledge_context",
+                "Knowledge base context",
+                "server",
+                knowledge_status,
+                self._knowledge_summary(operation, evidence_snapshots, rag_links),
+                knowledge_next,
+                blocked_reasons=[] if knowledge_status != "blocked" else ["knowledge evidence is not ready"],
+                related_records=[
+                    *self._record_refs(evidence_snapshots, "evidence_snapshot", "snapshot_status"),
+                    *self._record_refs(rag_links, "knowledge_link", "link_type"),
+                ],
+                operator_actions=["Upload/update knowledge and review evidence before it is used."],
+                server_actions=["Expose RAG evidence and source coverage for review."],
+                client_actions=["Offer a visual knowledge upload and validation entry point."],
+            ),
+            self._operation_loop_stage(
+                "content_production",
+                "Content production",
+                "server",
+                content_status,
+                self._content_summary(content_drafts, asset_requests, deliverables),
+                content_next,
+                blocked_reasons=[] if content_status != "blocked" else ["knowledge context is not ready"],
+                related_records=[
+                    *self._record_refs(content_drafts, "content_draft", "draft_status"),
+                    *self._record_refs(asset_requests, "asset_request", "request_status"),
+                    *self._record_refs(deliverables, "deliverable", "deliverable_status"),
+                ],
+                operator_actions=["Review copy, video/asset brief, analysis report, and operation direction."],
+                server_actions=["Generate and package reviewable deliverables only."],
+                client_actions=["Show deliverables as cards, not raw JSON or code."],
+            ),
+            self._operation_loop_stage(
+                "human_approval",
+                "Human approval",
+                "operator",
+                approval_status,
+                self._approval_summary(approvals),
+                approval_next,
+                blocked_reasons=[] if approval_status != "blocked" else ["reviewable content is not ready"],
+                related_records=self._record_refs(approvals, "approval", "approval_status"),
+                operator_actions=["Approve, reject, or cancel before execution."],
+                server_actions=["Enforce approval gates and audit reviewer notes."],
+                client_actions=["Surface a single approve/reject decision when assigned."],
+            ),
+            self._operation_loop_stage(
+                "client_execution",
+                "OpenClaw / Playwright execution",
+                "client_machine",
+                execution_status,
+                self._execution_summary(execution_requests, execution_runs),
+                execution_next,
+                blocked_reasons=[] if execution_status != "blocked" else ["human approval is not complete"],
+                related_records=[
+                    *self._record_refs(execution_requests, "execution_request", "request_status"),
+                    *self._record_refs(execution_runs, "execution_run", "run_status"),
+                ],
+                operator_actions=["Start, pause, continue, fail, or retry from the customer-machine console."],
+                server_actions=["Provide the approved handoff and monitor immutable status records."],
+                client_actions=["Execute through OpenClaw, with Playwright operating the browser after approval."],
+            ),
+            self._operation_loop_stage(
+                "result_recording",
+                "Result recording",
+                "operator",
+                result_status,
+                self._result_summary(results),
+                result_next,
+                blocked_reasons=[] if result_status != "blocked" else ["execution run has not succeeded"],
+                related_records=self._record_refs(results, "result", "result_status"),
+                operator_actions=["Record outcome, evidence, metrics, and business signal."],
+                server_actions=["Store the result as an auditable commercial record."],
+                client_actions=["Attach customer-machine screenshots or notes as evidence."],
+            ),
+            self._operation_loop_stage(
+                "data_observation",
+                "Data observation",
+                "operator",
+                observation_status,
+                self._observation_summary(monitoring_observations),
+                observation_next,
+                blocked_reasons=[] if observation_status != "blocked" else ["approved result is not available"],
+                related_records=self._record_refs(
+                    monitoring_observations,
+                    "monitoring_observation",
+                    "observation_status",
+                ),
+                operator_actions=["Capture platform metrics and qualitative signals."],
+                server_actions=["Keep observation windows and evidence links auditable."],
+                client_actions=["Show simple metric capture and evidence upload controls."],
+            ),
+            self._operation_loop_stage(
+                "data_analysis",
+                "Data analysis",
+                "server",
+                analysis_status,
+                self._decision_summary(optimization_decisions),
+                analysis_next,
+                blocked_reasons=[] if analysis_status != "blocked" else ["approved observation is not available"],
+                related_records=self._record_refs(optimization_decisions, "optimization_decision", "decision_status"),
+                operator_actions=["Review why a change is recommended."],
+                server_actions=["Convert observations into a reviewable optimization decision."],
+                client_actions=["Show the next recommendation in plain language."],
+            ),
+            self._operation_loop_stage(
+                "content_improvement",
+                "Improve next production",
+                "operator",
+                improvement_status,
+                self._improvement_summary(optimization_decisions),
+                improvement_next,
+                blocked_reasons=[] if improvement_status != "blocked" else ["analysis decision is not ready"],
+                related_records=self._record_refs(optimization_decisions, "optimization_decision", "decision_status"),
+                operator_actions=["Approve the improvement and start the next loop."],
+                server_actions=["Carry approved improvements into the next plan and content generation step."],
+                client_actions=["Let the operator continue the loop without seeing implementation details."],
+            ),
+        ]
+        complete_count = sum(1 for stage in stages if stage["status"] == "complete")
+        current_stage = next((stage for stage in stages if stage["status"] != "complete"), None)
+        loop_status = "complete" if current_stage is None else current_stage["status"]
+        return {
+            "operation_id": operation.id,
+            "workspace_id": operation.workspace_id,
+            "title": operation.title,
+            "objective": operation.objective,
+            "loop_status": loop_status,
+            "current_stage_key": current_stage["stage_key"] if current_stage else None,
+            "next_action": current_stage["next_action"] if current_stage else "Start the next approved operation loop.",
+            "completion_ratio": round(complete_count / len(stages), 2),
+            "stages": stages,
+            "counts": {
+                "approvals": len(approvals),
+                "content_drafts": len(content_drafts),
+                "asset_requests": len(asset_requests),
+                "deliverables": len(deliverables),
+                "evidence_snapshots": len(evidence_snapshots),
+                "execution_requests": len(execution_requests),
+                "execution_runs": len(execution_runs),
+                "results": len(results),
+                "monitoring_observations": len(monitoring_observations),
+                "optimization_decisions": len(optimization_decisions),
+                "knowledge_links": len(rag_links),
+            },
+            "execution_protocol": {
+                "server_role": "plan, approve, audit, observe, and improve",
+                "client_role": "operator-facing execution surface on the customer machine",
+                "execution_owner": "client_machine",
+                "task_runner": "OpenClaw",
+                "browser_driver": "Playwright",
+                "approval_required": True,
+                "live_execution_enabled": False,
+                "expected_execution_type": "openclaw",
+                "current_execution_type": getattr(execution_requests[0], "execution_type", None)
+                if execution_requests
+                else None,
+                "runtime_boundary": "protocol only; no OpenClaw or Playwright action is executed by this endpoint",
+            },
+            "readiness": [
+                {
+                    "key": "server_frontend",
+                    "status": "protocol_ready",
+                    "detail": "Server UI can consume the same loop summary for maintenance and customer-machine oversight.",
+                },
+                {
+                    "key": "customer_frontend",
+                    "status": "protocol_ready",
+                    "detail": "Customer UI can show topic, current step, result, pause/continue, and knowledge entry from this summary.",
+                },
+                {
+                    "key": "openclaw_execution",
+                    "status": "adapter_pending",
+                    "detail": "Approved handoff shape is tracked, but real OpenClaw execution is not enabled here.",
+                },
+                {
+                    "key": "playwright_operation",
+                    "status": "adapter_pending",
+                    "detail": "Browser operation remains future guarded customer-machine execution.",
+                },
+            ],
+            "boundaries": [
+                "does not publish to social platforms",
+                "does not control real accounts",
+                "does not execute OpenClaw",
+                "does not run Playwright",
+                "does not bypass approval, captcha, proxy, or fingerprint checks",
+                "does not call ComfyUI or resolve secrets",
+            ],
+            "generated_at": datetime.now(UTC),
+        }
+
+    def _operation_loop_stage(
+        self,
+        stage_key: str,
+        title: str,
+        owner: str,
+        status: str,
+        summary: str,
+        next_action: str,
+        *,
+        blocked_reasons: list[str] | None = None,
+        related_records: list[dict[str, Any]] | None = None,
+        operator_actions: list[str] | None = None,
+        server_actions: list[str] | None = None,
+        client_actions: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "stage_key": stage_key,
+            "title": title,
+            "owner": owner,
+            "status": status,
+            "summary": summary,
+            "next_action": next_action,
+            "blocked_reasons": blocked_reasons or [],
+            "related_records": related_records or [],
+            "operator_actions": operator_actions or [],
+            "server_actions": server_actions or [],
+            "client_actions": client_actions or [],
+        }
+
+    def _has_record_status(
+        self,
+        records: list[Any],
+        status_attrs: tuple[str, ...],
+        statuses: set[str],
+    ) -> bool:
+        return any((self._record_status(record, status_attrs) or "") in statuses for record in records)
+
+    def _record_status(self, record: Any, status_attrs: tuple[str, ...]) -> str | None:
+        for attr in status_attrs:
+            value = getattr(record, attr, None)
+            if value is not None:
+                return str(value)
+        return None
+
+    def _record_refs(self, records: list[Any], kind: str, status_attr: str, *, limit: int = 5) -> list[dict[str, Any]]:
+        return [self._record_ref(record, kind, status_attr) for record in records[:limit]]
+
+    def _record_ref(self, record: Any, kind: str, status_attr: str) -> dict[str, Any]:
+        updated_at = getattr(record, "updated_at", None)
+        title = (
+            getattr(record, "title", None)
+            or getattr(record, "summary", None)
+            or getattr(record, "target_type", None)
+            or kind
+        )
+        ref: dict[str, Any] = {
+            "kind": kind,
+            "id": str(getattr(record, "id")),
+            "status": str(getattr(record, status_attr, "")),
+            "title": str(title),
+        }
+        for attr in ("step_key", "channel", "execution_type", "link_type", "target_type", "target_id"):
+            value = getattr(record, attr, None)
+            if value is not None:
+                ref[attr] = value
+        if updated_at is not None:
+            ref["updated_at"] = updated_at.isoformat()
+        return ref
+
+    def _operation_ref(self, operation: CommercialOperation) -> dict[str, Any]:
+        return {
+            "kind": "operation",
+            "id": str(operation.id),
+            "status": operation.status,
+            "title": operation.title,
+            "updated_at": operation.updated_at.isoformat(),
+        }
+
+    def _plan_outline_refs(self, operation: CommercialOperation) -> list[dict[str, Any]]:
+        return [
+            {
+                "kind": "plan_step",
+                "id": str(step.get("step_key") or index),
+                "status": str(step.get("status") or "planned"),
+                "title": str(step.get("title") or step.get("step_key") or "plan step"),
+                "owner": step.get("owner"),
+            }
+            for index, step in enumerate(operation.plan_outline or [], start=1)
+            if isinstance(step, dict)
+        ]
+
+    def _knowledge_summary(
+        self,
+        operation: CommercialOperation,
+        evidence_snapshots: list[Any],
+        rag_links: list[Any],
+    ) -> str:
+        if evidence_snapshots:
+            return f"{len(evidence_snapshots)} evidence snapshot(s) attached to the operation."
+        if rag_links:
+            return f"{len(rag_links)} knowledge link(s) attached to the operation."
+        if operation.knowledge_collection:
+            return f"Knowledge collection configured: {operation.knowledge_collection}."
+        return "No knowledge collection, source link, or evidence snapshot is attached yet."
+
+    def _content_summary(self, drafts: list[Any], assets: list[Any], deliverables: list[Any]) -> str:
+        return (
+            f"{len(drafts)} draft(s), {len(assets)} asset request(s), "
+            f"and {len(deliverables)} deliverable(s) attached."
+        )
+
+    def _approval_summary(self, approvals: list[Any]) -> str:
+        if approvals:
+            return f"{len(approvals)} formal approval gate(s) attached."
+        return "No formal approval gate is attached yet; artifact decisions may still exist."
+
+    def _execution_summary(self, requests: list[Any], runs: list[Any]) -> str:
+        if requests or runs:
+            return f"{len(requests)} execution request(s) and {len(runs)} execution run(s) attached."
+        return "No customer-machine execution request or run is attached yet."
+
+    def _result_summary(self, results: list[Any]) -> str:
+        if results:
+            return f"{len(results)} operator-reviewed result record(s) attached."
+        return "No execution result has been recorded yet."
+
+    def _observation_summary(self, observations: list[Any]) -> str:
+        if observations:
+            return f"{len(observations)} monitoring observation(s) attached."
+        return "No monitoring observation has been recorded yet."
+
+    def _decision_summary(self, decisions: list[Any]) -> str:
+        if decisions:
+            return f"{len(decisions)} optimization decision(s) attached."
+        return "No optimization decision has been created from observed data yet."
+
+    def _improvement_summary(self, decisions: list[Any]) -> str:
+        approved_count = sum(1 for decision in decisions if getattr(decision, "decision_status", "") == "approved")
+        if approved_count:
+            return f"{approved_count} approved improvement decision(s) can drive the next loop."
+        if decisions:
+            return f"{len(decisions)} improvement decision(s) are present but not approved."
+        return "No approved improvement action exists yet."
 
     def _clean_list(self, values: list[str] | None) -> list[str]:
         return [item.strip() for item in values or [] if item and item.strip()]

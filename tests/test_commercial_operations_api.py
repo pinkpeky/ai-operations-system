@@ -125,6 +125,40 @@ async def test_commercial_operations_api_flow() -> None:
             assert plan.json()["operation_id"] == operation_id
             assert len(plan.json()["plan_outline"]) == 6
 
+            initial_loop = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/operation-loop",
+                headers=headers,
+            )
+            assert initial_loop.status_code == 200
+            initial_loop_body = initial_loop.json()
+            assert initial_loop_body["operation_id"] == operation_id
+            assert initial_loop_body["loop_status"] == "in_progress"
+            assert initial_loop_body["current_stage_key"] == "knowledge_context"
+            assert initial_loop_body["completion_ratio"] == 0.2
+            assert [stage["stage_key"] for stage in initial_loop_body["stages"]] == [
+                "operation_topic",
+                "task_planning",
+                "knowledge_context",
+                "content_production",
+                "human_approval",
+                "client_execution",
+                "result_recording",
+                "data_observation",
+                "data_analysis",
+                "content_improvement",
+            ]
+            assert initial_loop_body["execution_protocol"]["execution_owner"] == "client_machine"
+            assert initial_loop_body["execution_protocol"]["task_runner"] == "OpenClaw"
+            assert initial_loop_body["execution_protocol"]["browser_driver"] == "Playwright"
+            assert initial_loop_body["execution_protocol"]["live_execution_enabled"] is False
+            assert "does not execute OpenClaw" in initial_loop_body["boundaries"]
+
+            hidden_loop = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/operation-loop",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_loop.status_code == 404
+
             fetched = await client.get(f"/api/v1/commercial-operations/{operation_id}", headers=headers)
             assert fetched.status_code == 200
             assert fetched.json()["status"] == "planning"
@@ -2212,6 +2246,26 @@ async def test_commercial_operations_api_flow() -> None:
             assert optimization_step["optimization_decision_id"] == optimization_decision_id
             assert optimization_step["optimization_decision_status"] == "approved"
             assert optimization_step["optimization_decision_type"] == "iterate"
+
+            completed_loop = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/operation-loop",
+                headers=headers,
+            )
+            assert completed_loop.status_code == 200
+            completed_loop_body = completed_loop.json()
+            assert completed_loop_body["loop_status"] == "complete"
+            assert completed_loop_body["current_stage_key"] is None
+            assert completed_loop_body["completion_ratio"] == 1.0
+            completed_loop_stages = {stage["stage_key"]: stage for stage in completed_loop_body["stages"]}
+            assert completed_loop_stages["knowledge_context"]["status"] == "complete"
+            assert completed_loop_stages["content_production"]["status"] == "complete"
+            assert completed_loop_stages["client_execution"]["status"] == "complete"
+            assert completed_loop_stages["result_recording"]["status"] == "complete"
+            assert completed_loop_stages["data_observation"]["status"] == "complete"
+            assert completed_loop_stages["content_improvement"]["status"] == "complete"
+            assert completed_loop_body["counts"]["execution_runs"] == 1
+            assert completed_loop_body["counts"]["optimization_decisions"] == 1
+            assert completed_loop_body["readiness"][0]["key"] == "server_frontend"
 
             reject_approved_optimization_decision = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/optimization-decisions/{optimization_decision_id}/reject",

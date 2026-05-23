@@ -113,6 +113,7 @@ from app.schemas.commercial_operation import (
     CommercialOperationLinkListResponse,
     CommercialOperationLinkResponse,
     CommercialOperationListResponse,
+    CommercialOperationLoopSummaryResponse,
     CommercialOperationMonitoringObservationCreateRequest,
     CommercialOperationMonitoringObservationDecisionRequest,
     CommercialOperationMonitoringObservationListResponse,
@@ -520,6 +521,27 @@ async def regenerate_commercial_operation_plan(
     except Exception as exc:
         logger.exception("Commercial operation plan API failed", extra={"operation_id": str(operation_id)})
         raise AppError("Commercial operation plan failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/operation-loop", response_model=CommercialOperationLoopSummaryResponse)
+async def get_commercial_operation_loop_summary(
+    operation_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationLoopSummaryResponse:
+    """Read the operation-loop protocol for server and customer-machine consoles."""
+
+    try:
+        payload = await CommercialOperationService(session).get_operation_loop_summary(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+        )
+        return CommercialOperationLoopSummaryResponse(**payload)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation loop API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation loop failed", status_code=500) from exc
 
 
 @router.post("/{operation_id}/approvals", response_model=CommercialOperationApprovalResponse, status_code=201)
