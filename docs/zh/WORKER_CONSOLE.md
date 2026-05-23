@@ -908,6 +908,24 @@ This makes the first usable closed loop repeatable: topic, planning, knowledge/m
 
 Boundary: Phase 63F is next-cycle content draft and approval bootstrap only. It creates metadata-only content draft and approval records from approved optimization decisions. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63G Customer Console Next-Cycle Execution Prep
+
+Branch: `codex/phase-63g-next-cycle-execution-prep`
+
+Phase 63G connects the next-cycle approval gate back into execution preparation for `worker_console` and `worker_console_desktop`. After Phase 63F creates a next-cycle content draft and human approval gate, the same customer-machine approval button can recognize that next-cycle gate and prepare the second execution pass.
+
+The next-cycle execution prep action performs a guarded record-only sequence:
+
+- Prefer pending approvals created from the next-cycle content draft.
+- Approve or reject them with next-cycle wording.
+- Approve the linked next-cycle content draft.
+- Package a next-cycle deliverable with the approved optimization decision linkage.
+- Create a metadata-only execution prep request for the second iteration.
+
+This keeps the repeatable closed loop usable without adding a new complex page: the operator can move from result feedback to next draft, next approval, and next execution prep from the same product operation desk.
+
+Boundary: Phase 63G is next-cycle execution prep only. It creates metadata-only deliverable and execution prep records from approved next-cycle drafts. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
