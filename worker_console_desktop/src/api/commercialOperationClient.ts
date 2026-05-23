@@ -120,6 +120,35 @@ export type CommercialOperationExecutionRequest = {
   metadata?: Record<string, unknown>;
 };
 
+export type CommercialOperationExecutionRun = {
+  id: string;
+  operation_id: string;
+  execution_request_id: string;
+  deliverable_id: string;
+  output_artifact_id?: string | null;
+  step_key: string;
+  channel: string;
+  execution_type: string;
+  execution_mode: string;
+  execution_target?: string | null;
+  title: string;
+  run_status: string;
+  input_payload: Record<string, unknown>;
+  runbook_snapshot: Record<string, unknown>[];
+  readiness_checks: string[];
+  expected_outputs: string[];
+  operator_checklist_snapshot: Record<string, unknown>[];
+  runtime_payload?: Record<string, unknown>;
+  result_payload?: Record<string, unknown>;
+  recovery_plan?: Record<string, unknown>;
+  retry_count: number;
+  max_retries: number;
+  result_summary?: string | null;
+  failure_reason?: string | null;
+  operator_notes?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
 function queryString(params: Record<string, string | number | null | undefined>): string {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -418,6 +447,112 @@ export const commercialOperationClient = {
       {
         method: "POST",
         body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  listExecutionRequests: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationExecutionRequest[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  approveExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRequest>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  prepareExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    resultSummary: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRequest>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/prepare`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: resultSummary }),
+      },
+      settings,
+    ),
+  createExecutionRun: (
+    operationId: string,
+    payload: {
+      execution_request_id: string;
+      title?: string;
+      execution_target?: string;
+      input_payload?: Record<string, unknown>;
+      max_retries?: number;
+      operator_notes?: string;
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRun>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  listExecutionRuns: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationExecutionRun[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  startExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    operatorNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRun>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/start`,
+      {
+        method: "POST",
+        body: JSON.stringify({ operator_notes: operatorNotes }),
+      },
+      settings,
+    ),
+  failExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    failureReason: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRun>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/fail`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          failure_reason: failureReason,
+          result_payload: { external_execution_attempted: false },
+        }),
+      },
+      settings,
+    ),
+  retryExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    operatorNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRun>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/retry`,
+      {
+        method: "POST",
+        body: JSON.stringify({ operator_notes: operatorNotes }),
       },
       settings,
     ),

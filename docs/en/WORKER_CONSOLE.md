@@ -856,6 +856,23 @@ The reject action rejects the commercial approval gate and the linked content dr
 
 Boundary: Phase 63C is approval and execution prep only. It creates metadata-only execution prep records. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63D Customer Console Execution Run Review
+
+Branch: `codex/phase-63d-client-execution-run-review`
+
+Phase 63D adds the next customer-machine loop step to `worker_console` and `worker_console_desktop`. After Phase 63C creates the metadata-only execution prep request, an operator can review that prep request and create a recoverable execution run record from the same product operation desk.
+
+The execution-run review action performs a guarded record-only sequence:
+
+- Find the latest execution prep request.
+- Move it through ready, approved, and prepared states when needed.
+- Create a metadata-only execution run record for `customer_machine_playwright`.
+- Keep the run queued until the operator explicitly marks it started.
+
+The run controls let the operator mark a queued run started, record a running run as failed, and retry a failed run. These controls make interruption and recovery visible without starting real OpenClaw or Playwright automation.
+
+Boundary: Phase 63D is execution run review and recovery tracking only. It creates metadata-only execution run records. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
