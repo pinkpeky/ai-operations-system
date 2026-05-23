@@ -61,6 +61,8 @@ import {
 } from "./api/knowledgeBaseClient";
 import {
   commercialOperationClient,
+  CommercialOperationApproval,
+  CommercialOperationContentDraft,
   CommercialOperationLoopStage,
   CommercialOperationLoopSummary,
 } from "./api/commercialOperationClient";
@@ -171,6 +173,13 @@ type TaskWorkbenchCopy = {
   operationPrepareDraft: string;
   operationFirstDraftPreparing: string;
   operationFirstDraftReady: string;
+  operationApproveAndPrepare: string;
+  operationRejectDraft: string;
+  operationApprovalPreparing: string;
+  operationExecutionPrepReady: string;
+  operationApprovalRejected: string;
+  operationApprovalMissing: string;
+  operationApprovalPending: string;
   operationLoopSourceLabel: string;
   operationLoopLoaded: string;
   operationLoopDisconnected: string;
@@ -282,6 +291,11 @@ function firstDraftContentBody(objective: string, language: ClientLanguage): str
     "Data observation direction: after approved execution, record reach, engagement, leads, and conversion manually before optimization.",
     "Approval boundary: this draft only enters human review. It does not publish or control real accounts.",
   ].join("\n");
+}
+
+function metadataStringValue(metadata: Record<string, unknown> | undefined, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 type WorkbenchGoalTemplate = {
@@ -634,6 +648,13 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationPrepareDraft: "准备首版产物",
     operationFirstDraftPreparing: "正在准备首版产物",
     operationFirstDraftReady: "首版内容已进入人工审批",
+    operationApproveAndPrepare: "审批并准备执行",
+    operationRejectDraft: "驳回首版内容",
+    operationApprovalPreparing: "正在审批并准备客户机执行记录",
+    operationExecutionPrepReady: "客户机执行准备记录已生成，等待执行前复核",
+    operationApprovalRejected: "首版内容已驳回，可修改后重新准备",
+    operationApprovalMissing: "请先准备首版产物并生成待审批记录",
+    operationApprovalPending: "商业审批待处理",
     operationLoopSourceLabel: "闭环来源",
     operationLoopLoaded: "已连接真实运营闭环",
     operationLoopDisconnected: "未连接真实闭环，当前显示本地任务状态",
@@ -733,6 +754,13 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationPrepareDraft: "Prepare first draft",
     operationFirstDraftPreparing: "Preparing first draft",
     operationFirstDraftReady: "First draft is ready for approval",
+    operationApproveAndPrepare: "Approve and prep execution",
+    operationRejectDraft: "Reject first draft",
+    operationApprovalPreparing: "Approving and preparing the client execution record",
+    operationExecutionPrepReady: "Client execution prep record is ready for pre-run review",
+    operationApprovalRejected: "First draft rejected; revise it before preparing again",
+    operationApprovalMissing: "Prepare the first draft and approval record first",
+    operationApprovalPending: "Commercial approval pending",
     operationLoopSourceLabel: "Loop source",
     operationLoopLoaded: "Connected to real operation loop",
     operationLoopDisconnected: "No real loop connected; showing local task status",
@@ -1507,6 +1535,9 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const [operationLoopLoading, setOperationLoopLoading] = useState(false);
   const [firstDraftBootstrapStatus, setFirstDraftBootstrapStatus] = useState<string | null>(null);
   const [firstDraftBootstrapLoading, setFirstDraftBootstrapLoading] = useState(false);
+  const [commercialApprovals, setCommercialApprovals] = useState<CommercialOperationApproval[]>([]);
+  const [executionPrepStatus, setExecutionPrepStatus] = useState<string | null>(null);
+  const [executionPrepLoading, setExecutionPrepLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("workerConsoleConversationSettings", JSON.stringify(settings));
@@ -1521,14 +1552,20 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       if (!nextOperationId) {
         setSelectedCommercialOperationId(null);
         setOperationLoop(null);
+        setCommercialApprovals([]);
         return;
       }
       setSelectedCommercialOperationId(nextOperationId);
-      const loop = await commercialOperationClient.operationLoop(nextOperationId, settings);
+      const [loop, approvalResponse] = await Promise.all([
+        commercialOperationClient.operationLoop(nextOperationId, settings),
+        commercialOperationClient.listApprovals(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
+      ]);
       setOperationLoop(loop);
+      setCommercialApprovals(approvalResponse.items);
       setConnectionState("connected");
     } catch (nextError) {
       setOperationLoop(null);
+      setCommercialApprovals([]);
       setOperationLoopError(nextError instanceof Error ? nextError.message : "Commercial operation loop unavailable");
     } finally {
       setOperationLoopLoading(false);
@@ -1557,6 +1594,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     setSelectedCommercialOperationId(operation.id);
     const loop = await commercialOperationClient.operationLoop(operation.id, settings);
     setOperationLoop(loop);
+    setCommercialApprovals([]);
     setConnectionState("connected");
     return { operation, loop };
   };
@@ -1581,6 +1619,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     setOperationLoopLoading(true);
     setOperationLoopError(null);
     setFirstDraftBootstrapStatus(null);
+    setExecutionPrepStatus(null);
     try {
       const existingOperationId = operationLoop?.operation_id || selectedCommercialOperationId;
       const operationId = existingOperationId || (await createCommercialOperationFromGoal()).operation.id;
@@ -1638,6 +1677,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       const loop = await commercialOperationClient.operationLoop(operationId, settings);
       setSelectedCommercialOperationId(operationId);
       setOperationLoop(loop);
+      setCommercialApprovals([approval]);
       setConnectionState("connected");
       setFirstDraftBootstrapStatus(`${workbenchCopy.operationFirstDraftReady}: ${readyDraft.title}`);
       setRunStatus(`first draft ready for approval: ${approval.id}`);
@@ -1647,6 +1687,235 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       setRunStatus("first draft bootstrap error");
     } finally {
       setFirstDraftBootstrapLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const resolveCommercialApprovalDraft = async (
+    operationId: string,
+    approval: CommercialOperationApproval,
+  ): Promise<CommercialOperationContentDraft | null> => {
+    const draftId = metadataStringValue(approval.metadata, "content_draft_id");
+    if (draftId) {
+      return commercialOperationClient.approveContentDraft(
+        operationId,
+        draftId,
+        language === "zh-CN" ? "人工已审批首版内容，进入交付物打包。" : "Human approved the first draft; package it as a deliverable.",
+        settings,
+      );
+    }
+    const draftResponse = await commercialOperationClient.listContentDrafts(operationId, "ready_for_review", settings);
+    const readyDraft = draftResponse.items[0] ?? null;
+    if (!readyDraft) {
+      return null;
+    }
+    return commercialOperationClient.approveContentDraft(
+      operationId,
+      readyDraft.id,
+      language === "zh-CN" ? "人工已审批首版内容，进入交付物打包。" : "Human approved the first draft; package it as a deliverable.",
+      settings,
+    );
+  };
+
+  const approveCommercialApprovalAndPrepareExecution = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setExecutionPrepLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setExecutionPrepStatus(workbenchCopy.operationApprovalPreparing);
+    try {
+      if (!operationId) {
+        setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
+        setRunStatus("commercial approval missing");
+        return;
+      }
+      const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
+      const approval = pendingApprovalResponse.items[0] ?? commercialApprovals.find((item) => item.approval_status === "pending") ?? null;
+      if (!approval) {
+        setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
+        setRunStatus("commercial approval missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      const approvedApproval = await commercialOperationClient.approveApproval(
+        operationId,
+        approval.id,
+        language === "zh-CN" ? "客户机操作员确认首版内容可进入执行准备。" : "Client operator approved the first draft for execution preparation.",
+        settings,
+      );
+      const approvedDraft = await resolveCommercialApprovalDraft(operationId, approval);
+      if (!approvedDraft) {
+        setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
+        setRunStatus("commercial draft missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      const deliverable = await commercialOperationClient.createDeliverable(
+        operationId,
+        {
+          step_key: "content_production",
+          content_draft_id: approvedDraft.id,
+          deliverable_type: "content_package",
+          title:
+            language === "zh-CN"
+              ? `${approvedDraft.title} 客户机交付包`
+              : `${approvedDraft.title} client handoff package`,
+          summary:
+            language === "zh-CN"
+              ? "由客户机审批后的首版内容打包成可交付记录，用于后续 OpenClaw/Playwright 执行准备。"
+              : "A packaged record from the client-approved first draft for later OpenClaw/Playwright execution preparation.",
+          delivery_notes:
+            language === "zh-CN"
+              ? "当前只生成元数据和交付物记录，不发布、不登录真实平台、不控制账号。"
+              : "This creates metadata and deliverable records only; it does not publish, log in to platforms, or control accounts.",
+          quality_checks: [
+            "human approval gate approved",
+            "content draft approved",
+            "no publishing",
+            "no account control",
+            "metadata-only packaging",
+          ],
+          metadata: {
+            source: "worker_console_approval_execution_prep",
+            phase: "63C",
+            approval_id: approvedApproval.id,
+            content_draft_id: approvedDraft.id,
+          },
+        },
+        settings,
+      );
+      const readyDeliverable = await commercialOperationClient.readyDeliverable(
+        operationId,
+        deliverable.id,
+        language === "zh-CN" ? "交付物已准备复核。" : "Deliverable is ready for review.",
+        settings,
+      );
+      const approvedDeliverable = await commercialOperationClient.approveDeliverable(
+        operationId,
+        readyDeliverable.id,
+        language === "zh-CN" ? "已批准打包为客户机执行准备输入。" : "Approved as the input for client execution preparation.",
+        settings,
+      );
+      const packagedDeliverable = await commercialOperationClient.packageDeliverable(
+        operationId,
+        approvedDeliverable.id,
+        language === "zh-CN"
+          ? "已打包为元数据交付物；未触发发布或外部执行。"
+          : "Packaged as a metadata-only deliverable; no publishing or external execution was triggered.",
+        settings,
+      );
+      const executionRequest = await commercialOperationClient.createExecutionRequest(
+        operationId,
+        {
+          deliverable_id: packagedDeliverable.id,
+          execution_type: "openclaw",
+          execution_mode: "metadata_only",
+          title:
+            language === "zh-CN"
+              ? `${packagedDeliverable.title} OpenClaw 执行准备`
+              : `${packagedDeliverable.title} OpenClaw execution prep`,
+          execution_target: "customer_machine_playwright",
+          input_summary:
+            language === "zh-CN"
+              ? "为客户机 OpenClaw 调度 Playwright 发布任务准备元数据，不直接执行。"
+              : "Prepare metadata for future OpenClaw-scheduled Playwright publishing on the customer machine without executing it.",
+          runbook: [
+            { step: "Review packaged deliverable", owner: "operator" },
+            { step: "Confirm target social/channel account", owner: "operator" },
+            { step: "Run OpenClaw/Playwright only after explicit execution approval", owner: "client_machine" },
+          ],
+          readiness_checks: [
+            "human_review approval approved",
+            "packaged deliverable created",
+            "metadata_only execution request",
+            "OpenClaw/Playwright handoff not executed",
+          ],
+          expected_outputs: [
+            "execution request id",
+            "future OpenClaw/Playwright handoff payload",
+            "operator-visible recovery notes",
+          ],
+          operator_checklist: [
+            { item: "Confirm platform and account before runtime execution" },
+            { item: "Confirm publishing time and content owner" },
+            { item: "Keep screenshots/logs after future execution" },
+          ],
+          metadata: {
+            source: "worker_console_approval_execution_prep",
+            phase: "63C",
+            approval_id: approvedApproval.id,
+            content_draft_id: approvedDraft.id,
+            deliverable_id: packagedDeliverable.id,
+          },
+        },
+        settings,
+      );
+      const readyExecutionRequest = await commercialOperationClient.readyExecutionRequest(
+        operationId,
+        executionRequest.id,
+        language === "zh-CN"
+          ? "客户机执行准备记录已生成，等待执行前复核。"
+          : "Client execution prep record is ready for pre-run review.",
+        settings,
+      );
+      await refreshCommercialOperationLoop(operationId);
+      setExecutionPrepStatus(`${workbenchCopy.operationExecutionPrepReady}: ${readyExecutionRequest.id}`);
+      setRunStatus(`client execution prep ready: ${readyExecutionRequest.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Commercial approval execution prep failed";
+      setOperationLoopError(message);
+      setExecutionPrepStatus(message);
+      setRunStatus("commercial approval execution prep error");
+    } finally {
+      setExecutionPrepLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const rejectCommercialApproval = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setExecutionPrepLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    try {
+      if (!operationId) {
+        setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
+        setRunStatus("commercial approval missing");
+        return;
+      }
+      const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
+      const approval = pendingApprovalResponse.items[0] ?? commercialApprovals.find((item) => item.approval_status === "pending") ?? null;
+      if (!approval) {
+        setExecutionPrepStatus(workbenchCopy.operationApprovalMissing);
+        setRunStatus("commercial approval missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      await commercialOperationClient.rejectApproval(
+        operationId,
+        approval.id,
+        language === "zh-CN" ? "客户机操作员驳回首版内容，需要修改后重新准备。" : "Client operator rejected the first draft; revise before preparing again.",
+        settings,
+      );
+      const draftId = metadataStringValue(approval.metadata, "content_draft_id");
+      if (draftId) {
+        await commercialOperationClient.rejectContentDraft(
+          operationId,
+          draftId,
+          language === "zh-CN" ? "审批被驳回，首版内容需要修改。" : "Approval was rejected; the first draft needs revision.",
+          settings,
+        ).catch(() => null);
+      }
+      await refreshCommercialOperationLoop(operationId);
+      setExecutionPrepStatus(workbenchCopy.operationApprovalRejected);
+      setRunStatus(`commercial approval rejected: ${approval.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Commercial approval rejection failed";
+      setOperationLoopError(message);
+      setExecutionPrepStatus(message);
+      setRunStatus("commercial approval rejection error");
+    } finally {
+      setExecutionPrepLoading(false);
       setOperationLoopLoading(false);
     }
   };
@@ -2054,6 +2323,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
   const selectedGoalTemplate = goalTemplates.find((template) => template.id === selectedGoalTemplateId) ?? goalTemplates[0];
   const pendingApprovals = approvals.filter((approval) => approval.approval_status === "pending");
+  const pendingCommercialApprovals = commercialApprovals.filter((approval) => approval.approval_status === "pending");
   const activeTaskRuns = taskRuns.filter((task) => ["queued", "running", "retrying", "waiting_approval"].includes(task.status));
   const failedTaskRuns = taskRuns.filter((task) => task.recoverable || ["failed", "expired"].includes(task.status));
   const completedTaskRuns = taskRuns.filter((task) => task.status === "completed");
@@ -2131,7 +2401,13 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       return artifacts.length > 0 ? "done" : hasSubmittedGoal ? "current" : "waiting";
     }
     if (stageId === "approval") {
-      return pendingApprovals.length > 0 ? "needs-action" : approvals.length > 0 ? "done" : hasSubmittedGoal ? "current" : "waiting";
+      return pendingApprovals.length > 0 || pendingCommercialApprovals.length > 0
+        ? "needs-action"
+        : approvals.length > 0 || commercialApprovals.length > 0
+          ? "done"
+          : hasSubmittedGoal
+            ? "current"
+            : "waiting";
     }
     if (stageId === "client") {
       return activeTaskRuns.length > 0 ? "current" : completedTaskRuns.length > 0 ? "done" : approvals.length > 0 ? "waiting" : "waiting";
@@ -2198,7 +2474,9 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const operationLoopSourceText = operationLoop
     ? `${workbenchCopy.operationLoopLoaded}: ${operationLoop.title}`
     : workbenchCopy.operationLoopDisconnected;
-  const operationReadableSourceText = firstDraftBootstrapStatus || operationLoopSourceText;
+  const operationApprovalStatusText =
+    pendingCommercialApprovals.length > 0 ? `${workbenchCopy.operationApprovalPending}: ${pendingCommercialApprovals[0].title}` : null;
+  const operationReadableSourceText = executionPrepStatus || operationApprovalStatusText || firstDraftBootstrapStatus || operationLoopSourceText;
 
   const openOutputDetails = () => {
     const outputsPanel = document.getElementById("outputs-panel") as HTMLDetailsElement | null;
@@ -2260,6 +2538,22 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
               <button className="refresh-button" onClick={() => void prepareFirstDraftPackage()} disabled={firstDraftBootstrapLoading || operationLoopLoading || chatLoading}>
                 <PencilLine size={14} />
                 {firstDraftBootstrapLoading ? workbenchCopy.operationFirstDraftPreparing : workbenchCopy.operationPrepareDraft}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void approveCommercialApprovalAndPrepareExecution()}
+                disabled={executionPrepLoading || operationLoopLoading || chatLoading || pendingCommercialApprovals.length === 0}
+              >
+                <CheckCircle2 size={14} />
+                {executionPrepLoading ? workbenchCopy.operationApprovalPreparing : workbenchCopy.operationApproveAndPrepare}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void rejectCommercialApproval()}
+                disabled={executionPrepLoading || operationLoopLoading || chatLoading || pendingCommercialApprovals.length === 0}
+              >
+                <XCircle size={14} />
+                {workbenchCopy.operationRejectDraft}
               </button>
               <button className="refresh-button" onClick={() => void refreshCommercialOperationLoop()} disabled={operationLoopLoading}>
                 <RefreshCcw size={14} />

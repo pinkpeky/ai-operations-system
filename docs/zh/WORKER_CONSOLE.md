@@ -838,6 +838,24 @@ Phase 63B 为 `worker_console` 和 `worker_console_desktop` 增加首版产物�
 
 边界：Phase 63B 只是 first draft and approval bootstrap。它不会执行 OpenClaw，不会运行 Playwright，不会发布到真实社媒，不会控制真实账号，不会调用 ComfyUI，不会绕过 captcha/proxy/fingerprint，不会解析 secrets，也不会绕过 approval。
 
+## Phase 63C Customer Console Approval and Execution Prep
+
+Branch: `codex/phase-63c-client-approval-execution-prep`
+
+Phase 63C adds the next usable customer-machine loop step to `worker_console` and `worker_console_desktop`. From the same product operation desk, an operator can approve or reject the pending commercial approval gate after the first draft is prepared.
+
+The approval-and-prep action performs a guarded record-only sequence:
+
+- Approve the pending commercial operation approval gate.
+- Approve the linked content draft.
+- Create, review, approve, and package a deliverable from the approved draft.
+- Create a metadata-only `openclaw` execution prep request for `customer_machine_playwright`.
+- Mark that execution request ready for pre-run review without executing it.
+
+The reject action rejects the commercial approval gate and the linked content draft so the operator can revise and prepare a new version.
+
+Boundary: Phase 63C is approval and execution prep only. It creates metadata-only execution prep records. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
