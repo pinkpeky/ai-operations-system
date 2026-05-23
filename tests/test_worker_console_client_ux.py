@@ -9,9 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_MAIN = ROOT / "worker_console/src/main.tsx"
 WEB_STYLES = ROOT / "worker_console/src/styles.css"
 WEB_KNOWLEDGE_CLIENT = ROOT / "worker_console/src/api/knowledgeBaseClient.ts"
+WEB_COMMERCIAL_OPERATION_CLIENT = ROOT / "worker_console/src/api/commercialOperationClient.ts"
 DESKTOP_MAIN = ROOT / "worker_console_desktop/src/main.tsx"
 DESKTOP_STYLES = ROOT / "worker_console_desktop/src/styles.css"
 DESKTOP_KNOWLEDGE_CLIENT = ROOT / "worker_console_desktop/src/api/knowledgeBaseClient.ts"
+DESKTOP_COMMERCIAL_OPERATION_CLIENT = ROOT / "worker_console_desktop/src/api/commercialOperationClient.ts"
 
 
 def test_worker_console_web_exposes_phase_62i_operator_home() -> None:
@@ -1102,5 +1104,70 @@ def test_phase_62x_client_operation_desk_is_documented() -> None:
         assert "Phase 62X Customer Console Product Operation Desk" in text
         assert "codex/phase-62x-client-operation-desk" in text
         assert "product operation desk" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63a_operation_loop_protocol_binding() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_client = WEB_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+
+    for client in (web_client, desktop_client):
+        for token in [
+            "commercialOperationClient",
+            "CommercialOperationLoopSummary",
+            "CommercialOperationLoopStage",
+            '"/commercial-operations"',
+            "/operation-loop",
+            "normalizeApiBase",
+            "X-Workspace-Id",
+        ]:
+            assert token in client
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "refreshCommercialOperationLoop",
+            "createCommercialOperationLoop",
+            "operationLoopStatusToGoalState",
+            "operationLoopTitleFromGoal",
+            "operationLoopSourceText",
+            "operationLoopLoaded",
+            "operationLoopDisconnected",
+            "operationStartLoop",
+            "operationRefreshLoop",
+            "selectedCommercialOperationId",
+            "target_audience",
+            "client execution through OpenClaw/Playwright after approval",
+        ]:
+            assert token in text
+
+
+def test_phase_63a_operation_loop_protocol_binding_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63A Customer Console Loop Protocol Binding" in text
+        assert "codex/phase-63a-client-loop-protocol-binding" in text
+        assert "operation-loop" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
