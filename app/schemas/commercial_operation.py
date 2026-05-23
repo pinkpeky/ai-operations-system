@@ -3062,3 +3062,47 @@ class CommercialOperationLinkListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationLinkResponse]
+
+
+CommercialOperationLoopStageStatusLiteral = Literal[
+    "complete",
+    "in_progress",
+    "review_required",
+    "blocked",
+    "missing",
+]
+
+
+class CommercialOperationLoopStageResponse(BaseModel):
+    """One readable stage in the commercial operation loop protocol."""
+
+    stage_key: str
+    title: str
+    owner: str
+    status: CommercialOperationLoopStageStatusLiteral
+    summary: str
+    next_action: str
+    blocked_reasons: list[str] = Field(default_factory=list)
+    related_records: list[dict[str, Any]] = Field(default_factory=list)
+    operator_actions: list[str] = Field(default_factory=list)
+    server_actions: list[str] = Field(default_factory=list)
+    client_actions: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationLoopSummaryResponse(BaseModel):
+    """Server/customer-console operation loop summary."""
+
+    operation_id: UUID
+    workspace_id: str
+    title: str
+    objective: str
+    loop_status: str
+    current_stage_key: str | None
+    next_action: str
+    completion_ratio: float = Field(ge=0, le=1)
+    stages: list[CommercialOperationLoopStageResponse]
+    counts: dict[str, int]
+    execution_protocol: dict[str, Any]
+    readiness: list[dict[str, Any]]
+    boundaries: list[str]
+    generated_at: datetime

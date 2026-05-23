@@ -337,6 +337,7 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/operation-loop" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/approve" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/reject" in text

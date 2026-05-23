@@ -1,6 +1,6 @@
 # API Reference
 
-Last updated: 2026-05-14
+Last updated: 2026-05-23
 
 All current APIs are mounted under `/api/v1`.
 
@@ -4364,3 +4364,15 @@ Execution endpoint:
 - `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/execute`
 
 Boundary: create/list/review endpoints remain no-network. The execute endpoint rechecks current diagnostics and can call only the existing guarded `GET /system_stats` health path after the execution record is `approved_for_execution`. It records `external_request_attempted`, `health_probe_executed`, `read_only_probe_attempted`, `probe_status_code`, `probe_latency_ms`, `probe_result_status`, and `probe_response`; it still does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, write environment variables, restart services, mutate runtime configuration, resolve secret values, publish, run OpenClaw, run Browser Worker actions, control accounts, or bypass approval.
+
+## Phase 62Y: Commercial Operation Loop Protocol
+
+Phase 62Y adds one read-only commercial-operation loop summary for server and customer-machine frontends. `GET /api/v1/commercial-operations/{operation_id}/operation-loop` returns `CommercialOperationLoopSummaryResponse` with `loop_status`, `current_stage_key`, `next_action`, `completion_ratio`, `stages`, `counts`, `execution_protocol`, `readiness`, and `boundaries`.
+
+Each `CommercialOperationLoopStageResponse` maps one stage in the requested commercial loop: operating topic, system task plan, knowledge context, content production, human approval, OpenClaw/Playwright customer-machine execution, result recording, data observation, data analysis, and content improvement. Stages include `status`, `summary`, `next_action`, `blocked_reasons`, `related_records`, and server/customer/operator actions.
+
+Endpoint:
+
+- `GET /api/v1/commercial-operations/{operation_id}/operation-loop`
+
+Boundary: this endpoint only aggregates existing operation records. It does not execute OpenClaw, run Playwright, publish, control accounts, call ComfyUI, ingest platform analytics, claim ROI attribution, resolve secrets, bypass captcha/proxy/fingerprint controls, or bypass approval.
