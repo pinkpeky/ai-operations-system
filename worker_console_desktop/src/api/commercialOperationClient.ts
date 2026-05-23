@@ -64,6 +64,8 @@ export type CommercialOperationContentDraft = {
   draft_status: string;
   summary?: string | null;
   content_body: string;
+  reviewer_notes?: string | null;
+  metadata?: Record<string, unknown>;
 };
 
 export type CommercialOperationApproval = {
@@ -71,9 +73,63 @@ export type CommercialOperationApproval = {
   operation_id: string;
   step_key: string;
   title: string;
+  requested_action?: string | null;
   approval_status: string;
   risk_level: string;
+  reviewer_notes?: string | null;
+  metadata?: Record<string, unknown>;
 };
+
+export type CommercialOperationDeliverable = {
+  id: string;
+  operation_id: string;
+  content_draft_id: string;
+  output_artifact_id?: string | null;
+  step_key: string;
+  channel: string;
+  deliverable_type: string;
+  title: string;
+  deliverable_status: string;
+  summary?: string | null;
+  delivery_notes?: string | null;
+  quality_checks: string[];
+  package_payload?: Record<string, unknown>;
+  result_summary?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type CommercialOperationExecutionRequest = {
+  id: string;
+  operation_id: string;
+  deliverable_id: string;
+  output_artifact_id?: string | null;
+  step_key: string;
+  channel: string;
+  execution_type: string;
+  execution_mode: string;
+  title: string;
+  request_status: string;
+  execution_target?: string | null;
+  input_summary?: string | null;
+  runbook: Record<string, unknown>[];
+  readiness_checks: string[];
+  expected_outputs: string[];
+  operator_checklist: Record<string, unknown>[];
+  handoff_payload?: Record<string, unknown>;
+  result_summary?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+function queryString(params: Record<string, string | number | null | undefined>): string {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  });
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
 
 async function requestJson<T>(
   path: string,
@@ -173,6 +229,40 @@ export const commercialOperationClient = {
       },
       settings,
     ),
+  listContentDrafts: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationContentDraft[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/content-drafts${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  approveContentDraft: (
+    operationId: string,
+    draftId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationContentDraft>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  rejectContentDraft: (
+    operationId: string,
+    draftId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationContentDraft>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/content-drafts/${encodeURIComponent(draftId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
   createApproval: (
     operationId: string,
     payload: {
@@ -189,6 +279,145 @@ export const commercialOperationClient = {
       {
         method: "POST",
         body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  listApprovals: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationApproval[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/approvals${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  approveApproval: (
+    operationId: string,
+    approvalId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationApproval>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  rejectApproval: (
+    operationId: string,
+    approvalId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationApproval>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  createDeliverable: (
+    operationId: string,
+    payload: {
+      step_key?: string;
+      content_draft_id: string;
+      asset_request_ids?: string[];
+      deliverable_type?: string;
+      title: string;
+      summary?: string;
+      delivery_notes?: string;
+      quality_checks?: string[];
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationDeliverable>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/deliverables`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyDeliverable: (
+    operationId: string,
+    deliverableId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationDeliverable>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveDeliverable: (
+    operationId: string,
+    deliverableId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationDeliverable>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  packageDeliverable: (
+    operationId: string,
+    deliverableId: string,
+    resultSummary: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationDeliverable>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/deliverables/${encodeURIComponent(deliverableId)}/package`,
+      {
+        method: "POST",
+        body: JSON.stringify({ result_summary: resultSummary }),
+      },
+      settings,
+    ),
+  createExecutionRequest: (
+    operationId: string,
+    payload: {
+      deliverable_id: string;
+      execution_type?: string;
+      execution_mode?: string;
+      title: string;
+      execution_target?: string;
+      input_summary?: string;
+      runbook?: Record<string, unknown>[];
+      readiness_checks?: string[];
+      expected_outputs?: string[];
+      evidence_snapshot_ids?: string[];
+      operator_checklist?: Record<string, unknown>[];
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRequest>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  readyExecutionRequest: (
+    operationId: string,
+    executionRequestId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRequest>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-requests/${encodeURIComponent(executionRequestId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
       },
       settings,
     ),

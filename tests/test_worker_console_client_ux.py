@@ -1238,3 +1238,74 @@ def test_phase_63b_first_draft_bootstrap_is_documented() -> None:
         assert "first draft" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63c_approval_execution_prep() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_client = WEB_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+
+    for client in (web_client, desktop_client):
+        for token in [
+            "listApprovals",
+            "approveApproval",
+            "rejectApproval",
+            "approveContentDraft",
+            "rejectContentDraft",
+            "createDeliverable",
+            "readyDeliverable",
+            "approveDeliverable",
+            "packageDeliverable",
+            "createExecutionRequest",
+            "readyExecutionRequest",
+            "/execution-requests",
+            "/deliverables",
+        ]:
+            assert token in client
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "commercialApprovals",
+            "resolveCommercialApprovalDraft",
+            "approveCommercialApprovalAndPrepareExecution",
+            "rejectCommercialApproval",
+            "operationApproveAndPrepare",
+            "operationRejectDraft",
+            "operationExecutionPrepReady",
+            "openclaw",
+            "metadata_only",
+            "customer_machine_playwright",
+            "worker_console_approval_execution_prep",
+            "human_review",
+        ]:
+            assert token in text
+
+
+def test_phase_63c_approval_execution_prep_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63C Customer Console Approval and Execution Prep" in text
+        assert "codex/phase-63c-client-approval-execution-prep" in text
+        assert "execution prep" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
