@@ -196,6 +196,9 @@ type TaskWorkbenchCopy = {
   operationControlLabel: string;
   operationStartLoop: string;
   operationRefreshLoop: string;
+  operationPrepareDraft: string;
+  operationFirstDraftPreparing: string;
+  operationFirstDraftReady: string;
   operationLoopSourceLabel: string;
   operationLoopLoaded: string;
   operationLoopDisconnected: string;
@@ -288,6 +291,25 @@ function operationLoopStatusToGoalState(status: CommercialOperationLoopStage["st
 function operationLoopTitleFromGoal(goal: string): string {
   const compact = goal.trim().replace(/\s+/g, " ");
   return compact.length > 64 ? `${compact.slice(0, 64)}...` : compact || "Customer operation loop";
+}
+
+function firstDraftContentBody(objective: string, language: ClientLanguage): string {
+  if (language === "zh-CN") {
+    return [
+      `运营目标：${objective}`,
+      "首版文案方向：说明用户痛点、产品价值、使用场景和下一步行动。",
+      "短视频/素材方向：准备一个 30-60 秒脚本和一张主视觉素材需求，不直接调用 ComfyUI。",
+      "数据观察方向：发布后人工记录曝光、互动、线索和转化，再进入下一轮优化。",
+      "审批边界：该草稿只进入人工审批，不会自动发布，不会控制真实账号。",
+    ].join("\n");
+  }
+  return [
+    `Operation goal: ${objective}`,
+    "First copy direction: explain the audience pain, product value, use case, and next action.",
+    "Video/asset direction: prepare a 30-60 second script and one hero visual request without calling ComfyUI.",
+    "Data observation direction: after approved execution, record reach, engagement, leads, and conversion manually before optimization.",
+    "Approval boundary: this draft only enters human review. It does not publish or control real accounts.",
+  ].join("\n");
 }
 
 type WorkbenchGoalTemplate = {
@@ -637,6 +659,9 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationControlLabel: "执行控制",
     operationStartLoop: "创建运营闭环",
     operationRefreshLoop: "刷新闭环",
+    operationPrepareDraft: "准备首版产物",
+    operationFirstDraftPreparing: "正在准备首版产物",
+    operationFirstDraftReady: "首版内容已进入人工审批",
     operationLoopSourceLabel: "闭环来源",
     operationLoopLoaded: "已连接真实运营闭环",
     operationLoopDisconnected: "未连接真实闭环，当前显示本地任务状态",
@@ -733,6 +758,9 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationControlLabel: "Execution controls",
     operationStartLoop: "Create loop",
     operationRefreshLoop: "Refresh loop",
+    operationPrepareDraft: "Prepare first draft",
+    operationFirstDraftPreparing: "Preparing first draft",
+    operationFirstDraftReady: "First draft is ready for approval",
     operationLoopSourceLabel: "Loop source",
     operationLoopLoaded: "Connected to real operation loop",
     operationLoopDisconnected: "No real loop connected; showing local task status",
@@ -1604,6 +1632,8 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const [operationLoop, setOperationLoop] = useState<CommercialOperationLoopSummary | null>(null);
   const [operationLoopError, setOperationLoopError] = useState<string | null>(null);
   const [operationLoopLoading, setOperationLoopLoading] = useState(false);
+  const [firstDraftBootstrapStatus, setFirstDraftBootstrapStatus] = useState<string | null>(null);
+  const [firstDraftBootstrapLoading, setFirstDraftBootstrapLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("desktopConversationSettings", JSON.stringify(settings));
@@ -1636,33 +1666,114 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     void refreshCommercialOperationLoop();
   }, [refreshCommercialOperationLoop]);
 
-  const createCommercialOperationLoop = async () => {
+  const createCommercialOperationFromGoal = async () => {
     const objective = input.trim() || selectedGoalTemplate.prompt;
+    const operation = await commercialOperationClient.create(
+      {
+        title: operationLoopTitleFromGoal(objective),
+        objective,
+        target_audience: language === "zh-CN" ? "待确认的客户群体" : "target audience to confirm",
+        channels: ["customer_console_desktop"],
+        knowledge_collection: "operations",
+        success_metrics: ["content_output", "approval_pass_rate", "commercial_signal"],
+        constraints: ["human approval required", "client execution through OpenClaw/Playwright after approval"],
+        metadata: { source: "worker_console_desktop", phase: "63B", goal_template: selectedGoalTemplate.id },
+      },
+      settings,
+    );
+    setSelectedCommercialOperationId(operation.id);
+    const loop = await commercialOperationClient.operationLoop(operation.id, settings);
+    setOperationLoop(loop);
+    setConnectionState("connected");
+    return { operation, loop };
+  };
+
+  const createCommercialOperationLoop = async () => {
     setOperationLoopLoading(true);
     setOperationLoopError(null);
     try {
-      const operation = await commercialOperationClient.create(
-        {
-          title: operationLoopTitleFromGoal(objective),
-          objective,
-          target_audience: language === "zh-CN" ? "待确认的客户群体" : "target audience to confirm",
-          channels: ["customer_console_desktop"],
-          knowledge_collection: "operations",
-          success_metrics: ["content_output", "approval_pass_rate", "commercial_signal"],
-          constraints: ["human approval required", "client execution through OpenClaw/Playwright after approval"],
-          metadata: { source: "worker_console_desktop", phase: "63A", goal_template: selectedGoalTemplate.id },
-        },
-        settings,
-      );
-      setSelectedCommercialOperationId(operation.id);
-      const loop = await commercialOperationClient.operationLoop(operation.id, settings);
-      setOperationLoop(loop);
-      setConnectionState("connected");
+      const { operation } = await createCommercialOperationFromGoal();
       setRunStatus(`operation loop created: ${operation.title}`);
     } catch (nextError) {
       setOperationLoopError(nextError instanceof Error ? nextError.message : "Commercial operation loop unavailable");
       setRunStatus("operation loop error");
     } finally {
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const prepareFirstDraftPackage = async () => {
+    const objective = input.trim() || selectedGoalTemplate.prompt;
+    setFirstDraftBootstrapLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setFirstDraftBootstrapStatus(null);
+    try {
+      const existingOperationId = operationLoop?.operation_id || selectedCommercialOperationId;
+      const operationId = existingOperationId || (await createCommercialOperationFromGoal()).operation.id;
+      await commercialOperationClient.planDraft(operationId, settings);
+      const draft = await commercialOperationClient.createContentDraft(
+        operationId,
+        {
+          step_key: "content_production",
+          channel: "customer_console_desktop",
+          content_format: "copy",
+          title:
+            language === "zh-CN"
+              ? `${operationLoopTitleFromGoal(objective)} 首版内容草稿`
+              : `${operationLoopTitleFromGoal(objective)} first content draft`,
+          audience_segment: language === "zh-CN" ? "待确认的客户群体" : "target audience to confirm",
+          content_body: firstDraftContentBody(objective, language),
+          summary:
+            language === "zh-CN"
+              ? "客户机前端生成的首版可审批内容包，等待人工确认后才能执行。"
+              : "First reviewable content package prepared from the customer console; human approval is required before execution.",
+          call_to_action: language === "zh-CN" ? "人工确认后再执行" : "Review before execution",
+          source_materials: ["knowledge_collection:operations", "customer_console_goal", `goal_template:${selectedGoalTemplate.id}`],
+          asset_requests: [
+            {
+              title: language === "zh-CN" ? "首版主视觉素材需求" : "First hero visual asset request",
+              type: "asset_placeholder",
+              purpose: language === "zh-CN" ? "用于首版运营内容的视觉素材，不直接生成媒体。" : "Visual support for the first operation draft without generating media.",
+              execution_boundary: "no ComfyUI job is created in this phase",
+            },
+          ],
+          metadata: { source: "worker_console_desktop_first_draft_bootstrap", phase: "63B", goal_template: selectedGoalTemplate.id },
+        },
+        settings,
+      );
+      const readyDraft = await commercialOperationClient.readyContentDraft(
+        operationId,
+        draft.id,
+        language === "zh-CN" ? "客户机已准备首版内容，等待人工审批。" : "Customer console prepared the first content draft for approval.",
+        settings,
+      );
+      const approval = await commercialOperationClient.createApproval(
+        operationId,
+        {
+          step_key: "human_review",
+          title: language === "zh-CN" ? "审批首版运营内容" : "Approve first operation content",
+          requested_action:
+            language === "zh-CN"
+              ? "请审核首版内容草稿和素材需求；审批前不会发布或执行客户机任务。"
+              : "Review the first content draft and asset request; no publishing or client execution happens before approval.",
+          risk_level: "medium",
+          metadata: { source: "worker_console_desktop_first_draft_bootstrap", phase: "63B", content_draft_id: readyDraft.id },
+        },
+        settings,
+      );
+      const loop = await commercialOperationClient.operationLoop(operationId, settings);
+      setSelectedCommercialOperationId(operationId);
+      setOperationLoop(loop);
+      setConnectionState("connected");
+      setFirstDraftBootstrapStatus(`${workbenchCopy.operationFirstDraftReady}: ${readyDraft.title}`);
+      setRunStatus(`first draft ready for approval: ${approval.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "First draft bootstrap failed";
+      setOperationLoopError(message);
+      setRunStatus("first draft bootstrap error");
+    } finally {
+      setFirstDraftBootstrapLoading(false);
       setOperationLoopLoading(false);
     }
   };
@@ -2214,6 +2325,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const operationLoopSourceText = operationLoop
     ? `${workbenchCopy.operationLoopLoaded}: ${operationLoop.title}`
     : workbenchCopy.operationLoopDisconnected;
+  const operationReadableSourceText = firstDraftBootstrapStatus || operationLoopSourceText;
 
   const openOutputDetails = () => {
     const outputsPanel = document.getElementById("outputs-panel") as HTMLDetailsElement | null;
@@ -2264,13 +2376,17 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
             <div className="client-operation-result">
               <span>{workbenchCopy.operationResultLabel}</span>
               <strong>{operationResultSummary}</strong>
-              <p>{operationLoopSourceText}</p>
+              <p>{operationReadableSourceText}</p>
               <p>{workbenchCopy.operationOpenClawLabel}</p>
             </div>
             <div className="client-operation-controls" aria-label={workbenchCopy.operationControlLabel}>
               <button className="refresh-button" onClick={() => void createCommercialOperationLoop()} disabled={operationLoopLoading || chatLoading}>
                 <PlayCircle size={14} />
                 {workbenchCopy.operationStartLoop}
+              </button>
+              <button className="refresh-button" onClick={() => void prepareFirstDraftPackage()} disabled={firstDraftBootstrapLoading || operationLoopLoading || chatLoading}>
+                <PencilLine size={14} />
+                {firstDraftBootstrapLoading ? workbenchCopy.operationFirstDraftPreparing : workbenchCopy.operationPrepareDraft}
               </button>
               <button className="refresh-button" onClick={() => void refreshCommercialOperationLoop()} disabled={operationLoopLoading}>
                 <RefreshCcw size={14} />

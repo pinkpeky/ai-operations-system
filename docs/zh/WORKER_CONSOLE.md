@@ -822,6 +822,22 @@ Phase 63A 将 `worker_console` 和 `worker_console_desktop` 绑定到商业运�
 
 边界：Phase 63A 只是 API-bound UI。它不会执行 OpenClaw，不会运行 Playwright，不会发布到真实社媒，不会控制真实账号，不会调用 ComfyUI，不会绕过 captcha/proxy/fingerprint，不会解析 secrets，也不会绕过 approval。
 
+## Phase 63B Customer Console First Draft Bootstrap
+
+Branch: `codex/phase-63b-client-first-draft-bootstrap`
+
+Phase 63B 为 `worker_console` 和 `worker_console_desktop` 增加首版产物引导。操作员可以在同一个客户机运营任务台中，从已经创建或选中的 operation loop 准备第一版可审批输出。
+
+该动作只创建可审核记录：
+
+- 重新生成商业运营计划。
+- 根据当前目标创建首版内容草稿。
+- 将草稿标记为等待人工审批。
+- 为首版草稿创建人工审批门。
+- 刷新 `operation-loop`，让阶段和下一步更新。
+
+边界：Phase 63B 只是 first draft and approval bootstrap。它不会执行 OpenClaw，不会运行 Playwright，不会发布到真实社媒，不会控制真实账号，不会调用 ComfyUI，不会绕过 captcha/proxy/fingerprint，不会解析 secrets，也不会绕过 approval。
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -822,6 +822,22 @@ Operator-visible behavior:
 
 Boundary: Phase 63A is API-bound UI only. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63B Customer Console First Draft Bootstrap
+
+Branch: `codex/phase-63b-client-first-draft-bootstrap`
+
+Phase 63B adds the first draft bootstrap to `worker_console` and `worker_console_desktop`. From the same customer-machine operation desk, an operator can prepare the first reviewable output after creating or selecting an operation loop.
+
+The action performs a guarded record-only sequence:
+
+- Regenerate the commercial operation plan.
+- Create the first content draft from the current goal.
+- Mark the draft ready for human review.
+- Create a human approval gate for that first draft.
+- Refresh `operation-loop` so the stage and next action update.
+
+Boundary: Phase 63B is first draft and approval bootstrap only. It does not execute OpenClaw, run Playwright, publish to social media, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
