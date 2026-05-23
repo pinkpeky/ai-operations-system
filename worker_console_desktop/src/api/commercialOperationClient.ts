@@ -149,6 +149,83 @@ export type CommercialOperationExecutionRun = {
   metadata?: Record<string, unknown>;
 };
 
+export type CommercialOperationResult = {
+  id: string;
+  operation_id: string;
+  execution_run_id: string;
+  execution_request_id: string;
+  deliverable_id: string;
+  output_artifact_id?: string | null;
+  step_key: string;
+  channel: string;
+  result_type: string;
+  title: string;
+  result_status: string;
+  summary?: string | null;
+  outcome_summary?: string | null;
+  observed_metrics: Record<string, unknown>[];
+  commercial_signals: string[];
+  evidence_links: Record<string, unknown>[];
+  follow_up_actions: string[];
+  result_payload: Record<string, unknown>;
+  recommendation_payload: Record<string, unknown>;
+  reviewer_notes?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type CommercialOperationMonitoringObservation = {
+  id: string;
+  operation_id: string;
+  result_id: string;
+  execution_run_id: string;
+  execution_request_id: string;
+  deliverable_id: string;
+  output_artifact_id?: string | null;
+  step_key: string;
+  channel: string;
+  observation_type: string;
+  title: string;
+  observation_status: string;
+  observation_window_start?: string | null;
+  observation_window_end?: string | null;
+  metric_snapshots: Record<string, unknown>[];
+  qualitative_signals: string[];
+  evidence_links: Record<string, unknown>[];
+  anomaly_flags: string[];
+  recommended_actions: string[];
+  observation_payload: Record<string, unknown>;
+  reviewer_notes?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type CommercialOperationOptimizationDecision = {
+  id: string;
+  operation_id: string;
+  observation_id: string;
+  result_id: string;
+  execution_run_id: string;
+  execution_request_id: string;
+  deliverable_id: string;
+  output_artifact_id?: string | null;
+  step_key: string;
+  channel: string;
+  decision_type: string;
+  title: string;
+  decision_status: string;
+  priority: string;
+  rationale?: string | null;
+  objective_updates: string[];
+  content_actions: string[];
+  asset_actions: string[];
+  audience_actions: string[];
+  execution_actions: string[];
+  risk_controls: string[];
+  decision_payload: Record<string, unknown>;
+  next_review_at?: string | null;
+  reviewer_notes?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
 function queryString(params: Record<string, string | number | null | undefined>): string {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -525,6 +602,24 @@ export const commercialOperationClient = {
       },
       settings,
     ),
+  succeedExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    resultSummary: string,
+    resultPayload: Record<string, unknown>,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRun>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}/succeed`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          result_summary: resultSummary,
+          result_payload: resultPayload,
+        }),
+      },
+      settings,
+    ),
   failExecutionRun: (
     operationId: string,
     executionRunId: string,
@@ -553,6 +648,175 @@ export const commercialOperationClient = {
       {
         method: "POST",
         body: JSON.stringify({ operator_notes: operatorNotes }),
+      },
+      settings,
+    ),
+  createResult: (
+    operationId: string,
+    payload: {
+      execution_run_id: string;
+      result_type?: string;
+      title?: string;
+      summary?: string;
+      outcome_summary?: string;
+      observed_metrics?: Record<string, unknown>[];
+      commercial_signals?: string[];
+      evidence_links?: Record<string, unknown>[];
+      follow_up_actions?: string[];
+      result_payload?: Record<string, unknown>;
+      recommendation_payload?: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationResult>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/results`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  listResults: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationResult[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/results${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  readyResult: (operationId: string, resultId: string, reviewerNotes: string, settings?: ConversationSettings) =>
+    requestJson<CommercialOperationResult>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/results/${encodeURIComponent(resultId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveResult: (operationId: string, resultId: string, reviewerNotes: string, settings?: ConversationSettings) =>
+    requestJson<CommercialOperationResult>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/results/${encodeURIComponent(resultId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  createMonitoringObservation: (
+    operationId: string,
+    payload: {
+      result_id: string;
+      observation_type?: string;
+      title?: string;
+      metric_snapshots?: Record<string, unknown>[];
+      qualitative_signals?: string[];
+      evidence_links?: Record<string, unknown>[];
+      anomaly_flags?: string[];
+      recommended_actions?: string[];
+      observation_payload?: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationMonitoringObservation>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  listMonitoringObservations: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationMonitoringObservation[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  readyMonitoringObservation: (
+    operationId: string,
+    observationId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationMonitoringObservation>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations/${encodeURIComponent(observationId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveMonitoringObservation: (
+    operationId: string,
+    observationId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationMonitoringObservation>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/monitoring-observations/${encodeURIComponent(observationId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  createOptimizationDecision: (
+    operationId: string,
+    payload: {
+      observation_id: string;
+      decision_type?: string;
+      title?: string;
+      priority?: string;
+      rationale?: string;
+      objective_updates?: string[];
+      content_actions?: string[];
+      asset_actions?: string[];
+      audience_actions?: string[];
+      execution_actions?: string[];
+      risk_controls?: string[];
+      decision_payload?: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationOptimizationDecision>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  listOptimizationDecisions: (operationId: string, status?: string, settings?: ConversationSettings) =>
+    requestJson<{ items: CommercialOperationOptimizationDecision[] }>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions${queryString({ status })}`,
+      {},
+      settings,
+    ),
+  readyOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationOptimizationDecision>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/ready`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
+      },
+      settings,
+    ),
+  approveOptimizationDecision: (
+    operationId: string,
+    optimizationDecisionId: string,
+    reviewerNotes: string,
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationOptimizationDecision>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/optimization-decisions/${encodeURIComponent(optimizationDecisionId)}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewer_notes: reviewerNotes }),
       },
       settings,
     ),

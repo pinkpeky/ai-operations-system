@@ -1382,3 +1382,82 @@ def test_phase_63d_execution_run_review_is_documented() -> None:
         assert "execution run" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63e_result_feedback_loop() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_client = WEB_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+
+    for client in (web_client, desktop_client):
+        for token in [
+            "CommercialOperationResult",
+            "CommercialOperationMonitoringObservation",
+            "CommercialOperationOptimizationDecision",
+            "succeedExecutionRun",
+            "createResult",
+            "listResults",
+            "readyResult",
+            "approveResult",
+            "createMonitoringObservation",
+            "listMonitoringObservations",
+            "readyMonitoringObservation",
+            "approveMonitoringObservation",
+            "createOptimizationDecision",
+            "listOptimizationDecisions",
+            "readyOptimizationDecision",
+            "approveOptimizationDecision",
+            "/succeed",
+            "/results",
+            "/monitoring-observations",
+            "/optimization-decisions",
+        ]:
+            assert token in client
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "commercialResults",
+            "commercialMonitoringObservations",
+            "commercialOptimizationDecisions",
+            "completeCommercialResultFeedbackLoop",
+            "operationCompleteFeedbackLoop",
+            "operationFeedbackLoopComplete",
+            "operationResultRecordPending",
+            "operationObservationPending",
+            "operationOptimizationPending",
+            "worker_console_result_feedback_loop",
+            "manual_pending",
+            "next_cycle_ready",
+            "63E",
+        ]:
+            assert token in text
+
+
+def test_phase_63e_result_feedback_loop_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63E Customer Console Result Feedback Loop" in text
+        assert "codex/phase-63e-client-result-feedback-loop" in text
+        assert "minimum usable closed loop" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
