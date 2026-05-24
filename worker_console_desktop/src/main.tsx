@@ -240,6 +240,11 @@ type TaskWorkbenchCopy = {
   operationRuntimePreflightReady: string;
   operationRuntimePreflightBlocked: string;
   operationRuntimePreflightMissing: string;
+  operationGuardedDispatchHandoff: string;
+  operationGuardedDispatchHandingOff: string;
+  operationGuardedDispatchReady: string;
+  operationGuardedDispatchBlocked: string;
+  operationGuardedDispatchMissing: string;
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -407,6 +412,20 @@ function nextCycleContentBody(objective: string, decision: CommercialOperationOp
 function metadataStringValue(metadata: Record<string, unknown> | undefined, key: string): string | null {
   const value = metadata?.[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function metadataRecordValue(metadata: Record<string, unknown> | undefined, key: string): Record<string, unknown> | null {
+  const value = metadata?.[key];
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function isClientRuntimePreflightReady(run: CommercialOperationExecutionRun): boolean {
+  const preflight = metadataRecordValue(run.input_payload, "client_runtime_preflight");
+  return (
+    metadataStringValue(run.metadata, "runtime_preflight_status") === "ready" ||
+    metadataStringValue(run.input_payload, "runtime_preflight_status") === "ready" ||
+    metadataStringValue(preflight ?? undefined, "status") === "ready"
+  );
 }
 
 function isNextCycleApproval(approval: CommercialOperationApproval): boolean {
@@ -825,6 +844,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationRuntimePreflightReady: "执行前预检通过，等待人工启动",
     operationRuntimePreflightBlocked: "执行前预检未通过，请先恢复客户机环境",
     operationRuntimePreflightMissing: "请先创建待执行记录",
+    operationGuardedDispatchHandoff: "交接受保护执行",
+    operationGuardedDispatchHandingOff: "正在准备受保护执行交接",
+    operationGuardedDispatchReady: "受保护执行交接已准备，等待人工启动",
+    operationGuardedDispatchBlocked: "受保护执行交接被阻断，请先完成执行前预检",
+    operationGuardedDispatchMissing: "请先创建待执行记录",
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -971,6 +995,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationRuntimePreflightReady: "Preflight passed and is waiting for operator start",
     operationRuntimePreflightBlocked: "Preflight blocked; recover the client environment first",
     operationRuntimePreflightMissing: "Create a queued execution run first",
+    operationGuardedDispatchHandoff: "Prepare handoff",
+    operationGuardedDispatchHandingOff: "Preparing guarded execution handoff",
+    operationGuardedDispatchReady: "Guarded execution handoff is ready for operator start",
+    operationGuardedDispatchBlocked: "Guarded execution handoff is blocked; run preflight first",
+    operationGuardedDispatchMissing: "Create a queued execution run first",
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -1875,6 +1904,8 @@ function ChatPanel({
   const [executionRunLoading, setExecutionRunLoading] = useState(false);
   const [runtimePreflightStatus, setRuntimePreflightStatus] = useState<string | null>(null);
   const [runtimePreflightLoading, setRuntimePreflightLoading] = useState(false);
+  const [guardedDispatchStatus, setGuardedDispatchStatus] = useState<string | null>(null);
+  const [guardedDispatchLoading, setGuardedDispatchLoading] = useState(false);
   const [commercialResults, setCommercialResults] = useState<CommercialOperationResult[]>([]);
   const [commercialMonitoringObservations, setCommercialMonitoringObservations] = useState<CommercialOperationMonitoringObservation[]>([]);
   const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
@@ -2778,6 +2809,145 @@ function ChatPanel({
     }
   };
 
+  const prepareGuardedAdapterDispatchHandoff = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setGuardedDispatchLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setGuardedDispatchStatus(workbenchCopy.operationGuardedDispatchHandingOff);
+    try {
+      if (!operationId) {
+        setGuardedDispatchStatus(workbenchCopy.operationGuardedDispatchMissing);
+        setRunStatus("guarded adapter dispatch handoff missing");
+        return;
+      }
+      const executionRunResponse = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
+      const executionRunPool = [...executionRunResponse.items, ...commercialExecutionRuns];
+      const targetRun =
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run) && isClientRuntimePreflightReady(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isClientRuntimePreflightReady(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status)) ??
+        null;
+      if (!targetRun) {
+        setGuardedDispatchStatus(workbenchCopy.operationGuardedDispatchMissing);
+        setRunStatus("guarded adapter dispatch handoff missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+
+      const checkedAt = new Date().toISOString();
+      const preflightReady = isClientRuntimePreflightReady(targetRun);
+      const handoffStatus = preflightReady ? "ready_for_operator_start" : "blocked_preflight_required";
+      const runIsNextCycle = isNextCycleExecutionRun(targetRun);
+      const previousSource =
+        metadataStringValue(targetRun.metadata, "source") ??
+        metadataStringValue(targetRun.input_payload, "source") ??
+        "unknown";
+      const cycle =
+        metadataStringValue(targetRun.metadata, "cycle") ??
+        metadataStringValue(targetRun.input_payload, "cycle") ??
+        (runIsNextCycle ? "next_iteration" : "first_iteration");
+      const optimizationDecisionId =
+        metadataStringValue(targetRun.metadata, "optimization_decision_id") ??
+        metadataStringValue(targetRun.input_payload, "optimization_decision_id");
+      const clientRuntimePreflight = metadataRecordValue(targetRun.input_payload, "client_runtime_preflight");
+      const guardedAdapterDispatchHandoff = {
+        status: handoffStatus,
+        checked_at: checkedAt,
+        source_preflight_status:
+          metadataStringValue(targetRun.metadata, "runtime_preflight_status") ??
+          metadataStringValue(targetRun.input_payload, "runtime_preflight_status") ??
+          metadataStringValue(clientRuntimePreflight ?? undefined, "status") ??
+          "missing",
+        adapter_mode: "guarded_metadata_only_handoff",
+        target_adapter: targetRun.execution_target ?? targetRun.execution_type ?? "customer_machine_playwright",
+        external_execution_performed: false,
+        actual_openclaw_execution_performed: false,
+        playwright_run_performed: false,
+        publishing_performed: false,
+        account_control_performed: false,
+        approval_required: true,
+        operator_start_required: true,
+        cycle,
+        checks: [
+          {
+            key: "client_runtime_preflight_ready",
+            status: preflightReady,
+            detail: preflightReady ? "preflight is ready" : "run client runtime preflight first",
+          },
+          {
+            key: "adapter_payload_recorded",
+            status: true,
+            detail: "metadata-only handoff payload recorded",
+          },
+          {
+            key: "external_actions_disabled",
+            status: true,
+            detail: "no OpenClaw, Playwright, publishing, or account control was executed",
+          },
+        ],
+        next_operator_action: preflightReady
+          ? "review target account, approval context, and explicitly mark the run started"
+          : "run and pass client runtime preflight before guarded adapter start",
+      };
+      const updatedRun = await commercialOperationClient.updateExecutionRun(
+        operationId,
+        targetRun.id,
+        {
+          input_payload: {
+            ...targetRun.input_payload,
+            source: "worker_console_desktop_guarded_adapter_dispatch_handoff",
+            console: "worker_console_desktop",
+            previous_source: previousSource,
+            cycle,
+            guarded_adapter_dispatch_status: handoffStatus,
+            guarded_adapter_dispatch_checked_at: checkedAt,
+            guarded_adapter_dispatch_handoff: guardedAdapterDispatchHandoff,
+            external_execution_performed: false,
+            actual_openclaw_execution_performed: false,
+            playwright_run_performed: false,
+            publishing_performed: false,
+            account_control_performed: false,
+            optimization_decision_id: optimizationDecisionId,
+          },
+          operator_notes: preflightReady
+            ? language === "zh-CN"
+              ? "已准备受保护执行交接；仍需人工显式开始，未执行 OpenClaw/Playwright。"
+              : "Guarded execution handoff is ready; explicit operator start is still required and no OpenClaw/Playwright action ran."
+            : language === "zh-CN"
+              ? "受保护执行交接被阻断；请先完成并通过客户机执行前预检。"
+              : "Guarded execution handoff is blocked; run and pass the client runtime preflight first.",
+          metadata: {
+            ...targetRun.metadata,
+            source: "worker_console_desktop_guarded_adapter_dispatch_handoff",
+            console: "worker_console_desktop",
+            previous_source: previousSource,
+            phase: "63K",
+            cycle,
+            guarded_adapter_dispatch_status: handoffStatus,
+            guarded_adapter_dispatch_checked_at: checkedAt,
+            optimization_decision_id: optimizationDecisionId,
+          },
+        },
+        settings,
+      );
+      await refreshCommercialOperationLoop(operationId);
+      setGuardedDispatchStatus(
+        `${preflightReady ? workbenchCopy.operationGuardedDispatchReady : workbenchCopy.operationGuardedDispatchBlocked}: ${updatedRun.id}`,
+      );
+      setRunStatus(`guarded adapter dispatch handoff ${handoffStatus}: ${updatedRun.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Guarded adapter dispatch handoff failed";
+      setOperationLoopError(message);
+      setGuardedDispatchStatus(message);
+      setRunStatus("guarded adapter dispatch handoff error");
+    } finally {
+      setGuardedDispatchLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
   const completeCommercialResultFeedbackLoop = async () => {
     const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
     setFeedbackLoopLoading(true);
@@ -3673,6 +3843,10 @@ function ChatPanel({
   const runtimePreflightCandidateExecutionRun =
     commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run)) ??
     queuedCommercialExecutionRun;
+  const guardedDispatchCandidateExecutionRun =
+    commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run) && isClientRuntimePreflightReady(run)) ??
+    commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isClientRuntimePreflightReady(run)) ??
+    runtimePreflightCandidateExecutionRun;
   const pendingNextCycleFeedbackExecutionRun =
     commercialExecutionRuns.find(
       (run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status) && isNextCycleExecutionRun(run),
@@ -3854,6 +4028,8 @@ function ChatPanel({
   });
   const operationResultSummary = nextCycleDraftStatus
     ? nextCycleDraftStatus
+    : guardedDispatchStatus
+      ? guardedDispatchStatus
     : runtimePreflightStatus
       ? runtimePreflightStatus
       : latestCommercialOptimizationDecision
@@ -3894,6 +4070,7 @@ function ChatPanel({
   const operationReadableSourceText =
     nextCycleDraftStatus ||
     feedbackLoopStatus ||
+    guardedDispatchStatus ||
     runtimePreflightStatus ||
     operationOptimizationStatusText ||
     operationObservationStatusText ||
@@ -4010,6 +4187,14 @@ function ChatPanel({
               >
                 <CheckCircle2 size={14} />
                 {runtimePreflightLoading ? workbenchCopy.operationRuntimePreflightChecking : workbenchCopy.operationRuntimePreflight}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void prepareGuardedAdapterDispatchHandoff()}
+                disabled={guardedDispatchLoading || operationLoopLoading || chatLoading || !guardedDispatchCandidateExecutionRun}
+              >
+                <CheckCircle2 size={14} />
+                {guardedDispatchLoading ? workbenchCopy.operationGuardedDispatchHandingOff : workbenchCopy.operationGuardedDispatchHandoff}
               </button>
               <button
                 className="refresh-button"

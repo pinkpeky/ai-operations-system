@@ -982,6 +982,25 @@ This gives ordinary operators a simple Run preflight step before future real ada
 
 Boundary: Phase 63J is client runtime preflight only. It patches queued/retrying execution runs with local readiness metadata. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63K Customer Console Guarded Adapter Dispatch Handoff
+
+Branch: `codex/phase-63k-guarded-adapter-dispatch-handoff`
+
+Phase 63K connects client runtime preflight readiness to a guarded adapter dispatch handoff for `worker_console` and `worker_console_desktop`. After Phase 63J records a ready or blocked preflight on a queued/retrying execution run, the same product operation desk can prepare the handoff record before any operator start.
+
+The guarded adapter dispatch handoff action performs a guarded record-only sequence:
+
+- Prefer queued/retrying next-cycle execution runs with ready client runtime preflight.
+- Fall back to queued/retrying runs and record a blocked handoff when preflight is missing.
+- Patch the execution run with a metadata-only `guarded_adapter_dispatch_handoff` payload.
+- Record explicit disabled flags for OpenClaw, Playwright, publishing, and account control.
+- Preserve cycle, previous source, preflight status, and optimization lineage.
+- Keep the run waiting for explicit operator start.
+
+This gives ordinary operators a simple Prepare handoff step between preflight and start, while maintainers can inspect why a handoff is ready or blocked before future real adapters arrive.
+
+Boundary: Phase 63K is guarded adapter dispatch handoff only. It patches queued/retrying execution runs with local handoff metadata. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

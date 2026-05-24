@@ -1723,3 +1723,56 @@ def test_phase_63j_client_runtime_preflight_is_documented() -> None:
         assert "client runtime preflight" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63k_guarded_adapter_dispatch_handoff() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "prepareGuardedAdapterDispatchHandoff",
+            "guardedDispatchCandidateExecutionRun",
+            "operationGuardedDispatchHandoff",
+            "operationGuardedDispatchHandingOff",
+            "operationGuardedDispatchReady",
+            "isClientRuntimePreflightReady",
+            "guarded_adapter_dispatch_handoff",
+            "guarded_adapter_dispatch_status",
+            "guarded_metadata_only_handoff",
+            "client_runtime_preflight_ready",
+            "external_execution_performed: false",
+            "actual_openclaw_execution_performed: false",
+            "playwright_run_performed: false",
+            "phase: \"63K\"",
+        ]:
+            assert token in text
+
+
+def test_phase_63k_guarded_adapter_dispatch_handoff_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63K Customer Console Guarded Adapter Dispatch Handoff" in text
+        assert "codex/phase-63k-guarded-adapter-dispatch-handoff" in text
+        assert "guarded adapter dispatch handoff" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
