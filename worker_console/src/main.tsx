@@ -216,6 +216,24 @@ type TaskWorkbenchCopy = {
   operationGuardedDispatchReady: string;
   operationGuardedDispatchBlocked: string;
   operationGuardedDispatchMissing: string;
+  operationAdapterDryRun: string;
+  operationAdapterDryRunRunning: string;
+  operationAdapterDryRunSucceeded: string;
+  operationAdapterDryRunBlocked: string;
+  operationAdapterDryRunMissing: string;
+  operationExecutionQueueTitle: string;
+  operationExecutionQueueSubtitle: string;
+  operationExecutionQueueEmpty: string;
+  operationExecutionQueueReady: string;
+  operationExecutionQueuePreflightReady: string;
+  operationExecutionQueueWaiting: string;
+  operationApprovalCenterSummary: string;
+  operationApprovalCenterTitle: string;
+  operationApprovalCenterEmpty: string;
+  operationApprovalCenterApprove: string;
+  operationApprovalCenterReject: string;
+  operationApprovalCenterRisk: string;
+  operationApprovalCenterStatus: string;
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -396,6 +414,15 @@ function isClientRuntimePreflightReady(run: CommercialOperationExecutionRun): bo
     metadataStringValue(run.metadata, "runtime_preflight_status") === "ready" ||
     metadataStringValue(run.input_payload, "runtime_preflight_status") === "ready" ||
     metadataStringValue(preflight ?? undefined, "status") === "ready"
+  );
+}
+
+function isGuardedAdapterDispatchReady(run: CommercialOperationExecutionRun): boolean {
+  const handoff = metadataRecordValue(run.input_payload, "guarded_adapter_dispatch_handoff");
+  return (
+    metadataStringValue(run.metadata, "guarded_adapter_dispatch_status") === "ready_for_operator_start" ||
+    metadataStringValue(run.input_payload, "guarded_adapter_dispatch_status") === "ready_for_operator_start" ||
+    metadataStringValue(handoff ?? undefined, "status") === "ready_for_operator_start"
   );
 }
 
@@ -820,6 +847,24 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationGuardedDispatchReady: "受保护执行交接已准备，等待人工启动",
     operationGuardedDispatchBlocked: "受保护执行交接被阻断，请先完成执行前预检",
     operationGuardedDispatchMissing: "请先创建待执行记录",
+    operationAdapterDryRun: "执行 dry-run",
+    operationAdapterDryRunRunning: "正在执行受保护 dry-run",
+    operationAdapterDryRunSucceeded: "dry-run 已完成，已记录客户机执行结果",
+    operationAdapterDryRunBlocked: "dry-run 被阻断，请先完成预检和受保护交接",
+    operationAdapterDryRunMissing: "请先创建待执行记录",
+    operationExecutionQueueTitle: "客户机执行队列",
+    operationExecutionQueueSubtitle: "查看待执行、运行中、失败和已完成记录；这里先记录 dry-run 结果，不直接发布。",
+    operationExecutionQueueEmpty: "暂无客户机执行记录，先审批并创建执行记录。",
+    operationExecutionQueueReady: "已完成受保护交接",
+    operationExecutionQueuePreflightReady: "预检已通过",
+    operationExecutionQueueWaiting: "等待准备",
+    operationApprovalCenterSummary: "商业审批中心",
+    operationApprovalCenterTitle: "待审批运营内容",
+    operationApprovalCenterEmpty: "暂无商业审批。先准备首版产物或下一轮草案。",
+    operationApprovalCenterApprove: "通过并准备执行",
+    operationApprovalCenterReject: "驳回",
+    operationApprovalCenterRisk: "风险",
+    operationApprovalCenterStatus: "状态",
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -971,6 +1016,24 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationGuardedDispatchReady: "Guarded execution handoff is ready for operator start",
     operationGuardedDispatchBlocked: "Guarded execution handoff is blocked; run preflight first",
     operationGuardedDispatchMissing: "Create a queued execution run first",
+    operationAdapterDryRun: "Run dry-run",
+    operationAdapterDryRunRunning: "Running guarded dry-run",
+    operationAdapterDryRunSucceeded: "Dry-run completed and client execution result was recorded",
+    operationAdapterDryRunBlocked: "Dry-run blocked; complete preflight and guarded handoff first",
+    operationAdapterDryRunMissing: "Create a queued execution run first",
+    operationExecutionQueueTitle: "Client execution queue",
+    operationExecutionQueueSubtitle: "See queued, running, failed, and completed records; this stage records dry-run results before publishing.",
+    operationExecutionQueueEmpty: "No client execution records yet. Approve and create an execution run first.",
+    operationExecutionQueueReady: "Guarded handoff ready",
+    operationExecutionQueuePreflightReady: "Preflight ready",
+    operationExecutionQueueWaiting: "Waiting for prep",
+    operationApprovalCenterSummary: "Commercial approval center",
+    operationApprovalCenterTitle: "Operation content waiting for approval",
+    operationApprovalCenterEmpty: "No commercial approvals yet. Prepare the first draft or next-cycle draft first.",
+    operationApprovalCenterApprove: "Approve and prep execution",
+    operationApprovalCenterReject: "Reject",
+    operationApprovalCenterRisk: "Risk",
+    operationApprovalCenterStatus: "Status",
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -1778,6 +1841,8 @@ function ChatPanel({
   const [runtimePreflightLoading, setRuntimePreflightLoading] = useState(false);
   const [guardedDispatchStatus, setGuardedDispatchStatus] = useState<string | null>(null);
   const [guardedDispatchLoading, setGuardedDispatchLoading] = useState(false);
+  const [adapterDryRunStatus, setAdapterDryRunStatus] = useState<string | null>(null);
+  const [adapterDryRunLoading, setAdapterDryRunLoading] = useState(false);
   const [commercialResults, setCommercialResults] = useState<CommercialOperationResult[]>([]);
   const [commercialMonitoringObservations, setCommercialMonitoringObservations] = useState<CommercialOperationMonitoringObservation[]>([]);
   const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
@@ -2008,7 +2073,7 @@ function ChatPanel({
     );
   };
 
-  const approveCommercialApprovalAndPrepareExecution = async () => {
+  const approveCommercialApprovalAndPrepareExecution = async (selectedApproval?: CommercialOperationApproval) => {
     const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
     setExecutionPrepLoading(true);
     setOperationLoopLoading(true);
@@ -2022,6 +2087,7 @@ function ChatPanel({
       }
       const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
       const approval =
+        selectedApproval ??
         pendingApprovalResponse.items.find(isNextCycleApproval) ??
         pendingApprovalResponse.items[0] ??
         commercialApprovals.find((item) => item.approval_status === "pending" && isNextCycleApproval(item)) ??
@@ -2201,7 +2267,7 @@ function ChatPanel({
     }
   };
 
-  const rejectCommercialApproval = async () => {
+  const rejectCommercialApproval = async (selectedApproval?: CommercialOperationApproval) => {
     const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
     setExecutionPrepLoading(true);
     setOperationLoopLoading(true);
@@ -2214,6 +2280,7 @@ function ChatPanel({
       }
       const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
       const approval =
+        selectedApproval ??
         pendingApprovalResponse.items.find(isNextCycleApproval) ??
         pendingApprovalResponse.items[0] ??
         commercialApprovals.find((item) => item.approval_status === "pending" && isNextCycleApproval(item)) ??
@@ -2809,6 +2876,222 @@ function ChatPanel({
       setRunStatus("guarded adapter dispatch handoff error");
     } finally {
       setGuardedDispatchLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const runGuardedAdapterDryRun = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setAdapterDryRunLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setAdapterDryRunStatus(workbenchCopy.operationAdapterDryRunRunning);
+    try {
+      if (!operationId) {
+        setAdapterDryRunStatus(workbenchCopy.operationAdapterDryRunMissing);
+        setRunStatus("guarded adapter dry-run missing");
+        return;
+      }
+      const executionRunResponse = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
+      const executionRunPool = [...executionRunResponse.items, ...commercialExecutionRuns];
+      const targetRun =
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run) && isGuardedAdapterDispatchReady(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isGuardedAdapterDispatchReady(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status)) ??
+        null;
+      if (!targetRun) {
+        setAdapterDryRunStatus(workbenchCopy.operationAdapterDryRunMissing);
+        setRunStatus("guarded adapter dry-run missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+
+      const checkedAt = new Date().toISOString();
+      const handoffReady = isGuardedAdapterDispatchReady(targetRun);
+      const runIsNextCycle = isNextCycleExecutionRun(targetRun);
+      const previousSource =
+        metadataStringValue(targetRun.metadata, "source") ??
+        metadataStringValue(targetRun.input_payload, "source") ??
+        "unknown";
+      const cycle =
+        metadataStringValue(targetRun.metadata, "cycle") ??
+        metadataStringValue(targetRun.input_payload, "cycle") ??
+        (runIsNextCycle ? "next_iteration" : "first_iteration");
+      const optimizationDecisionId =
+        metadataStringValue(targetRun.metadata, "optimization_decision_id") ??
+        metadataStringValue(targetRun.input_payload, "optimization_decision_id");
+      const guardedHandoff = metadataRecordValue(targetRun.input_payload, "guarded_adapter_dispatch_handoff");
+      const handoffStatus =
+        metadataStringValue(targetRun.metadata, "guarded_adapter_dispatch_status") ??
+        metadataStringValue(targetRun.input_payload, "guarded_adapter_dispatch_status") ??
+        metadataStringValue(guardedHandoff ?? undefined, "status") ??
+        "missing";
+      const guardedAdapterDryRun = {
+        status: handoffReady ? "scheduled" : "blocked_handoff_required",
+        checked_at: checkedAt,
+        source_handoff_status: handoffStatus,
+        adapter_mode: "guarded_dry_run_only",
+        target_adapter: targetRun.execution_target ?? targetRun.execution_type ?? "customer_machine_playwright",
+        customer_machine_task_recorded: handoffReady,
+        simulated_customer_task: true,
+        actual_adapter_invocation_performed: false,
+        external_execution_performed: false,
+        actual_openclaw_execution_performed: false,
+        playwright_run_performed: false,
+        publishing_performed: false,
+        account_control_performed: false,
+        approval_required: true,
+        operator_start_required: true,
+        cycle,
+        checks: [
+          {
+            key: "guarded_adapter_dispatch_ready",
+            status: handoffReady,
+            detail: handoffReady ? "guarded handoff is ready" : "prepare guarded handoff first",
+          },
+          {
+            key: "dry_run_only",
+            status: true,
+            detail: "records the adapter contract without invoking OpenClaw or Playwright",
+          },
+          {
+            key: "external_actions_disabled",
+            status: true,
+            detail: "no publishing, account control, captcha, proxy, fingerprint, or secret action was executed",
+          },
+        ],
+        next_operator_action: handoffReady
+          ? "record result and generate improvement from the dry-run output"
+          : "complete client runtime preflight and guarded adapter handoff before dry-run",
+      };
+
+      if (!handoffReady) {
+        const blockedRun = await commercialOperationClient.updateExecutionRun(
+          operationId,
+          targetRun.id,
+          {
+            input_payload: {
+              ...targetRun.input_payload,
+              source: "worker_console_guarded_adapter_dry_run",
+              previous_source: previousSource,
+              cycle,
+              guarded_adapter_dry_run_status: "blocked_handoff_required",
+              guarded_adapter_dry_run_checked_at: checkedAt,
+              guarded_adapter_dry_run: guardedAdapterDryRun,
+              external_execution_performed: false,
+              actual_openclaw_execution_performed: false,
+              playwright_run_performed: false,
+              publishing_performed: false,
+              account_control_performed: false,
+              optimization_decision_id: optimizationDecisionId,
+            },
+            operator_notes:
+              language === "zh-CN"
+                ? "受保护 dry-run 被阻断；请先完成客户机预检和受保护执行交接。"
+                : "Guarded dry-run is blocked; complete client preflight and guarded handoff first.",
+            metadata: {
+              ...targetRun.metadata,
+              source: "worker_console_guarded_adapter_dry_run",
+              previous_source: previousSource,
+              phase: "63L",
+              cycle,
+              guarded_adapter_dry_run_status: "blocked_handoff_required",
+              guarded_adapter_dry_run_checked_at: checkedAt,
+              optimization_decision_id: optimizationDecisionId,
+            },
+          },
+          settings,
+        );
+        await refreshCommercialOperationLoop(operationId);
+        setAdapterDryRunStatus(`${workbenchCopy.operationAdapterDryRunBlocked}: ${blockedRun.id}`);
+        setRunStatus(`guarded adapter dry-run blocked: ${blockedRun.id}`);
+        return;
+      }
+
+      const preparedRun = await commercialOperationClient.updateExecutionRun(
+        operationId,
+        targetRun.id,
+        {
+          input_payload: {
+            ...targetRun.input_payload,
+            source: "worker_console_guarded_adapter_dry_run",
+            previous_source: previousSource,
+            cycle,
+            guarded_adapter_dry_run_status: "scheduled",
+            guarded_adapter_dry_run_checked_at: checkedAt,
+            guarded_adapter_dry_run: guardedAdapterDryRun,
+            external_execution_performed: false,
+            actual_openclaw_execution_performed: false,
+            playwright_run_performed: false,
+            publishing_performed: false,
+            account_control_performed: false,
+            optimization_decision_id: optimizationDecisionId,
+          },
+          operator_notes:
+            language === "zh-CN"
+              ? "已进入受保护 dry-run；只记录适配器契约和客户机任务状态，不发布。"
+              : "Guarded dry-run scheduled; records adapter contract and client task state only.",
+          metadata: {
+            ...targetRun.metadata,
+            source: "worker_console_guarded_adapter_dry_run",
+            previous_source: previousSource,
+            phase: "63L",
+            cycle,
+            guarded_adapter_dry_run_status: "scheduled",
+            guarded_adapter_dry_run_checked_at: checkedAt,
+            optimization_decision_id: optimizationDecisionId,
+          },
+        },
+        settings,
+      );
+      const startedRun = await commercialOperationClient.startExecutionRun(
+        operationId,
+        preparedRun.id,
+        language === "zh-CN"
+          ? "客户机操作员启动受保护 dry-run；未调用 OpenClaw/Playwright。"
+          : "Client operator started guarded dry-run; no OpenClaw/Playwright call was made.",
+        settings,
+      );
+      const completedAt = new Date().toISOString();
+      const completedDryRun = {
+        ...guardedAdapterDryRun,
+        status: "succeeded",
+        started_at: checkedAt,
+        completed_at: completedAt,
+        execution_run_id: startedRun.id,
+        result_contract: {
+          status: "dry_run_succeeded",
+          next_records: ["commercial_result", "monitoring_observation", "optimization_decision"],
+          handoff_preserved: true,
+        },
+      };
+      const succeededRun = await commercialOperationClient.succeedExecutionRun(
+        operationId,
+        startedRun.id,
+        language === "zh-CN"
+          ? "受保护 dry-run 已完成：客户机执行队列、适配器契约和后续结果记录已准备。"
+          : "Guarded dry-run completed: client execution queue, adapter contract, and follow-up result records are ready.",
+        {
+          guarded_adapter_dry_run: completedDryRun,
+          external_execution_performed: false,
+          actual_openclaw_execution_performed: false,
+          playwright_run_performed: false,
+          publishing_performed: false,
+          account_control_performed: false,
+        },
+        settings,
+      );
+      await refreshCommercialOperationLoop(operationId);
+      setAdapterDryRunStatus(`${workbenchCopy.operationAdapterDryRunSucceeded}: ${succeededRun.id}`);
+      setRunStatus(`guarded adapter dry-run succeeded: ${succeededRun.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Guarded adapter dry-run failed";
+      setOperationLoopError(message);
+      setAdapterDryRunStatus(message);
+      setRunStatus("guarded adapter dry-run error");
+    } finally {
+      setAdapterDryRunLoading(false);
       setOperationLoopLoading(false);
     }
   };
@@ -3703,6 +3986,14 @@ function ChatPanel({
     commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run) && isClientRuntimePreflightReady(run)) ??
     commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isClientRuntimePreflightReady(run)) ??
     runtimePreflightCandidateExecutionRun;
+  const adapterDryRunCandidateExecutionRun =
+    commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run) && isGuardedAdapterDispatchReady(run)) ??
+    commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isGuardedAdapterDispatchReady(run)) ??
+    guardedDispatchCandidateExecutionRun;
+  const visibleCommercialExecutionRuns = commercialExecutionRuns.slice(0, 5);
+  const activeCommercialExecutionRunCount = commercialExecutionRuns.filter((run) =>
+    ["queued", "running", "retrying", "failed"].includes(run.run_status),
+  ).length;
   const pendingNextCycleFeedbackExecutionRun =
     commercialExecutionRuns.find(
       (run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status) && isNextCycleExecutionRun(run),
@@ -3884,6 +4175,8 @@ function ChatPanel({
   });
   const operationResultSummary = nextCycleDraftStatus
     ? nextCycleDraftStatus
+    : adapterDryRunStatus
+      ? adapterDryRunStatus
     : guardedDispatchStatus
       ? guardedDispatchStatus
     : runtimePreflightStatus
@@ -3926,6 +4219,7 @@ function ChatPanel({
   const operationReadableSourceText =
     nextCycleDraftStatus ||
     feedbackLoopStatus ||
+    adapterDryRunStatus ||
     guardedDispatchStatus ||
     runtimePreflightStatus ||
     operationOptimizationStatusText ||
@@ -4054,6 +4348,14 @@ function ChatPanel({
               </button>
               <button
                 className="refresh-button"
+                onClick={() => void runGuardedAdapterDryRun()}
+                disabled={adapterDryRunLoading || operationLoopLoading || chatLoading || !adapterDryRunCandidateExecutionRun}
+              >
+                <PlayCircle size={14} />
+                {adapterDryRunLoading ? workbenchCopy.operationAdapterDryRunRunning : workbenchCopy.operationAdapterDryRun}
+              </button>
+              <button
+                className="refresh-button"
                 onClick={() => void startCommercialExecutionRun()}
                 disabled={executionRunLoading || operationLoopLoading || chatLoading || !queuedCommercialExecutionRun}
               >
@@ -4160,6 +4462,36 @@ function ChatPanel({
                 <p>{deliverable.detail}</p>
               </article>
             ))}
+          </div>
+          <div className="client-execution-queue" aria-label={workbenchCopy.operationExecutionQueueTitle}>
+            <div className="client-execution-queue-header">
+              <div>
+                <span>{workbenchCopy.operationExecutionQueueTitle}</span>
+                <p>{workbenchCopy.operationExecutionQueueSubtitle}</p>
+              </div>
+              <strong>{activeCommercialExecutionRunCount}/{commercialExecutionRuns.length}</strong>
+            </div>
+            <div className="client-execution-run-list">
+              {visibleCommercialExecutionRuns.length > 0 ? visibleCommercialExecutionRuns.map((run) => {
+                const readinessLabel = isGuardedAdapterDispatchReady(run)
+                  ? workbenchCopy.operationExecutionQueueReady
+                  : isClientRuntimePreflightReady(run)
+                    ? workbenchCopy.operationExecutionQueuePreflightReady
+                    : workbenchCopy.operationExecutionQueueWaiting;
+                return (
+                  <article className={`client-execution-run run-status-${run.run_status}`} key={run.id}>
+                    <div>
+                      <span>{run.run_status}</span>
+                      <strong>{run.title}</strong>
+                      <p>{run.execution_target ?? run.execution_type} | retry {run.retry_count}/{run.max_retries}</p>
+                    </div>
+                    <small>{readinessLabel}</small>
+                  </article>
+                );
+              }) : (
+                <div className="empty-chat">{workbenchCopy.operationExecutionQueueEmpty}</div>
+              )}
+            </div>
           </div>
         </div>
         <div className="simple-operator-workbench">
@@ -4305,7 +4637,7 @@ function ChatPanel({
           </div>
         </details>
       </section>
-      <details className="maintenance-drawer" open={pendingApprovals.length > 0 || failedTaskRuns.length > 0}>
+      <details className="maintenance-drawer" open={pendingCommercialApprovals.length > 0 || pendingApprovals.length > 0 || failedTaskRuns.length > 0}>
         <summary>{workbenchCopy.maintenanceModeTitle}</summary>
       <details className="chat-settings-panel">
         <summary>{workbenchCopy.connectionSettings}</summary>
@@ -4451,6 +4783,40 @@ function ChatPanel({
           </div>
         )) : (
           <div className="empty-chat">No workflow template runs yet.</div>
+        )}
+      </details>
+      <details id="commercial-approvals-panel" className="approval-list workbench-detail" open={pendingCommercialApprovals.length > 0}>
+        <summary>{workbenchCopy.operationApprovalCenterSummary}</summary>
+        <h3>{workbenchCopy.operationApprovalCenterTitle}</h3>
+        {commercialApprovals.length > 0 ? commercialApprovals.map((approval) => (
+          <div key={approval.id} className={`approval-card approval-risk-${approval.risk_level}`}>
+            <div className="approval-card-header">
+              <strong>{approval.title}</strong>
+              <span>{workbenchCopy.operationApprovalCenterRisk}: {approval.risk_level}</span>
+              <span>{workbenchCopy.operationApprovalCenterStatus}: {approval.approval_status}</span>
+            </div>
+            <p>{approval.requested_action ?? approval.step_key}</p>
+            <div className="chat-actions">
+              <button
+                className="refresh-button"
+                onClick={() => void approveCommercialApprovalAndPrepareExecution(approval)}
+                disabled={approval.approval_status !== "pending" || executionPrepLoading || operationLoopLoading || chatLoading}
+              >
+                <CheckCircle2 size={14} />
+                {workbenchCopy.operationApprovalCenterApprove}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void rejectCommercialApproval(approval)}
+                disabled={approval.approval_status !== "pending" || executionPrepLoading || operationLoopLoading || chatLoading}
+              >
+                <XCircle size={14} />
+                {workbenchCopy.operationApprovalCenterReject}
+              </button>
+            </div>
+          </div>
+        )) : (
+          <div className="empty-chat">{workbenchCopy.operationApprovalCenterEmpty}</div>
         )}
       </details>
       <details id="approvals-panel" className="approval-list workbench-detail" open={pendingApprovals.length > 0}>

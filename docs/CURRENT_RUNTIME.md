@@ -1852,3 +1852,9 @@ The runtime remains smoke verified and integration preflight verified, but not p
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
 
 The canonical project recovery state is: `main` is the Phase 55 accepted baseline after PR #17 merged the Phase 43-55 Combined Release Candidate. Phase 56 was reverted and is not active. Post-merge stabilization is tracked in `docs/POST_MERGE_STABILIZATION.md`. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.
+
+## Phase 63L-63N Customer Console Execution and Approval Loop
+
+Branch: `codex/phase-63l-63n-execution-approval-loop`
+
+Phase 63L-63N Customer Console Execution and Approval Loop is the active customer-machine runtime slice for `worker_console` and `worker_console_desktop`. It adds a guarded adapter dry-run action, a visual client execution queue, and a commercial approval center on top of the existing metadata-only commercial operation execution run APIs. The dry-run uses the existing start/succeed lifecycle with `guarded_adapter_dry_run` result payloads and leaves live OpenClaw, Playwright, publishing, account control, analytics ingestion, ComfyUI, secret resolution, captcha/proxy/fingerprint bypass, and approval bypass disabled.

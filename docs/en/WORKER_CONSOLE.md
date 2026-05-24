@@ -1001,6 +1001,16 @@ This gives ordinary operators a simple Prepare handoff step between preflight an
 
 Boundary: Phase 63K is guarded adapter dispatch handoff only. It patches queued/retrying execution runs with local handoff metadata. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63L-63N Customer Console Execution and Approval Loop
+
+Branch: `codex/phase-63l-63n-execution-approval-loop`
+
+Phase 63L-63N moves the customer-machine loop from guarded handoff into a safer first execution pass for `worker_console` and `worker_console_desktop`. The product operation desk now has a guarded adapter dry-run action after preflight and handoff, a visual client execution queue for queued/running/failed/succeeded records, and a commercial approval center that lets operators approve or reject specific operation approvals without raw JSON.
+
+The guarded adapter dry-run action records `guarded_adapter_dry_run` metadata, starts the existing metadata-only execution run, marks it succeeded with a dry-run result payload, and keeps all external-action flags disabled. The client execution queue shows status, target, retry count, and readiness in simple cards. The commercial approval center keeps approval decisions visible and separate from the general conversation approval queue.
+
+Boundary: Phase 63L-63N is a guarded adapter dry-run, client execution queue, and commercial approval center only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
