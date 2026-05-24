@@ -209,22 +209,29 @@ type TaskWorkbenchCopy = {
   operationFirstDraftReady: string;
   operationApproveAndPrepare: string;
   operationApproveNextCycleAndPrepare: string;
+  operationApproveImprovedDraftAndPrepare: string;
   operationRejectDraft: string;
   operationRejectNextCycleDraft: string;
+  operationRejectImprovedDraft: string;
   operationApprovalPreparing: string;
   operationNextCycleApprovalPreparing: string;
+  operationImprovedApprovalPreparing: string;
   operationExecutionPrepReady: string;
   operationNextCycleExecutionPrepReady: string;
+  operationImprovedExecutionPrepReady: string;
   operationApprovalRejected: string;
   operationNextCycleApprovalRejected: string;
   operationApprovalMissing: string;
   operationApprovalPending: string;
   operationReviewAndQueueRun: string;
   operationReviewAndQueueNextCycleRun: string;
+  operationReviewAndQueueImprovedRun: string;
   operationExecutionRunQueuing: string;
   operationNextCycleExecutionRunQueuing: string;
+  operationImprovedExecutionRunQueuing: string;
   operationExecutionRunReady: string;
   operationNextCycleExecutionRunReady: string;
+  operationImprovedExecutionRunReady: string;
   operationExecutionRequestMissing: string;
   operationStartRun: string;
   operationRunStarting: string;
@@ -498,18 +505,30 @@ function isManualPublishImprovementDecision(decision: CommercialOperationOptimiz
   return decision.decision_type === "manual_publish_improvement" || source.includes("manual_publish_improvement");
 }
 
+function isPublishMetricNextCycleApproval(approval: CommercialOperationApproval): boolean {
+  const source = metadataStringValue(approval.metadata, "source") ?? "";
+  return source.includes("publish_metric_next_cycle_draft") || metadataStringValue(approval.metadata, "phase") === "63S";
+}
+
 function isNextCycleApproval(approval: CommercialOperationApproval): boolean {
   const source = metadataStringValue(approval.metadata, "source") ?? "";
   return (
+    isPublishMetricNextCycleApproval(approval) ||
     source.includes("next_cycle_content_draft") ||
     metadataStringValue(approval.metadata, "phase") === "63F" ||
     Boolean(metadataStringValue(approval.metadata, "optimization_decision_id"))
   );
 }
 
+function isPublishMetricReexecutionRequest(request: CommercialOperationExecutionRequest): boolean {
+  const source = metadataStringValue(request.metadata, "source") ?? "";
+  return source.includes("publish_metric_reexecution_prep") || metadataStringValue(request.metadata, "phase") === "63V";
+}
+
 function isNextCycleExecutionRequest(request: CommercialOperationExecutionRequest): boolean {
   const source = metadataStringValue(request.metadata, "source") ?? "";
   return (
+    isPublishMetricReexecutionRequest(request) ||
     source.includes("next_cycle_approval_execution_prep") ||
     metadataStringValue(request.metadata, "phase") === "63G" ||
     metadataStringValue(request.metadata, "cycle") === "next_iteration" ||
@@ -517,10 +536,21 @@ function isNextCycleExecutionRequest(request: CommercialOperationExecutionReques
   );
 }
 
+function isPublishMetricReexecutionRun(run: CommercialOperationExecutionRun): boolean {
+  const source = metadataStringValue(run.metadata, "source") ?? "";
+  const inputSource = metadataStringValue(run.input_payload, "source") ?? "";
+  return (
+    source.includes("publish_metric_reexecution_run_review") ||
+    inputSource.includes("publish_metric_reexecution_run_review") ||
+    metadataStringValue(run.metadata, "phase") === "63W"
+  );
+}
+
 function isNextCycleExecutionRun(run: CommercialOperationExecutionRun): boolean {
   const source = metadataStringValue(run.metadata, "source") ?? "";
   const inputSource = metadataStringValue(run.input_payload, "source") ?? "";
   return (
+    isPublishMetricReexecutionRun(run) ||
     source.includes("next_cycle_execution_run_review") ||
     inputSource.includes("next_cycle_execution_run_review") ||
     metadataStringValue(run.metadata, "phase") === "63H" ||
@@ -883,22 +913,29 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationFirstDraftReady: "首版内容已进入人工审批",
     operationApproveAndPrepare: "审批并准备执行",
     operationApproveNextCycleAndPrepare: "审批下一轮并准备执行",
+    operationApproveImprovedDraftAndPrepare: "审批改进草案并准备再执行",
     operationRejectDraft: "驳回首版内容",
     operationRejectNextCycleDraft: "驳回下一轮草案",
+    operationRejectImprovedDraft: "驳回改进草案",
     operationApprovalPreparing: "正在审批并准备客户机执行记录",
     operationNextCycleApprovalPreparing: "正在审批下一轮并准备客户机执行记录",
+    operationImprovedApprovalPreparing: "正在审批改进草案并准备再执行",
     operationExecutionPrepReady: "客户机执行准备记录已生成，等待执行前复核",
     operationNextCycleExecutionPrepReady: "下一轮客户机执行准备记录已生成，等待执行前复核",
+    operationImprovedExecutionPrepReady: "改进草案再执行准备记录已生成，等待执行前复核",
     operationApprovalRejected: "首版内容已驳回，可修改后重新准备",
     operationNextCycleApprovalRejected: "下一轮草案已驳回，可按改进建议重新生成",
     operationApprovalMissing: "请先准备首版产物并生成待审批记录",
     operationApprovalPending: "商业审批待处理",
     operationReviewAndQueueRun: "复核并创建执行记录",
     operationReviewAndQueueNextCycleRun: "复核下一轮执行记录",
+    operationReviewAndQueueImprovedRun: "复核改进再执行记录",
     operationExecutionRunQueuing: "正在复核并创建执行记录",
     operationNextCycleExecutionRunQueuing: "正在复核并创建下一轮执行记录",
+    operationImprovedExecutionRunQueuing: "正在复核并创建改进再执行记录",
     operationExecutionRunReady: "执行运行记录已创建，等待开始",
     operationNextCycleExecutionRunReady: "下一轮执行运行记录已创建，等待开始",
+    operationImprovedExecutionRunReady: "改进再执行运行记录已创建，等待开始",
     operationExecutionRequestMissing: "请先生成客户机执行准备记录",
     operationStartRun: "标记开始",
     operationRunStarting: "正在标记执行开始",
@@ -1075,22 +1112,29 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationFirstDraftReady: "First draft is ready for approval",
     operationApproveAndPrepare: "Approve and prep execution",
     operationApproveNextCycleAndPrepare: "Approve next cycle and prep",
+    operationApproveImprovedDraftAndPrepare: "Approve improved draft and prep",
     operationRejectDraft: "Reject first draft",
     operationRejectNextCycleDraft: "Reject next-cycle draft",
+    operationRejectImprovedDraft: "Reject improved draft",
     operationApprovalPreparing: "Approving and preparing the client execution record",
     operationNextCycleApprovalPreparing: "Approving next cycle and preparing the client execution record",
+    operationImprovedApprovalPreparing: "Approving improved draft and preparing re-execution",
     operationExecutionPrepReady: "Client execution prep record is ready for pre-run review",
     operationNextCycleExecutionPrepReady: "Next-cycle client execution prep record is ready for pre-run review",
+    operationImprovedExecutionPrepReady: "Improved draft re-execution prep is ready for pre-run review",
     operationApprovalRejected: "First draft rejected; revise it before preparing again",
     operationNextCycleApprovalRejected: "Next-cycle draft rejected; regenerate it from the improvement decision",
     operationApprovalMissing: "Prepare the first draft and approval record first",
     operationApprovalPending: "Commercial approval pending",
     operationReviewAndQueueRun: "Review and queue run",
     operationReviewAndQueueNextCycleRun: "Review next-cycle run",
+    operationReviewAndQueueImprovedRun: "Review improved run",
     operationExecutionRunQueuing: "Reviewing and creating execution run",
     operationNextCycleExecutionRunQueuing: "Reviewing and creating next-cycle execution run",
+    operationImprovedExecutionRunQueuing: "Reviewing and creating improved re-execution run",
     operationExecutionRunReady: "Execution run is queued and waiting to start",
     operationNextCycleExecutionRunReady: "Next-cycle execution run is queued and waiting to start",
+    operationImprovedExecutionRunReady: "Improved re-execution run is queued and waiting to start",
     operationExecutionRequestMissing: "Create the client execution prep record first",
     operationStartRun: "Mark started",
     operationRunStarting: "Marking execution run started",
@@ -2268,8 +2312,13 @@ function ChatPanel({
     operationId: string,
     approval: CommercialOperationApproval,
   ): Promise<CommercialOperationContentDraft | null> => {
+    const approvalIsPublishMetricReexecution = isPublishMetricNextCycleApproval(approval);
     const approvalIsNextCycle = isNextCycleApproval(approval);
-    const approveDraftNote = approvalIsNextCycle
+    const approveDraftNote = approvalIsPublishMetricReexecution
+      ? language === "zh-CN"
+        ? "人工已审批发布数据改进草案，进入再执行交付物打包。"
+        : "Human approved the publish-metric improved draft; package it for re-execution."
+      : approvalIsNextCycle
       ? language === "zh-CN"
         ? "人工已审批下一轮内容，进入交付物打包。"
         : "Human approved the next-cycle draft; package it as a deliverable."
@@ -2313,8 +2362,10 @@ function ChatPanel({
       const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
       const approval =
         selectedApproval ??
+        pendingApprovalResponse.items.find(isPublishMetricNextCycleApproval) ??
         pendingApprovalResponse.items.find(isNextCycleApproval) ??
         pendingApprovalResponse.items[0] ??
+        commercialApprovals.find((item) => item.approval_status === "pending" && isPublishMetricNextCycleApproval(item)) ??
         commercialApprovals.find((item) => item.approval_status === "pending" && isNextCycleApproval(item)) ??
         commercialApprovals.find((item) => item.approval_status === "pending") ??
         null;
@@ -2324,17 +2375,31 @@ function ChatPanel({
         await refreshCommercialOperationLoop(operationId);
         return;
       }
-      const approvalIsNextCycle = isNextCycleApproval(approval);
-      const approvalPrepSource = approvalIsNextCycle
+      const approvalIsPublishMetricReexecution = isPublishMetricNextCycleApproval(approval);
+      const approvalIsNextCycle = approvalIsPublishMetricReexecution || isNextCycleApproval(approval);
+      const approvalPrepSource = approvalIsPublishMetricReexecution
+        ? "worker_console_desktop_publish_metric_reexecution_prep"
+        : approvalIsNextCycle
         ? "worker_console_desktop_next_cycle_approval_execution_prep"
         : "worker_console_approval_execution_prep";
-      const approvalPrepPhase = approvalIsNextCycle ? "63G" : "63C";
+      const approvalPrepPhase = approvalIsPublishMetricReexecution ? "63V" : approvalIsNextCycle ? "63G" : "63C";
       const optimizationDecisionId = metadataStringValue(approval.metadata, "optimization_decision_id");
-      setExecutionPrepStatus(approvalIsNextCycle ? workbenchCopy.operationNextCycleApprovalPreparing : workbenchCopy.operationApprovalPreparing);
+      const publishMetricImprovementId = approvalIsPublishMetricReexecution ? optimizationDecisionId : undefined;
+      setExecutionPrepStatus(
+        approvalIsPublishMetricReexecution
+          ? workbenchCopy.operationImprovedApprovalPreparing
+          : approvalIsNextCycle
+            ? workbenchCopy.operationNextCycleApprovalPreparing
+            : workbenchCopy.operationApprovalPreparing,
+      );
       const approvedApproval = await commercialOperationClient.approveApproval(
         operationId,
         approval.id,
-        approvalIsNextCycle
+        approvalIsPublishMetricReexecution
+          ? language === "zh-CN"
+            ? "客户机操作员确认改进草案可进入再执行准备。"
+            : "Client operator approved the improved draft for re-execution preparation."
+          : approvalIsNextCycle
           ? language === "zh-CN"
             ? "客户机操作员确认下一轮内容可进入执行准备。"
             : "Client operator approved the next-cycle draft for execution preparation."
@@ -2355,13 +2420,21 @@ function ChatPanel({
         {
           step_key: "content_production",
           content_draft_id: approvedDraft.id,
-          deliverable_type: approvalIsNextCycle ? "next_cycle_content_package" : "content_package",
+          deliverable_type: approvalIsPublishMetricReexecution
+            ? "publish_metric_next_cycle_content_package"
+            : approvalIsNextCycle
+              ? "next_cycle_content_package"
+              : "content_package",
           title:
             language === "zh-CN"
-              ? `${approvedDraft.title} ${approvalIsNextCycle ? "下一轮客户机交付包" : "客户机交付包"}`
-              : `${approvedDraft.title} ${approvalIsNextCycle ? "next-cycle client handoff package" : "client handoff package"}`,
+              ? `${approvedDraft.title} ${approvalIsPublishMetricReexecution ? "改进再执行交付包" : approvalIsNextCycle ? "下一轮客户机交付包" : "客户机交付包"}`
+              : `${approvedDraft.title} ${approvalIsPublishMetricReexecution ? "improved re-execution package" : approvalIsNextCycle ? "next-cycle client handoff package" : "client handoff package"}`,
           summary:
-            approvalIsNextCycle
+            approvalIsPublishMetricReexecution
+              ? language === "zh-CN"
+                ? "由客户机审批后的发布数据改进草案打包成可交付记录，用于回到再执行准备。"
+                : "A packaged record from the client-approved publish-metric improvement draft for re-execution prep."
+              : approvalIsNextCycle
               ? language === "zh-CN"
                 ? "由客户机审批后的下一轮内容打包成可交付记录，用于继续闭环执行准备。"
                 : "A packaged record from the client-approved next-cycle draft for the next execution-prep pass."
@@ -2375,6 +2448,7 @@ function ChatPanel({
           quality_checks: [
             "human approval gate approved",
             "content draft approved",
+            ...(approvalIsPublishMetricReexecution ? ["manual publish metric improvement linked", "publish metric next-cycle draft approved"] : []),
             ...(approvalIsNextCycle ? ["next-cycle optimization decision linked"] : []),
             "no publishing",
             "no account control",
@@ -2387,6 +2461,8 @@ function ChatPanel({
             approval_id: approvedApproval.id,
             content_draft_id: approvedDraft.id,
             optimization_decision_id: optimizationDecisionId,
+            publish_metric_improvement_id: publishMetricImprovementId,
+            reexecution_loop: approvalIsPublishMetricReexecution ? "publish_metric_improvement" : undefined,
             cycle: approvalIsNextCycle ? "next_iteration" : "first_iteration",
           },
         },
@@ -2424,7 +2500,11 @@ function ChatPanel({
               : `${packagedDeliverable.title} OpenClaw execution prep`,
           execution_target: "customer_machine_playwright",
           input_summary:
-            approvalIsNextCycle
+            approvalIsPublishMetricReexecution
+              ? language === "zh-CN"
+                ? "为发布数据改进草案准备客户机 OpenClaw/Playwright 再执行元数据，不直接执行。"
+                : "Prepare metadata for re-executing the publish-metric improved draft on the customer machine without executing it."
+              : approvalIsNextCycle
               ? language === "zh-CN"
                 ? "为下一轮客户机 OpenClaw/Playwright 执行准备元数据，不直接执行。"
                 : "Prepare metadata for the next-cycle OpenClaw/Playwright handoff on the customer machine without executing it."
@@ -2439,6 +2519,7 @@ function ChatPanel({
           readiness_checks: [
             "human_review approval approved",
             "packaged deliverable created",
+            ...(approvalIsPublishMetricReexecution ? ["publish metric re-execution prep", "manual publish metric improvement approved"] : []),
             ...(approvalIsNextCycle ? ["next-cycle approval execution prep"] : []),
             "metadata_only execution request",
             "OpenClaw/Playwright handoff not executed",
@@ -2461,6 +2542,8 @@ function ChatPanel({
             content_draft_id: approvedDraft.id,
             deliverable_id: packagedDeliverable.id,
             optimization_decision_id: optimizationDecisionId,
+            publish_metric_improvement_id: publishMetricImprovementId,
+            reexecution_loop: approvalIsPublishMetricReexecution ? "publish_metric_improvement" : undefined,
             cycle: approvalIsNextCycle ? "next_iteration" : "first_iteration",
           },
         },
@@ -2469,7 +2552,11 @@ function ChatPanel({
       const readyExecutionRequest = await commercialOperationClient.readyExecutionRequest(
         operationId,
         executionRequest.id,
-        approvalIsNextCycle
+        approvalIsPublishMetricReexecution
+          ? language === "zh-CN"
+            ? "改进草案再执行准备记录已生成，等待执行前复核。"
+            : "Improved draft re-execution prep record is ready for pre-run review."
+          : approvalIsNextCycle
           ? language === "zh-CN"
             ? "下一轮客户机执行准备记录已生成，等待执行前复核。"
             : "Next-cycle client execution prep record is ready for pre-run review."
@@ -2480,9 +2567,15 @@ function ChatPanel({
       );
       await refreshCommercialOperationLoop(operationId);
       setExecutionPrepStatus(
-        `${approvalIsNextCycle ? workbenchCopy.operationNextCycleExecutionPrepReady : workbenchCopy.operationExecutionPrepReady}: ${readyExecutionRequest.id}`,
+        `${
+          approvalIsPublishMetricReexecution
+            ? workbenchCopy.operationImprovedExecutionPrepReady
+            : approvalIsNextCycle
+              ? workbenchCopy.operationNextCycleExecutionPrepReady
+              : workbenchCopy.operationExecutionPrepReady
+        }: ${readyExecutionRequest.id}`,
       );
-      setRunStatus(`${approvalIsNextCycle ? "next-cycle " : ""}client execution prep ready: ${readyExecutionRequest.id}`);
+      setRunStatus(`${approvalIsPublishMetricReexecution ? "improved " : approvalIsNextCycle ? "next-cycle " : ""}client execution prep ready: ${readyExecutionRequest.id}`);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : "Commercial approval execution prep failed";
       setOperationLoopError(message);
@@ -2508,8 +2601,10 @@ function ChatPanel({
       const pendingApprovalResponse = await commercialOperationClient.listApprovals(operationId, "pending", settings);
       const approval =
         selectedApproval ??
+        pendingApprovalResponse.items.find(isPublishMetricNextCycleApproval) ??
         pendingApprovalResponse.items.find(isNextCycleApproval) ??
         pendingApprovalResponse.items[0] ??
+        commercialApprovals.find((item) => item.approval_status === "pending" && isPublishMetricNextCycleApproval(item)) ??
         commercialApprovals.find((item) => item.approval_status === "pending" && isNextCycleApproval(item)) ??
         commercialApprovals.find((item) => item.approval_status === "pending") ??
         null;
@@ -2519,11 +2614,16 @@ function ChatPanel({
         await refreshCommercialOperationLoop(operationId);
         return;
       }
-      const approvalIsNextCycle = isNextCycleApproval(approval);
+      const approvalIsPublishMetricReexecution = isPublishMetricNextCycleApproval(approval);
+      const approvalIsNextCycle = approvalIsPublishMetricReexecution || isNextCycleApproval(approval);
       await commercialOperationClient.rejectApproval(
         operationId,
         approval.id,
-        approvalIsNextCycle
+        approvalIsPublishMetricReexecution
+          ? language === "zh-CN"
+            ? "客户机操作员驳回改进草案，需要根据发布数据重新生成。"
+            : "Client operator rejected the improved draft; regenerate it from publish metrics."
+          : approvalIsNextCycle
           ? language === "zh-CN"
             ? "客户机操作员驳回下一轮内容，需要按改进建议重新生成。"
             : "Client operator rejected the next-cycle draft; regenerate it from the improvement decision."
@@ -2537,7 +2637,11 @@ function ChatPanel({
         await commercialOperationClient.rejectContentDraft(
           operationId,
           draftId,
-          approvalIsNextCycle
+          approvalIsPublishMetricReexecution
+            ? language === "zh-CN"
+              ? "审批被驳回，改进草案需要根据发布数据重新生成。"
+              : "Approval was rejected; regenerate the improved draft from publish metrics."
+            : approvalIsNextCycle
             ? language === "zh-CN"
               ? "审批被驳回，下一轮内容需要重新生成。"
               : "Approval was rejected; regenerate the next-cycle draft."
@@ -2548,8 +2652,14 @@ function ChatPanel({
         ).catch(() => null);
       }
       await refreshCommercialOperationLoop(operationId);
-      setExecutionPrepStatus(approvalIsNextCycle ? workbenchCopy.operationNextCycleApprovalRejected : workbenchCopy.operationApprovalRejected);
-      setRunStatus(`${approvalIsNextCycle ? "next-cycle " : ""}commercial approval rejected: ${approval.id}`);
+      setExecutionPrepStatus(
+        approvalIsPublishMetricReexecution
+          ? workbenchCopy.operationNextCycleApprovalRejected
+          : approvalIsNextCycle
+            ? workbenchCopy.operationNextCycleApprovalRejected
+            : workbenchCopy.operationApprovalRejected,
+      );
+      setRunStatus(`${approvalIsPublishMetricReexecution ? "improved " : approvalIsNextCycle ? "next-cycle " : ""}commercial approval rejected: ${approval.id}`);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : "Commercial approval rejection failed";
       setOperationLoopError(message);
@@ -2564,9 +2674,11 @@ function ChatPanel({
   const resolveExecutionRequestForRun = async (operationId: string): Promise<CommercialOperationExecutionRequest | null> => {
     const response = await commercialOperationClient.listExecutionRequests(operationId, undefined, settings);
     const requestPool = [
-      ...response.items.filter(isNextCycleExecutionRequest),
+      ...response.items.filter(isPublishMetricReexecutionRequest),
+      ...response.items.filter((item) => isNextCycleExecutionRequest(item) && !isPublishMetricReexecutionRequest(item)),
       ...response.items.filter((item) => !isNextCycleExecutionRequest(item)),
-      ...commercialExecutionRequests.filter(isNextCycleExecutionRequest),
+      ...commercialExecutionRequests.filter(isPublishMetricReexecutionRequest),
+      ...commercialExecutionRequests.filter((item) => isNextCycleExecutionRequest(item) && !isPublishMetricReexecutionRequest(item)),
       ...commercialExecutionRequests.filter((item) => !isNextCycleExecutionRequest(item)),
     ];
     const request =
@@ -2631,13 +2743,24 @@ function ChatPanel({
         await refreshCommercialOperationLoop(operationId);
         return;
       }
-      const requestIsNextCycle = isNextCycleExecutionRequest(preparedRequest);
-      const executionRunSource = requestIsNextCycle
+      const requestIsPublishMetricReexecution = isPublishMetricReexecutionRequest(preparedRequest);
+      const requestIsNextCycle = requestIsPublishMetricReexecution || isNextCycleExecutionRequest(preparedRequest);
+      const executionRunSource = requestIsPublishMetricReexecution
+        ? "worker_console_desktop_publish_metric_reexecution_run_review"
+        : requestIsNextCycle
         ? "worker_console_desktop_next_cycle_execution_run_review"
         : "worker_console_execution_run_review";
       const executionRunPhase = requestIsNextCycle ? "63H" : "63D";
+      const effectiveExecutionRunPhase = requestIsPublishMetricReexecution ? "63W" : executionRunPhase;
       const optimizationDecisionId = metadataStringValue(preparedRequest.metadata, "optimization_decision_id");
-      setExecutionRunStatus(requestIsNextCycle ? workbenchCopy.operationNextCycleExecutionRunQueuing : workbenchCopy.operationExecutionRunQueuing);
+      const publishMetricImprovementId = metadataStringValue(preparedRequest.metadata, "publish_metric_improvement_id");
+      setExecutionRunStatus(
+        requestIsPublishMetricReexecution
+          ? workbenchCopy.operationImprovedExecutionRunQueuing
+          : requestIsNextCycle
+            ? workbenchCopy.operationNextCycleExecutionRunQueuing
+            : workbenchCopy.operationExecutionRunQueuing,
+      );
       const existingRuns = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
       const existingRun =
         existingRuns.items.find(
@@ -2657,8 +2780,8 @@ function ChatPanel({
           execution_request_id: preparedRequest.id,
           title:
             language === "zh-CN"
-              ? `${preparedRequest.title} ${requestIsNextCycle ? "下一轮执行运行记录" : "执行运行记录"}`
-              : `${preparedRequest.title} ${requestIsNextCycle ? "next-cycle execution run" : "execution run"}`,
+              ? `${preparedRequest.title} ${requestIsPublishMetricReexecution ? "改进再执行运行记录" : requestIsNextCycle ? "下一轮执行运行记录" : "执行运行记录"}`
+              : `${preparedRequest.title} ${requestIsPublishMetricReexecution ? "improved re-execution run" : requestIsNextCycle ? "next-cycle execution run" : "execution run"}`,
           execution_target: preparedRequest.execution_target ?? "customer_machine_playwright",
           input_payload: {
             execution_request_id: preparedRequest.id,
@@ -2667,10 +2790,16 @@ function ChatPanel({
             source: executionRunSource,
             cycle: requestIsNextCycle ? "next_iteration" : "first_iteration",
             optimization_decision_id: optimizationDecisionId,
+            publish_metric_improvement_id: publishMetricImprovementId,
+            reexecution_loop: requestIsPublishMetricReexecution ? "publish_metric_improvement" : undefined,
           },
           max_retries: 1,
           operator_notes:
-            requestIsNextCycle
+            requestIsPublishMetricReexecution
+              ? language === "zh-CN"
+                ? "客户机已创建改进再执行运行记录，等待显式开始。"
+                : "Customer console created the improved re-execution run record and is waiting for explicit start."
+              : requestIsNextCycle
               ? language === "zh-CN"
                 ? "客户机已创建下一轮执行运行记录，等待显式开始。"
                 : "Customer console created the next-cycle execution run record and is waiting for explicit start."
@@ -2680,9 +2809,11 @@ function ChatPanel({
           metadata: {
             source: executionRunSource,
             console: "worker_console_desktop",
-            phase: executionRunPhase,
+            phase: effectiveExecutionRunPhase,
             execution_request_id: preparedRequest.id,
             optimization_decision_id: optimizationDecisionId,
+            publish_metric_improvement_id: publishMetricImprovementId,
+            reexecution_loop: requestIsPublishMetricReexecution ? "publish_metric_improvement" : undefined,
             cycle: requestIsNextCycle ? "next_iteration" : "first_iteration",
           },
         },
@@ -2690,9 +2821,15 @@ function ChatPanel({
       );
       await refreshCommercialOperationLoop(operationId);
       setExecutionRunStatus(
-        `${requestIsNextCycle ? workbenchCopy.operationNextCycleExecutionRunReady : workbenchCopy.operationExecutionRunReady}: ${run.id}`,
+        `${
+          requestIsPublishMetricReexecution
+            ? workbenchCopy.operationImprovedExecutionRunReady
+            : requestIsNextCycle
+              ? workbenchCopy.operationNextCycleExecutionRunReady
+              : workbenchCopy.operationExecutionRunReady
+        }: ${run.id}`,
       );
-      setRunStatus(`${requestIsNextCycle ? "next-cycle " : ""}commercial execution run queued: ${run.id}`);
+      setRunStatus(`${requestIsPublishMetricReexecution ? "improved " : requestIsNextCycle ? "next-cycle " : ""}commercial execution run queued: ${run.id}`);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : "Commercial execution run queueing failed";
       setOperationLoopError(message);
@@ -2718,7 +2855,11 @@ function ChatPanel({
       }
       const response = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
       const run =
+        response.items.find((item) => (item.run_status === "queued" || item.run_status === "retrying") && isPublishMetricReexecutionRun(item)) ??
+        response.items.find((item) => (item.run_status === "queued" || item.run_status === "retrying") && isNextCycleExecutionRun(item)) ??
         response.items.find((item) => item.run_status === "queued" || item.run_status === "retrying") ??
+        commercialExecutionRuns.find((item) => (item.run_status === "queued" || item.run_status === "retrying") && isPublishMetricReexecutionRun(item)) ??
+        commercialExecutionRuns.find((item) => (item.run_status === "queued" || item.run_status === "retrying") && isNextCycleExecutionRun(item)) ??
         commercialExecutionRuns.find((item) => item.run_status === "queued" || item.run_status === "retrying") ??
         null;
       if (!run) {
@@ -4766,14 +4907,22 @@ function ChatPanel({
   const selectedGoalTemplate = goalTemplates.find((template) => template.id === selectedGoalTemplateId) ?? goalTemplates[0];
   const pendingApprovals = approvals.filter((approval) => approval.approval_status === "pending");
   const pendingCommercialApprovals = commercialApprovals.filter((approval) => approval.approval_status === "pending");
-  const pendingNextCycleCommercialApproval = pendingCommercialApprovals.find(isNextCycleApproval) ?? null;
+  const pendingPublishMetricNextCycleCommercialApproval = pendingCommercialApprovals.find(isPublishMetricNextCycleApproval) ?? null;
+  const pendingNextCycleCommercialApproval = pendingPublishMetricNextCycleCommercialApproval ?? pendingCommercialApprovals.find(isNextCycleApproval) ?? null;
   const latestCommercialExecutionRequest = commercialExecutionRequests[0] ?? null;
+  const pendingPublishMetricReexecutionRequest =
+    commercialExecutionRequests.find(
+      (request) => ["prepared", "approved", "ready_for_review", "draft"].includes(request.request_status) && isPublishMetricReexecutionRequest(request),
+    ) ?? null;
   const pendingNextCycleExecutionRequest =
+    pendingPublishMetricReexecutionRequest ??
     commercialExecutionRequests.find(
       (request) => ["prepared", "approved", "ready_for_review", "draft"].includes(request.request_status) && isNextCycleExecutionRequest(request),
     ) ?? null;
   const latestCommercialExecutionRun = commercialExecutionRuns[0] ?? null;
   const queuedCommercialExecutionRun =
+    commercialExecutionRuns.find((run) => (run.run_status === "queued" || run.run_status === "retrying") && isPublishMetricReexecutionRun(run)) ??
+    commercialExecutionRuns.find((run) => (run.run_status === "queued" || run.run_status === "retrying") && isNextCycleExecutionRun(run)) ??
     commercialExecutionRuns.find((run) => run.run_status === "queued" || run.run_status === "retrying") ?? null;
   const runningCommercialExecutionRun = commercialExecutionRuns.find((run) => run.run_status === "running") ?? null;
   const failedCommercialExecutionRun = commercialExecutionRuns.find((run) => run.run_status === "failed") ?? null;
@@ -5130,10 +5279,14 @@ function ChatPanel({
               >
                 <CheckCircle2 size={14} />
                 {executionPrepLoading
-                  ? pendingNextCycleCommercialApproval
+                  ? pendingPublishMetricNextCycleCommercialApproval
+                    ? workbenchCopy.operationImprovedApprovalPreparing
+                    : pendingNextCycleCommercialApproval
                     ? workbenchCopy.operationNextCycleApprovalPreparing
                     : workbenchCopy.operationApprovalPreparing
-                  : pendingNextCycleCommercialApproval
+                  : pendingPublishMetricNextCycleCommercialApproval
+                    ? workbenchCopy.operationApproveImprovedDraftAndPrepare
+                    : pendingNextCycleCommercialApproval
                     ? workbenchCopy.operationApproveNextCycleAndPrepare
                     : workbenchCopy.operationApproveAndPrepare}
               </button>
@@ -5143,7 +5296,11 @@ function ChatPanel({
                 disabled={executionPrepLoading || operationLoopLoading || chatLoading || pendingCommercialApprovals.length === 0}
               >
                 <XCircle size={14} />
-                {pendingNextCycleCommercialApproval ? workbenchCopy.operationRejectNextCycleDraft : workbenchCopy.operationRejectDraft}
+                {pendingPublishMetricNextCycleCommercialApproval
+                  ? workbenchCopy.operationRejectImprovedDraft
+                  : pendingNextCycleCommercialApproval
+                    ? workbenchCopy.operationRejectNextCycleDraft
+                    : workbenchCopy.operationRejectDraft}
               </button>
               <button
                 className="refresh-button"
@@ -5152,10 +5309,14 @@ function ChatPanel({
               >
                 <CheckCircle2 size={14} />
                 {executionRunLoading
-                  ? pendingNextCycleExecutionRequest
+                  ? pendingPublishMetricReexecutionRequest
+                    ? workbenchCopy.operationImprovedExecutionRunQueuing
+                    : pendingNextCycleExecutionRequest
                     ? workbenchCopy.operationNextCycleExecutionRunQueuing
                     : workbenchCopy.operationExecutionRunQueuing
-                  : pendingNextCycleExecutionRequest
+                  : pendingPublishMetricReexecutionRequest
+                    ? workbenchCopy.operationReviewAndQueueImprovedRun
+                    : pendingNextCycleExecutionRequest
                     ? workbenchCopy.operationReviewAndQueueNextCycleRun
                     : workbenchCopy.operationReviewAndQueueRun}
               </button>
