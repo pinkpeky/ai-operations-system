@@ -1890,3 +1890,11 @@ Branch: `codex/phase-63x-64b-client-closed-loop-delivery`
 Phase 63X-64B Customer Console Closed Loop Delivery Pass is the active customer-machine runtime slice for `worker_console` and `worker_console_desktop`. It adds a client closed-loop delivery action that combines client runtime preflight, OpenClaw/Playwright handoff, guarded dry-run, publish result capture, manual metric observation, improvement analysis, and next draft generation into one operator-facing flow.
 
 The new customer-console path records the same guarded/manual records as the separate actions and shows the combined path as one five-step delivery pass. It remains controlled and metadata/manual-record only: no live OpenClaw execution, no live Playwright publishing, no social publishing, no account control, no ComfyUI call, no automated platform analytics ingestion, and no approval bypass.
+
+## Phase 64C Commercial Agent/Skill Orchestration
+
+Branch: `codex/phase-64c-commercial-agent-skill-orchestration`
+
+Phase 64C Commercial Agent/Skill Orchestration adds Agent/Skill orchestration through the metadata-only `agent-skill-orchestration` runtime view for commercial operations. The backend exposes `/api/v1/commercial-operations/{operation_id}/agent-skill-orchestration` and `/agent-skill-orchestration/refresh`, returning `CommercialOperationAgentSkillOrchestrationResponse` with the `commercial_operation_agent`, routed skills, owner agents, tool names, next action, decisions, and boundaries.
+
+The server `admin_dashboard` now shows the orchestration for maintainers, and `worker_console` / `worker_console_desktop` show a compact customer-machine Agent/Skill panel near the closed-loop delivery pass. It remains metadata-only: no live OpenClaw execution, no live Playwright publishing, no social publishing, no account control, no ComfyUI call, no automated platform analytics ingestion, no approval bypass, and no repackaging.

@@ -825,6 +825,129 @@ textarea {
   line-height: 1.35;
 }
 
+.client-agent-skill-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d6e0e7;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.client-agent-skill-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.client-agent-skill-head div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.client-agent-skill-head span,
+.client-agent-skill-next span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.client-agent-skill-head p,
+.client-agent-skill-head small,
+.client-agent-skill-item p,
+.client-agent-skill-item span {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.client-agent-skill-next {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.client-agent-skill-next svg {
+  color: #2563eb;
+}
+
+.client-agent-skill-next div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.client-agent-skill-next strong {
+  color: #17212b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.client-agent-skill-status {
+  justify-self: end;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.client-agent-skill-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.client-agent-skill-item {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.client-agent-skill-item strong {
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.client-agent-skill-item.complete {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.client-agent-skill-item.active {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.client-agent-skill-item.needs_review {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.client-agent-skill-item.blocked {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.client-agent-skill-item.waiting {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
 .client-operation-loop {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3291,6 +3414,8 @@ textarea {
     .client-operation-deliverables,
     .client-closed-loop-delivery,
     .client-closed-loop-delivery-steps,
+    .client-agent-skill-list,
+    .client-agent-skill-next,
     .client-execution-run-list,
     .client-publish-loop-grid,
     .simple-operator-workbench,
@@ -3313,6 +3438,15 @@ textarea {
   .operator-status-grid,
   .operator-support-grid {
     grid-template-columns: 1fr;
+  }
+
+  .client-agent-skill-head {
+    flex-direction: column;
+  }
+
+  .client-agent-skill-head .refresh-button {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .simple-progress-header,

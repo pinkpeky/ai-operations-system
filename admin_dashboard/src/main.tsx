@@ -4406,6 +4406,13 @@ const commercialOperationCopy = {
     listTitle: "项目列表",
     detailTitle: "项目详情",
     detailDescription: "计划草案是可审阅的执行路线，不会触发 OpenClaw、ComfyUI、浏览器 Worker 或外部发布。",
+    agentSkillTitle: "Agent / Skill 编排",
+    agentSkillDescription: "维护端查看商业运营 Agent 如何把目标路由到知识库、内容、审批、客户机执行、数据观察和下一轮改进。",
+    agentSkillRefresh: "刷新编排",
+    agentSkillNext: "下一 Skill",
+    agentSkillStatus: "编排状态",
+    agentSkillBoundary: "边界",
+    agentSkillEmpty: "请选择一个商业运营项目。",
     approvalsTitle: "审批门禁",
     approvalsDescription: "为计划步骤创建人工审批，只有审批记录通过后，后续阶段才允许把该步骤交给执行或干运行。",
     dryRunsTitle: "安全干运行",
@@ -4484,6 +4491,13 @@ const commercialOperationCopy = {
     listTitle: "Operation list",
     detailTitle: "Operation detail",
     detailDescription: "The plan outline is reviewable. It does not trigger OpenClaw, ComfyUI, Browser Worker, or external publishing.",
+    agentSkillTitle: "Agent / Skill orchestration",
+    agentSkillDescription: "Maintain the commercial operation Agent route from goal to knowledge, content, approval, client execution, data observation, and next-cycle improvement.",
+    agentSkillRefresh: "Refresh orchestration",
+    agentSkillNext: "Next Skill",
+    agentSkillStatus: "Orchestration status",
+    agentSkillBoundary: "Boundary",
+    agentSkillEmpty: "Select a commercial operation.",
     approvalsTitle: "Approval gates",
     approvalsDescription: "Create human approvals for plan steps before later phases can hand them to execution or dry-run surfaces.",
     dryRunsTitle: "Safe dry-runs",
@@ -5723,6 +5737,7 @@ function CommercialOperationsPage({
   const [monitoringState, setMonitoringState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [optimizationState, setOptimizationState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [agentSkillState, setAgentSkillState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
   const [objective, setObjective] = useState<string>(copy.objectivePlaceholder);
@@ -6443,6 +6458,28 @@ function CommercialOperationsPage({
     [settings],
   );
 
+  const loadAgentSkillOrchestration = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setAgentSkillState(emptyState());
+        return;
+      }
+      setAgentSkillState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.agentSkillOrchestration(operationId, settings);
+        setAgentSkillState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setAgentSkillState({
+          data: null,
+          error: error instanceof Error ? error.message : "Commercial operation Agent/Skill API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
   const loadDryRuns = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -6907,6 +6944,7 @@ function CommercialOperationsPage({
       void loadMonitoringObservations(selectedOperationId);
       void loadOptimizationDecisions(selectedOperationId);
       void loadLinks(selectedOperationId);
+      void loadAgentSkillOrchestration(selectedOperationId);
       return;
     }
     setApprovalsState(emptyState());
@@ -6931,7 +6969,8 @@ function CommercialOperationsPage({
     setMonitoringState(emptyState());
     setOptimizationState(emptyState());
     setLinksState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadComfyuiRuntimeDryRuns, loadComfyuiRuntimeActivations, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks]);
+    setAgentSkillState(emptyState());
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadComfyuiRuntimeDryRuns, loadComfyuiRuntimeActivations, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks, loadAgentSkillOrchestration]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -9601,6 +9640,25 @@ function CommercialOperationsPage({
     }
   };
 
+  const refreshAgentSkillOrchestration = async () => {
+    if (!selectedOperationId) {
+      setAgentSkillState({ data: null, error: copy.agentSkillEmpty, loading: false, updatedAt: nowLabel() });
+      return;
+    }
+    setAgentSkillState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.refreshAgentSkillOrchestration(selectedOperationId, settings);
+      setAgentSkillState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setAgentSkillState({
+        data: null,
+        error: error instanceof Error ? error.message : "Commercial operation Agent/Skill refresh unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  };
+
   const operations = toItems(state.data?.operations);
   const activeCount = operations.filter((operation) => /planning|ready|active/i.test(String(operation.status ?? ""))).length;
   const attentionCount = operations.filter((operation) => {
@@ -9613,6 +9671,17 @@ function CommercialOperationsPage({
     return total + (Array.isArray(outline) ? outline.length : 0);
   }, 0);
   const planRows = selectedOperation && Array.isArray(selectedOperation.plan_outline) ? (selectedOperation.plan_outline as JsonRecord[]) : [];
+  const agentSkillOrchestration = agentSkillState.data;
+  const controllerAgent = agentSkillOrchestration?.controller_agent as JsonRecord | undefined;
+  const agentSkills = Array.isArray(agentSkillOrchestration?.skills) ? (agentSkillOrchestration.skills as JsonRecord[]) : [];
+  const agentSkillDecisions = Array.isArray(agentSkillOrchestration?.decisions)
+    ? (agentSkillOrchestration.decisions as JsonRecord[])
+    : [];
+  const currentAgentSkill =
+    agentSkills.find((skill) => valueAt(skill, ["skill_key"], "") === valueAt(agentSkillOrchestration, ["next_skill_key"], "")) ??
+    agentSkills.find((skill) => valueAt(skill, ["status"], "") !== "complete") ??
+    null;
+  const agentBoundaries = Array.isArray(agentSkillOrchestration?.boundaries) ? (agentSkillOrchestration.boundaries as string[]) : [];
   const approvals = approvalsState.data || [];
   const approvedApprovals = approvals.filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
   const dryRuns = dryRunsState.data || [];
@@ -10266,6 +10335,52 @@ function CommercialOperationsPage({
             { key: "checks", label: "checks" },
           ]}
         />
+      </Panel>
+
+      <Panel
+        title={copy.agentSkillTitle}
+        description={copy.agentSkillDescription}
+        action={<RefreshButton onClick={() => void refreshAgentSkillOrchestration()} />}
+      >
+        <LoadNotice state={agentSkillState} />
+        {agentSkillState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {agentSkillState.updatedAt}</div> : null}
+        {selectedOperation ? (
+          <>
+            <div className="commercial-agent-skill-summary">
+              <Field label="controller" value={valueAt(controllerAgent, ["display_name", "agent_name"], "Commercial Operation Agent")} />
+              <Field label={copy.agentSkillStatus} value={<StatusPill value={valueAt(agentSkillOrchestration, ["orchestration_status"], "waiting")} />} />
+              <Field label={copy.agentSkillNext} value={valueAt(currentAgentSkill, ["display_name", "skill_key"], "-")} />
+              <Field label="completion" value={`${Math.round(Number(valueAt(agentSkillOrchestration, ["completion_ratio"], "0")) * 100)}%`} />
+              <Field label="next_action" value={valueAt(agentSkillOrchestration, ["next_action"], "-")} />
+              <Field label={copy.agentSkillBoundary} value={agentBoundaries[0] || "-"} />
+            </div>
+            <Table
+              rows={agentSkills}
+              emptyLabel={copy.agentSkillEmpty}
+              columns={[
+                { key: "display_name", label: "skill" },
+                { key: "owner_agent", label: "agent" },
+                { key: "tool_name", label: "tool" },
+                { key: "status", label: copy.statusColumn },
+                { key: "next_action", label: "next_action" },
+                { key: "boundary", label: copy.agentSkillBoundary },
+              ]}
+            />
+            <Table
+              rows={agentSkillDecisions}
+              emptyLabel={copy.agentSkillEmpty}
+              columns={[
+                { key: "decision_key", label: "decision" },
+                { key: "agent_name", label: "agent" },
+                { key: "decision_type", label: "type" },
+                { key: "status", label: copy.statusColumn },
+                { key: "next_action", label: "next_action" },
+              ]}
+            />
+          </>
+        ) : (
+          <div className="empty-table">{copy.agentSkillEmpty}</div>
+        )}
       </Panel>
 
       {isComfyuiPage ? (

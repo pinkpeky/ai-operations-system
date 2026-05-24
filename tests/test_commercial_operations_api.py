@@ -153,11 +153,58 @@ async def test_commercial_operations_api_flow() -> None:
             assert initial_loop_body["execution_protocol"]["live_execution_enabled"] is False
             assert "does not execute OpenClaw" in initial_loop_body["boundaries"]
 
+            agent_skill = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/agent-skill-orchestration",
+                headers=headers,
+            )
+            assert agent_skill.status_code == 200
+            agent_skill_body = agent_skill.json()
+            assert agent_skill_body["operation_id"] == operation_id
+            assert agent_skill_body["controller_agent"]["agent_name"] == "commercial_operation_agent"
+            assert agent_skill_body["controller_agent"]["uses_existing_agents"] == [
+                "rag_agent",
+                "content_agent",
+                "review_agent",
+                "client_execution_agent",
+                "analytics_agent",
+            ]
+            assert agent_skill_body["orchestration_status"] == "active"
+            assert agent_skill_body["next_skill_key"] == "knowledge_retrieval_skill"
+            assert [skill["skill_key"] for skill in agent_skill_body["skills"]] == [
+                "operation_intake_skill",
+                "task_planning_skill",
+                "knowledge_retrieval_skill",
+                "content_generation_skill",
+                "approval_gate_skill",
+                "client_execution_skill",
+                "result_recording_skill",
+                "data_observation_skill",
+                "analysis_improvement_skill",
+                "next_cycle_content_skill",
+            ]
+            assert agent_skill_body["skills"][2]["owner_agent"] == "rag_agent"
+            assert agent_skill_body["skills"][5]["tool_name"] == "openclaw_tool"
+            assert any(decision["decision_key"] == "client_runtime_boundary" for decision in agent_skill_body["decisions"])
+            assert any("metadata-only" in boundary for boundary in agent_skill_body["boundaries"])
+
+            refreshed_agent_skill = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/agent-skill-orchestration/refresh",
+                headers=headers,
+            )
+            assert refreshed_agent_skill.status_code == 200
+            assert refreshed_agent_skill.json()["next_skill_key"] == "knowledge_retrieval_skill"
+
             hidden_loop = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}/operation-loop",
                 headers={"X-Workspace-Id": "other-workspace"},
             )
             assert hidden_loop.status_code == 404
+
+            hidden_agent_skill = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/agent-skill-orchestration",
+                headers={"X-Workspace-Id": "other-workspace"},
+            )
+            assert hidden_agent_skill.status_code == 404
 
             fetched = await client.get(f"/api/v1/commercial-operations/{operation_id}", headers=headers)
             assert fetched.status_code == 200

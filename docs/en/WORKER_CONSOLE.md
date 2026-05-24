@@ -1051,6 +1051,16 @@ The operator-facing steps are intentionally compact: client execution prep, publ
 
 Boundary: Phase 63X-64B is client closed-loop delivery orchestration only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 64C Commercial Agent/Skill Orchestration
+
+Branch: `codex/phase-64c-commercial-agent-skill-orchestration`
+
+Phase 64C Commercial Agent/Skill Orchestration connects the customer-machine consoles to the new metadata-only `agent-skill-orchestration` API. `worker_console` and `worker_console_desktop` now fetch `/api/v1/commercial-operations/{operation_id}/agent-skill-orchestration`, refresh `/agent-skill-orchestration/refresh`, and show a compact Agent/Skill panel with the `commercial_operation_agent`, next skill, owner agent, tool, next action, and boundary.
+
+The server `admin_dashboard` also shows the same Agent/Skill orchestration for maintainers, so customer-machine operators and server maintainers can read the same closed-loop routing state without seeing code or raw JSON.
+
+Boundary: Phase 64C is Agent/Skill orchestration display only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, or rebuild client packages.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -279,6 +279,230 @@ class CommercialOperationService:
             links=links,
         )
 
+    async def get_agent_skill_orchestration(self, *, workspace_id: str, operation_id: UUID) -> dict[str, Any]:
+        """Return the Agent/Skill routing view for one commercial operation loop."""
+
+        loop_summary = await self.get_operation_loop_summary(workspace_id=workspace_id, operation_id=operation_id)
+        stage_by_key = {stage["stage_key"]: stage for stage in loop_summary["stages"]}
+        skill_definitions = [
+            {
+                "skill_key": "operation_intake_skill",
+                "display_name": "Operation intake",
+                "owner_agent": "commercial_operation_agent",
+                "tool_name": "commercial_operation_plan_outline",
+                "stage_key": "operation_topic",
+                "inputs": ["operator_goal", "target_audience", "channels", "success_metrics"],
+                "outputs": ["durable_operation_record", "single_source_objective"],
+                "boundary": "Records the business goal only; no external system is called.",
+            },
+            {
+                "skill_key": "task_planning_skill",
+                "display_name": "Task planning",
+                "owner_agent": "commercial_operation_agent",
+                "tool_name": "plan_draft",
+                "stage_key": "task_planning",
+                "inputs": ["operation_objective", "constraints"],
+                "outputs": ["reviewable_step_plan", "approval_checkpoints"],
+                "boundary": "Creates a reviewable plan outline; it does not start execution.",
+            },
+            {
+                "skill_key": "knowledge_retrieval_skill",
+                "display_name": "Knowledge retrieval",
+                "owner_agent": "rag_agent",
+                "tool_name": "rag_search_tool",
+                "stage_key": "knowledge_context",
+                "inputs": ["knowledge_collection", "rag_documents", "operation_query"],
+                "outputs": ["source_evidence_snapshot", "knowledge_coverage_summary"],
+                "boundary": "Reads approved knowledge records only; sources must remain reviewable.",
+            },
+            {
+                "skill_key": "content_generation_skill",
+                "display_name": "Content generation",
+                "owner_agent": "content_agent",
+                "tool_name": "commercial_content_draft",
+                "stage_key": "content_production",
+                "inputs": ["objective", "approved_knowledge", "channel_requirements"],
+                "outputs": ["copy_draft", "asset_brief", "analysis_report", "operation_direction"],
+                "boundary": "Generates reviewable content artifacts only; no publishing occurs.",
+            },
+            {
+                "skill_key": "approval_gate_skill",
+                "display_name": "Human approval gate",
+                "owner_agent": "review_agent",
+                "tool_name": "approval_gate",
+                "stage_key": "human_approval",
+                "inputs": ["drafts", "evidence", "execution_request"],
+                "outputs": ["approved_gate", "reviewer_notes", "audit_status"],
+                "boundary": "Blocks execution until an operator explicitly approves the next step.",
+            },
+            {
+                "skill_key": "client_execution_skill",
+                "display_name": "Client execution handoff",
+                "owner_agent": "client_execution_agent",
+                "tool_name": "openclaw_tool",
+                "stage_key": "client_execution",
+                "inputs": ["approved_deliverable", "runbook", "target_account_confirmation"],
+                "outputs": ["openclaw_playwright_handoff", "execution_run_record", "failure_recovery_state"],
+                "boundary": "This API returns handoff metadata only; it does not execute OpenClaw or Playwright.",
+            },
+            {
+                "skill_key": "result_recording_skill",
+                "display_name": "Result recording",
+                "owner_agent": "publish_result_agent",
+                "tool_name": "manual_publish_result",
+                "stage_key": "result_recording",
+                "inputs": ["execution_run_record", "operator_evidence", "business_signal"],
+                "outputs": ["auditable_result_record", "evidence_links"],
+                "boundary": "Stores operator-observed results; it does not ingest platform analytics.",
+            },
+            {
+                "skill_key": "data_observation_skill",
+                "display_name": "Data observation",
+                "owner_agent": "analytics_agent",
+                "tool_name": "manual_metric_observation",
+                "stage_key": "data_observation",
+                "inputs": ["approved_result", "metric_snapshot", "qualitative_signal"],
+                "outputs": ["monitoring_observation", "anomaly_notes"],
+                "boundary": "Captures reviewed metrics and notes only; no automatic account scraping occurs.",
+            },
+            {
+                "skill_key": "analysis_improvement_skill",
+                "display_name": "Analysis and improvement",
+                "owner_agent": "analytics_agent",
+                "tool_name": "optimization_decision",
+                "stage_key": "data_analysis",
+                "inputs": ["monitoring_observation", "operation_objective", "risk_controls"],
+                "outputs": ["optimization_decision", "next_content_recommendation"],
+                "boundary": "Produces a reviewable recommendation; it does not auto-optimize live campaigns.",
+            },
+            {
+                "skill_key": "next_cycle_content_skill",
+                "display_name": "Next-cycle content",
+                "owner_agent": "content_agent",
+                "tool_name": "next_cycle_draft",
+                "stage_key": "content_improvement",
+                "inputs": ["approved_optimization_decision", "previous_artifacts", "latest_evidence"],
+                "outputs": ["improved_content_draft", "next_loop_start"],
+                "boundary": "Prepares the next reviewed draft; the loop still requires approval before execution.",
+            },
+        ]
+
+        skills: list[dict[str, Any]] = []
+        for definition in skill_definitions:
+            stage = stage_by_key.get(definition["stage_key"], {})
+            stage_status = str(stage.get("status", "missing"))
+            skills.append(
+                {
+                    **definition,
+                    "status": self._agent_skill_status(stage_status),
+                    "summary": str(stage.get("summary") or "Stage has not produced a summary yet."),
+                    "next_action": str(stage.get("next_action") or "Wait for the prior skill to finish."),
+                }
+            )
+
+        next_skill = next((skill for skill in skills if skill["status"] != "complete"), None)
+        complete_count = sum(1 for skill in skills if skill["status"] == "complete")
+        orchestration_status = "complete" if next_skill is None else str(next_skill["status"])
+        next_action = (
+            str(next_skill["next_action"])
+            if next_skill
+            else "All skills are complete; start the next approved operation loop."
+        )
+        next_skill_key = str(next_skill["skill_key"]) if next_skill else None
+        evidence = [
+            f"loop_status={loop_summary['loop_status']}",
+            f"current_stage_key={loop_summary['current_stage_key']}",
+            f"completion_ratio={loop_summary['completion_ratio']}",
+        ]
+        return {
+            "operation_id": loop_summary["operation_id"],
+            "workspace_id": loop_summary["workspace_id"],
+            "controller_agent": {
+                "agent_name": "commercial_operation_agent",
+                "display_name": "Commercial Operation Agent",
+                "mode": "deterministic_orchestrator",
+                "uses_existing_agents": [
+                    "rag_agent",
+                    "content_agent",
+                    "review_agent",
+                    "client_execution_agent",
+                    "analytics_agent",
+                ],
+                "capabilities": [
+                    "goal_to_plan",
+                    "skill_routing",
+                    "knowledge_grounding",
+                    "approval_boundary",
+                    "client_handoff",
+                    "metric_feedback",
+                ],
+            },
+            "orchestration_status": orchestration_status,
+            "next_skill_key": next_skill_key,
+            "next_action": next_action,
+            "completion_ratio": round(complete_count / len(skills), 2),
+            "skills": skills,
+            "decisions": [
+                {
+                    "decision_key": "route_next_skill",
+                    "agent_name": "commercial_operation_agent",
+                    "skill_key": next_skill_key or "loop_complete",
+                    "decision_type": "skill_routing",
+                    "status": orchestration_status,
+                    "rationale": "The controller routes to the first commercial loop skill that is not complete.",
+                    "next_action": next_action,
+                    "evidence": evidence,
+                },
+                {
+                    "decision_key": "approval_guardrail",
+                    "agent_name": "review_agent",
+                    "skill_key": "approval_gate_skill",
+                    "decision_type": "safety_boundary",
+                    "status": stage_by_key.get("human_approval", {}).get("status", "missing"),
+                    "rationale": "Publishing, account control, and customer-machine execution remain blocked until human approval.",
+                    "next_action": stage_by_key.get("human_approval", {}).get(
+                        "next_action",
+                        "Create or complete the human approval gate.",
+                    ),
+                    "evidence": ["approval_required=true", "live_execution_enabled=false"],
+                },
+                {
+                    "decision_key": "client_runtime_boundary",
+                    "agent_name": "client_execution_agent",
+                    "skill_key": "client_execution_skill",
+                    "decision_type": "runtime_handoff",
+                    "status": stage_by_key.get("client_execution", {}).get("status", "blocked"),
+                    "rationale": "OpenClaw and Playwright are represented as a customer-machine handoff, not a server-side action.",
+                    "next_action": stage_by_key.get("client_execution", {}).get(
+                        "next_action",
+                        "Prepare an approved OpenClaw/Playwright handoff before customer-machine execution.",
+                    ),
+                    "evidence": [
+                        "task_runner=OpenClaw",
+                        "browser_driver=Playwright",
+                        "server_endpoint_executes_runtime=false",
+                    ],
+                },
+            ],
+            "boundaries": [
+                *loop_summary["boundaries"],
+                "Agent/Skill orchestration is metadata-only until a guarded customer-machine runtime is enabled.",
+                "Skills do not bypass human approval, account login, captcha, proxy, fingerprint, or secret controls.",
+            ],
+            "generated_at": datetime.now(UTC),
+        }
+
+    @staticmethod
+    def _agent_skill_status(loop_stage_status: str) -> str:
+        status_map = {
+            "complete": "complete",
+            "in_progress": "active",
+            "review_required": "needs_review",
+            "blocked": "blocked",
+            "missing": "waiting",
+        }
+        return status_map.get(loop_stage_status, "waiting")
+
     async def create_approval(
         self,
         *,
