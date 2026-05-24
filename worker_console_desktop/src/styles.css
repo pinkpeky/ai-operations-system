@@ -886,7 +886,7 @@ textarea {
 
 .client-publish-loop-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -913,6 +913,21 @@ textarea {
   width: 100%;
   justify-content: flex-start;
   align-self: end;
+}
+
+.client-publish-step-actions {
+  display: grid;
+  gap: 8px;
+  align-self: end;
+}
+
+.client-publish-step-actions .refresh-button {
+  width: 100%;
+  min-width: 0;
+}
+
+.client-publish-improvement-step {
+  background: #f6fbf7;
 }
 
 .simple-operator-workbench {

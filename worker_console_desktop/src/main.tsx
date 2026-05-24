@@ -280,6 +280,12 @@ type TaskWorkbenchCopy = {
   operationPublishTargetLabel: string;
   operationPublishResultLabel: string;
   operationMetricObservationLabel: string;
+  operationPublishImprovementLabel: string;
+  operationAnalyzePublishMetrics: string;
+  operationAnalyzePublishMetricsRunning: string;
+  operationPublishImprovementReady: string;
+  operationPublishImprovementMissing: string;
+  operationPrepareImprovedDraft: string;
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -485,6 +491,11 @@ function isManualPublishResult(result: CommercialOperationResult): boolean {
 function isManualMetricObservation(observation: CommercialOperationMonitoringObservation): boolean {
   const source = metadataStringValue(observation.metadata, "source") ?? "";
   return observation.observation_type === "manual_publish_metrics" || source.includes("manual_publish_metrics");
+}
+
+function isManualPublishImprovementDecision(decision: CommercialOperationOptimizationDecision): boolean {
+  const source = metadataStringValue(decision.metadata, "source") ?? "";
+  return decision.decision_type === "manual_publish_improvement" || source.includes("manual_publish_improvement");
 }
 
 function isNextCycleApproval(approval: CommercialOperationApproval): boolean {
@@ -943,6 +954,12 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationPublishTargetLabel: "发布目标",
     operationPublishResultLabel: "结果回收",
     operationMetricObservationLabel: "数据观察",
+    operationPublishImprovementLabel: "内容改进",
+    operationAnalyzePublishMetrics: "分析数据并改进",
+    operationAnalyzePublishMetricsRunning: "正在生成改进建议",
+    operationPublishImprovementReady: "改进建议已生成，可准备下一轮内容",
+    operationPublishImprovementMissing: "请先记录运营数据",
+    operationPrepareImprovedDraft: "准备改进草案",
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -1129,6 +1146,12 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationPublishTargetLabel: "Publish target",
     operationPublishResultLabel: "Result capture",
     operationMetricObservationLabel: "Data observation",
+    operationPublishImprovementLabel: "Content improvement",
+    operationAnalyzePublishMetrics: "Analyze and improve",
+    operationAnalyzePublishMetricsRunning: "Generating improvement decision",
+    operationPublishImprovementReady: "Improvement decision is ready for the next draft",
+    operationPublishImprovementMissing: "Record operating metrics first",
+    operationPrepareImprovedDraft: "Prepare improved draft",
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -2043,6 +2066,8 @@ function ChatPanel({
   const [publishResultLoading, setPublishResultLoading] = useState(false);
   const [metricObservationStatus, setMetricObservationStatus] = useState<string | null>(null);
   const [metricObservationLoading, setMetricObservationLoading] = useState(false);
+  const [publishImprovementStatus, setPublishImprovementStatus] = useState<string | null>(null);
+  const [publishImprovementLoading, setPublishImprovementLoading] = useState(false);
   const [commercialResults, setCommercialResults] = useState<CommercialOperationResult[]>([]);
   const [commercialMonitoringObservations, setCommercialMonitoringObservations] = useState<CommercialOperationMonitoringObservation[]>([]);
   const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
@@ -3687,6 +3712,167 @@ function ChatPanel({
     }
   };
 
+  const analyzeManualPublishMetrics = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setPublishImprovementLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setPublishImprovementStatus(workbenchCopy.operationAnalyzePublishMetricsRunning);
+    try {
+      if (!operationId) {
+        setPublishImprovementStatus(workbenchCopy.operationPublishImprovementMissing);
+        setRunStatus("manual publish metric improvement missing");
+        return;
+      }
+      const observationResponse = await commercialOperationClient.listMonitoringObservations(operationId, undefined, settings);
+      let targetObservation =
+        observationResponse.items.find((item) => item.observation_status === "approved" && isManualMetricObservation(item)) ??
+        commercialMonitoringObservations.find((item) => item.observation_status === "approved" && isManualMetricObservation(item)) ??
+        observationResponse.items.find(isManualMetricObservation) ??
+        commercialMonitoringObservations.find(isManualMetricObservation) ??
+        null;
+      if (!targetObservation) {
+        setPublishImprovementStatus(workbenchCopy.operationPublishImprovementMissing);
+        setRunStatus("manual publish metric improvement missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      if (targetObservation.observation_status === "draft" || targetObservation.observation_status === "rejected") {
+        targetObservation = await commercialOperationClient.readyMonitoringObservation(
+          operationId,
+          targetObservation.id,
+          language === "zh-CN" ? "发布数据观察进入改进分析前复核。" : "Publish metric observation is ready before improvement analysis.",
+          settings,
+        );
+      }
+      if (targetObservation.observation_status === "ready_for_review") {
+        targetObservation = await commercialOperationClient.approveMonitoringObservation(
+          operationId,
+          targetObservation.id,
+          language === "zh-CN" ? "客户机操作员批准发布数据观察用于改进分析。" : "Client operator approved publish metrics for improvement analysis.",
+          settings,
+        );
+      }
+
+      const cycle = metadataStringValue(targetObservation.metadata, "cycle") ?? "first_iteration";
+      const resultId = targetObservation.result_id;
+      const decisionResponse = await commercialOperationClient.listOptimizationDecisions(operationId, undefined, settings);
+      let decision =
+        decisionResponse.items.find(
+          (item) =>
+            item.observation_id === targetObservation.id &&
+            isManualPublishImprovementDecision(item) &&
+            ["approved", "ready_for_review", "draft", "rejected"].includes(item.decision_status),
+        ) ?? null;
+      if (!decision) {
+        decision = await commercialOperationClient.createOptimizationDecision(
+          operationId,
+          {
+            observation_id: targetObservation.id,
+            decision_type: "manual_publish_improvement",
+            title:
+              language === "zh-CN"
+                ? `${targetObservation.title} 发布数据改进建议`
+                : `${targetObservation.title} publish metric improvement decision`,
+            priority: "normal",
+            rationale:
+              language === "zh-CN"
+                ? "基于人工回收的发布结果和运营数据观察，生成下一轮内容改进建议；当前不自动优化、不自动发布。"
+                : "Creates the next content improvement from manually captured publish results and operating metrics without automatic optimization or publishing.",
+            objective_updates: [
+              language === "zh-CN"
+                ? "保留原运营目标，下一轮围绕曝光、点击、互动、线索和转化信号继续验证。"
+                : "Keep the original operating goal and validate reach, clicks, engagement, leads, and conversion signals in the next cycle.",
+            ],
+            content_actions: [
+              language === "zh-CN"
+                ? "下一轮内容优先调整开头钩子、利益点表达、行动号召和证据引用。"
+                : "Next content should improve the opening hook, value proposition, call to action, and evidence references.",
+              language === "zh-CN"
+                ? "保留人工数据占位，等真实平台指标回填后再细化内容角度。"
+                : "Keep manual metric placeholders and refine the content angle when real platform metrics are filled.",
+            ],
+            asset_actions: [
+              language === "zh-CN"
+                ? "下一轮素材 Brief 需要匹配新的内容钩子，仍不自动调用 ComfyUI。"
+                : "Update the next asset brief for the improved hook without calling ComfyUI automatically.",
+            ],
+            audience_actions: [
+              language === "zh-CN"
+                ? "复核发布平台、人群和时间窗口，再决定是否扩大投放。"
+                : "Review platform, audience, and timing before expanding distribution.",
+            ],
+            execution_actions: [
+              language === "zh-CN"
+                ? "下一轮仍需人工审批后，才允许进入客户机 OpenClaw/Playwright 交接。"
+                : "Require human approval again before the next customer-machine OpenClaw/Playwright handoff.",
+            ],
+            risk_controls: [
+              "human approval required",
+              "manual metrics only",
+              "no automatic publishing",
+              "no account control",
+              "no automated platform analytics ingestion",
+            ],
+            decision_payload: {
+              source: "worker_console_desktop_manual_publish_improvement",
+              console: "worker_console_desktop",
+              phase: "63R",
+              cycle,
+              result_id: resultId,
+              observation_id: targetObservation.id,
+              publish_metric_analysis: {
+                status: "manual_analysis_ready",
+                data_collection_mode: "manual",
+                metrics_are_placeholders: true,
+                automated_optimization_performed: false,
+                automated_publishing_performed: false,
+                platform_analytics_ingested: false,
+              },
+              next_cycle_ready: true,
+            },
+            metadata: {
+              source: "worker_console_desktop_manual_publish_improvement",
+              console: "worker_console_desktop",
+              phase: "63R",
+              result_id: resultId,
+              observation_id: targetObservation.id,
+              cycle,
+            },
+          },
+          settings,
+        );
+      }
+      if (decision.decision_status === "draft" || decision.decision_status === "rejected") {
+        decision = await commercialOperationClient.readyOptimizationDecision(
+          operationId,
+          decision.id,
+          language === "zh-CN" ? "发布数据改进建议进入复核。" : "Publish metric improvement decision is ready for review.",
+          settings,
+        );
+      }
+      if (decision.decision_status === "ready_for_review") {
+        decision = await commercialOperationClient.approveOptimizationDecision(
+          operationId,
+          decision.id,
+          language === "zh-CN" ? "客户机操作员批准发布数据改进建议。" : "Client operator approved the publish metric improvement decision.",
+          settings,
+        );
+      }
+      await refreshCommercialOperationLoop(operationId);
+      setPublishImprovementStatus(`${workbenchCopy.operationPublishImprovementReady}: ${decision.id}`);
+      setRunStatus(`manual publish metric improvement ready: ${decision.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Manual publish metric improvement failed";
+      setOperationLoopError(message);
+      setPublishImprovementStatus(message);
+      setRunStatus("manual publish metric improvement error");
+    } finally {
+      setPublishImprovementLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
   const completeCommercialResultFeedbackLoop = async () => {
     const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
     setFeedbackLoopLoading(true);
@@ -4043,6 +4229,8 @@ function ChatPanel({
       }
       const decisionResponse = await commercialOperationClient.listOptimizationDecisions(operationId, undefined, settings);
       const decision =
+        decisionResponse.items.find((item) => item.decision_status === "approved" && isManualPublishImprovementDecision(item)) ??
+        commercialOptimizationDecisions.find((item) => item.decision_status === "approved" && isManualPublishImprovementDecision(item)) ??
         decisionResponse.items.find((item) => item.decision_status === "approved") ??
         commercialOptimizationDecisions.find((item) => item.decision_status === "approved") ??
         null;
@@ -4054,11 +4242,16 @@ function ChatPanel({
       }
 
       const objective = operationLoop?.objective || input.trim() || selectedGoalTemplate.prompt;
+      const decisionIsPublishImprovement = isManualPublishImprovementDecision(decision);
+      const nextCycleDraftSource = decisionIsPublishImprovement
+        ? "worker_console_desktop_publish_metric_next_cycle_draft"
+        : "worker_console_desktop_next_cycle_content_draft";
+      const nextCycleDraftPhase = decisionIsPublishImprovement ? "63S" : "63F";
       const draftResponse = await commercialOperationClient.listContentDrafts(operationId, undefined, settings);
       let draft =
         draftResponse.items.find(
           (item) =>
-            metadataStringValue(item.metadata, "source") === "worker_console_desktop_next_cycle_content_draft" &&
+            metadataStringValue(item.metadata, "source") === nextCycleDraftSource &&
             metadataStringValue(item.metadata, "optimization_decision_id") === decision.id,
         ) ?? null;
       if (!draft) {
@@ -4067,7 +4260,7 @@ function ChatPanel({
           {
             step_key: "content_production",
             channel: "customer_console",
-            content_format: "next_cycle_copy",
+            content_format: decisionIsPublishImprovement ? "publish_metric_next_cycle_copy" : "next_cycle_copy",
             title:
               language === "zh-CN"
                 ? `${operationLoopTitleFromGoal(objective)} 下一轮内容草稿`
@@ -4075,15 +4268,20 @@ function ChatPanel({
             audience_segment: decision.audience_actions[0] ?? (language === "zh-CN" ? "沿用上一轮目标人群" : "carry over previous audience"),
             content_body: nextCycleContentBody(objective, decision, language),
             summary:
-              language === "zh-CN"
-                ? "根据已批准的改进建议生成下一轮可审批内容草案，用于继续闭环。"
-                : "Next-cycle reviewable content draft generated from the approved improvement decision.",
+              decisionIsPublishImprovement
+                ? language === "zh-CN"
+                  ? "根据发布数据改进建议生成下一轮可审批内容草案，用于继续运营闭环。"
+                  : "Next-cycle reviewable content draft generated from the publish-metric improvement decision."
+                : language === "zh-CN"
+                  ? "根据已批准的改进建议生成下一轮可审批内容草案，用于继续闭环。"
+                  : "Next-cycle reviewable content draft generated from the approved improvement decision.",
             call_to_action: language === "zh-CN" ? "再次人工审批后再准备执行" : "Review again before execution prep",
             source_materials: [
               `commercial_optimization_decision:${decision.id}`,
               `commercial_observation:${decision.observation_id}`,
               `commercial_result:${decision.result_id}`,
               "knowledge_collection:operations",
+              ...(decisionIsPublishImprovement ? ["manual_publish_metrics"] : []),
             ],
             asset_requests: [
               {
@@ -4097,8 +4295,8 @@ function ChatPanel({
               },
             ],
             metadata: {
-              source: "worker_console_desktop_next_cycle_content_draft",
-              phase: "63F",
+              source: nextCycleDraftSource,
+              phase: nextCycleDraftPhase,
               optimization_decision_id: decision.id,
               observation_id: decision.observation_id,
               result_id: decision.result_id,
@@ -4124,7 +4322,7 @@ function ChatPanel({
       const existingApproval =
         approvalResponse.items.find(
           (item) =>
-            metadataStringValue(item.metadata, "source") === "worker_console_desktop_next_cycle_content_draft" &&
+            metadataStringValue(item.metadata, "source") === nextCycleDraftSource &&
             metadataStringValue(item.metadata, "content_draft_id") === readyDraft.id &&
             !["rejected", "cancelled"].includes(item.approval_status),
         ) ?? null;
@@ -4141,8 +4339,8 @@ function ChatPanel({
                 : "Review the next-cycle content draft, asset update request, and execution boundary; no publishing or client execution happens before approval.",
             risk_level: "medium",
             metadata: {
-              source: "worker_console_desktop_next_cycle_content_draft",
-              phase: "63F",
+              source: nextCycleDraftSource,
+              phase: nextCycleDraftPhase,
               content_draft_id: readyDraft.id,
               optimization_decision_id: decision.id,
               console: "worker_console_desktop",
@@ -4603,6 +4801,7 @@ function ChatPanel({
   const latestPublishHandoffResult = commercialResults.find(isPublishHandoffResult) ?? null;
   const latestManualPublishResult = commercialResults.find(isManualPublishResult) ?? null;
   const latestManualMetricObservation = commercialMonitoringObservations.find(isManualMetricObservation) ?? null;
+  const latestManualPublishImprovementDecision = commercialOptimizationDecisions.find(isManualPublishImprovementDecision) ?? null;
   const publishHandoffCandidateExecutionRun =
     commercialExecutionRuns.find((run) => run.run_status === "succeeded" && isNextCycleExecutionRun(run)) ??
     commercialExecutionRuns.find((run) => run.run_status === "succeeded") ??
@@ -4612,8 +4811,12 @@ function ChatPanel({
     commercialResults.find((result) => result.result_status === "approved" && isManualPublishResult(result)) ??
     commercialResults.find((result) => result.result_status === "approved" && isPublishHandoffResult(result)) ??
     latestCommercialResult;
+  const publishImprovementCandidateObservation =
+    commercialMonitoringObservations.find((observation) => observation.observation_status === "approved" && isManualMetricObservation(observation)) ??
+    latestManualMetricObservation;
   const latestCommercialOptimizationDecision = commercialOptimizationDecisions[0] ?? null;
   const approvedCommercialOptimizationDecision =
+    commercialOptimizationDecisions.find((decision) => decision.decision_status === "approved" && isManualPublishImprovementDecision(decision)) ??
     commercialOptimizationDecisions.find((decision) => decision.decision_status === "approved") ?? null;
   const feedbackCandidateExecutionRun =
     pendingNextCycleFeedbackExecutionRun ??
@@ -4787,6 +4990,8 @@ function ChatPanel({
   });
   const operationResultSummary = nextCycleDraftStatus
     ? nextCycleDraftStatus
+    : publishImprovementStatus
+      ? publishImprovementStatus
     : metricObservationStatus
       ? metricObservationStatus
     : publishResultStatus
@@ -4838,6 +5043,7 @@ function ChatPanel({
     : null;
   const operationReadableSourceText =
     nextCycleDraftStatus ||
+    publishImprovementStatus ||
     metricObservationStatus ||
     publishResultStatus ||
     publishHandoffStatus ||
@@ -5166,6 +5372,33 @@ function ChatPanel({
                   <Activity size={14} />
                   {metricObservationLoading ? workbenchCopy.operationMetricObservationRecording : workbenchCopy.operationRecordMetricObservation}
                 </button>
+              </article>
+              <article className="client-publish-step client-publish-improvement-step">
+                <span>{workbenchCopy.operationPublishImprovementLabel}</span>
+                <strong>
+                  {latestManualPublishImprovementDecision
+                    ? latestManualPublishImprovementDecision.decision_status
+                    : workbenchCopy.operationPublishImprovementMissing}
+                </strong>
+                <p>{latestManualPublishImprovementDecision?.rationale ?? workbenchCopy.operationPublishImprovementMissing}</p>
+                <div className="client-publish-step-actions">
+                  <button
+                    className="refresh-button"
+                    onClick={() => void analyzeManualPublishMetrics()}
+                    disabled={publishImprovementLoading || operationLoopLoading || chatLoading || !publishImprovementCandidateObservation}
+                  >
+                    <Activity size={14} />
+                    {publishImprovementLoading ? workbenchCopy.operationAnalyzePublishMetricsRunning : workbenchCopy.operationAnalyzePublishMetrics}
+                  </button>
+                  <button
+                    className="refresh-button"
+                    onClick={() => void prepareNextCycleDraftFromDecision()}
+                    disabled={nextCycleDraftLoading || operationLoopLoading || chatLoading || !approvedCommercialOptimizationDecision}
+                  >
+                    <PencilLine size={14} />
+                    {nextCycleDraftLoading ? workbenchCopy.operationNextCycleDraftPreparing : workbenchCopy.operationPrepareImprovedDraft}
+                  </button>
+                </div>
               </article>
             </div>
           </div>

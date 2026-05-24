@@ -1021,6 +1021,16 @@ The guarded publish handoff records `guarded_publish_handoff` from a succeeded d
 
 Boundary: Phase 63O-63Q is publish handoff, manual publish result, and manual metric observation only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63R-63T Customer Console Publish Metric Improvement Loop
+
+Branch: `codex/phase-63r-63t-publish-metric-improvement-loop`
+
+Phase 63R-63T moves the customer-machine loop from manual metric observation into improvement and next-content preparation for `worker_console` and `worker_console_desktop`. The product operation desk now has a fourth publish loop step for manual publish metric improvement and a publish metric next-cycle draft action.
+
+The improvement action records `manual_publish_improvement` from an approved `manual_publish_metrics` observation. The draft action prefers that improvement decision and creates `publish_metric_next_cycle_draft` content for another human approval pass. This keeps the closed loop simple: record data, analyze it, prepare the improved draft, then continue approval and execution.
+
+Boundary: Phase 63R-63T is manual publish metric improvement and publish metric next-cycle draft preparation only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
