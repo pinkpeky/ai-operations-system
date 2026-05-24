@@ -963,6 +963,25 @@ This keeps the repeatable closed loop usable without adding a complex page: the 
 
 Boundary: Phase 63I is next-cycle result feedback only. It creates metadata-only result, observation, and optimization records from next-cycle execution runs. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63J Customer Console Client Runtime Preflight
+
+Branch: `codex/phase-63j-client-runtime-preflight`
+
+Phase 63J connects queued/retrying execution runs to customer-machine runtime readiness for `worker_console` and `worker_console_desktop`. After Phase 63D or Phase 63H creates a metadata-only execution run, the same product operation desk can run a client runtime preflight before any operator start.
+
+The client runtime preflight action performs a guarded record-only sequence:
+
+- Prefer queued/retrying next-cycle execution runs when available.
+- Read the local Worker API status and health from the customer machine.
+- Check worker registration, runtime, heartbeat, OpenClaw capability, browser capability, localhost-only health, and approval requirement.
+- Patch the execution run with a metadata-only `client_runtime_preflight` payload.
+- Mark the preflight as `ready` or `blocked` without starting OpenClaw or Playwright.
+- Preserve cycle and optimization lineage for later run/result records.
+
+This gives ordinary operators a simple Run preflight step before future real adapter work arrives, while maintainers can inspect the recorded readiness and recovery reason.
+
+Boundary: Phase 63J is client runtime preflight only. It patches queued/retrying execution runs with local readiness metadata. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
