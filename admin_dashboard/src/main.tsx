@@ -4562,6 +4562,39 @@ const commercialOperationCopy = {
   },
 } as const;
 
+const commercialMaintenanceCopy = {
+  "zh-CN": {
+    title: "服务器维护驾驶舱",
+    description: "维护人员先看连接、客户机状态、当前 Agent/Skill 和下一步，不必在长列表里找入口。",
+    serverCard: "服务器状态",
+    clientCard: "客户机前端",
+    operationCard: "当前运营项目",
+    nextCard: "下一步维护动作",
+    serverDetail: "用于维护 AI Server、工作区、运行边界和客户机交接状态。",
+    clientReady: "客户机只显示常用操作，高级执行与恢复已折叠。",
+    selectedOperation: "已选择项目",
+    noOperation: "请先从项目列表选择或创建一个运营项目。",
+    nextRefresh: "刷新运营、Agent/Skill 和客户机可见状态。",
+    boundary: "维护端只展示和编排，不绕过审批、不自动发布、不控制真实账号。",
+    openClientView: "客户机可见",
+  },
+  "en-US": {
+    title: "Server maintenance cockpit",
+    description: "Maintainers can see connection, client status, current Agent/Skill, and the next action before diving into long tables.",
+    serverCard: "Server status",
+    clientCard: "Client frontend",
+    operationCard: "Current operation",
+    nextCard: "Next maintenance action",
+    serverDetail: "Use this to maintain AI Server, workspace, runtime boundaries, and client handoff state.",
+    clientReady: "The client shows common actions first and folds advanced execution/recovery controls.",
+    selectedOperation: "Selected operation",
+    noOperation: "Select or create an operation from the list first.",
+    nextRefresh: "Refresh operations, Agent/Skill, and client-visible state.",
+    boundary: "The maintenance side only displays and orchestrates; it does not bypass approval, auto-publish, or control real accounts.",
+    openClientView: "Client-visible",
+  },
+} as const;
+
 function splitDraftList(value: string): string[] {
   return value
     .split(/[\n,]/)
@@ -4656,6 +4689,7 @@ function CommercialOperationsPage({
   surface?: CommercialOperationsSurface;
 }) {
   const copy = commercialOperationCopy[language];
+  const maintenanceCopy = commercialMaintenanceCopy[language];
   const isComfyuiPage = surface === "comfyui";
   const comfyuiSurfaceCopy =
     language === "zh-CN"
@@ -10194,6 +10228,51 @@ function CommercialOperationsPage({
         <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
         <DataCard title={copy.steps} value={String(isComfyuiPage ? comfyuiRecordCount : planStepCount)} detail={isComfyuiPage ? comfyuiStepDetail : commercialStepDetail} icon={<BarChart3 size={20} />} />
       </div>
+
+      {!isComfyuiPage ? (
+        <section className="commercial-maintenance-cockpit" aria-label={maintenanceCopy.title}>
+          <div className="commercial-maintenance-heading">
+            <span>{maintenanceCopy.title}</span>
+            <p>{maintenanceCopy.description}</p>
+          </div>
+          <article className="commercial-maintenance-card">
+            <Server size={16} />
+            <div>
+              <span>{maintenanceCopy.serverCard}</span>
+              <strong>{settings.aiServerUrl}</strong>
+              <p>{maintenanceCopy.serverDetail}</p>
+            </div>
+          </article>
+          <article className="commercial-maintenance-card">
+            <MonitorCheck size={16} />
+            <div>
+              <span>{maintenanceCopy.clientCard}</span>
+              <strong>{maintenanceCopy.openClientView}</strong>
+              <p>{maintenanceCopy.clientReady}</p>
+            </div>
+          </article>
+          <article className="commercial-maintenance-card">
+            <Target size={16} />
+            <div>
+              <span>{maintenanceCopy.operationCard}</span>
+              <strong>{selectedOperation ? valueAt(selectedOperation, ["title"], maintenanceCopy.selectedOperation) : maintenanceCopy.noOperation}</strong>
+              <p>{selectedOperation ? `${maintenanceCopy.selectedOperation}: ${valueAt(selectedOperation, ["status"], "draft")}` : maintenanceCopy.noOperation}</p>
+            </div>
+          </article>
+          <article className="commercial-maintenance-card commercial-maintenance-next-card">
+            <Activity size={16} />
+            <div>
+              <span>{maintenanceCopy.nextCard}</span>
+              <strong>{valueAt(currentAgentSkill, ["display_name", "skill_key"], maintenanceCopy.nextRefresh)}</strong>
+              <p>{valueAt(agentSkillOrchestration, ["next_action"], maintenanceCopy.boundary)}</p>
+            </div>
+            <button className="ghost-button" onClick={() => void refreshAgentSkillOrchestration()} disabled={!selectedOperation || agentSkillState.loading}>
+              <RefreshCcw size={14} />
+              {copy.agentSkillRefresh}
+            </button>
+          </article>
+        </section>
+      ) : null}
 
       {!isComfyuiPage ? (
         <div className="commercial-grid">

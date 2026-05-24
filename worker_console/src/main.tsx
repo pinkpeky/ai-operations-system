@@ -174,6 +174,10 @@ type TaskWorkbenchCopy = {
   operationCurrentLabel: string;
   operationResultLabel: string;
   operationControlLabel: string;
+  operationGuidedActionsTitle: string;
+  operationGuidedActionsSubtitle: string;
+  operationAdvancedActionsTitle: string;
+  operationAdvancedActionsHint: string;
   operationStartLoop: string;
   operationRefreshLoop: string;
   operationPrepareDraft: string;
@@ -893,6 +897,10 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationCurrentLabel: "当前进程",
     operationResultLabel: "执行结果",
     operationControlLabel: "执行控制",
+    operationGuidedActionsTitle: "常用操作",
+    operationGuidedActionsSubtitle: "按从左到右的顺序处理目标、知识库、内容、审批和闭环推进。",
+    operationAdvancedActionsTitle: "高级执行与恢复",
+    operationAdvancedActionsHint: "用于客户机执行记录、OpenClaw/Playwright 交接、dry-run、失败恢复和发布数据回填。",
     operationStartLoop: "创建运营闭环",
     operationRefreshLoop: "刷新闭环",
     operationPrepareDraft: "准备首版产物",
@@ -1107,6 +1115,10 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationCurrentLabel: "Current process",
     operationResultLabel: "Execution result",
     operationControlLabel: "Execution controls",
+    operationGuidedActionsTitle: "Common actions",
+    operationGuidedActionsSubtitle: "Move from left to right: goal, knowledge, content, approval, and loop delivery.",
+    operationAdvancedActionsTitle: "Advanced execution and recovery",
+    operationAdvancedActionsHint: "Use for client run records, OpenClaw/Playwright handoff, dry-run, failure recovery, and publish data capture.",
     operationStartLoop: "Create loop",
     operationRefreshLoop: "Refresh loop",
     operationPrepareDraft: "Prepare first draft",
@@ -5245,6 +5257,56 @@ function ChatPanel({
               <p>{operationReadableSourceText}</p>
               <p>{workbenchCopy.operationOpenClawLabel}</p>
             </div>
+          </div>
+          <div className="client-operation-guided-actions" aria-label={workbenchCopy.operationGuidedActionsTitle}>
+            <div>
+              <span>{workbenchCopy.operationGuidedActionsTitle}</span>
+              <p>{workbenchCopy.operationGuidedActionsSubtitle}</p>
+            </div>
+            <button className="refresh-button primary-action" onClick={() => void createCommercialOperationLoop()} disabled={operationLoopLoading || chatLoading}>
+              <PlayCircle size={14} />
+              {workbenchCopy.operationStartLoop}
+            </button>
+            <button className="refresh-button" onClick={onOpenKnowledge}>
+              <Upload size={14} />
+              {workbenchCopy.operationOpenKnowledge}
+            </button>
+            <button className="refresh-button" onClick={() => void prepareFirstDraftPackage()} disabled={firstDraftBootstrapLoading || operationLoopLoading || chatLoading}>
+              <PencilLine size={14} />
+              {firstDraftBootstrapLoading ? workbenchCopy.operationFirstDraftPreparing : workbenchCopy.operationPrepareDraft}
+            </button>
+            <button
+              className="refresh-button"
+              onClick={() => void approveCommercialApprovalAndPrepareExecution()}
+              disabled={executionPrepLoading || operationLoopLoading || chatLoading || pendingCommercialApprovals.length === 0}
+            >
+              <CheckCircle2 size={14} />
+              {executionPrepLoading
+                ? pendingPublishMetricNextCycleCommercialApproval
+                  ? workbenchCopy.operationImprovedApprovalPreparing
+                  : pendingNextCycleCommercialApproval
+                    ? workbenchCopy.operationNextCycleApprovalPreparing
+                    : workbenchCopy.operationApprovalPreparing
+                : pendingPublishMetricNextCycleCommercialApproval
+                  ? workbenchCopy.operationApproveImprovedDraftAndPrepare
+                  : pendingNextCycleCommercialApproval
+                    ? workbenchCopy.operationApproveNextCycleAndPrepare
+                    : workbenchCopy.operationApproveAndPrepare}
+            </button>
+            <button
+              className="refresh-button"
+              onClick={() => void completeClientClosedLoopDeliveryPass()}
+              disabled={closedLoopDeliveryLoading || operationLoopLoading || chatLoading || !closedLoopDeliveryAvailable}
+            >
+              <PlayCircle size={14} />
+              {closedLoopDeliveryLoading ? workbenchCopy.operationClosedLoopDeliveryRunning : workbenchCopy.operationClosedLoopDeliveryAction}
+            </button>
+          </div>
+          <details className="client-operation-advanced-controls">
+            <summary>
+              <span>{workbenchCopy.operationAdvancedActionsTitle}</span>
+              <small>{workbenchCopy.operationAdvancedActionsHint}</small>
+            </summary>
             <div className="client-operation-controls" aria-label={workbenchCopy.operationControlLabel}>
               <button className="refresh-button" onClick={() => void createCommercialOperationLoop()} disabled={operationLoopLoading || chatLoading}>
                 <PlayCircle size={14} />
@@ -5409,7 +5471,7 @@ function ChatPanel({
                 {workbenchCopy.operationOpenKnowledge}
               </button>
             </div>
-          </div>
+          </details>
           <div className="client-closed-loop-delivery" aria-label={workbenchCopy.operationClosedLoopDeliveryTitle}>
             <div className="client-closed-loop-delivery-copy">
               <span>{workbenchCopy.operationClosedLoopDeliveryTitle}</span>

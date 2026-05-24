@@ -1061,6 +1061,16 @@ Phase 64C Commercial Agent/Skill Orchestration 将客户机前端接到新的 me
 
 Boundary: Phase 64C is Agent/Skill orchestration display only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, or rebuild client packages.
 
+## Phase 64D Server/Client Frontend Operability Optimization
+
+Branch: `codex/phase-64d-frontend-operability-optimization`
+
+Phase 64D 在不改变运行时行为的前提下优化客户机首屏。`worker_console` 和 `worker_console_desktop` 现在把商业运营常用操作放在短操作条里：创建闭环、上传知识库、准备首版产物、审批并准备执行、推进完整闭环。高级 execution/recovery / 执行与恢复动作仍然保留，但折叠到 "Advanced execution and recovery" 详情面板里。
+
+服务器 `admin_dashboard` 也增加 maintenance cockpit / 维护驾驶舱，维护人员可以先看到 AI Server 连接、客户机前端状态、已选运营项目和 Agent/Skill 下一步，再进入长记录维护。
+
+Boundary: Phase 64D is frontend display and operator ergonomics only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, mutate runtime configuration, or rebuild client packages.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

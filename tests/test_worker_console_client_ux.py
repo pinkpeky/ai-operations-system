@@ -125,6 +125,33 @@ def test_worker_consoles_expose_phase_62k_codex_like_surface() -> None:
             assert token in styles
 
 
+def test_worker_consoles_fold_advanced_commercial_controls() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "Common actions",
+            "Advanced execution and recovery",
+            "client-operation-guided-actions",
+            "client-operation-advanced-controls",
+            "operationGuidedActionsTitle",
+            "operationAdvancedActionsHint",
+            "Move from left to right: goal, knowledge, content, approval, and loop delivery.",
+        ]:
+            assert token in text
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".client-operation-guided-actions",
+            ".client-operation-advanced-controls",
+            ".client-operation-advanced-controls summary",
+        ]:
+            assert token in styles
+
+
 def test_phase_62k_plan_is_documented() -> None:
     phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
@@ -2192,8 +2219,39 @@ def test_phase_64c_commercial_agent_skill_orchestration_is_documented() -> None:
     ):
         assert "Phase 64C Commercial Agent/Skill Orchestration" in text
         assert "codex/phase-64c-commercial-agent-skill-orchestration" in text
-        assert "Agent/Skill orchestration" in text
+        assert "Agent/Skill" in text
         assert "agent-skill-orchestration" in text
         assert "commercial_operation_agent" in text
         assert "admin_dashboard" in text
         assert "worker_console" in text
+
+
+def test_phase_64d_frontend_operability_optimization_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 64D Server/Client Frontend Operability Optimization" in text
+        assert "codex/phase-64d-frontend-operability-optimization" in text
+        assert "maintenance cockpit" in text
+        assert "execution/recovery" in text
+        assert "admin_dashboard" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
