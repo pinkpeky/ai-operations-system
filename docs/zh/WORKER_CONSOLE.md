@@ -944,6 +944,25 @@ This keeps the repeatable closed loop usable without adding a new complex page: 
 
 Boundary: Phase 63H is next-cycle execution run review only. It creates metadata-only execution run records from next-cycle execution prep requests. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63I Customer Console Next-Cycle Result Feedback Loop
+
+Branch: `codex/phase-63i-next-cycle-result-feedback-loop`
+
+Phase 63I connects next-cycle execution runs back into result feedback for `worker_console` and `worker_console_desktop`. After Phase 63H creates a metadata-only next-cycle execution run, the same result-and-improve action can prefer that run and create the second result, observation, and optimization records.
+
+The next-cycle result feedback action performs a guarded record-only sequence:
+
+- Prefer next-cycle execution runs when recording result feedback.
+- Start and complete queued metadata-only next-cycle runs when needed.
+- Create or reuse the result record for the next-cycle run.
+- Create or reuse the manual monitoring observation for that result.
+- Create or reuse an approved optimization decision for another iteration.
+- Preserve `previous_optimization_decision_id` and `next_iteration` lineage for the next draft.
+
+This keeps the repeatable closed loop usable without adding a complex page: the operator can move from next execution run to next result, next observation, next improvement, and another content draft from the same product operation desk.
+
+Boundary: Phase 63I is next-cycle result feedback only. It creates metadata-only result, observation, and optimization records from next-cycle execution runs. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
