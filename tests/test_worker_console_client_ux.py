@@ -410,7 +410,7 @@ def test_worker_consoles_expose_phase_62p_simple_operator_and_knowledge_page() -
             "operator-detail-drawer",
             "maintenance-drawer",
             "simpleCurrentStage",
-            "open={pendingApprovals.length > 0 || failedTaskRuns.length > 0}",
+            "open={pendingCommercialApprovals.length > 0 || pendingApprovals.length > 0 || failedTaskRuns.length > 0}",
             "knowledge-upload-drop",
             "knowledge-document-card",
         ]:
@@ -1774,5 +1774,79 @@ def test_phase_63k_guarded_adapter_dispatch_handoff_is_documented() -> None:
         assert "Phase 63K Customer Console Guarded Adapter Dispatch Handoff" in text
         assert "codex/phase-63k-guarded-adapter-dispatch-handoff" in text
         assert "guarded adapter dispatch handoff" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63l_63n_execution_and_approval_loop() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_styles = (ROOT / "worker_console/src/styles.css").read_text(encoding="utf-8")
+    desktop_styles = (ROOT / "worker_console_desktop/src/styles.css").read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "runGuardedAdapterDryRun",
+            "adapterDryRunCandidateExecutionRun",
+            "operationAdapterDryRun",
+            "operationAdapterDryRunRunning",
+            "operationAdapterDryRunSucceeded",
+            "isGuardedAdapterDispatchReady",
+            "guarded_adapter_dry_run",
+            "guarded_adapter_dry_run_status",
+            "guarded_dry_run_only",
+            "dry_run_only",
+            "actual_adapter_invocation_performed: false",
+            "external_execution_performed: false",
+            "actual_openclaw_execution_performed: false",
+            "playwright_run_performed: false",
+            "phase: \"63L\"",
+            "commercial-approvals-panel",
+            "operationApprovalCenterSummary",
+            "operationApprovalCenterApprove",
+            "operationApprovalCenterReject",
+            "client-execution-queue",
+            "visibleCommercialExecutionRuns",
+            "activeCommercialExecutionRunCount",
+        ]:
+            assert token in text
+
+    for text in (web_styles, desktop_styles):
+        for token in [
+            ".client-execution-queue",
+            ".client-execution-run-list",
+            ".client-execution-run.run-status-running",
+            ".client-execution-run.run-status-succeeded",
+        ]:
+            assert token in text
+
+
+def test_phase_63l_63n_execution_and_approval_loop_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63L-63N Customer Console Execution and Approval Loop" in text
+        assert "codex/phase-63l-63n-execution-approval-loop" in text
+        assert "guarded adapter dry-run" in text
+        assert "client execution queue" in text
+        assert "commercial approval center" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text

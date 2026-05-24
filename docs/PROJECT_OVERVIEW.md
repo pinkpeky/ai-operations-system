@@ -1425,3 +1425,9 @@ Keywords: Phase 55; Mainline Integration; Release Candidate; MAINLINE_INTEGRATIO
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
 
 The canonical project recovery state is: `main` is the Phase 55 stable baseline after PR #17 and post-merge stabilization, PR #3-#14 are marked merged after PR #17 because their changes are contained in `main`, PR #1 and PR #15 are closed as superseded, and Phase 56 remains reverted and inactive. Current non-goals remain: no ComfyUI integration, no real social media publishing, no captcha bypass, no proxy pool, no Kubernetes/Helm/Terraform, no HA orchestration, and no production installer/signing.
+
+## Phase 63L-63N Customer Console Execution and Approval Loop
+
+Branch: `codex/phase-63l-63n-execution-approval-loop`
+
+Phase 63L-63N Customer Console Execution and Approval Loop advances the first usable commercial automation loop in `worker_console` and `worker_console_desktop`. It adds a guarded adapter dry-run action after the 63K handoff, a visual client execution queue for execution runs, and a commercial approval center for specific operation approvals. The goal is a simpler customer-machine flow: approve content, prepare execution, dry-run the guarded adapter contract, see execution progress, then record results and improvements. Live OpenClaw, Playwright, publishing, account control, analytics ingestion, ComfyUI, secret resolution, captcha/proxy/fingerprint bypass, and approval bypass remain out of scope.

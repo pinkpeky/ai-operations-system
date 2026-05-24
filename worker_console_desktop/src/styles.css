@@ -656,7 +656,9 @@ textarea {
 .client-operation-result span,
 .client-operation-step span,
 .client-operation-deliverable span,
-.client-operation-knowledge-card span {
+.client-operation-knowledge-card span,
+.client-execution-queue-header span,
+.client-execution-run span {
   color: #64748b;
   font-size: 11px;
   font-weight: 850;
@@ -675,7 +677,9 @@ textarea {
 .client-operation-result p,
 .client-operation-step p,
 .client-operation-deliverable p,
-.client-operation-knowledge-card p {
+.client-operation-knowledge-card p,
+.client-execution-queue-header p,
+.client-execution-run p {
   margin: 0;
   color: #475569;
   font-size: 13px;
@@ -781,6 +785,83 @@ textarea {
 
 .client-operation-knowledge-card svg {
   color: #c2410c;
+}
+
+.client-execution-queue {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.client-execution-queue-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.client-execution-queue-header strong {
+  min-width: 58px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.client-execution-run-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.client-execution-run {
+  display: flex;
+  min-width: 0;
+  min-height: 112px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.client-execution-run strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.client-execution-run small {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.client-execution-run.run-status-failed {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: #fef2f2;
+}
+
+.client-execution-run.run-status-succeeded {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #ecfdf5;
+}
+
+.client-execution-run.run-status-running,
+.client-execution-run.run-status-queued,
+.client-execution-run.run-status-retrying {
+  border-color: rgba(37, 99, 235, 0.26);
+  background: #eff6ff;
 }
 
 .simple-operator-workbench {
@@ -3074,6 +3155,7 @@ textarea {
     .client-operation-status,
     .client-operation-loop,
     .client-operation-deliverables,
+    .client-execution-run-list,
     .simple-operator-workbench,
     .simple-template-row,
     .simple-progress-stages,
