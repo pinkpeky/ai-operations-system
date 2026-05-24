@@ -582,6 +582,27 @@ export const commercialOperationClient = {
       },
       settings,
     ),
+  updateExecutionRun: (
+    operationId: string,
+    executionRunId: string,
+    payload: {
+      title?: string;
+      execution_target?: string | null;
+      input_payload?: Record<string, unknown>;
+      max_retries?: number;
+      operator_notes?: string;
+      metadata?: Record<string, unknown>;
+    },
+    settings?: ConversationSettings,
+  ) =>
+    requestJson<CommercialOperationExecutionRun>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs/${encodeURIComponent(executionRunId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
   listExecutionRuns: (operationId: string, status?: string, settings?: ConversationSettings) =>
     requestJson<{ items: CommercialOperationExecutionRun[] }>(
       `/commercial-operations/${encodeURIComponent(operationId)}/execution-runs${queryString({ status })}`,

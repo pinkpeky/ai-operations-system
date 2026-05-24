@@ -76,6 +76,7 @@ import {
 import {
   createLocalWorkerClient,
   LocalWorkerClient,
+  localWorkerClient,
   WorkerHealth,
   WorkerLogs,
   WorkerStatus,
@@ -234,6 +235,11 @@ type TaskWorkbenchCopy = {
   operationRunRetrying: string;
   operationExecutionRequestPending: string;
   operationExecutionRunPending: string;
+  operationRuntimePreflight: string;
+  operationRuntimePreflightChecking: string;
+  operationRuntimePreflightReady: string;
+  operationRuntimePreflightBlocked: string;
+  operationRuntimePreflightMissing: string;
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -814,6 +820,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationRunRetrying: "执行记录已进入重试，可再次开始",
     operationExecutionRequestPending: "执行准备待复核",
     operationExecutionRunPending: "执行记录状态",
+    operationRuntimePreflight: "执行前预检",
+    operationRuntimePreflightChecking: "正在检查客户机执行条件",
+    operationRuntimePreflightReady: "执行前预检通过，等待人工启动",
+    operationRuntimePreflightBlocked: "执行前预检未通过，请先恢复客户机环境",
+    operationRuntimePreflightMissing: "请先创建待执行记录",
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -955,6 +966,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationRunRetrying: "Execution run moved to retrying; start it again",
     operationExecutionRequestPending: "Execution prep pending review",
     operationExecutionRunPending: "Execution run status",
+    operationRuntimePreflight: "Run preflight",
+    operationRuntimePreflightChecking: "Checking client execution readiness",
+    operationRuntimePreflightReady: "Preflight passed and is waiting for operator start",
+    operationRuntimePreflightBlocked: "Preflight blocked; recover the client environment first",
+    operationRuntimePreflightMissing: "Create a queued execution run first",
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -1794,7 +1810,15 @@ function resolveConnectionState(health: WorkerHealth | null, error: string | nul
   return "offline";
 }
 
-function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; onOpenKnowledge: () => void }) {
+function ChatPanel({
+  language,
+  onOpenKnowledge,
+  runtimeClient = localWorkerClient,
+}: {
+  language: ClientLanguage;
+  onOpenKnowledge: () => void;
+  runtimeClient?: LocalWorkerClient;
+}) {
   const workbenchCopy = taskWorkbenchCopy[language];
   const goalTemplates = workbenchGoalTemplates[language];
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -1849,6 +1873,8 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const [commercialExecutionRuns, setCommercialExecutionRuns] = useState<CommercialOperationExecutionRun[]>([]);
   const [executionRunStatus, setExecutionRunStatus] = useState<string | null>(null);
   const [executionRunLoading, setExecutionRunLoading] = useState(false);
+  const [runtimePreflightStatus, setRuntimePreflightStatus] = useState<string | null>(null);
+  const [runtimePreflightLoading, setRuntimePreflightLoading] = useState(false);
   const [commercialResults, setCommercialResults] = useState<CommercialOperationResult[]>([]);
   const [commercialMonitoringObservations, setCommercialMonitoringObservations] = useState<CommercialOperationMonitoringObservation[]>([]);
   const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
@@ -2607,6 +2633,147 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
       setRunStatus("commercial execution run retry error");
     } finally {
       setExecutionRunLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const preflightClientRuntimeExecutionRun = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setRuntimePreflightLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setRuntimePreflightStatus(workbenchCopy.operationRuntimePreflightChecking);
+    try {
+      if (!operationId) {
+        setRuntimePreflightStatus(workbenchCopy.operationRuntimePreflightMissing);
+        setRunStatus("client runtime preflight missing");
+        return;
+      }
+      const executionRunResponse = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
+      const executionRunPool = [...executionRunResponse.items, ...commercialExecutionRuns];
+      const targetRun =
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run)) ??
+        executionRunPool.find((run) => ["queued", "retrying"].includes(run.run_status)) ??
+        null;
+      if (!targetRun) {
+        setRuntimePreflightStatus(workbenchCopy.operationRuntimePreflightMissing);
+        setRunStatus("client runtime preflight missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+
+      let workerStatus: WorkerStatus | null = null;
+      let workerHealth: WorkerHealth | null = null;
+      let workerError: string | null = null;
+      try {
+        [workerStatus, workerHealth] = await Promise.all([runtimeClient.getStatus(), runtimeClient.getHealth()]);
+      } catch (nextError) {
+        workerError = nextError instanceof Error ? nextError.message : "Worker API unreachable";
+      }
+
+      const checkedAt = new Date().toISOString();
+      const checks = [
+        { key: "worker_api_reachable", status: Boolean(workerStatus && !workerError), detail: runtimeClient.baseUrl },
+        { key: "worker_registered", status: Boolean(workerStatus?.registered), detail: workerStatus?.worker_id ?? "-" },
+        { key: "runtime_running", status: Boolean(workerStatus?.runtime_running && workerHealth?.runtime_running), detail: String(workerStatus?.runtime_port ?? workerHealth?.port ?? "-") },
+        { key: "heartbeat_running", status: Boolean(workerStatus?.heartbeat_running && workerHealth?.heartbeat_running), detail: workerStatus?.last_heartbeat_at ?? "-" },
+        { key: "openclaw_enabled", status: Boolean(workerStatus?.openclaw_enabled), detail: "local worker capability flag" },
+        { key: "browser_enabled", status: Boolean(workerStatus?.browser_enabled), detail: "local worker capability flag" },
+        { key: "localhost_only", status: workerHealth?.localhost_only !== false, detail: String(workerHealth?.localhost_only ?? true) },
+        { key: "approval_required", status: true, detail: "operator must still start execution explicitly" },
+      ];
+      const preflightReady = checks.every((check) => check.status);
+      const runIsNextCycle = isNextCycleExecutionRun(targetRun);
+      const preflightStatus = preflightReady ? "ready" : "blocked";
+      const previousSource =
+        metadataStringValue(targetRun.metadata, "source") ??
+        metadataStringValue(targetRun.input_payload, "source") ??
+        "unknown";
+      const cycle =
+        metadataStringValue(targetRun.metadata, "cycle") ??
+        metadataStringValue(targetRun.input_payload, "cycle") ??
+        (runIsNextCycle ? "next_iteration" : "first_iteration");
+      const optimizationDecisionId =
+        metadataStringValue(targetRun.metadata, "optimization_decision_id") ??
+        metadataStringValue(targetRun.input_payload, "optimization_decision_id");
+      const clientRuntimePreflight = {
+        status: preflightStatus,
+        checked_at: checkedAt,
+        local_worker_api: runtimeClient.baseUrl,
+        worker_api_error: workerError,
+        actual_openclaw_execution_performed: false,
+        playwright_run_performed: false,
+        publishing_performed: false,
+        account_control_performed: false,
+        cycle,
+        checks,
+        worker_status: workerStatus
+          ? {
+              worker_id: workerStatus.worker_id,
+              worker_name: workerStatus.worker_name,
+              workspace_id: workerStatus.workspace_id,
+              current_status: workerStatus.current_status,
+              runtime_running: workerStatus.runtime_running,
+              heartbeat_running: workerStatus.heartbeat_running,
+              openclaw_enabled: workerStatus.openclaw_enabled,
+              browser_enabled: workerStatus.browser_enabled,
+              last_heartbeat_at: workerStatus.last_heartbeat_at,
+              last_error: workerStatus.last_error,
+            }
+          : null,
+        worker_health: workerHealth,
+        next_operator_action: preflightReady
+          ? "review target account and explicitly start the guarded run"
+          : "recover local worker runtime, heartbeat, OpenClaw, or browser capability before start",
+      };
+      const updatedRun = await commercialOperationClient.updateExecutionRun(
+        operationId,
+        targetRun.id,
+        {
+          input_payload: {
+            ...targetRun.input_payload,
+            source: "worker_console_desktop_client_runtime_preflight",
+            console: "worker_console_desktop",
+            cycle,
+            runtime_preflight_status: preflightStatus,
+            runtime_preflight_checked_at: checkedAt,
+            client_runtime_preflight: clientRuntimePreflight,
+            previous_optimization_decision_id: metadataStringValue(targetRun.input_payload, "previous_optimization_decision_id"),
+            optimization_decision_id: optimizationDecisionId,
+          },
+          operator_notes: preflightReady
+            ? language === "zh-CN"
+              ? "客户机执行前预检通过；仍需人工显式开始，未执行 OpenClaw/Playwright。"
+              : "Client runtime preflight passed; explicit operator start is still required and no OpenClaw/Playwright action ran."
+            : language === "zh-CN"
+              ? "客户机执行前预检未通过；请先恢复本机运行时、心跳、OpenClaw 或浏览器能力。"
+              : "Client runtime preflight is blocked; recover local runtime, heartbeat, OpenClaw, or browser capability first.",
+          metadata: {
+            ...targetRun.metadata,
+            source: "worker_console_desktop_client_runtime_preflight",
+            console: "worker_console_desktop",
+            previous_source: previousSource,
+            phase: "63J",
+            cycle,
+            runtime_preflight_status: preflightStatus,
+            runtime_preflight_checked_at: checkedAt,
+            optimization_decision_id: optimizationDecisionId,
+          },
+        },
+        settings,
+      );
+      await refreshCommercialOperationLoop(operationId);
+      setRuntimePreflightStatus(
+        `${preflightReady ? workbenchCopy.operationRuntimePreflightReady : workbenchCopy.operationRuntimePreflightBlocked}: ${updatedRun.id}`,
+      );
+      setRunStatus(`client runtime preflight ${preflightStatus}: ${updatedRun.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Client runtime preflight failed";
+      setOperationLoopError(message);
+      setRuntimePreflightStatus(message);
+      setRunStatus("client runtime preflight error");
+    } finally {
+      setRuntimePreflightLoading(false);
       setOperationLoopLoading(false);
     }
   };
@@ -3503,6 +3670,9 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
     commercialExecutionRuns.find((run) => run.run_status === "queued" || run.run_status === "retrying") ?? null;
   const runningCommercialExecutionRun = commercialExecutionRuns.find((run) => run.run_status === "running") ?? null;
   const failedCommercialExecutionRun = commercialExecutionRuns.find((run) => run.run_status === "failed") ?? null;
+  const runtimePreflightCandidateExecutionRun =
+    commercialExecutionRuns.find((run) => ["queued", "retrying"].includes(run.run_status) && isNextCycleExecutionRun(run)) ??
+    queuedCommercialExecutionRun;
   const pendingNextCycleFeedbackExecutionRun =
     commercialExecutionRuns.find(
       (run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status) && isNextCycleExecutionRun(run),
@@ -3684,7 +3854,9 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   });
   const operationResultSummary = nextCycleDraftStatus
     ? nextCycleDraftStatus
-    : latestCommercialOptimizationDecision
+    : runtimePreflightStatus
+      ? runtimePreflightStatus
+      : latestCommercialOptimizationDecision
       ? `${workbenchCopy.operationOptimizationPending}: ${latestCommercialOptimizationDecision.decision_status}`
       : latestCommercialObservation
         ? `${workbenchCopy.operationObservationPending}: ${latestCommercialObservation.observation_status}`
@@ -3722,6 +3894,7 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const operationReadableSourceText =
     nextCycleDraftStatus ||
     feedbackLoopStatus ||
+    runtimePreflightStatus ||
     operationOptimizationStatusText ||
     operationObservationStatusText ||
     operationResultRecordStatusText ||
@@ -3829,6 +4002,14 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
                   : pendingNextCycleExecutionRequest
                     ? workbenchCopy.operationReviewAndQueueNextCycleRun
                     : workbenchCopy.operationReviewAndQueueRun}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void preflightClientRuntimeExecutionRun()}
+                disabled={runtimePreflightLoading || operationLoopLoading || chatLoading || !runtimePreflightCandidateExecutionRun}
+              >
+                <CheckCircle2 size={14} />
+                {runtimePreflightLoading ? workbenchCopy.operationRuntimePreflightChecking : workbenchCopy.operationRuntimePreflight}
               </button>
               <button
                 className="refresh-button"
@@ -6260,7 +6441,7 @@ function App() {
       {operatorPage === "knowledge" ? (
         <KnowledgeBasePanel language={language} settingsStorageKey="desktopConversationSettings" />
       ) : (
-        <ChatPanel language={language} onOpenKnowledge={() => setOperatorPage("knowledge")} />
+        <ChatPanel language={language} onOpenKnowledge={() => setOperatorPage("knowledge")} runtimeClient={client} />
       )}
 
       <details className="advanced-diagnostics">
