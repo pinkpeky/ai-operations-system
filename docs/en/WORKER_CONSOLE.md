@@ -1061,6 +1061,16 @@ The server `admin_dashboard` also shows the same Agent/Skill orchestration for m
 
 Boundary: Phase 64C is Agent/Skill orchestration display only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, or rebuild client packages.
 
+## Phase 64D Server/Client Frontend Operability Optimization
+
+Branch: `codex/phase-64d-frontend-operability-optimization`
+
+Phase 64D improves the customer-machine first screen without changing runtime behavior. `worker_console` and `worker_console_desktop` now keep the common commercial operations actions visible in a short action strip: create loop, upload knowledge, prepare first draft, approve and prepare execution, and advance the full loop. Advanced execution/recovery controls remain available but are folded behind an "Advanced execution and recovery" details panel.
+
+The server `admin_dashboard` also adds a maintenance cockpit so maintainers can see AI Server connection, customer-machine frontend status, selected operation, and Agent/Skill next action before opening long records.
+
+Boundary: Phase 64D is frontend display and operator ergonomics only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, mutate runtime configuration, or rebuild client packages.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -27,6 +27,10 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
     assert "Agent / Skill orchestration" in text
+    assert "commercialMaintenanceCopy" in text
+    assert "Server maintenance cockpit" in text
+    assert "Client frontend" in text
+    assert "commercial-maintenance-cockpit" in text
     assert "agentSkillState" in text
     assert "loadAgentSkillOrchestration" in text
     assert "refreshAgentSkillOrchestration" in text
@@ -525,6 +529,9 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-command-center",
         ".commercial-flow-grid",
         ".commercial-metrics-grid",
+        ".commercial-maintenance-cockpit",
+        ".commercial-maintenance-card",
+        ".commercial-maintenance-next-card",
         ".commercial-grid",
         ".commercial-form-grid",
         ".commercial-detail-grid",

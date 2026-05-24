@@ -813,6 +813,76 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.commercial-maintenance-cockpit {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(0, 1fr)) minmax(260px, 1.1fr);
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-maintenance-heading,
+.commercial-maintenance-card {
+  min-width: 0;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-maintenance-heading {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  align-content: center;
+}
+
+.commercial-maintenance-heading span,
+.commercial-maintenance-card span {
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.commercial-maintenance-heading p,
+.commercial-maintenance-card p {
+  margin: 0;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-maintenance-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+
+.commercial-maintenance-card svg {
+  color: #2563eb;
+}
+
+.commercial-maintenance-card div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.commercial-maintenance-card strong {
+  overflow-wrap: anywhere;
+  color: #17212b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.commercial-maintenance-next-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
 .commercial-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.55fr);
@@ -1649,6 +1719,8 @@ textarea {
   .json-grid,
   .workflow-observability-metrics,
   .commercial-metrics-grid,
+  .commercial-maintenance-cockpit,
+  .commercial-maintenance-next-card,
   .commercial-grid,
   .commercial-detail-grid,
   .commercial-agent-skill-summary,

@@ -627,7 +627,7 @@ h2 {
 
 .client-operation-status {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(190px, 0.7fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -690,6 +690,66 @@ h2 {
 .client-operation-controls .refresh-button {
   width: 100%;
   justify-content: flex-start;
+}
+
+.client-operation-guided-actions {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) repeat(5, minmax(132px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.client-operation-guided-actions > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  align-content: center;
+}
+
+.client-operation-guided-actions span,
+.client-operation-advanced-controls summary span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.client-operation-guided-actions p,
+.client-operation-advanced-controls summary small {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.client-operation-guided-actions .refresh-button {
+  width: 100%;
+  justify-content: center;
+  min-height: 42px;
+  white-space: normal;
+  text-align: center;
+}
+
+.client-operation-advanced-controls {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.client-operation-advanced-controls summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.client-operation-advanced-controls .client-operation-controls {
+  padding: 0 12px 12px;
 }
 
 .client-closed-loop-delivery {
@@ -3326,6 +3386,7 @@ h2 {
     .workbench-plan-steps,
     .workbench-status-stages,
     .client-operation-status,
+    .client-operation-guided-actions,
     .client-operation-loop,
     .client-operation-deliverables,
     .client-closed-loop-delivery,
@@ -3363,6 +3424,11 @@ h2 {
   .client-agent-skill-head .refresh-button {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .client-operation-advanced-controls summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .simple-progress-header,
