@@ -1041,6 +1041,16 @@ The re-execution path records `publish_metric_reexecution_prep` execution reques
 
 Boundary: Phase 63U-63W is improved draft re-execution and publish metric re-execution prep only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63X-64B Customer Console Closed Loop Delivery Pass
+
+Branch: `codex/phase-63x-64b-client-closed-loop-delivery`
+
+Phase 63X-64B adds a client closed-loop delivery pass to `worker_console` and `worker_console_desktop`. The product operation desk now gives operators one clear action that advances the safe sequence across client runtime preflight, OpenClaw/Playwright handoff, guarded dry-run, publish result capture, manual metric observation, improvement analysis, and next draft generation.
+
+The operator-facing steps are intentionally compact: client execution prep, publish result capture, operating data observation, improvement analysis, and next draft generation. This turns the previous five-step continuation into one big usable step while preserving each underlying record for server maintenance and audit.
+
+Boundary: Phase 63X-64B is client closed-loop delivery orchestration only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -264,6 +264,14 @@ type TaskWorkbenchCopy = {
   operationPublishImprovementReady: string;
   operationPublishImprovementMissing: string;
   operationPrepareImprovedDraft: string;
+  operationClosedLoopDeliveryTitle: string;
+  operationClosedLoopDeliverySubtitle: string;
+  operationClosedLoopDeliveryAction: string;
+  operationClosedLoopDeliveryRunning: string;
+  operationClosedLoopDeliveryReady: string;
+  operationClosedLoopDeliveryMissing: string;
+  operationClosedLoopDeliveryBoundary: string;
+  operationClosedLoopDeliverySteps: string[];
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -968,6 +976,14 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationPublishImprovementReady: "改进建议已生成，可准备下一轮内容",
     operationPublishImprovementMissing: "请先记录运营数据",
     operationPrepareImprovedDraft: "准备改进草案",
+    operationClosedLoopDeliveryTitle: "闭环交付推进",
+    operationClosedLoopDeliverySubtitle: "把客户机执行、发布结果、运营数据、改进分析和下一轮草案合并成一个可操作流程。",
+    operationClosedLoopDeliveryAction: "推进完整闭环",
+    operationClosedLoopDeliveryRunning: "正在推进客户机完整闭环",
+    operationClosedLoopDeliveryReady: "完整闭环已推进到下一轮草案",
+    operationClosedLoopDeliveryMissing: "请先创建或选择一个运营闭环",
+    operationClosedLoopDeliveryBoundary: "当前仍是受控交付：会记录 OpenClaw/Playwright handoff 与 dry-run，不自动登录平台、不绕过验证码、不控制真实账号。",
+    operationClosedLoopDeliverySteps: ["客户机执行准备", "发布结果回填", "运营数据观察", "分析改进方向", "生成下一轮草案"],
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -1167,6 +1183,14 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationPublishImprovementReady: "Improvement decision is ready for the next draft",
     operationPublishImprovementMissing: "Record operating metrics first",
     operationPrepareImprovedDraft: "Prepare improved draft",
+    operationClosedLoopDeliveryTitle: "Closed-loop delivery",
+    operationClosedLoopDeliverySubtitle: "Combine client execution, publish result capture, data observation, analysis, and next draft generation into one operator flow.",
+    operationClosedLoopDeliveryAction: "Advance full loop",
+    operationClosedLoopDeliveryRunning: "Advancing the full client closed loop",
+    operationClosedLoopDeliveryReady: "Full loop advanced to the next draft",
+    operationClosedLoopDeliveryMissing: "Create or select an operation loop first",
+    operationClosedLoopDeliveryBoundary: "This is still controlled delivery: it records OpenClaw/Playwright handoff and dry-run state without platform login, captcha bypass, or real account control.",
+    operationClosedLoopDeliverySteps: ["Client execution prep", "Publish result capture", "Operating data observation", "Improvement analysis", "Next draft generation"],
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -1991,6 +2015,8 @@ function ChatPanel({
   const [feedbackLoopLoading, setFeedbackLoopLoading] = useState(false);
   const [nextCycleDraftStatus, setNextCycleDraftStatus] = useState<string | null>(null);
   const [nextCycleDraftLoading, setNextCycleDraftLoading] = useState(false);
+  const [closedLoopDeliveryStatus, setClosedLoopDeliveryStatus] = useState<string | null>(null);
+  const [closedLoopDeliveryLoading, setClosedLoopDeliveryLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("workerConsoleConversationSettings", JSON.stringify(settings));
@@ -2084,6 +2110,7 @@ function ChatPanel({
     setCommercialMonitoringObservations([]);
     setCommercialOptimizationDecisions([]);
     setNextCycleDraftStatus(null);
+    setClosedLoopDeliveryStatus(null);
     setConnectionState("connected");
     return { operation, loop };
   };
@@ -4354,6 +4381,42 @@ function ChatPanel({
     }
   };
 
+  const completeClientClosedLoopDeliveryPass = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setClosedLoopDeliveryLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setClosedLoopDeliveryStatus(workbenchCopy.operationClosedLoopDeliveryRunning);
+    try {
+      if (!operationId) {
+        setClosedLoopDeliveryStatus(workbenchCopy.operationClosedLoopDeliveryMissing);
+        setRunStatus("client closed loop delivery missing");
+        return;
+      }
+
+      setRunStatus("client closed loop delivery pass running");
+      await preflightClientRuntimeExecutionRun();
+      await prepareGuardedAdapterDispatchHandoff();
+      await runGuardedAdapterDryRun();
+      await prepareGuardedPublishHandoff();
+      await captureManualPublishResult();
+      await recordManualMetricObservation();
+      await analyzeManualPublishMetrics();
+      await prepareNextCycleDraftFromDecision();
+      await refreshCommercialOperationLoop(operationId);
+      setClosedLoopDeliveryStatus(`${workbenchCopy.operationClosedLoopDeliveryReady}: ${operationId}`);
+      setRunStatus(`client closed loop delivery pass complete: ${operationId}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Client closed loop delivery failed";
+      setOperationLoopError(message);
+      setClosedLoopDeliveryStatus(message);
+      setRunStatus("client closed loop delivery error");
+    } finally {
+      setClosedLoopDeliveryLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
   const refreshPlaybooks = useCallback(async () => {
     try {
       const [playbookResponse, runResponse] = await Promise.all([
@@ -4822,6 +4885,7 @@ function ChatPanel({
     pendingNextCycleFeedbackExecutionRun ??
     commercialExecutionRuns.find((run) => ["succeeded", "running", "queued", "retrying", "failed", "cancelled"].includes(run.run_status)) ??
     null;
+  const closedLoopDeliveryAvailable = Boolean(operationLoop || selectedCommercialOperationId);
   const activeTaskRuns = taskRuns.filter((task) => ["queued", "running", "retrying", "waiting_approval"].includes(task.status));
   const failedTaskRuns = taskRuns.filter((task) => task.recoverable || ["failed", "expired"].includes(task.status));
   const completedTaskRuns = taskRuns.filter((task) => task.status === "completed");
@@ -4988,8 +5052,10 @@ function ChatPanel({
       status: operationLoop ? connectedStatus : artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
     };
   });
-  const operationResultSummary = nextCycleDraftStatus
-    ? nextCycleDraftStatus
+  const operationResultSummary = closedLoopDeliveryStatus
+    ? closedLoopDeliveryStatus
+    : nextCycleDraftStatus
+      ? nextCycleDraftStatus
     : publishImprovementStatus
       ? publishImprovementStatus
     : metricObservationStatus
@@ -5278,6 +5344,29 @@ function ChatPanel({
                 {workbenchCopy.operationOpenKnowledge}
               </button>
             </div>
+          </div>
+          <div className="client-closed-loop-delivery" aria-label={workbenchCopy.operationClosedLoopDeliveryTitle}>
+            <div className="client-closed-loop-delivery-copy">
+              <span>{workbenchCopy.operationClosedLoopDeliveryTitle}</span>
+              <p>{closedLoopDeliveryStatus ?? workbenchCopy.operationClosedLoopDeliverySubtitle}</p>
+              <small>{workbenchCopy.operationClosedLoopDeliveryBoundary}</small>
+            </div>
+            <ol className="client-closed-loop-delivery-steps">
+              {workbenchCopy.operationClosedLoopDeliverySteps.map((step, index) => (
+                <li key={step}>
+                  <strong>{index + 1}</strong>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+            <button
+              className="refresh-button primary-action"
+              onClick={() => void completeClientClosedLoopDeliveryPass()}
+              disabled={closedLoopDeliveryLoading || operationLoopLoading || chatLoading || !closedLoopDeliveryAvailable}
+            >
+              <PlayCircle size={14} />
+              {closedLoopDeliveryLoading ? workbenchCopy.operationClosedLoopDeliveryRunning : workbenchCopy.operationClosedLoopDeliveryAction}
+            </button>
           </div>
           <div className="client-operation-loop" aria-label={workbenchCopy.operationLoopTitle}>
             {operationLoopStages.map((stage) => (
