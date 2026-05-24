@@ -926,6 +926,24 @@ This keeps the repeatable closed loop usable without adding a new complex page: 
 
 Boundary: Phase 63G is next-cycle execution prep only. It creates metadata-only deliverable and execution prep records from approved next-cycle drafts. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63H Customer Console Next-Cycle Execution Run Review
+
+Branch: `codex/phase-63h-next-cycle-execution-run-review`
+
+Phase 63H connects next-cycle execution prep back into execution run tracking for `worker_console` and `worker_console_desktop`. After Phase 63G creates a next-cycle metadata-only execution prep request, the same review-and-queue action can prefer that request and create the second execution run record.
+
+The next-cycle execution run review action performs a guarded record-only sequence:
+
+- Prefer next-cycle execution prep requests when reviewing runnable requests.
+- Move draft/ready/approved requests through the existing review path.
+- Create a metadata-only next-cycle execution run record.
+- Keep the run queued until the operator explicitly starts it.
+- Reuse the existing start, failure, retry, result, observation, and improvement controls.
+
+This keeps the repeatable closed loop moving through the same simple task desk without a new page or a separate second-round workflow.
+
+Boundary: Phase 63H is next-cycle execution run review only. It creates metadata-only execution run records from next-cycle execution prep requests. It does not execute OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

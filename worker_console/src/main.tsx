@@ -191,8 +191,11 @@ type TaskWorkbenchCopy = {
   operationApprovalMissing: string;
   operationApprovalPending: string;
   operationReviewAndQueueRun: string;
+  operationReviewAndQueueNextCycleRun: string;
   operationExecutionRunQueuing: string;
+  operationNextCycleExecutionRunQueuing: string;
   operationExecutionRunReady: string;
+  operationNextCycleExecutionRunReady: string;
   operationExecutionRequestMissing: string;
   operationStartRun: string;
   operationRunStarting: string;
@@ -375,6 +378,16 @@ function isNextCycleApproval(approval: CommercialOperationApproval): boolean {
     source.includes("next_cycle_content_draft") ||
     metadataStringValue(approval.metadata, "phase") === "63F" ||
     Boolean(metadataStringValue(approval.metadata, "optimization_decision_id"))
+  );
+}
+
+function isNextCycleExecutionRequest(request: CommercialOperationExecutionRequest): boolean {
+  const source = metadataStringValue(request.metadata, "source") ?? "";
+  return (
+    source.includes("next_cycle_approval_execution_prep") ||
+    metadataStringValue(request.metadata, "phase") === "63G" ||
+    metadataStringValue(request.metadata, "cycle") === "next_iteration" ||
+    Boolean(metadataStringValue(request.metadata, "optimization_decision_id"))
   );
 }
 
@@ -741,8 +754,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationApprovalMissing: "请先准备首版产物并生成待审批记录",
     operationApprovalPending: "商业审批待处理",
     operationReviewAndQueueRun: "复核并创建执行记录",
+    operationReviewAndQueueNextCycleRun: "复核下一轮执行记录",
     operationExecutionRunQueuing: "正在复核并创建执行记录",
+    operationNextCycleExecutionRunQueuing: "正在复核并创建下一轮执行记录",
     operationExecutionRunReady: "执行运行记录已创建，等待开始",
+    operationNextCycleExecutionRunReady: "下一轮执行运行记录已创建，等待开始",
     operationExecutionRequestMissing: "请先生成客户机执行准备记录",
     operationStartRun: "标记开始",
     operationRunStarting: "正在标记执行开始",
@@ -876,8 +892,11 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationApprovalMissing: "Prepare the first draft and approval record first",
     operationApprovalPending: "Commercial approval pending",
     operationReviewAndQueueRun: "Review and queue run",
+    operationReviewAndQueueNextCycleRun: "Review next-cycle run",
     operationExecutionRunQueuing: "Reviewing and creating execution run",
+    operationNextCycleExecutionRunQueuing: "Reviewing and creating next-cycle execution run",
     operationExecutionRunReady: "Execution run is queued and waiting to start",
+    operationNextCycleExecutionRunReady: "Next-cycle execution run is queued and waiting to start",
     operationExecutionRequestMissing: "Create the client execution prep record first",
     operationStartRun: "Mark started",
     operationRunStarting: "Marking execution run started",
@@ -2171,12 +2190,18 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
 
   const resolveExecutionRequestForRun = async (operationId: string): Promise<CommercialOperationExecutionRequest | null> => {
     const response = await commercialOperationClient.listExecutionRequests(operationId, undefined, settings);
+    const requestPool = [
+      ...response.items.filter(isNextCycleExecutionRequest),
+      ...response.items.filter((item) => !isNextCycleExecutionRequest(item)),
+      ...commercialExecutionRequests.filter(isNextCycleExecutionRequest),
+      ...commercialExecutionRequests.filter((item) => !isNextCycleExecutionRequest(item)),
+    ];
     const request =
-      response.items.find((item) => item.request_status === "prepared") ??
-      response.items.find((item) => item.request_status === "approved") ??
-      response.items.find((item) => item.request_status === "ready_for_review") ??
-      response.items.find((item) => item.request_status === "draft") ??
-      commercialExecutionRequests.find((item) => ["prepared", "approved", "ready_for_review", "draft"].includes(item.request_status)) ??
+      requestPool.find((item) => item.request_status === "prepared") ??
+      requestPool.find((item) => item.request_status === "approved") ??
+      requestPool.find((item) => item.request_status === "ready_for_review") ??
+      requestPool.find((item) => item.request_status === "draft") ??
+      requestPool.find((item) => ["prepared", "approved", "ready_for_review", "draft"].includes(item.request_status)) ??
       null;
     if (!request) {
       return null;
@@ -2233,6 +2258,13 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
         await refreshCommercialOperationLoop(operationId);
         return;
       }
+      const requestIsNextCycle = isNextCycleExecutionRequest(preparedRequest);
+      const executionRunSource = requestIsNextCycle
+        ? "worker_console_next_cycle_execution_run_review"
+        : "worker_console_execution_run_review";
+      const executionRunPhase = requestIsNextCycle ? "63H" : "63D";
+      const optimizationDecisionId = metadataStringValue(preparedRequest.metadata, "optimization_decision_id");
+      setExecutionRunStatus(requestIsNextCycle ? workbenchCopy.operationNextCycleExecutionRunQueuing : workbenchCopy.operationExecutionRunQueuing);
       const existingRuns = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
       const existingRun =
         existingRuns.items.find(
@@ -2252,31 +2284,41 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
           execution_request_id: preparedRequest.id,
           title:
             language === "zh-CN"
-              ? `${preparedRequest.title} 执行运行记录`
-              : `${preparedRequest.title} execution run`,
+              ? `${preparedRequest.title} ${requestIsNextCycle ? "下一轮执行运行记录" : "执行运行记录"}`
+              : `${preparedRequest.title} ${requestIsNextCycle ? "next-cycle execution run" : "execution run"}`,
           execution_target: preparedRequest.execution_target ?? "customer_machine_playwright",
           input_payload: {
             execution_request_id: preparedRequest.id,
             execution_target: preparedRequest.execution_target ?? "customer_machine_playwright",
             execution_boundary: "metadata-only; no external runtime call",
-            source: "worker_console_execution_run_review",
+            source: executionRunSource,
+            cycle: requestIsNextCycle ? "next_iteration" : "first_iteration",
+            optimization_decision_id: optimizationDecisionId,
           },
           max_retries: 1,
           operator_notes:
-            language === "zh-CN"
-              ? "客户机已创建执行运行记录，等待显式开始。"
-              : "Customer console created the execution run record and is waiting for explicit start.",
+            requestIsNextCycle
+              ? language === "zh-CN"
+                ? "客户机已创建下一轮执行运行记录，等待显式开始。"
+                : "Customer console created the next-cycle execution run record and is waiting for explicit start."
+              : language === "zh-CN"
+                ? "客户机已创建执行运行记录，等待显式开始。"
+                : "Customer console created the execution run record and is waiting for explicit start.",
           metadata: {
-            source: "worker_console_execution_run_review",
-            phase: "63D",
+            source: executionRunSource,
+            phase: executionRunPhase,
             execution_request_id: preparedRequest.id,
+            optimization_decision_id: optimizationDecisionId,
+            cycle: requestIsNextCycle ? "next_iteration" : "first_iteration",
           },
         },
         settings,
       );
       await refreshCommercialOperationLoop(operationId);
-      setExecutionRunStatus(`${workbenchCopy.operationExecutionRunReady}: ${run.id}`);
-      setRunStatus(`commercial execution run queued: ${run.id}`);
+      setExecutionRunStatus(
+        `${requestIsNextCycle ? workbenchCopy.operationNextCycleExecutionRunReady : workbenchCopy.operationExecutionRunReady}: ${run.id}`,
+      );
+      setRunStatus(`${requestIsNextCycle ? "next-cycle " : ""}commercial execution run queued: ${run.id}`);
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : "Commercial execution run queueing failed";
       setOperationLoopError(message);
@@ -3221,6 +3263,10 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
   const pendingCommercialApprovals = commercialApprovals.filter((approval) => approval.approval_status === "pending");
   const pendingNextCycleCommercialApproval = pendingCommercialApprovals.find(isNextCycleApproval) ?? null;
   const latestCommercialExecutionRequest = commercialExecutionRequests[0] ?? null;
+  const pendingNextCycleExecutionRequest =
+    commercialExecutionRequests.find(
+      (request) => ["prepared", "approved", "ready_for_review", "draft"].includes(request.request_status) && isNextCycleExecutionRequest(request),
+    ) ?? null;
   const latestCommercialExecutionRun = commercialExecutionRuns[0] ?? null;
   const queuedCommercialExecutionRun =
     commercialExecutionRuns.find((run) => run.run_status === "queued" || run.run_status === "retrying") ?? null;
@@ -3540,7 +3586,13 @@ function ChatPanel({ language, onOpenKnowledge }: { language: ClientLanguage; on
                 disabled={executionRunLoading || operationLoopLoading || chatLoading || commercialExecutionRequests.length === 0}
               >
                 <CheckCircle2 size={14} />
-                {executionRunLoading ? workbenchCopy.operationExecutionRunQueuing : workbenchCopy.operationReviewAndQueueRun}
+                {executionRunLoading
+                  ? pendingNextCycleExecutionRequest
+                    ? workbenchCopy.operationNextCycleExecutionRunQueuing
+                    : workbenchCopy.operationExecutionRunQueuing
+                  : pendingNextCycleExecutionRequest
+                    ? workbenchCopy.operationReviewAndQueueNextCycleRun
+                    : workbenchCopy.operationReviewAndQueueRun}
               </button>
               <button
                 className="refresh-button"

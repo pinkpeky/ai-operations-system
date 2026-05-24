@@ -1565,3 +1565,53 @@ def test_phase_63g_next_cycle_execution_prep_is_documented() -> None:
         assert "next-cycle execution prep" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63h_next_cycle_execution_run_review() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "isNextCycleExecutionRequest",
+            "pendingNextCycleExecutionRequest",
+            "operationReviewAndQueueNextCycleRun",
+            "operationNextCycleExecutionRunQueuing",
+            "operationNextCycleExecutionRunReady",
+            "next_cycle_execution_run_review",
+            "requestIsNextCycle",
+            "executionRunPhase = requestIsNextCycle ? \"63H\" : \"63D\"",
+            "cycle: requestIsNextCycle ? \"next_iteration\" : \"first_iteration\"",
+            "optimization_decision_id",
+            "63H",
+        ]:
+            assert token in text
+
+
+def test_phase_63h_next_cycle_execution_run_review_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63H Customer Console Next-Cycle Execution Run Review" in text
+        assert "codex/phase-63h-next-cycle-execution-run-review" in text
+        assert "next-cycle execution run" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
