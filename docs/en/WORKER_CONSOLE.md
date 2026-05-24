@@ -1031,6 +1031,16 @@ The improvement action records `manual_publish_improvement` from an approved `ma
 
 Boundary: Phase 63R-63T is manual publish metric improvement and publish metric next-cycle draft preparation only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63U-63W Customer Console Improved Draft Re-execution Loop
+
+Branch: `codex/phase-63u-63w-improved-draft-reexecution-loop`
+
+Phase 63U-63W moves the customer-machine loop from improved content back into execution preparation for `worker_console` and `worker_console_desktop`. The product operation desk now recognizes publish metric next-cycle approvals, uses improved draft re-execution labels, and prioritizes publish metric re-execution prep when queueing the next run.
+
+The re-execution path records `publish_metric_reexecution_prep` execution requests and `publish_metric_reexecution_run_review` execution runs. This keeps the closed loop simple: approve the improved draft, prepare the customer-machine re-execution record, queue the run, then continue preflight, handoff, dry-run, and result tracking.
+
+Boundary: Phase 63U-63W is improved draft re-execution and publish metric re-execution prep only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

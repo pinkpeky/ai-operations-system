@@ -1995,3 +1995,69 @@ def test_phase_63r_63t_publish_metric_improvement_loop_is_documented() -> None:
         assert "publish metric next-cycle draft" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63u_63w_improved_draft_reexecution_loop() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "isPublishMetricNextCycleApproval",
+            "isPublishMetricReexecutionRequest",
+            "isPublishMetricReexecutionRun",
+            "pendingPublishMetricNextCycleCommercialApproval",
+            "pendingPublishMetricReexecutionRequest",
+            "operationApproveImprovedDraftAndPrepare",
+            "operationImprovedApprovalPreparing",
+            "operationImprovedExecutionPrepReady",
+            "operationReviewAndQueueImprovedRun",
+            "operationImprovedExecutionRunQueuing",
+            "operationImprovedExecutionRunReady",
+            "publish_metric_reexecution_prep",
+            "publish_metric_reexecution_run_review",
+            "publish_metric_next_cycle_content_package",
+            "publish_metric_improvement",
+            "manual publish metric improvement linked",
+            "publish metric next-cycle draft approved",
+            "publish metric re-execution prep",
+            "manual publish metric improvement approved",
+            "\"63V\"",
+            "\"63W\"",
+        ]:
+            assert token in text
+
+    assert "worker_console_publish_metric_reexecution_prep" in web_main
+    assert "worker_console_publish_metric_reexecution_run_review" in web_main
+    assert "worker_console_desktop_publish_metric_reexecution_prep" in desktop_main
+    assert "worker_console_desktop_publish_metric_reexecution_run_review" in desktop_main
+
+
+def test_phase_63u_63w_improved_draft_reexecution_loop_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63U-63W Customer Console Improved Draft Re-execution Loop" in text
+        assert "codex/phase-63u-63w-improved-draft-reexecution-loop" in text
+        assert "improved draft re-execution" in text
+        assert "publish metric re-execution prep" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
