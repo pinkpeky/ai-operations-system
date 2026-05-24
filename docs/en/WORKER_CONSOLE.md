@@ -1071,6 +1071,16 @@ The server `admin_dashboard` also adds a maintenance cockpit so maintainers can 
 
 Boundary: Phase 64D is frontend display and operator ergonomics only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, mutate runtime configuration, or rebuild client packages.
 
+## Phase 64E Layout Declutter
+
+Branch: `codex/phase-64e-layout-declutter`
+
+Phase 64E removes unnecessary visible components after the first operability pass. `worker_console` and `worker_console_desktop` remove the duplicate closed-loop delivery panel because the same full-loop action is already available in the common action strip. Deliverables, the client execution queue, and publish result controls move into `client-operation-support-drawer`, so operators see them only when they need detailed evidence, run state, or publish-result recovery.
+
+The server `admin_dashboard` also folds raw action result JSON into `commercial-action-result-drawer`, keeping maintenance payloads available without making them a permanent page card.
+
+Boundary: Phase 64E is layout declutter only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, mutate runtime configuration, or rebuild client packages.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

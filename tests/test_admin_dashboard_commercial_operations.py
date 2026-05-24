@@ -31,6 +31,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Server maintenance cockpit" in text
     assert "Client frontend" in text
     assert "commercial-maintenance-cockpit" in text
+    assert "commercial-action-result-drawer" in text
     assert "agentSkillState" in text
     assert "loadAgentSkillOrchestration" in text
     assert "refreshAgentSkillOrchestration" in text
@@ -532,6 +533,7 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-maintenance-cockpit",
         ".commercial-maintenance-card",
         ".commercial-maintenance-next-card",
+        ".commercial-action-result-drawer",
         ".commercial-grid",
         ".commercial-form-grid",
         ".commercial-detail-grid",

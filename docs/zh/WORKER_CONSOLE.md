@@ -1071,6 +1071,16 @@ Phase 64D 在不改变运行时行为的前提下优化客户机首屏。`worker
 
 Boundary: Phase 64D is frontend display and operator ergonomics only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, mutate runtime configuration, or rebuild client packages.
 
+## Phase 64E Layout Declutter
+
+Branch: `codex/phase-64e-layout-declutter`
+
+Phase 64E 在上一轮可操作性优化后继续做页面减负。`worker_console` 和 `worker_console_desktop` remove the duplicate closed-loop delivery panel，因为完整闭环推进按钮已经在常用操作条里。交付内容、客户机执行队列和发布结果控件移动到 `client-operation-support-drawer`，普通操作员只在需要排查证据、执行状态或发布结果恢复时展开。
+
+服务器 `admin_dashboard` 也把原始操作结果 JSON 折叠进 `commercial-action-result-drawer`，维护 payload 仍然可查，但不再作为常驻页面卡片。
+
+Boundary: Phase 64E is layout declutter only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, bypass approval, mutate runtime configuration, or rebuild client packages.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

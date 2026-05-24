@@ -10335,11 +10335,12 @@ function CommercialOperationsPage({
               <Target size={15} />
               {copy.createAction}
             </button>
-          </Panel>
-
-          <Panel title={copy.actionResult} description={actionState.updatedAt ? `${textFor(language, "lastUpdated")}: ${actionState.updatedAt}` : undefined}>
-            <LoadNotice state={actionState} />
-            <JsonPreview value={actionState.data || { status: "no action yet" }} />
+            <details className="commercial-action-result-drawer">
+              <summary>{copy.actionResult}</summary>
+              <LoadNotice state={actionState} />
+              {actionState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {actionState.updatedAt}</div> : null}
+              <JsonPreview value={actionState.data || { status: "no action yet" }} />
+            </details>
           </Panel>
         </div>
       ) : (
