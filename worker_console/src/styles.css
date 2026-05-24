@@ -593,7 +593,9 @@ h2 {
 .client-operation-deliverable span,
 .client-operation-knowledge-card span,
 .client-execution-queue-header span,
-.client-execution-run span {
+.client-execution-run span,
+.client-publish-loop-header span,
+.client-publish-step span {
   color: #64748b;
   font-size: 11px;
   font-weight: 850;
@@ -614,7 +616,9 @@ h2 {
 .client-operation-deliverable p,
 .client-operation-knowledge-card p,
 .client-execution-queue-header p,
-.client-execution-run p {
+.client-execution-run p,
+.client-publish-loop-header p,
+.client-publish-step p {
   margin: 0;
   color: #475569;
   font-size: 13px;
@@ -797,6 +801,53 @@ h2 {
 .client-execution-run.run-status-retrying {
   border-color: rgba(37, 99, 235, 0.26);
   background: #eff6ff;
+}
+
+.client-publish-loop {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.client-publish-loop-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.client-publish-loop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.client-publish-step {
+  display: grid;
+  min-width: 0;
+  min-height: 158px;
+  gap: 8px;
+  align-content: start;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.client-publish-step strong {
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.client-publish-step .refresh-button {
+  width: 100%;
+  justify-content: flex-start;
+  align-self: end;
 }
 
 .simple-operator-workbench {
@@ -3072,6 +3123,7 @@ h2 {
     .client-operation-loop,
     .client-operation-deliverables,
     .client-execution-run-list,
+    .client-publish-loop-grid,
     .simple-operator-workbench,
     .simple-template-row,
     .simple-progress-stages,

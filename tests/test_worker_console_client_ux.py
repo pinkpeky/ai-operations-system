@@ -1850,3 +1850,76 @@ def test_phase_63l_63n_execution_and_approval_loop_is_documented() -> None:
         assert "commercial approval center" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63o_63q_publish_result_observation_loop() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_styles = (ROOT / "worker_console/src/styles.css").read_text(encoding="utf-8")
+    desktop_styles = (ROOT / "worker_console_desktop/src/styles.css").read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "prepareGuardedPublishHandoff",
+            "captureManualPublishResult",
+            "recordManualMetricObservation",
+            "operationPublishPanelTitle",
+            "operationPublishHandoff",
+            "operationCapturePublishResult",
+            "operationRecordMetricObservation",
+            "isPublishHandoffResult",
+            "isManualPublishResult",
+            "isManualMetricObservation",
+            "guarded_publish_handoff",
+            "manual_publish_result",
+            "manual_publish_metrics",
+            "client-publish-loop",
+            "client-publish-step",
+            "phase: \"63O\"",
+            "phase: \"63P\"",
+            "phase: \"63Q\"",
+            "live_adapter_execution_performed: false",
+            "external_execution_performed: false",
+            "actual_openclaw_execution_performed: false",
+            "playwright_run_performed: false",
+        ]:
+            assert token in text
+
+    for text in (web_styles, desktop_styles):
+        for token in [
+            ".client-publish-loop",
+            ".client-publish-loop-grid",
+            ".client-publish-step",
+        ]:
+            assert token in text
+
+
+def test_phase_63o_63q_publish_result_observation_loop_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63O-63Q Customer Console Publish Result Observation Loop" in text
+        assert "codex/phase-63o-63q-publish-result-observation-loop" in text
+        assert "guarded publish handoff" in text
+        assert "manual publish result" in text
+        assert "manual metric observation" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text

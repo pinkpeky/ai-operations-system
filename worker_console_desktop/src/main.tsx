@@ -263,6 +263,23 @@ type TaskWorkbenchCopy = {
   operationApprovalCenterReject: string;
   operationApprovalCenterRisk: string;
   operationApprovalCenterStatus: string;
+  operationPublishPanelTitle: string;
+  operationPublishPanelSubtitle: string;
+  operationPublishHandoff: string;
+  operationPublishHandoffPreparing: string;
+  operationPublishHandoffReady: string;
+  operationPublishHandoffMissing: string;
+  operationCapturePublishResult: string;
+  operationCapturePublishResultCapturing: string;
+  operationPublishResultReady: string;
+  operationPublishResultMissing: string;
+  operationRecordMetricObservation: string;
+  operationMetricObservationRecording: string;
+  operationMetricObservationReady: string;
+  operationMetricObservationMissing: string;
+  operationPublishTargetLabel: string;
+  operationPublishResultLabel: string;
+  operationMetricObservationLabel: string;
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -453,6 +470,21 @@ function isGuardedAdapterDispatchReady(run: CommercialOperationExecutionRun): bo
     metadataStringValue(run.input_payload, "guarded_adapter_dispatch_status") === "ready_for_operator_start" ||
     metadataStringValue(handoff ?? undefined, "status") === "ready_for_operator_start"
   );
+}
+
+function isPublishHandoffResult(result: CommercialOperationResult): boolean {
+  const source = metadataStringValue(result.metadata, "source") ?? "";
+  return result.result_type === "guarded_publish_handoff" || source.includes("guarded_publish_handoff");
+}
+
+function isManualPublishResult(result: CommercialOperationResult): boolean {
+  const source = metadataStringValue(result.metadata, "source") ?? "";
+  return result.result_type === "manual_publish_result" || source.includes("manual_publish_result");
+}
+
+function isManualMetricObservation(observation: CommercialOperationMonitoringObservation): boolean {
+  const source = metadataStringValue(observation.metadata, "source") ?? "";
+  return observation.observation_type === "manual_publish_metrics" || source.includes("manual_publish_metrics");
 }
 
 function isNextCycleApproval(approval: CommercialOperationApproval): boolean {
@@ -894,6 +926,23 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationApprovalCenterReject: "驳回",
     operationApprovalCenterRisk: "风险",
     operationApprovalCenterStatus: "状态",
+    operationPublishPanelTitle: "发布结果闭环",
+    operationPublishPanelSubtitle: "先准备单平台发布交接，再人工回收链接/截图/日志，最后记录曝光、互动和转化观察。",
+    operationPublishHandoff: "准备发布交接",
+    operationPublishHandoffPreparing: "正在准备发布交接",
+    operationPublishHandoffReady: "发布交接已准备，等待人工发布或真实适配器",
+    operationPublishHandoffMissing: "请先完成 dry-run 执行",
+    operationCapturePublishResult: "回收发布结果",
+    operationCapturePublishResultCapturing: "正在回收发布结果",
+    operationPublishResultReady: "发布结果已回收，可观察数据",
+    operationPublishResultMissing: "请先准备发布交接",
+    operationRecordMetricObservation: "记录运营数据",
+    operationMetricObservationRecording: "正在记录运营数据",
+    operationMetricObservationReady: "运营数据观察已记录，可生成改进",
+    operationMetricObservationMissing: "请先回收发布结果",
+    operationPublishTargetLabel: "发布目标",
+    operationPublishResultLabel: "结果回收",
+    operationMetricObservationLabel: "数据观察",
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -1063,6 +1112,23 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationApprovalCenterReject: "Reject",
     operationApprovalCenterRisk: "Risk",
     operationApprovalCenterStatus: "Status",
+    operationPublishPanelTitle: "Publish result loop",
+    operationPublishPanelSubtitle: "Prepare a single-platform publish handoff, capture link/screenshot/log results manually, then record reach, engagement, and conversion observations.",
+    operationPublishHandoff: "Prepare publish handoff",
+    operationPublishHandoffPreparing: "Preparing publish handoff",
+    operationPublishHandoffReady: "Publish handoff is ready for manual publish or a future live adapter",
+    operationPublishHandoffMissing: "Complete dry-run execution first",
+    operationCapturePublishResult: "Capture publish result",
+    operationCapturePublishResultCapturing: "Capturing publish result",
+    operationPublishResultReady: "Publish result captured and ready for data observation",
+    operationPublishResultMissing: "Prepare the publish handoff first",
+    operationRecordMetricObservation: "Record metrics",
+    operationMetricObservationRecording: "Recording operating metrics",
+    operationMetricObservationReady: "Metric observation recorded and ready for improvement",
+    operationMetricObservationMissing: "Capture the publish result first",
+    operationPublishTargetLabel: "Publish target",
+    operationPublishResultLabel: "Result capture",
+    operationMetricObservationLabel: "Data observation",
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -1971,6 +2037,12 @@ function ChatPanel({
   const [guardedDispatchLoading, setGuardedDispatchLoading] = useState(false);
   const [adapterDryRunStatus, setAdapterDryRunStatus] = useState<string | null>(null);
   const [adapterDryRunLoading, setAdapterDryRunLoading] = useState(false);
+  const [publishHandoffStatus, setPublishHandoffStatus] = useState<string | null>(null);
+  const [publishHandoffLoading, setPublishHandoffLoading] = useState(false);
+  const [publishResultStatus, setPublishResultStatus] = useState<string | null>(null);
+  const [publishResultLoading, setPublishResultLoading] = useState(false);
+  const [metricObservationStatus, setMetricObservationStatus] = useState<string | null>(null);
+  const [metricObservationLoading, setMetricObservationLoading] = useState(false);
   const [commercialResults, setCommercialResults] = useState<CommercialOperationResult[]>([]);
   const [commercialMonitoringObservations, setCommercialMonitoringObservations] = useState<CommercialOperationMonitoringObservation[]>([]);
   const [commercialOptimizationDecisions, setCommercialOptimizationDecisions] = useState<CommercialOperationOptimizationDecision[]>([]);
@@ -3235,6 +3307,386 @@ function ChatPanel({
     }
   };
 
+  const selectPublishReadyExecutionRun = (runs: CommercialOperationExecutionRun[]) =>
+    runs.find((run) => run.run_status === "succeeded" && isNextCycleExecutionRun(run)) ??
+    runs.find((run) => run.run_status === "succeeded") ??
+    null;
+
+  const prepareGuardedPublishHandoff = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setPublishHandoffLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setPublishHandoffStatus(workbenchCopy.operationPublishHandoffPreparing);
+    try {
+      if (!operationId) {
+        setPublishHandoffStatus(workbenchCopy.operationPublishHandoffMissing);
+        setRunStatus("guarded publish handoff missing");
+        return;
+      }
+      const executionRunResponse = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
+      const executionRunPool = [...executionRunResponse.items, ...commercialExecutionRuns];
+      const targetRun = selectPublishReadyExecutionRun(executionRunPool);
+      if (!targetRun) {
+        setPublishHandoffStatus(workbenchCopy.operationPublishHandoffMissing);
+        setRunStatus("guarded publish handoff missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      const runIsNextCycle = isNextCycleExecutionRun(targetRun);
+      const cycle =
+        metadataStringValue(targetRun.metadata, "cycle") ??
+        metadataStringValue(targetRun.input_payload, "cycle") ??
+        (runIsNextCycle ? "next_iteration" : "first_iteration");
+      const optimizationDecisionId =
+        metadataStringValue(targetRun.metadata, "optimization_decision_id") ??
+        metadataStringValue(targetRun.input_payload, "optimization_decision_id");
+      const checkedAt = new Date().toISOString();
+      const publishSource = "worker_console_desktop_guarded_publish_handoff";
+      const resultResponse = await commercialOperationClient.listResults(operationId, undefined, settings);
+      let publishHandoff =
+        resultResponse.items.find((item) => item.execution_run_id === targetRun.id && isPublishHandoffResult(item)) ?? null;
+      if (!publishHandoff) {
+        publishHandoff = await commercialOperationClient.createResult(
+          operationId,
+          {
+            execution_run_id: targetRun.id,
+            result_type: "guarded_publish_handoff",
+            title:
+              language === "zh-CN"
+                ? `${targetRun.title} 单平台发布交接`
+                : `${targetRun.title} single-platform publish handoff`,
+            summary:
+              language === "zh-CN"
+                ? "桌面客户机准备单平台发布交接记录；当前只记录平台、账号、发布时间和回滚要求，不执行真实发布。"
+                : "Desktop client prepares a guarded single-platform publish handoff record; it records platform, account, timing, and rollback requirements without live publishing.",
+            outcome_summary:
+              language === "zh-CN"
+                ? "发布交接已准备，操作员可人工发布或等待后续真实适配器接入。"
+                : "Publish handoff is ready for manual publish or a future live adapter.",
+            observed_metrics: [
+              { name: "publish_handoff_ready", value: "true" },
+              { name: "target_platform", value: "manual_social" },
+              { name: "cycle", value: cycle },
+            ],
+            commercial_signals: [
+              "single-platform publish handoff prepared",
+              "operator approval remains required",
+              "manual result capture required",
+            ],
+            evidence_links: [{ title: "Execution run", target_id: targetRun.id, target_type: "execution_run" }],
+            follow_up_actions: ["confirm platform account", "publish manually or enable future guarded adapter", "capture link, screenshot, and logs"],
+            result_payload: {
+              guarded_publish_handoff: {
+                status: "ready_for_manual_publish_or_future_adapter",
+                checked_at: checkedAt,
+                target_platform: "manual_social",
+                target_account_required: true,
+                publish_time_required: true,
+                rollback_required: true,
+                manual_result_capture_required: true,
+                future_openclaw_playwright_adapter: "not_enabled",
+              },
+              phase: "63O",
+              console: "worker_console_desktop",
+              live_adapter_execution_performed: false,
+              external_execution_performed: false,
+              actual_openclaw_execution_performed: false,
+              playwright_run_performed: false,
+              publishing_performed: false,
+              account_control_performed: false,
+              source: publishSource,
+              cycle,
+              optimization_decision_id: optimizationDecisionId,
+            },
+            recommendation_payload: {
+              next_operator_action: "capture publish result after manual publish or future guarded adapter run",
+            },
+            metadata: {
+              source: publishSource,
+              console: "worker_console_desktop",
+              phase: "63O",
+              execution_run_id: targetRun.id,
+              cycle,
+              optimization_decision_id: optimizationDecisionId,
+            },
+          },
+          settings,
+        );
+      }
+      if (publishHandoff.result_status === "draft" || publishHandoff.result_status === "rejected") {
+        publishHandoff = await commercialOperationClient.readyResult(
+          operationId,
+          publishHandoff.id,
+          language === "zh-CN" ? "发布交接记录进入复核。" : "Publish handoff record is ready for review.",
+          settings,
+        );
+      }
+      if (publishHandoff.result_status === "ready_for_review") {
+        publishHandoff = await commercialOperationClient.approveResult(
+          operationId,
+          publishHandoff.id,
+          language === "zh-CN" ? "客户机操作员批准发布交接记录。" : "Client operator approved the publish handoff record.",
+          settings,
+        );
+      }
+      await refreshCommercialOperationLoop(operationId);
+      setPublishHandoffStatus(`${workbenchCopy.operationPublishHandoffReady}: ${publishHandoff.id}`);
+      setRunStatus(`guarded publish handoff ready: ${publishHandoff.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Guarded publish handoff failed";
+      setOperationLoopError(message);
+      setPublishHandoffStatus(message);
+      setRunStatus("guarded publish handoff error");
+    } finally {
+      setPublishHandoffLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const captureManualPublishResult = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setPublishResultLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setPublishResultStatus(workbenchCopy.operationCapturePublishResultCapturing);
+    try {
+      if (!operationId) {
+        setPublishResultStatus(workbenchCopy.operationPublishResultMissing);
+        setRunStatus("manual publish result missing");
+        return;
+      }
+      const executionRunResponse = await commercialOperationClient.listExecutionRuns(operationId, undefined, settings);
+      const targetRun = selectPublishReadyExecutionRun([...executionRunResponse.items, ...commercialExecutionRuns]);
+      if (!targetRun) {
+        setPublishResultStatus(workbenchCopy.operationPublishResultMissing);
+        setRunStatus("manual publish result missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      const runIsNextCycle = isNextCycleExecutionRun(targetRun);
+      const cycle =
+        metadataStringValue(targetRun.metadata, "cycle") ??
+        metadataStringValue(targetRun.input_payload, "cycle") ??
+        (runIsNextCycle ? "next_iteration" : "first_iteration");
+      const optimizationDecisionId =
+        metadataStringValue(targetRun.metadata, "optimization_decision_id") ??
+        metadataStringValue(targetRun.input_payload, "optimization_decision_id");
+      const resultResponse = await commercialOperationClient.listResults(operationId, undefined, settings);
+      const publishHandoff =
+        resultResponse.items.find((item) => item.execution_run_id === targetRun.id && isPublishHandoffResult(item)) ?? null;
+      let publishResult =
+        resultResponse.items.find((item) => item.execution_run_id === targetRun.id && isManualPublishResult(item)) ?? null;
+      if (!publishResult) {
+        publishResult = await commercialOperationClient.createResult(
+          operationId,
+          {
+            execution_run_id: targetRun.id,
+            result_type: "manual_publish_result",
+            title:
+              language === "zh-CN"
+                ? `${targetRun.title} 发布结果回收`
+                : `${targetRun.title} publish result capture`,
+            summary:
+              language === "zh-CN"
+                ? "桌面客户机回收发布链接、截图、执行日志和失败恢复信息；当前为人工录入/占位结果，不代表系统已自动发布。"
+                : "Desktop client captures publish link, screenshot, execution log, and recovery notes; this manual or placeholder intake does not mean the system auto-published.",
+            outcome_summary:
+              language === "zh-CN"
+                ? "发布结果已回收，下一步记录曝光、互动、线索和转化观察。"
+                : "Publish result is captured; next record reach, engagement, lead, and conversion observations.",
+            observed_metrics: [
+              { name: "publish_result_captured", value: "true" },
+              { name: "publish_url", value: "manual_pending" },
+              { name: "screenshot_evidence", value: "manual_pending" },
+              { name: "cycle", value: cycle },
+            ],
+            commercial_signals: [
+              "manual publish result captured",
+              "link and screenshot evidence pending operator input",
+              "ready for metric observation",
+            ],
+            evidence_links: [
+              { title: "Execution run", target_id: targetRun.id, target_type: "execution_run" },
+              ...(publishHandoff ? [{ title: "Publish handoff", target_id: publishHandoff.id, target_type: "commercial_result" }] : []),
+            ],
+            follow_up_actions: ["record reach", "record engagement", "record lead and conversion signals"],
+            result_payload: {
+              manual_publish_result: {
+                status: "captured_placeholder",
+                publish_url: "manual_pending",
+                screenshot_evidence: "manual_pending",
+                execution_log: "manual_pending",
+                failure_recovery_notes: "manual_pending",
+              },
+              phase: "63P",
+              console: "worker_console_desktop",
+              live_adapter_execution_performed: false,
+              external_execution_performed: false,
+              actual_openclaw_execution_performed: false,
+              playwright_run_performed: false,
+              publishing_performed: false,
+              account_control_performed: false,
+              external_publish_attempted: false,
+              automated_publish_performed: false,
+              source: "worker_console_desktop_manual_publish_result",
+              cycle,
+              optimization_decision_id: optimizationDecisionId,
+            },
+            recommendation_payload: {
+              next_operator_action: "record manual metric observation",
+            },
+            metadata: {
+              source: "worker_console_desktop_manual_publish_result",
+              console: "worker_console_desktop",
+              phase: "63P",
+              execution_run_id: targetRun.id,
+              publish_handoff_result_id: publishHandoff?.id,
+              cycle,
+              optimization_decision_id: optimizationDecisionId,
+            },
+          },
+          settings,
+        );
+      }
+      if (publishResult.result_status === "draft" || publishResult.result_status === "rejected") {
+        publishResult = await commercialOperationClient.readyResult(
+          operationId,
+          publishResult.id,
+          language === "zh-CN" ? "发布结果回收记录进入复核。" : "Publish result capture is ready for review.",
+          settings,
+        );
+      }
+      if (publishResult.result_status === "ready_for_review") {
+        publishResult = await commercialOperationClient.approveResult(
+          operationId,
+          publishResult.id,
+          language === "zh-CN" ? "客户机操作员批准发布结果回收记录。" : "Client operator approved the publish result capture.",
+          settings,
+        );
+      }
+      await refreshCommercialOperationLoop(operationId);
+      setPublishResultStatus(`${workbenchCopy.operationPublishResultReady}: ${publishResult.id}`);
+      setRunStatus(`manual publish result captured: ${publishResult.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Manual publish result capture failed";
+      setOperationLoopError(message);
+      setPublishResultStatus(message);
+      setRunStatus("manual publish result capture error");
+    } finally {
+      setPublishResultLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
+  const recordManualMetricObservation = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    setMetricObservationLoading(true);
+    setOperationLoopLoading(true);
+    setOperationLoopError(null);
+    setMetricObservationStatus(workbenchCopy.operationMetricObservationRecording);
+    try {
+      if (!operationId) {
+        setMetricObservationStatus(workbenchCopy.operationMetricObservationMissing);
+        setRunStatus("manual metric observation missing");
+        return;
+      }
+      const resultResponse = await commercialOperationClient.listResults(operationId, undefined, settings);
+      const targetResult =
+        resultResponse.items.find((item) => item.result_status === "approved" && isManualPublishResult(item)) ??
+        commercialResults.find((item) => item.result_status === "approved" && isManualPublishResult(item)) ??
+        resultResponse.items.find((item) => item.result_status === "approved" && isPublishHandoffResult(item)) ??
+        commercialResults.find((item) => item.result_status === "approved" && isPublishHandoffResult(item)) ??
+        resultResponse.items.find((item) => item.result_status === "approved") ??
+        commercialResults.find((item) => item.result_status === "approved") ??
+        null;
+      if (!targetResult) {
+        setMetricObservationStatus(workbenchCopy.operationMetricObservationMissing);
+        setRunStatus("manual metric observation missing");
+        await refreshCommercialOperationLoop(operationId);
+        return;
+      }
+      const cycle = metadataStringValue(targetResult.metadata, "cycle") ?? "first_iteration";
+      const observationResponse = await commercialOperationClient.listMonitoringObservations(operationId, undefined, settings);
+      let observation =
+        observationResponse.items.find((item) => item.result_id === targetResult.id && isManualMetricObservation(item)) ?? null;
+      if (!observation) {
+        observation = await commercialOperationClient.createMonitoringObservation(
+          operationId,
+          {
+            result_id: targetResult.id,
+            observation_type: "manual_publish_metrics",
+            title:
+              language === "zh-CN"
+                ? `${targetResult.title} 运营数据观察`
+                : `${targetResult.title} operating metric observation`,
+            metric_snapshots: [
+              { name: "reach", value: "manual_pending", source: "operator" },
+              { name: "impressions", value: "manual_pending", source: "operator" },
+              { name: "clicks", value: "manual_pending", source: "operator" },
+              { name: "engagement", value: "manual_pending", source: "operator" },
+              { name: "lead_signal", value: "manual_pending", source: "operator" },
+              { name: "conversion_signal", value: "manual_pending", source: "operator" },
+              { name: "conversion", value: "manual_pending", source: "operator" },
+              { name: "publish_url_verified", value: "manual_pending", source: "operator" },
+            ],
+            qualitative_signals: [
+              "manual metric observation recorded",
+              "platform analytics ingestion not automated",
+              "ready for content improvement decision",
+            ],
+            evidence_links: [{ title: "Publish result", target_id: targetResult.id, target_type: "commercial_result" }],
+            anomaly_flags: ["manual metrics pending", "no automated platform analytics ingestion"],
+            recommended_actions: ["compare content angle against engagement", "prepare next-cycle content improvement", "keep human approval before execution"],
+            observation_payload: {
+              data_collection_mode: "manual",
+              metrics_collection_mode: "manual",
+              analytics_ingested: false,
+              source: "worker_console_desktop_manual_publish_metrics",
+              console: "worker_console_desktop",
+              cycle,
+            },
+            metadata: {
+              source: "worker_console_desktop_manual_publish_metrics",
+              console: "worker_console_desktop",
+              phase: "63Q",
+              result_id: targetResult.id,
+              cycle,
+            },
+          },
+          settings,
+        );
+      }
+      if (observation.observation_status === "draft" || observation.observation_status === "rejected") {
+        observation = await commercialOperationClient.readyMonitoringObservation(
+          operationId,
+          observation.id,
+          language === "zh-CN" ? "运营数据观察进入复核。" : "Metric observation is ready for review.",
+          settings,
+        );
+      }
+      if (observation.observation_status === "ready_for_review") {
+        observation = await commercialOperationClient.approveMonitoringObservation(
+          operationId,
+          observation.id,
+          language === "zh-CN" ? "客户机操作员批准运营数据观察。" : "Client operator approved the metric observation.",
+          settings,
+        );
+      }
+      await refreshCommercialOperationLoop(operationId);
+      setMetricObservationStatus(`${workbenchCopy.operationMetricObservationReady}: ${observation.id}`);
+      setRunStatus(`manual metric observation recorded: ${observation.id}`);
+    } catch (nextError) {
+      const message = nextError instanceof Error ? nextError.message : "Manual metric observation failed";
+      setOperationLoopError(message);
+      setMetricObservationStatus(message);
+      setRunStatus("manual metric observation error");
+    } finally {
+      setMetricObservationLoading(false);
+      setOperationLoopLoading(false);
+    }
+  };
+
   const completeCommercialResultFeedbackLoop = async () => {
     const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
     setFeedbackLoopLoading(true);
@@ -4148,6 +4600,18 @@ function ChatPanel({
     ) ?? null;
   const latestCommercialResult = commercialResults[0] ?? null;
   const latestCommercialObservation = commercialMonitoringObservations[0] ?? null;
+  const latestPublishHandoffResult = commercialResults.find(isPublishHandoffResult) ?? null;
+  const latestManualPublishResult = commercialResults.find(isManualPublishResult) ?? null;
+  const latestManualMetricObservation = commercialMonitoringObservations.find(isManualMetricObservation) ?? null;
+  const publishHandoffCandidateExecutionRun =
+    commercialExecutionRuns.find((run) => run.run_status === "succeeded" && isNextCycleExecutionRun(run)) ??
+    commercialExecutionRuns.find((run) => run.run_status === "succeeded") ??
+    null;
+  const publishResultCandidateExecutionRun = publishHandoffCandidateExecutionRun;
+  const metricObservationCandidateResult =
+    commercialResults.find((result) => result.result_status === "approved" && isManualPublishResult(result)) ??
+    commercialResults.find((result) => result.result_status === "approved" && isPublishHandoffResult(result)) ??
+    latestCommercialResult;
   const latestCommercialOptimizationDecision = commercialOptimizationDecisions[0] ?? null;
   const approvedCommercialOptimizationDecision =
     commercialOptimizationDecisions.find((decision) => decision.decision_status === "approved") ?? null;
@@ -4323,6 +4787,14 @@ function ChatPanel({
   });
   const operationResultSummary = nextCycleDraftStatus
     ? nextCycleDraftStatus
+    : metricObservationStatus
+      ? metricObservationStatus
+    : publishResultStatus
+      ? publishResultStatus
+    : publishHandoffStatus
+      ? publishHandoffStatus
+    : feedbackLoopStatus
+      ? feedbackLoopStatus
     : adapterDryRunStatus
       ? adapterDryRunStatus
     : guardedDispatchStatus
@@ -4366,6 +4838,9 @@ function ChatPanel({
     : null;
   const operationReadableSourceText =
     nextCycleDraftStatus ||
+    metricObservationStatus ||
+    publishResultStatus ||
+    publishHandoffStatus ||
     feedbackLoopStatus ||
     adapterDryRunStatus ||
     guardedDispatchStatus ||
@@ -4639,6 +5114,59 @@ function ChatPanel({
               }) : (
                 <div className="empty-chat">{workbenchCopy.operationExecutionQueueEmpty}</div>
               )}
+            </div>
+          </div>
+          <div className="client-publish-loop" aria-label={workbenchCopy.operationPublishPanelTitle}>
+            <div className="client-publish-loop-header">
+              <div>
+                <span>{workbenchCopy.operationPublishPanelTitle}</span>
+                <p>{workbenchCopy.operationPublishPanelSubtitle}</p>
+              </div>
+            </div>
+            <div className="client-publish-loop-grid">
+              <article className="client-publish-step">
+                <span>{workbenchCopy.operationPublishTargetLabel}</span>
+                <strong>{latestPublishHandoffResult ? latestPublishHandoffResult.result_status : workbenchCopy.operationPublishHandoffMissing}</strong>
+                <p>{latestPublishHandoffResult?.summary ?? workbenchCopy.operationPublishPanelSubtitle}</p>
+                <button
+                  className="refresh-button"
+                  onClick={() => void prepareGuardedPublishHandoff()}
+                  disabled={publishHandoffLoading || operationLoopLoading || chatLoading || !publishHandoffCandidateExecutionRun}
+                >
+                  <CheckCircle2 size={14} />
+                  {publishHandoffLoading ? workbenchCopy.operationPublishHandoffPreparing : workbenchCopy.operationPublishHandoff}
+                </button>
+              </article>
+              <article className="client-publish-step">
+                <span>{workbenchCopy.operationPublishResultLabel}</span>
+                <strong>{latestManualPublishResult ? latestManualPublishResult.result_status : workbenchCopy.operationPublishResultMissing}</strong>
+                <p>{latestManualPublishResult?.summary ?? workbenchCopy.operationPublishResultMissing}</p>
+                <button
+                  className="refresh-button"
+                  onClick={() => void captureManualPublishResult()}
+                  disabled={publishResultLoading || operationLoopLoading || chatLoading || !publishResultCandidateExecutionRun}
+                >
+                  <FileText size={14} />
+                  {publishResultLoading ? workbenchCopy.operationCapturePublishResultCapturing : workbenchCopy.operationCapturePublishResult}
+                </button>
+              </article>
+              <article className="client-publish-step">
+                <span>{workbenchCopy.operationMetricObservationLabel}</span>
+                <strong>
+                  {latestManualMetricObservation
+                    ? latestManualMetricObservation.observation_status
+                    : workbenchCopy.operationMetricObservationMissing}
+                </strong>
+                <p>{latestManualMetricObservation?.title ?? workbenchCopy.operationMetricObservationMissing}</p>
+                <button
+                  className="refresh-button"
+                  onClick={() => void recordManualMetricObservation()}
+                  disabled={metricObservationLoading || operationLoopLoading || chatLoading || !metricObservationCandidateResult}
+                >
+                  <Activity size={14} />
+                  {metricObservationLoading ? workbenchCopy.operationMetricObservationRecording : workbenchCopy.operationRecordMetricObservation}
+                </button>
+              </article>
             </div>
           </div>
         </div>
