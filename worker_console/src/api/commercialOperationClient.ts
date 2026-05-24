@@ -49,6 +49,52 @@ export type CommercialOperationLoopSummary = {
   generated_at: string;
 };
 
+export type CommercialOperationAgentSkillStatus =
+  | "complete"
+  | "active"
+  | "needs_review"
+  | "blocked"
+  | "waiting";
+
+export type CommercialOperationAgentSkill = {
+  skill_key: string;
+  display_name: string;
+  owner_agent: string;
+  tool_name?: string | null;
+  stage_key: string;
+  status: CommercialOperationAgentSkillStatus;
+  summary: string;
+  next_action: string;
+  inputs: string[];
+  outputs: string[];
+  boundary: string;
+};
+
+export type CommercialOperationAgentDecision = {
+  decision_key: string;
+  agent_name: string;
+  skill_key: string;
+  decision_type: string;
+  status: string;
+  rationale: string;
+  next_action: string;
+  evidence: string[];
+};
+
+export type CommercialOperationAgentSkillOrchestration = {
+  operation_id: string;
+  workspace_id: string;
+  controller_agent: Record<string, unknown>;
+  orchestration_status: string;
+  next_skill_key: string | null;
+  next_action: string;
+  completion_ratio: number;
+  skills: CommercialOperationAgentSkill[];
+  decisions: CommercialOperationAgentDecision[];
+  boundaries: string[];
+  generated_at: string;
+};
+
 export type CommercialOperationPlanPreview = {
   operation_id: string;
   plan_outline: Record<string, unknown>[];
@@ -288,6 +334,18 @@ export const commercialOperationClient = {
     requestJson<CommercialOperationLoopSummary>(
       `/commercial-operations/${encodeURIComponent(operationId)}/operation-loop`,
       {},
+      settings,
+    ),
+  agentSkillOrchestration: (operationId: string, settings?: ConversationSettings) =>
+    requestJson<CommercialOperationAgentSkillOrchestration>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration`,
+      {},
+      settings,
+    ),
+  refreshAgentSkillOrchestration: (operationId: string, settings?: ConversationSettings) =>
+    requestJson<CommercialOperationAgentSkillOrchestration>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration/refresh`,
+      { method: "POST" },
       settings,
     ),
   planDraft: (operationId: string, settings?: ConversationSettings) =>

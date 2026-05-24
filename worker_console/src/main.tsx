@@ -62,6 +62,7 @@ import {
 import {
   commercialOperationClient,
   CommercialOperationApproval,
+  CommercialOperationAgentSkillOrchestration,
   CommercialOperationContentDraft,
   CommercialOperationExecutionRequest,
   CommercialOperationExecutionRun,
@@ -272,6 +273,13 @@ type TaskWorkbenchCopy = {
   operationClosedLoopDeliveryMissing: string;
   operationClosedLoopDeliveryBoundary: string;
   operationClosedLoopDeliverySteps: string[];
+  operationAgentSkillTitle: string;
+  operationAgentSkillSubtitle: string;
+  operationAgentSkillNext: string;
+  operationAgentSkillBoundary: string;
+  operationAgentSkillRefresh: string;
+  operationAgentSkillRefreshing: string;
+  operationAgentSkillUnavailable: string;
   operationCompleteFeedbackLoop: string;
   operationCompleteNextCycleFeedbackLoop: string;
   operationFeedbackLoopCompleting: string;
@@ -984,6 +992,13 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationClosedLoopDeliveryMissing: "请先创建或选择一个运营闭环",
     operationClosedLoopDeliveryBoundary: "当前仍是受控交付：会记录 OpenClaw/Playwright handoff 与 dry-run，不自动登录平台、不绕过验证码、不控制真实账号。",
     operationClosedLoopDeliverySteps: ["客户机执行准备", "发布结果回填", "运营数据观察", "分析改进方向", "生成下一轮草案"],
+    operationAgentSkillTitle: "Agent / Skill 编排",
+    operationAgentSkillSubtitle: "查看当前闭环由哪个 Agent 和 Skill 接管，下一步只显示可执行动作。",
+    operationAgentSkillNext: "下一 Skill",
+    operationAgentSkillBoundary: "服务器只下发编排与交接信息；客户机必须在审批后再执行 OpenClaw/Playwright。",
+    operationAgentSkillRefresh: "刷新编排",
+    operationAgentSkillRefreshing: "正在刷新",
+    operationAgentSkillUnavailable: "等待选择运营目标",
     operationCompleteFeedbackLoop: "记录结果并生成改进",
     operationCompleteNextCycleFeedbackLoop: "记录下一轮结果并改进",
     operationFeedbackLoopCompleting: "正在记录结果、观察和改进建议",
@@ -1191,6 +1206,13 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationClosedLoopDeliveryMissing: "Create or select an operation loop first",
     operationClosedLoopDeliveryBoundary: "This is still controlled delivery: it records OpenClaw/Playwright handoff and dry-run state without platform login, captcha bypass, or real account control.",
     operationClosedLoopDeliverySteps: ["Client execution prep", "Publish result capture", "Operating data observation", "Improvement analysis", "Next draft generation"],
+    operationAgentSkillTitle: "Agent / Skill orchestration",
+    operationAgentSkillSubtitle: "See which Agent and Skill owns the current loop step, with the next operator action only.",
+    operationAgentSkillNext: "Next Skill",
+    operationAgentSkillBoundary: "The server sends orchestration and handoff metadata only; client OpenClaw/Playwright execution still requires approval.",
+    operationAgentSkillRefresh: "Refresh orchestration",
+    operationAgentSkillRefreshing: "Refreshing",
+    operationAgentSkillUnavailable: "Select an operation goal",
     operationCompleteFeedbackLoop: "Record result and improve",
     operationCompleteNextCycleFeedbackLoop: "Record next-cycle result",
     operationFeedbackLoopCompleting: "Recording result, observation, and improvement",
@@ -1983,6 +2005,9 @@ function ChatPanel({
   const [selectedGoalTemplateId, setSelectedGoalTemplateId] = useState("launch_content");
   const [selectedCommercialOperationId, setSelectedCommercialOperationId] = useState<string | null>(null);
   const [operationLoop, setOperationLoop] = useState<CommercialOperationLoopSummary | null>(null);
+  const [agentSkillOrchestration, setAgentSkillOrchestration] = useState<CommercialOperationAgentSkillOrchestration | null>(null);
+  const [agentSkillStatus, setAgentSkillStatus] = useState<string | null>(null);
+  const [agentSkillLoading, setAgentSkillLoading] = useState(false);
   const [operationLoopError, setOperationLoopError] = useState<string | null>(null);
   const [operationLoopLoading, setOperationLoopLoading] = useState(false);
   const [firstDraftBootstrapStatus, setFirstDraftBootstrapStatus] = useState<string | null>(null);
@@ -2031,6 +2056,8 @@ function ChatPanel({
       if (!nextOperationId) {
         setSelectedCommercialOperationId(null);
         setOperationLoop(null);
+        setAgentSkillOrchestration(null);
+        setAgentSkillStatus(null);
         setCommercialApprovals([]);
         setCommercialExecutionRequests([]);
         setCommercialExecutionRuns([]);
@@ -2043,6 +2070,7 @@ function ChatPanel({
       setSelectedCommercialOperationId(nextOperationId);
       const [
         loop,
+        agentSkillResponse,
         approvalResponse,
         executionRequestResponse,
         executionRunResponse,
@@ -2051,6 +2079,7 @@ function ChatPanel({
         optimizationResponse,
       ] = await Promise.all([
         commercialOperationClient.operationLoop(nextOperationId, settings),
+        commercialOperationClient.agentSkillOrchestration(nextOperationId, settings).catch(() => null),
         commercialOperationClient.listApprovals(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
         commercialOperationClient.listExecutionRequests(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
         commercialOperationClient.listExecutionRuns(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
@@ -2059,6 +2088,8 @@ function ChatPanel({
         commercialOperationClient.listOptimizationDecisions(nextOperationId, undefined, settings).catch(() => ({ items: [] })),
       ]);
       setOperationLoop(loop);
+      setAgentSkillOrchestration(agentSkillResponse);
+      setAgentSkillStatus(agentSkillResponse?.next_action ?? null);
       setCommercialApprovals(approvalResponse.items);
       setCommercialExecutionRequests(executionRequestResponse.items);
       setCommercialExecutionRuns(executionRunResponse.items);
@@ -2068,6 +2099,8 @@ function ChatPanel({
       setConnectionState("connected");
     } catch (nextError) {
       setOperationLoop(null);
+      setAgentSkillOrchestration(null);
+      setAgentSkillStatus(null);
       setCommercialApprovals([]);
       setCommercialExecutionRequests([]);
       setCommercialExecutionRuns([]);
@@ -2084,6 +2117,25 @@ function ChatPanel({
   useEffect(() => {
     void refreshCommercialOperationLoop();
   }, [refreshCommercialOperationLoop]);
+
+  const refreshAgentSkillOrchestration = async () => {
+    const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
+    if (!operationId) {
+      setAgentSkillStatus(workbenchCopy.operationAgentSkillUnavailable);
+      return;
+    }
+    setAgentSkillLoading(true);
+    try {
+      const orchestration = await commercialOperationClient.refreshAgentSkillOrchestration(operationId, settings);
+      setAgentSkillOrchestration(orchestration);
+      setAgentSkillStatus(orchestration.next_action);
+      setConnectionState("connected");
+    } catch (error) {
+      setAgentSkillStatus(error instanceof Error ? error.message : workbenchCopy.operationAgentSkillUnavailable);
+    } finally {
+      setAgentSkillLoading(false);
+    }
+  };
 
   const createCommercialOperationFromGoal = async () => {
     const objective = input.trim() || selectedGoalTemplate.prompt;
@@ -2102,7 +2154,10 @@ function ChatPanel({
     );
     setSelectedCommercialOperationId(operation.id);
     const loop = await commercialOperationClient.operationLoop(operation.id, settings);
+    const orchestration = await commercialOperationClient.agentSkillOrchestration(operation.id, settings).catch(() => null);
     setOperationLoop(loop);
+    setAgentSkillOrchestration(orchestration);
+    setAgentSkillStatus(orchestration?.next_action ?? null);
     setCommercialApprovals([]);
     setCommercialExecutionRequests([]);
     setCommercialExecutionRuns([]);
@@ -5052,6 +5107,16 @@ function ChatPanel({
       status: operationLoop ? connectedStatus : artifacts.length > index ? "done" : hasSubmittedGoal ? "current" : "waiting",
     };
   });
+  const currentAgentSkill =
+    agentSkillOrchestration?.skills.find((skill) => skill.skill_key === agentSkillOrchestration.next_skill_key) ??
+    agentSkillOrchestration?.skills.find((skill) => skill.status !== "complete") ??
+    agentSkillOrchestration?.skills[0] ??
+    null;
+  const visibleAgentSkills = agentSkillOrchestration?.skills.slice(0, 6) ?? [];
+  const agentSkillControllerName =
+    typeof agentSkillOrchestration?.controller_agent.display_name === "string"
+      ? agentSkillOrchestration.controller_agent.display_name
+      : "Commercial Operation Agent";
   const operationResultSummary = closedLoopDeliveryStatus
     ? closedLoopDeliveryStatus
     : nextCycleDraftStatus
@@ -5367,6 +5432,44 @@ function ChatPanel({
               <PlayCircle size={14} />
               {closedLoopDeliveryLoading ? workbenchCopy.operationClosedLoopDeliveryRunning : workbenchCopy.operationClosedLoopDeliveryAction}
             </button>
+          </div>
+          <div className="client-agent-skill-panel" aria-label={workbenchCopy.operationAgentSkillTitle}>
+            <div className="client-agent-skill-head">
+              <div>
+                <span>{workbenchCopy.operationAgentSkillTitle}</span>
+                <p>{agentSkillStatus ?? agentSkillOrchestration?.next_action ?? workbenchCopy.operationAgentSkillSubtitle}</p>
+                <small>{workbenchCopy.operationAgentSkillBoundary}</small>
+              </div>
+              <button className="refresh-button" onClick={() => void refreshAgentSkillOrchestration()} disabled={agentSkillLoading || operationLoopLoading}>
+                <RefreshCcw size={14} />
+                {agentSkillLoading ? workbenchCopy.operationAgentSkillRefreshing : workbenchCopy.operationAgentSkillRefresh}
+              </button>
+            </div>
+            <div className="client-agent-skill-next">
+              <Server size={15} />
+              <div>
+                <span>{agentSkillControllerName}</span>
+                <strong>{workbenchCopy.operationAgentSkillNext}: {currentAgentSkill?.display_name ?? workbenchCopy.operationAgentSkillUnavailable}</strong>
+              </div>
+              <span className="client-agent-skill-status">{agentSkillOrchestration?.orchestration_status ?? "waiting"}</span>
+            </div>
+            <div className="client-agent-skill-list">
+              {visibleAgentSkills.length ? (
+                visibleAgentSkills.map((skill) => (
+                  <article className={`client-agent-skill-item ${skill.status}`} key={skill.skill_key}>
+                    <strong>{skill.display_name}</strong>
+                    <span>{skill.owner_agent}</span>
+                    <p>{skill.next_action}</p>
+                  </article>
+                ))
+              ) : (
+                <article className="client-agent-skill-item waiting">
+                  <strong>{workbenchCopy.operationAgentSkillUnavailable}</strong>
+                  <span>{workbenchCopy.operationAgentSkillTitle}</span>
+                  <p>{workbenchCopy.operationAgentSkillSubtitle}</p>
+                </article>
+              )}
+            </div>
           </div>
           <div className="client-operation-loop" aria-label={workbenchCopy.operationLoopTitle}>
             {operationLoopStages.map((stage) => (

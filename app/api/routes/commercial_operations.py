@@ -109,6 +109,7 @@ from app.schemas.commercial_operation import (
     CommercialOperationExecutionRunListResponse,
     CommercialOperationExecutionRunResponse,
     CommercialOperationExecutionRunUpdateRequest,
+    CommercialOperationAgentSkillOrchestrationResponse,
     CommercialOperationLinkCreateRequest,
     CommercialOperationLinkListResponse,
     CommercialOperationLinkResponse,
@@ -542,6 +543,42 @@ async def get_commercial_operation_loop_summary(
     except Exception as exc:
         logger.exception("Commercial operation loop API failed", extra={"operation_id": str(operation_id)})
         raise AppError("Commercial operation loop failed", status_code=500) from exc
+
+
+@router.get("/{operation_id}/agent-skill-orchestration", response_model=CommercialOperationAgentSkillOrchestrationResponse)
+async def get_commercial_operation_agent_skill_orchestration(
+    operation_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAgentSkillOrchestrationResponse:
+    """Read the commercial operation Agent/Skill routing view."""
+
+    try:
+        payload = await CommercialOperationService(session).get_agent_skill_orchestration(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+        )
+        return CommercialOperationAgentSkillOrchestrationResponse(**payload)
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=404) from exc
+    except Exception as exc:
+        logger.exception("Commercial operation Agent/Skill API failed", extra={"operation_id": str(operation_id)})
+        raise AppError("Commercial operation Agent/Skill orchestration failed", status_code=500) from exc
+
+
+@router.post("/{operation_id}/agent-skill-orchestration/refresh", response_model=CommercialOperationAgentSkillOrchestrationResponse)
+async def refresh_commercial_operation_agent_skill_orchestration(
+    operation_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationAgentSkillOrchestrationResponse:
+    """Refresh the metadata-only Agent/Skill routing view."""
+
+    return await get_commercial_operation_agent_skill_orchestration(
+        operation_id=operation_id,
+        session=session,
+        context=context,
+    )
 
 
 @router.post("/{operation_id}/approvals", response_model=CommercialOperationApprovalResponse, status_code=201)

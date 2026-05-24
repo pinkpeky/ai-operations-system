@@ -215,6 +215,18 @@ export const commercialOperationsApi = {
       {},
       settings,
     ),
+  agentSkillOrchestration: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration`,
+      {},
+      settings,
+    ),
+  refreshAgentSkillOrchestration: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration/refresh`,
+      { method: "POST" },
+      settings,
+    ),
   approvals: (operationId: string, settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>(`/commercial-operations/${encodeURIComponent(operationId)}/approvals`, {}, settings),
   createApproval: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>

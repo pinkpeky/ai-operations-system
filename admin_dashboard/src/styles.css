@@ -856,6 +856,17 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.commercial-agent-skill-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.commercial-agent-skill-summary .field:nth-last-child(-n + 2) {
+  grid-column: span 3;
+}
+
 .commercial-action-row {
   display: flex;
   flex-wrap: wrap;
@@ -1640,6 +1651,7 @@ textarea {
   .commercial-metrics-grid,
   .commercial-grid,
   .commercial-detail-grid,
+  .commercial-agent-skill-summary,
   .commercial-form-grid,
   .commercial-approval-grid,
   .commercial-approval-item,
@@ -1703,6 +1715,10 @@ textarea {
   .commercial-action-row .primary-button,
   .commercial-action-row .ghost-button {
     width: 100%;
+  }
+
+  .commercial-agent-skill-summary .field:nth-last-child(-n + 2) {
+    grid-column: auto;
   }
 
   .detail-panel {

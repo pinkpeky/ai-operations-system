@@ -2098,6 +2098,44 @@ def test_worker_consoles_expose_phase_63x_64b_closed_loop_delivery_pass() -> Non
         assert "client-closed-loop-delivery-steps" in styles
 
 
+def test_worker_consoles_expose_phase_64c_agent_skill_orchestration() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_client = WEB_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_COMMERCIAL_OPERATION_CLIENT.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "CommercialOperationAgentSkillOrchestration",
+            "agentSkillOrchestration",
+            "agentSkillStatus",
+            "agentSkillLoading",
+            "refreshAgentSkillOrchestration",
+            "operationAgentSkillTitle",
+            "operationAgentSkillBoundary",
+            "currentAgentSkill",
+            "visibleAgentSkills",
+            "agentSkillControllerName",
+            "client-agent-skill-panel",
+            "client-agent-skill-item",
+        ]:
+            assert token in text
+
+    for text in (web_client, desktop_client):
+        assert "CommercialOperationAgentSkillOrchestration" in text
+        assert "CommercialOperationAgentSkill" in text
+        assert "agent-skill-orchestration" in text
+        assert "agent-skill-orchestration/refresh" in text
+
+    for styles in (web_styles, desktop_styles):
+        assert "client-agent-skill-panel" in styles
+        assert "client-agent-skill-list" in styles
+        assert "client-agent-skill-next" in styles
+        assert "client-agent-skill-item.needs_review" in styles
+
+
 def test_phase_63x_64b_closed_loop_delivery_pass_is_documented() -> None:
     phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
@@ -2128,3 +2166,34 @@ def test_phase_63x_64b_closed_loop_delivery_pass_is_documented() -> None:
         assert "next draft generation" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_phase_64c_commercial_agent_skill_orchestration_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 64C Commercial Agent/Skill Orchestration" in text
+        assert "codex/phase-64c-commercial-agent-skill-orchestration" in text
+        assert "Agent/Skill orchestration" in text
+        assert "agent-skill-orchestration" in text
+        assert "commercial_operation_agent" in text
+        assert "admin_dashboard" in text
+        assert "worker_console" in text

@@ -3106,3 +3106,57 @@ class CommercialOperationLoopSummaryResponse(BaseModel):
     readiness: list[dict[str, Any]]
     boundaries: list[str]
     generated_at: datetime
+
+
+CommercialOperationAgentSkillStatusLiteral = Literal[
+    "complete",
+    "active",
+    "needs_review",
+    "blocked",
+    "waiting",
+]
+
+
+class CommercialOperationAgentSkillResponse(BaseModel):
+    """One commercial-operation skill routed to an Agent and optional Tool."""
+
+    skill_key: str
+    display_name: str
+    owner_agent: str
+    tool_name: str | None = None
+    stage_key: str
+    status: CommercialOperationAgentSkillStatusLiteral
+    summary: str
+    next_action: str
+    inputs: list[str] = Field(default_factory=list)
+    outputs: list[str] = Field(default_factory=list)
+    boundary: str
+
+
+class CommercialOperationAgentDecisionResponse(BaseModel):
+    """Readable controller decision for the current commercial-operation loop."""
+
+    decision_key: str
+    agent_name: str
+    skill_key: str
+    decision_type: str
+    status: str
+    rationale: str
+    next_action: str
+    evidence: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationAgentSkillOrchestrationResponse(BaseModel):
+    """Agent/Skill orchestration view for server and customer-machine consoles."""
+
+    operation_id: UUID
+    workspace_id: str
+    controller_agent: dict[str, Any]
+    orchestration_status: str
+    next_skill_key: str | None
+    next_action: str
+    completion_ratio: float = Field(ge=0, le=1)
+    skills: list[CommercialOperationAgentSkillResponse]
+    decisions: list[CommercialOperationAgentDecisionResponse]
+    boundaries: list[str]
+    generated_at: datetime

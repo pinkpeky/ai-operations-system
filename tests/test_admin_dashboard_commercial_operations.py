@@ -26,6 +26,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Open ComfyUI tab" in text
     assert "商业运营项目中心" in text
     assert "Commercial operations center" in text
+    assert "Agent / Skill orchestration" in text
+    assert "agentSkillState" in text
+    assert "loadAgentSkillOrchestration" in text
+    assert "refreshAgentSkillOrchestration" in text
+    assert "controllerAgent" in text
+    assert "agentSkills" in text
+    assert "client execution" in text
     assert 'phase: "61Z"' in text
     assert "Runtime adapter contract" in text
     assert "Phase 62F" in text
@@ -127,6 +134,8 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "commercialOperationsApi.create" in text
     assert "commercialOperationsApi.planDraft" in text
     assert "commercialOperationsApi.update" in text
+    assert "commercialOperationsApi.agentSkillOrchestration" in text
+    assert "commercialOperationsApi.refreshAgentSkillOrchestration" in text
     assert "commercialOperationsApi.approvals" in text
     assert "commercialOperationsApi.createApproval" in text
     assert "commercialOperationsApi.approveApproval" in text
@@ -338,6 +347,8 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/operation-loop" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration/refresh" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/approve" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals/${encodeURIComponent(approvalId)}/reject" in text
@@ -517,6 +528,7 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-grid",
         ".commercial-form-grid",
         ".commercial-detail-grid",
+        ".commercial-agent-skill-summary",
         ".commercial-action-row",
         ".commercial-approval-grid",
         ".commercial-approval-list",
