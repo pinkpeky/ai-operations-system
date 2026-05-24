@@ -2061,3 +2061,70 @@ def test_phase_63u_63w_improved_draft_reexecution_loop_is_documented() -> None:
         assert "publish metric re-execution prep" in text
         assert "worker_console" in text
         assert "worker_console_desktop" in text
+
+
+def test_worker_consoles_expose_phase_63x_64b_closed_loop_delivery_pass() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_styles = (ROOT / "worker_console/src/styles.css").read_text(encoding="utf-8")
+    desktop_styles = (ROOT / "worker_console_desktop/src/styles.css").read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "completeClientClosedLoopDeliveryPass",
+            "closedLoopDeliveryStatus",
+            "closedLoopDeliveryLoading",
+            "closedLoopDeliveryAvailable",
+            "operationClosedLoopDeliveryTitle",
+            "operationClosedLoopDeliveryAction",
+            "operationClosedLoopDeliveryRunning",
+            "operationClosedLoopDeliveryReady",
+            "operationClosedLoopDeliveryBoundary",
+            "operationClosedLoopDeliverySteps",
+            "preflightClientRuntimeExecutionRun",
+            "prepareGuardedAdapterDispatchHandoff",
+            "runGuardedAdapterDryRun",
+            "prepareGuardedPublishHandoff",
+            "captureManualPublishResult",
+            "recordManualMetricObservation",
+            "analyzeManualPublishMetrics",
+            "prepareNextCycleDraftFromDecision",
+            "client closed loop delivery pass",
+        ]:
+            assert token in text
+
+    for styles in (web_styles, desktop_styles):
+        assert "client-closed-loop-delivery" in styles
+        assert "client-closed-loop-delivery-steps" in styles
+
+
+def test_phase_63x_64b_closed_loop_delivery_pass_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    for text in (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    ):
+        assert "Phase 63X-64B Customer Console Closed Loop Delivery Pass" in text
+        assert "codex/phase-63x-64b-client-closed-loop-delivery" in text
+        assert "client closed-loop delivery" in text
+        assert "OpenClaw/Playwright handoff" in text
+        assert "publish result capture" in text
+        assert "next draft generation" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text

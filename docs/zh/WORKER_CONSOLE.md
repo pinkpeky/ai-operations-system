@@ -1041,6 +1041,16 @@ Phase 63U-63W 把客户机闭环从改进内容重新接回执行准备，覆盖
 
 Boundary: Phase 63U-63W is improved draft re-execution and publish metric re-execution prep only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63X-64B Customer Console Closed Loop Delivery Pass
+
+Branch: `codex/phase-63x-64b-client-closed-loop-delivery`
+
+Phase 63X-64B 为 `worker_console` 和 `worker_console_desktop` 增加 client closed-loop delivery 大步骤。产品运营任务台现在给操作人员一个清晰动作，把 client runtime preflight、OpenClaw/Playwright handoff、guarded dry-run、publish result capture、manual metric observation、improvement analysis 和 next draft generation 串成一次可推进的闭环交付。
+
+前端展示为五个易懂步骤：客户机执行准备、publish result capture、运营数据观察、改进分析、next draft generation。这样可以先交付一版能用的闭环，同时保留每个底层记录，方便服务器维护人员审计和排查。
+
+Boundary: Phase 63X-64B is client closed-loop delivery orchestration only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, auto-optimize, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.

@@ -757,6 +757,74 @@ textarea {
   justify-content: flex-start;
 }
 
+.client-closed-loop-delivery {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(280px, 1.4fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.client-closed-loop-delivery-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.client-closed-loop-delivery-copy span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.client-closed-loop-delivery-copy p,
+.client-closed-loop-delivery-copy small {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.client-closed-loop-delivery-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.client-closed-loop-delivery-steps li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.client-closed-loop-delivery-steps strong {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 11px;
+}
+
+.client-closed-loop-delivery-steps span {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .client-operation-loop {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3221,6 +3289,8 @@ textarea {
     .client-operation-status,
     .client-operation-loop,
     .client-operation-deliverables,
+    .client-closed-loop-delivery,
+    .client-closed-loop-delivery-steps,
     .client-execution-run-list,
     .client-publish-loop-grid,
     .simple-operator-workbench,
