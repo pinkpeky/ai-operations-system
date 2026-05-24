@@ -1011,6 +1011,16 @@ The guarded adapter dry-run action records `guarded_adapter_dry_run` metadata, s
 
 Boundary: Phase 63L-63N is a guarded adapter dry-run, client execution queue, and commercial approval center only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
 
+## Phase 63O-63Q Customer Console Publish Result Observation Loop
+
+Branch: `codex/phase-63o-63q-publish-result-observation-loop`
+
+Phase 63O-63Q moves the customer-machine loop from dry-run execution into a visible publish/result/data path for `worker_console` and `worker_console_desktop`. The product operation desk now has a publish result loop panel with guarded publish handoff, manual publish result, and manual metric observation steps.
+
+The guarded publish handoff records `guarded_publish_handoff` from a succeeded dry-run. The result step records `manual_publish_result` with manual link, screenshot, and execution-log placeholders. The data step records `manual_publish_metrics` so operators can continue toward the next improvement pass without raw JSON.
+
+Boundary: Phase 63O-63Q is publish handoff, manual publish result, and manual metric observation only. It does not execute live OpenClaw, run Playwright, publish to social media, ingest platform analytics, control real accounts, call ComfyUI, bypass captcha, use proxy pools, bypass fingerprints, resolve secrets, or bypass approval.
+
 ## Docs Stabilization Sprint
 
 This document is now indexed by `docs/PHASE_INDEX.md`, `docs/CURRENT_NEXT_PHASE.md`, `docs/SYSTEM_BOUNDARIES.md`, `docs/DOC_RENDER_QA.md`, and `docs/ARCHITECTURE_TIMELINE.md`.
