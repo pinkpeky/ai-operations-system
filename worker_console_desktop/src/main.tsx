@@ -332,6 +332,8 @@ type TaskWorkbenchCopy = {
   operationLoopDisconnected: string;
   operationLoopTitle: string;
   operationDeliverablesTitle: string;
+  operationDetailsTitle: string;
+  operationDetailsHint: string;
   operationKnowledgeTitle: string;
   operationKnowledgeBody: string;
   operationOpenKnowledge: string;
@@ -1055,6 +1057,8 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationLoopDisconnected: "未连接真实闭环，当前显示本地任务状态",
     operationLoopTitle: "运营闭环",
     operationDeliverablesTitle: "交付内容",
+    operationDetailsTitle: "交付、执行与发布详情",
+    operationDetailsHint: "低频维护信息已折叠；需要排查执行记录、发布回填或交付物时再展开。",
     operationKnowledgeTitle: "知识库内容",
     operationKnowledgeBody: "上传产品资料、品牌资料、竞品资料或素材文件，让系统先调用知识库再生产内容。",
     operationOpenKnowledge: "上传知识库内容",
@@ -1273,6 +1277,8 @@ const taskWorkbenchCopy: Record<ClientLanguage, TaskWorkbenchCopy> = {
     operationLoopDisconnected: "No real loop connected; showing local task status",
     operationLoopTitle: "Operation loop",
     operationDeliverablesTitle: "Deliverables",
+    operationDetailsTitle: "Deliverables, execution, and publishing details",
+    operationDetailsHint: "Lower-frequency maintenance details are folded; open this only for run records, publish capture, or deliverable checks.",
     operationKnowledgeTitle: "Knowledge material",
     operationKnowledgeBody: "Upload product, brand, competitor, or asset files so the system uses the knowledge base before producing content.",
     operationOpenKnowledge: "Upload knowledge",
@@ -5621,29 +5627,6 @@ function ChatPanel({
               </button>
             </div>
           </details>
-          <div className="client-closed-loop-delivery" aria-label={workbenchCopy.operationClosedLoopDeliveryTitle}>
-            <div className="client-closed-loop-delivery-copy">
-              <span>{workbenchCopy.operationClosedLoopDeliveryTitle}</span>
-              <p>{closedLoopDeliveryStatus ?? workbenchCopy.operationClosedLoopDeliverySubtitle}</p>
-              <small>{workbenchCopy.operationClosedLoopDeliveryBoundary}</small>
-            </div>
-            <ol className="client-closed-loop-delivery-steps">
-              {workbenchCopy.operationClosedLoopDeliverySteps.map((step, index) => (
-                <li key={step}>
-                  <strong>{index + 1}</strong>
-                  <span>{step}</span>
-                </li>
-              ))}
-            </ol>
-            <button
-              className="refresh-button primary-action"
-              onClick={() => void completeClientClosedLoopDeliveryPass()}
-              disabled={closedLoopDeliveryLoading || operationLoopLoading || chatLoading || !closedLoopDeliveryAvailable}
-            >
-              <PlayCircle size={14} />
-              {closedLoopDeliveryLoading ? workbenchCopy.operationClosedLoopDeliveryRunning : workbenchCopy.operationClosedLoopDeliveryAction}
-            </button>
-          </div>
           <div className="client-agent-skill-panel" aria-label={workbenchCopy.operationAgentSkillTitle}>
             <div className="client-agent-skill-head">
               <div>
@@ -5691,6 +5674,11 @@ function ChatPanel({
               </article>
             ))}
           </div>
+          <details className="client-operation-support-drawer">
+            <summary>
+              <span>{workbenchCopy.operationDetailsTitle}</span>
+              <small>{workbenchCopy.operationDetailsHint}</small>
+            </summary>
           <div className="client-operation-deliverables" aria-label={workbenchCopy.operationDeliverablesTitle}>
             <div className="client-operation-knowledge-card">
               <Database size={16} />
@@ -5817,6 +5805,7 @@ function ChatPanel({
               </article>
             </div>
           </div>
+          </details>
         </div>
         <div className="simple-operator-workbench">
           <div className="simple-operator-header">

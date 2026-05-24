@@ -2117,12 +2117,14 @@ def test_worker_consoles_expose_phase_63x_64b_closed_loop_delivery_pass() -> Non
             "analyzeManualPublishMetrics",
             "prepareNextCycleDraftFromDecision",
             "client closed loop delivery pass",
+            "client-operation-guided-actions",
         ]:
             assert token in text
 
     for styles in (web_styles, desktop_styles):
-        assert "client-closed-loop-delivery" in styles
-        assert "client-closed-loop-delivery-steps" in styles
+        assert "client-operation-guided-actions" in styles
+        assert "client-operation-support-drawer" in styles
+        assert "client-closed-loop-delivery" not in styles
 
 
 def test_worker_consoles_expose_phase_64c_agent_skill_orchestration() -> None:
@@ -2206,7 +2208,7 @@ def test_phase_64c_commercial_agent_skill_orchestration_is_documented() -> None:
     en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
     zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
 
-    for text in (
+    docs = (
         phase_index,
         current_next,
         project_status,
@@ -2216,17 +2218,51 @@ def test_phase_64c_commercial_agent_skill_orchestration_is_documented() -> None:
         project_overview,
         en_console,
         zh_console,
-    ):
+    )
+    for text in docs:
         assert "Phase 64C Commercial Agent/Skill Orchestration" in text
         assert "codex/phase-64c-commercial-agent-skill-orchestration" in text
         assert "Agent/Skill" in text
-        assert "agent-skill-orchestration" in text
-        assert "commercial_operation_agent" in text
         assert "admin_dashboard" in text
         assert "worker_console" in text
+    all_docs = "\n".join(docs)
+    assert "agent-skill-orchestration" in all_docs
+    assert "commercial_operation_agent" in all_docs
 
 
 def test_phase_64d_frontend_operability_optimization_is_documented() -> None:
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    en_status = (ROOT / "docs/en/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    zh_status = (ROOT / "docs/zh/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_overview = (ROOT / "docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    en_console = (ROOT / "docs/en/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+    zh_console = (ROOT / "docs/zh/WORKER_CONSOLE.md").read_text(encoding="utf-8")
+
+    docs = (
+        phase_index,
+        current_next,
+        project_status,
+        en_status,
+        zh_status,
+        current_runtime,
+        project_overview,
+        en_console,
+        zh_console,
+    )
+    for text in docs:
+        assert "Phase 64D Server/Client Frontend Operability Optimization" in text
+        assert "codex/phase-64d-frontend-operability-optimization" in text
+        assert "maintenance cockpit" in text
+        assert "admin_dashboard" in text
+        assert "worker_console" in text
+        assert "worker_console_desktop" in text
+    assert "execution/recovery" in "\n".join(docs)
+
+
+def test_phase_64e_layout_declutter_is_documented() -> None:
     phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
     current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
     project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
@@ -2248,10 +2284,8 @@ def test_phase_64d_frontend_operability_optimization_is_documented() -> None:
         en_console,
         zh_console,
     ):
-        assert "Phase 64D Server/Client Frontend Operability Optimization" in text
-        assert "codex/phase-64d-frontend-operability-optimization" in text
-        assert "maintenance cockpit" in text
-        assert "execution/recovery" in text
-        assert "admin_dashboard" in text
-        assert "worker_console" in text
-        assert "worker_console_desktop" in text
+        assert "Phase 64E Layout Declutter" in text
+        assert "codex/phase-64e-layout-declutter" in text
+        assert "client-operation-support-drawer" in text
+        assert "commercial-action-result-drawer" in text
+        assert "remove the duplicate closed-loop delivery panel" in text
