@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import re
 from typing import Any
+from urllib.parse import urlencode
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.comfyui_runtime import ComfyUIRuntimeService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
+from app.models.comfyui_runtime import ComfyUIRuntimeVideoJob
 from app.models.digital_human import DigitalHumanAsset, DigitalHumanVideoJob
 from app.schemas.digital_human import (
     DigitalHumanAssetListResponse,
@@ -699,6 +701,188 @@ class DigitalHumanService:
         await session.refresh(job)
         return DigitalHumanVideoJobResponse.from_model(job)
 
+    async def ingest_comfyui_output(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+        comfyui_video_job_id: UUID | None = None,
+        refresh_comfyui_job: bool = True,
+        poll_history: bool = True,
+        resubmit_if_waiting: bool = False,
+        asset_name: str | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> DigitalHumanVideoJobResponse:
+        """Ingest linked ComfyUI outputs as the reviewable digital human delivery asset."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        if job.job_status in {"cancelled", "archived"}:
+            raise AppError("Cancelled or archived digital human jobs cannot ingest ComfyUI output", status_code=400)
+        linked_job_id = comfyui_video_job_id or self._linked_comfyui_video_job_id(job)
+        if linked_job_id is None:
+            raise AppError("ComfyUI output ingestion requires a linked ComfyUI video job", status_code=400)
+
+        refresh_attempted = False
+        if refresh_comfyui_job:
+            refresh_attempted = True
+            await ComfyUIRuntimeService(settings=self.settings).refresh_video_job(
+                session,
+                workspace_id=workspace_id,
+                job_id=linked_job_id,
+                poll_history=poll_history,
+                resubmit_if_waiting=resubmit_if_waiting,
+                metadata={
+                    "phase": "67E",
+                    "source": "digital_human_comfyui_output_ingestion",
+                    "digital_human_video_job_id": str(job.id),
+                    **dict(metadata or {}),
+                },
+            )
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        comfyui_job = await self._get_comfyui_video_job_model(session, workspace_id=workspace_id, job_id=linked_job_id)
+        now = datetime.now(timezone.utc)
+        output_files = self._comfyui_output_files(comfyui_job)
+        ingestion_status = "ready" if output_files else self._comfyui_ingestion_waiting_status(comfyui_job.job_status)
+        ingestion_record = {
+            "output_type": "digital_human_comfyui_output_ingestion",
+            "media_type": "video",
+            "status": ingestion_status,
+            "comfyui_video_job_id": str(comfyui_job.id),
+            "comfyui_job_status": comfyui_job.job_status,
+            "runtime_prompt_id": comfyui_job.runtime_prompt_id,
+            "runtime_base_url": comfyui_job.runtime_base_url,
+            "output_count": len(output_files),
+            "refresh_attempted": refresh_attempted,
+            "resubmit_if_waiting": resubmit_if_waiting,
+            "checked_at": now.isoformat(),
+        }
+
+        if not output_files:
+            job.job_status = self._digital_status_from_comfyui_status(comfyui_job.job_status)
+            job.outputs = self._upsert_output(
+                job.outputs or [],
+                ingestion_record,
+                key="output_type",
+                value="digital_human_comfyui_output_ingestion",
+            )
+            job.provider_response = {
+                "phase": "67E",
+                "provider": job.provider,
+                "execution_mode": "comfyui_handoff",
+                "comfyui_video_job_id": str(comfyui_job.id),
+                "comfyui_job_status": comfyui_job.job_status,
+                "output_count": 0,
+                "ingestion_status": ingestion_status,
+                "refresh_attempted": refresh_attempted,
+                "external_request_attempted": comfyui_job.external_request_attempted,
+            }
+            job.external_request_attempted = bool(job.external_request_attempted or comfyui_job.external_request_attempted)
+            job.failure_reason = comfyui_job.failure_reason if comfyui_job.job_status == "failed" else self._comfyui_resource_block_reason(comfyui_job.resource_plan)
+            job.result_summary = self._comfyui_ingestion_result_summary(status=ingestion_status, output_count=0)
+            job.operator_note = operator_note or job.operator_note
+            job.job_metadata = {
+                **(job.job_metadata or {}),
+                **dict(metadata or {}),
+                "phase": "67E",
+                "execution_mode": "comfyui_handoff",
+                "linked_comfyui_video_job_id": str(comfyui_job.id),
+                "comfyui_output_ingestion": ingestion_record,
+                "progress_percent": 75 if job.job_status == "rendering" else 60,
+                "current_stage": "video_rendering" if job.job_status == "rendering" else "comfyui_video_queue",
+            }
+            await session.commit()
+            await session.refresh(job)
+            return DigitalHumanVideoJobResponse.from_model(job)
+
+        primary_output = self._primary_comfyui_output_file(output_files)
+        delivery_asset = await self._upsert_delivery_asset_from_comfyui_output(
+            session,
+            job=job,
+            comfyui_job=comfyui_job,
+            output_files=output_files,
+            primary_output=primary_output,
+            asset_name=asset_name,
+            operator_note=operator_note,
+            metadata=metadata,
+        )
+        delivery_record = {
+            "output_type": "digital_human_comfyui_delivery_asset",
+            "media_type": "video",
+            "status": "ready",
+            "asset_id": str(delivery_asset.id),
+            "asset_name": delivery_asset.name,
+            "asset_status": delivery_asset.asset_status,
+            "source_uri": delivery_asset.source_uri,
+            "file_name": delivery_asset.file_name,
+            "mime_type": delivery_asset.mime_type,
+            "comfyui_video_job_id": str(comfyui_job.id),
+            "runtime_prompt_id": comfyui_job.runtime_prompt_id,
+            "runtime_base_url": comfyui_job.runtime_base_url,
+            "comfyui_job_status": comfyui_job.job_status,
+            "outputs": output_files,
+            "output_count": len(output_files),
+            "primary_output": primary_output,
+            "refresh_attempted": refresh_attempted,
+            "created_at": now.isoformat(),
+        }
+        ingestion_record = {**ingestion_record, "asset_id": str(delivery_asset.id), "source_uri": delivery_asset.source_uri}
+        job.job_status = "completed"
+        job.execution_mode = "comfyui_handoff"
+        job.scene_plan = self._build_scene_plan(
+            status="completed",
+            provider=job.provider,
+            has_avatar=job.avatar_asset_id is not None,
+            material_count=len(job.material_asset_ids or []),
+            reference_count=len(job.reference_asset_ids or []),
+        )
+        outputs = self._upsert_output(
+            job.outputs or [],
+            ingestion_record,
+            key="output_type",
+            value="digital_human_comfyui_output_ingestion",
+        )
+        job.outputs = self._upsert_output(
+            outputs,
+            delivery_record,
+            key="output_type",
+            value="digital_human_comfyui_delivery_asset",
+        )
+        job.provider_response = {
+            "phase": "67E",
+            "provider": job.provider,
+            "execution_mode": "comfyui_handoff",
+            "comfyui_video_job_id": str(comfyui_job.id),
+            "comfyui_job_status": comfyui_job.job_status,
+            "delivery_asset_id": str(delivery_asset.id),
+            "output_count": len(output_files),
+            "ingestion_status": "ready",
+            "refresh_attempted": refresh_attempted,
+            "external_request_attempted": comfyui_job.external_request_attempted,
+        }
+        job.external_request_attempted = bool(job.external_request_attempted or comfyui_job.external_request_attempted)
+        job.failure_reason = None
+        job.result_summary = self._comfyui_ingestion_result_summary(status="ready", output_count=len(output_files))
+        job.operator_note = operator_note or job.operator_note
+        job.job_metadata = {
+            **(job.job_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "67E",
+            "execution_mode": "comfyui_handoff",
+            "linked_comfyui_video_job_id": str(comfyui_job.id),
+            "delivery_asset_id": str(delivery_asset.id),
+            "delivery_asset_status": delivery_asset.asset_status,
+            "comfyui_output_ingestion": ingestion_record,
+            "progress_percent": 100,
+            "current_stage": "delivery_ready",
+            "last_output_ingested_at": now.isoformat(),
+        }
+        await session.commit()
+        await session.refresh(job)
+        return DigitalHumanVideoJobResponse.from_model(job)
+
     async def update_video_job_review(
         self,
         session: AsyncSession,
@@ -1062,6 +1246,202 @@ class DigitalHumanService:
             "current_stage": "comfyui_video_queue" if job.job_status == "queued_for_comfyui" else "video_rendering",
             "last_execution_at": now.isoformat(),
         }
+
+    async def _upsert_delivery_asset_from_comfyui_output(
+        self,
+        session: AsyncSession,
+        *,
+        job: DigitalHumanVideoJob,
+        comfyui_job: ComfyUIRuntimeVideoJob,
+        output_files: list[dict[str, Any]],
+        primary_output: dict[str, Any],
+        asset_name: str | None,
+        operator_note: str | None,
+        metadata: Mapping[str, object] | None,
+    ) -> DigitalHumanAsset:
+        existing_asset: DigitalHumanAsset | None = None
+        existing_record = self._delivery_asset_output_from_job(job)
+        existing_asset_id = existing_record.get("asset_id")
+        if isinstance(existing_asset_id, str) and existing_asset_id.strip():
+            try:
+                existing_asset = await self._get_asset_model(
+                    session,
+                    workspace_id=job.workspace_id,
+                    asset_id=UUID(existing_asset_id.strip()),
+                )
+            except (ValueError, AppError):
+                existing_asset = None
+
+        file_name = str(primary_output.get("filename") or "comfyui-digital-human-output").strip()
+        source_uri = str(primary_output.get("source_uri") or "").strip()
+        mime_type = self._comfyui_output_mime_type(primary_output)
+        output_signature = sha256(json.dumps(output_files, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+        asset_metadata = {
+            **(existing_asset.asset_metadata if existing_asset else {}),
+            **dict(metadata or {}),
+            "phase": "67E",
+            "source": "digital_human_comfyui_output_ingestion",
+            "digital_human_video_job_id": str(job.id),
+            "comfyui_video_job_id": str(comfyui_job.id),
+            "runtime_prompt_id": comfyui_job.runtime_prompt_id,
+            "runtime_base_url": comfyui_job.runtime_base_url,
+            "comfyui_job_status": comfyui_job.job_status,
+            "output_count": len(output_files),
+            "output_signature": output_signature,
+            "outputs": output_files,
+            "primary_output": primary_output,
+        }
+        if existing_asset is not None:
+            existing_asset.asset_status = "generated"
+            existing_asset.name = self._truncate_text(asset_name or existing_asset.name or f"{job.objective} ComfyUI delivery", 255)
+            existing_asset.source_uri = source_uri
+            existing_asset.file_name = file_name
+            existing_asset.mime_type = mime_type
+            existing_asset.size_bytes = None
+            existing_asset.checksum = output_signature
+            existing_asset.consent_status = job.consent_status
+            existing_asset.usage_scope = "digital human ComfyUI generated delivery output"
+            existing_asset.operator_note = operator_note or existing_asset.operator_note
+            existing_asset.asset_metadata = asset_metadata
+            await session.flush()
+            return existing_asset
+
+        asset = DigitalHumanAsset(
+            workspace_id=job.workspace_id,
+            user_id=job.user_id,
+            asset_type="video",
+            asset_status="generated",
+            name=self._truncate_text(asset_name or f"{job.objective} ComfyUI delivery", 255),
+            source_uri=source_uri,
+            file_name=file_name,
+            mime_type=mime_type,
+            size_bytes=None,
+            checksum=output_signature,
+            consent_status=job.consent_status,
+            usage_scope="digital human ComfyUI generated delivery output",
+            operator_note=operator_note,
+            asset_metadata=asset_metadata,
+        )
+        session.add(asset)
+        await session.flush()
+        return asset
+
+    def _linked_comfyui_video_job_id(self, job: DigitalHumanVideoJob) -> UUID | None:
+        metadata_candidate = (job.job_metadata or {}).get("linked_comfyui_video_job_id")
+        candidates: list[str] = []
+        if isinstance(metadata_candidate, str):
+            candidates.append(metadata_candidate)
+        for output in reversed(job.outputs or []):
+            candidate = output.get("comfyui_video_job_id")
+            if isinstance(candidate, str):
+                candidates.append(candidate)
+        for candidate in candidates:
+            normalized = candidate.strip()
+            if normalized:
+                try:
+                    return UUID(normalized)
+                except ValueError as exc:
+                    raise AppError("Linked ComfyUI video job id is invalid", status_code=400) from exc
+        return None
+
+    async def _get_comfyui_video_job_model(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+    ) -> ComfyUIRuntimeVideoJob:
+        result = await session.execute(
+            select(ComfyUIRuntimeVideoJob).where(
+                ComfyUIRuntimeVideoJob.workspace_id == workspace_id,
+                ComfyUIRuntimeVideoJob.id == job_id,
+            )
+        )
+        job = result.scalar_one_or_none()
+        if job is None:
+            raise AppError("Linked ComfyUI video job not found", status_code=404)
+        return job
+
+    def _comfyui_output_files(self, comfyui_job: ComfyUIRuntimeVideoJob) -> list[dict[str, Any]]:
+        normalized_outputs: list[dict[str, Any]] = []
+        for output in comfyui_job.outputs or []:
+            if not isinstance(output, Mapping):
+                continue
+            filename = str(output.get("filename") or "").strip()
+            if not filename:
+                continue
+            normalized = {
+                "node_id": str(output.get("node_id") or ""),
+                "kind": str(output.get("kind") or ""),
+                "filename": filename,
+                "subfolder": str(output.get("subfolder") or ""),
+                "type": str(output.get("type") or ""),
+            }
+            normalized["source_uri"] = self._comfyui_output_source_uri(comfyui_job=comfyui_job, output=normalized)
+            normalized_outputs.append(normalized)
+        return normalized_outputs
+
+    def _comfyui_output_source_uri(self, *, comfyui_job: ComfyUIRuntimeVideoJob, output: Mapping[str, Any]) -> str:
+        filename = str(output.get("filename") or "").strip()
+        subfolder = str(output.get("subfolder") or "").strip()
+        output_type = str(output.get("type") or "").strip()
+        base_url = str(comfyui_job.runtime_base_url or "").strip()
+        if base_url:
+            query = urlencode({"filename": filename, "subfolder": subfolder, "type": output_type})
+            return f"{base_url.rstrip('/')}/view?{query}"
+        relative_path = "/".join(part for part in [subfolder, filename] if part)
+        return f"comfyui://video-jobs/{comfyui_job.id}/outputs/{relative_path}"
+
+    def _primary_comfyui_output_file(self, output_files: list[dict[str, Any]]) -> dict[str, Any]:
+        video_extensions = {".mp4", ".mov", ".mkv", ".webm", ".gif"}
+        for output in output_files:
+            if Path(str(output.get("filename") or "")).suffix.lower() in video_extensions:
+                return output
+        for output in output_files:
+            if str(output.get("kind") or "").strip().lower() in {"video", "videos", "gifs", "animated"}:
+                return output
+        return output_files[0]
+
+    def _delivery_asset_output_from_job(self, job: DigitalHumanVideoJob) -> dict[str, Any]:
+        for output in reversed(job.outputs or []):
+            if output.get("output_type") == "digital_human_comfyui_delivery_asset":
+                return output
+        return {}
+
+    def _comfyui_output_mime_type(self, output: Mapping[str, Any]) -> str:
+        suffix = Path(str(output.get("filename") or "")).suffix.lower()
+        return {
+            ".mp4": "video/mp4",
+            ".mov": "video/quicktime",
+            ".webm": "video/webm",
+            ".mkv": "video/x-matroska",
+            ".gif": "image/gif",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+        }.get(suffix, "application/octet-stream")
+
+    def _comfyui_ingestion_waiting_status(self, comfyui_status: str) -> str:
+        normalized = str(comfyui_status or "").strip().lower()
+        if normalized == "failed":
+            return "comfyui_job_failed"
+        if normalized == "resource_blocked":
+            return "resource_blocked"
+        if normalized == "ready_to_submit":
+            return "waiting_for_prompt_submission"
+        return "waiting_for_outputs"
+
+    def _comfyui_ingestion_result_summary(self, *, status: str, output_count: int) -> str:
+        if status == "ready":
+            return f"ComfyUI produced {output_count} output file(s); digital human delivery asset is ready for review."
+        if status == "waiting_for_prompt_submission":
+            return "ComfyUI job is admitted but still needs an operator-approved prompt submission."
+        if status == "resource_blocked":
+            return "ComfyUI output ingestion is waiting for GPU, queue, or runtime gates to clear."
+        if status == "comfyui_job_failed":
+            return "ComfyUI video job failed before a digital human output could be ingested."
+        return "ComfyUI output ingestion is waiting for generated media to appear."
 
     def _workflow_template_response(self, template: Mapping[str, Any]) -> DigitalHumanWorkflowTemplateResponse:
         prompt_contract = {

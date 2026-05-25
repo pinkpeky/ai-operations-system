@@ -190,6 +190,18 @@ class DigitalHumanComfyUIWorkflowReadinessRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DigitalHumanComfyUIOutputIngestionRequest(BaseModel):
+    """Ingest linked ComfyUI outputs as a digital human delivery asset."""
+
+    comfyui_video_job_id: UUID | None = None
+    refresh_comfyui_job: bool = True
+    poll_history: bool = True
+    resubmit_if_waiting: bool = False
+    asset_name: str | None = Field(default=None, max_length=255)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class DigitalHumanVideoJobActionRequest(BaseModel):
     """Apply a human review action to a digital human job."""
 
@@ -238,6 +250,12 @@ class DigitalHumanVideoJobResponse(BaseModel):
     workflow_output_watch_status: str | None = None
     workflow_missing_nodes: list[str] = Field(default_factory=list)
     workflow_missing_models: list[str] = Field(default_factory=list)
+    comfyui_output_ingestion_status: str | None = None
+    delivery_asset_id: str | None = None
+    delivery_asset_status: str | None = None
+    delivery_asset_name: str | None = None
+    delivery_source_uri: str | None = None
+    delivery_output_count: int = 0
     operator_note: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
@@ -283,6 +301,12 @@ class DigitalHumanVideoJobResponse(BaseModel):
             workflow_output_watch_status=_workflow_output_watch_status(job.job_metadata or {}),
             workflow_missing_nodes=_workflow_missing_items(job.job_metadata or {}, "missing_nodes"),
             workflow_missing_models=_workflow_missing_items(job.job_metadata or {}, "missing_models"),
+            comfyui_output_ingestion_status=_comfyui_output_ingestion_status(job.job_metadata or {}, job.outputs or []),
+            delivery_asset_id=_delivery_output_field(job.outputs or [], "asset_id"),
+            delivery_asset_status=_delivery_output_field(job.outputs or [], "status"),
+            delivery_asset_name=_delivery_output_field(job.outputs or [], "asset_name"),
+            delivery_source_uri=_delivery_output_field(job.outputs or [], "source_uri"),
+            delivery_output_count=_delivery_output_count(job.outputs or []),
             operator_note=job.operator_note,
             metadata=job.job_metadata or {},
             created_at=job.created_at,
@@ -343,8 +367,8 @@ def _digital_human_next_action(status: str) -> str:
         "planned": "Approve the planned digital human video job.",
         "ready_for_review": "Approve or reject the digital human video job.",
         "approved": "Execute mock delivery or create a guarded ComfyUI video handoff.",
-        "queued_for_comfyui": "Refresh the linked ComfyUI video job until output is ready.",
-        "rendering": "Wait for video output, then review the generated assets.",
+        "queued_for_comfyui": "Refresh and ingest the linked ComfyUI video job until output is ready.",
+        "rendering": "Ingest generated ComfyUI media as a digital human delivery asset.",
         "completed": "Use the generated delivery asset in the commercial operation loop.",
         "failed": "Review failure reason and retry from the last safe state.",
         "cancelled": "Create a new job if the campaign still needs a video.",
@@ -411,3 +435,45 @@ def _workflow_missing_items(metadata: dict[str, Any], key: str) -> list[str]:
     if not isinstance(items, list):
         return []
     return [str(item) for item in items if str(item).strip()]
+
+
+def _delivery_output(outputs: list[dict[str, Any]]) -> dict[str, Any]:
+    for output in reversed(outputs):
+        if output.get("output_type") == "digital_human_comfyui_delivery_asset":
+            return output
+    for output in reversed(outputs):
+        if output.get("output_type") == "digital_human_delivery_manifest":
+            return output
+    return {}
+
+
+def _delivery_output_field(outputs: list[dict[str, Any]], key: str) -> str | None:
+    value = _delivery_output(outputs).get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _delivery_output_count(outputs: list[dict[str, Any]]) -> int:
+    delivery = _delivery_output(outputs)
+    output_count = delivery.get("output_count")
+    if isinstance(output_count, int):
+        return max(0, output_count)
+    nested = delivery.get("outputs")
+    if isinstance(nested, list):
+        return len(nested)
+    return 1 if delivery else 0
+
+
+def _comfyui_output_ingestion_status(metadata: dict[str, Any], outputs: list[dict[str, Any]]) -> str | None:
+    ingestion = metadata.get("comfyui_output_ingestion")
+    if isinstance(ingestion, dict):
+        status = ingestion.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
+    for output in reversed(outputs):
+        if output.get("output_type") in {"digital_human_comfyui_delivery_asset", "digital_human_comfyui_output_ingestion"}:
+            status = output.get("status")
+            if isinstance(status, str) and status.strip():
+                return status.strip()
+    return None

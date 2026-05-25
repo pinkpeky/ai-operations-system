@@ -2182,13 +2182,17 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
             "digitalHumanVideoJobs",
             "refreshDigitalHumanVideos",
             "refreshLatestDigitalHumanVideo",
+            "ingestLatestDigitalHumanVideoOutput",
             "client-digital-human-progress",
             "Digital human video",
             "digitalHumanWorkflowBindingText",
             "digitalHumanWorkflowReadinessText",
+            "digitalHumanIngestionText",
+            "digitalHumanDeliveryText",
             "Workflow pending",
             "Real workflow not checked",
             "ComfyUI linked",
+            "Ingest video",
         ]:
             assert token in text
 
@@ -2196,8 +2200,10 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
         for token in [
             "listVideoJobs",
             "refreshVideoJob",
+            "ingestComfyuiOutput",
             '"/digital-humans/video-jobs?limit=5"',
             "`/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh`",
+            "`/digital-humans/video-jobs/${encodeURIComponent(jobId)}/comfyui-output-ingestion`",
             "progress_percent",
             "linked_comfyui_video_job_id",
             "selected_workflow_template_id",
@@ -2205,6 +2211,9 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
             "workflow_readiness_status",
             "workflow_asset_upload_status",
             "workflow_output_watch_status",
+            "comfyui_output_ingestion_status",
+            "delivery_asset_status",
+            "delivery_output_count",
         ]:
             assert token in text
 

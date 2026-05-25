@@ -33,14 +33,19 @@ def test_admin_dashboard_exposes_digital_human_page() -> None:
     assert "digitalHumansApi.createVideoJob" in text
     assert "digitalHumansApi.bindWorkflow" in text
     assert "digitalHumansApi.checkWorkflowReadiness" in text
+    assert "digitalHumansApi.ingestComfyuiOutput" in text
     assert "digitalHumansApi.refreshVideoJob" in text
     assert "digitalHumansApi.executeVideoJob" in text
     assert "digitalHumansApi.reviewVideoJob" in text
     assert "Bind latest job inputs" in text
     assert "ComfyUI real workflow readiness" in text
     assert "Check real workflow readiness" in text
+    assert "ComfyUI output ingestion" in text
+    assert "Ingest ComfyUI outputs" in text
     assert "workflow_readiness_status" in text
     assert "workflow_asset_upload_status" in text
+    assert "comfyui_output_ingestion_status" in text
+    assert "delivery_asset_status" in text
     assert "liveportrait-musetalk-broll" in text
 
 
@@ -59,4 +64,5 @@ def test_admin_dashboard_digital_human_api_client_paths() -> None:
     assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/execute" in text
     assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/workflow-binding" in text
     assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/workflow-readiness-check" in text
+    assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/comfyui-output-ingestion" in text
     assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}" in text

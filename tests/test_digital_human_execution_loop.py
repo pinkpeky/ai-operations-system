@@ -144,6 +144,120 @@ async def test_digital_human_comfyui_handoff_creates_guarded_video_job(
 
 
 @pytest.mark.asyncio
+async def test_digital_human_ingests_comfyui_outputs_as_delivery_asset(
+    session: AsyncSession,
+    tmp_path: Path,
+) -> None:
+    service = DigitalHumanService(
+        settings=Settings(
+            DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
+            DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+        )
+    )
+    _, approved = await _create_approved_job(
+        session,
+        service,
+        workspace_id="workspace-digital-human-comfyui-output-ingestion",
+    )
+    handed_off = await service.execute_video_job(
+        session,
+        workspace_id="workspace-digital-human-comfyui-output-ingestion",
+        job_id=approved.id,
+        execution_mode="comfyui_handoff",
+        submit_immediately=False,
+        metadata={"commercial_operation_id": "operation-67e"},
+    )
+    result = await session.execute(
+        select(ComfyUIRuntimeVideoJob).where(
+            ComfyUIRuntimeVideoJob.workspace_id == "workspace-digital-human-comfyui-output-ingestion"
+        )
+    )
+    comfyui_job = result.scalar_one()
+    comfyui_job.job_status = "output_ready"
+    comfyui_job.runtime_base_url = "http://127.0.0.1:8188"
+    comfyui_job.runtime_prompt_id = "prompt-67e"
+    comfyui_job.outputs = [
+        {
+            "node_id": "9",
+            "kind": "videos",
+            "filename": "launch.mp4",
+            "subfolder": "aiops",
+            "type": "output",
+        },
+        {
+            "node_id": "10",
+            "kind": "images",
+            "filename": "launch-poster.png",
+            "subfolder": "aiops",
+            "type": "output",
+        },
+    ]
+    await session.commit()
+
+    ingested = await service.ingest_comfyui_output(
+        session,
+        workspace_id="workspace-digital-human-comfyui-output-ingestion",
+        job_id=handed_off.id,
+        refresh_comfyui_job=False,
+        asset_name="Launch digital human final clip",
+        metadata={"commercial_operation_id": "operation-67e"},
+    )
+    generated_assets = await service.list_assets(
+        session,
+        workspace_id="workspace-digital-human-comfyui-output-ingestion",
+        asset_type="video",
+    )
+
+    assert ingested.job_status == "completed"
+    assert ingested.progress_percent == 100
+    assert ingested.current_stage == "delivery_ready"
+    assert ingested.comfyui_output_ingestion_status == "ready"
+    assert ingested.delivery_output_count == 2
+    assert ingested.delivery_asset_id is not None
+    assert ingested.delivery_asset_name == "Launch digital human final clip"
+    assert ingested.delivery_source_uri == "http://127.0.0.1:8188/view?filename=launch.mp4&subfolder=aiops&type=output"
+    assert ingested.provider_response["phase"] == "67E"
+    assert ingested.provider_response["delivery_asset_id"] == ingested.delivery_asset_id
+    assert ingested.outputs[-1]["output_type"] == "digital_human_comfyui_delivery_asset"
+    assert ingested.outputs[-1]["primary_output"]["filename"] == "launch.mp4"
+    assert len(generated_assets.items) == 1
+    assert generated_assets.items[0].source_uri == ingested.delivery_source_uri
+
+
+@pytest.mark.asyncio
+async def test_digital_human_comfyui_output_ingestion_waits_for_outputs(
+    session: AsyncSession,
+    tmp_path: Path,
+) -> None:
+    service = DigitalHumanService(settings=Settings(DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets")))
+    _, approved = await _create_approved_job(
+        session,
+        service,
+        workspace_id="workspace-digital-human-comfyui-output-waiting",
+    )
+    handed_off = await service.execute_video_job(
+        session,
+        workspace_id="workspace-digital-human-comfyui-output-waiting",
+        job_id=approved.id,
+        execution_mode="comfyui_handoff",
+        submit_immediately=False,
+    )
+
+    ingested = await service.ingest_comfyui_output(
+        session,
+        workspace_id="workspace-digital-human-comfyui-output-waiting",
+        job_id=handed_off.id,
+        refresh_comfyui_job=False,
+    )
+
+    assert ingested.job_status == "queued_for_comfyui"
+    assert ingested.comfyui_output_ingestion_status == "resource_blocked"
+    assert ingested.delivery_asset_id is None
+    assert ingested.provider_response["output_count"] == 0
+    assert ingested.outputs[-1]["output_type"] == "digital_human_comfyui_output_ingestion"
+
+
+@pytest.mark.asyncio
 async def test_digital_human_execute_requires_approval(
     session: AsyncSession,
     tmp_path: Path,
@@ -238,5 +352,90 @@ async def test_digital_human_execute_api(tmp_path: Path) -> None:
     assert executed.json()["job_status"] == "completed"
     assert executed.json()["progress_percent"] == 100
     assert executed.json()["outputs"][0]["commercial_operation_id"] == "operation-api"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_digital_human_comfyui_output_ingestion_api(tmp_path: Path) -> None:
+    _ = (DigitalHumanAsset, DigitalHumanVideoJob, ComfyUIRuntimeVideoJob)
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    settings = Settings(
+        DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
+        DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+    )
+
+    app = FastAPI()
+    app.add_exception_handler(AppError, app_error_handler)
+    app.include_router(create_api_router())
+
+    async def override_get_session():  # type: ignore[no-untyped-def]
+        async with session_factory() as db_session:
+            yield db_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_settings] = lambda: settings
+    headers = {"X-Workspace-Id": "workspace-digital-human-output-api", "X-User-Id": "user-api"}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        portrait = await client.post(
+            "/api/v1/digital-humans/assets",
+            headers=headers,
+            data={"asset_type": "portrait", "name": "API portrait", "consent_status": "authorized"},
+            files={"file": ("portrait.jpg", b"fake-image", "image/jpeg")},
+        )
+        created = await client.post(
+            "/api/v1/digital-humans/video-jobs",
+            headers=headers,
+            json={
+                "objective": "Create digital human launch video",
+                "script": "Introduce the product and ask viewers to book.",
+                "avatar_asset_id": portrait.json()["id"],
+            },
+        )
+        await client.post(
+            f"/api/v1/digital-humans/video-jobs/{created.json()['id']}/approve",
+            headers=headers,
+            json={"reviewer_notes": "Ready"},
+        )
+        handed_off = await client.post(
+            f"/api/v1/digital-humans/video-jobs/{created.json()['id']}/execute",
+            headers=headers,
+            json={"execution_mode": "comfyui_handoff", "submit_immediately": False},
+        )
+
+        async with session_factory() as db_session:
+            result = await db_session.execute(
+                select(ComfyUIRuntimeVideoJob).where(
+                    ComfyUIRuntimeVideoJob.workspace_id == "workspace-digital-human-output-api"
+                )
+            )
+            comfyui_job = result.scalar_one()
+            comfyui_job.job_status = "output_ready"
+            comfyui_job.runtime_base_url = "http://127.0.0.1:8188"
+            comfyui_job.runtime_prompt_id = "prompt-api-67e"
+            comfyui_job.outputs = [{"node_id": "9", "kind": "videos", "filename": "api-clip.webm", "type": "output"}]
+            await db_session.commit()
+
+        ingested = await client.post(
+            f"/api/v1/digital-humans/video-jobs/{handed_off.json()['id']}/comfyui-output-ingestion",
+            headers=headers,
+            json={"refresh_comfyui_job": False, "asset_name": "API final clip"},
+        )
+
+    assert handed_off.status_code == 200
+    assert ingested.status_code == 200
+    assert ingested.json()["job_status"] == "completed"
+    assert ingested.json()["comfyui_output_ingestion_status"] == "ready"
+    assert ingested.json()["delivery_asset_name"] == "API final clip"
+    assert ingested.json()["delivery_output_count"] == 1
+    assert ingested.json()["outputs"][-1]["file_name"] == "api-clip.webm"
 
     await engine.dispose()

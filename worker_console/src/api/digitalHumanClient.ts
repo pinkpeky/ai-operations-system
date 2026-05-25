@@ -17,6 +17,12 @@ export type DigitalHumanVideoJob = {
   workflow_output_watch_status?: string | null;
   workflow_missing_nodes?: string[];
   workflow_missing_models?: string[];
+  comfyui_output_ingestion_status?: string | null;
+  delivery_asset_id?: string | null;
+  delivery_asset_status?: string | null;
+  delivery_asset_name?: string | null;
+  delivery_source_uri?: string | null;
+  delivery_output_count?: number;
   result_summary?: string | null;
   outputs?: Record<string, unknown>[];
   updated_at?: string;
@@ -54,6 +60,20 @@ export const digitalHumanClient = {
       {
         method: "POST",
         body: JSON.stringify({ metadata: { source: "worker_console_video_progress" } }),
+      },
+      settings,
+    ),
+  ingestComfyuiOutput: (jobId: string, settings?: ConversationSettings) =>
+    requestJson<DigitalHumanVideoJob>(
+      `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/comfyui-output-ingestion`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          refresh_comfyui_job: true,
+          poll_history: true,
+          resubmit_if_waiting: false,
+          metadata: { source: "worker_console_video_progress" },
+        }),
       },
       settings,
     ),

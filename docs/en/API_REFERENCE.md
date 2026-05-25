@@ -13,6 +13,22 @@ X-Workspace-Id: <workspace id>
 X-User-Id: <optional user id>
 ```
 
+## Phase 67E Digital Human Output Ingestion
+
+Status: production output ingestion / provider execution disabled by default. Phase 67E connects the guarded ComfyUI video job back into the digital-human delivery line. It refreshes the linked ComfyUI video job, reads its recorded output files, and registers them as a generated digital-human `video` asset for review and later commercial-operation use. By default it does not resubmit the ComfyUI job.
+
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_OUTPUT_DIR=storage/digital_human_outputs`.
+
+Tables: `digital_human_assets`, `digital_human_video_jobs`, `comfyui_runtime_video_jobs`.
+
+### POST `/api/v1/digital-humans/video-jobs/{job_id}/comfyui-output-ingestion`
+
+Refreshes the linked ComfyUI video job and ingests available outputs as a digital-human delivery asset. The request accepts `comfyui_video_job_id`, `refresh_comfyui_job`, `poll_history`, `resubmit_if_waiting`, `asset_name`, `operator_note`, and `metadata`. Defaults are safe: `refresh_comfyui_job=true`, `poll_history=true`, and `resubmit_if_waiting=false`.
+
+The response adds `comfyui_output_ingestion_status`, `delivery_asset_id`, `delivery_asset_status`, `delivery_asset_name`, `delivery_source_uri`, and `delivery_output_count`. When outputs are present, it stores `digital_human_comfyui_delivery_asset` and `digital_human_comfyui_output_ingestion` output records, marks the digital-human job `completed`, and creates or updates a generated `DigitalHumanAsset`. When outputs are not present, it records `waiting_for_outputs`, `waiting_for_prompt_submission`, `resource_blocked`, or `comfyui_job_failed`.
+
+Boundary: ingestion only uses the linked ComfyUI job state and guarded refresh path. It does not upload source files to ComfyUI, install workflows, download models, publish, control accounts, bypass approval, mutate runtime configuration, restart services, or rebuild packages.
+
 ## Phase 67D Digital Human Workflow Readiness
 
 Status: production workflow readiness evidence / provider execution disabled by default. Phase 67D records the operator evidence needed before a bound digital-human ComfyUI workflow can submit a real prompt through guarded runtime gates. It does not install workflows, download models, upload files automatically, submit prompts by default, publish, control accounts, or bypass approval.

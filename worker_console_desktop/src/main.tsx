@@ -8,6 +8,7 @@ import {
   FileText,
   MessageCircle,
   Monitor,
+  Package,
   PauseCircle,
   PencilLine,
   PlayCircle,
@@ -2296,6 +2297,24 @@ function ChatPanel({
       setDigitalHumanVideoStatus(refreshed.result_summary ?? refreshed.next_action ?? refreshed.job_status);
     } catch (nextError) {
       setDigitalHumanVideoStatus(nextError instanceof Error ? nextError.message : "Digital human video refresh failed");
+    } finally {
+      setDigitalHumanVideoLoading(false);
+    }
+  };
+
+  const ingestLatestDigitalHumanVideoOutput = async () => {
+    const latest = digitalHumanVideoJobs[0];
+    if (!latest) {
+      await refreshDigitalHumanVideos();
+      return;
+    }
+    setDigitalHumanVideoLoading(true);
+    try {
+      const ingested = await digitalHumanClient.ingestComfyuiOutput(latest.id, settings);
+      setDigitalHumanVideoJobs((current) => [ingested, ...current.filter((item) => item.id !== ingested.id)]);
+      setDigitalHumanVideoStatus(ingested.result_summary ?? ingested.next_action ?? ingested.job_status);
+    } catch (nextError) {
+      setDigitalHumanVideoStatus(nextError instanceof Error ? nextError.message : "Digital human output ingestion failed");
     } finally {
       setDigitalHumanVideoLoading(false);
     }
@@ -5340,6 +5359,16 @@ function ChatPanel({
     : language === "zh-CN"
       ? "真实工作流待检查"
       : "Real workflow not checked";
+  const digitalHumanIngestionText = latestDigitalHumanVideoJob?.comfyui_output_ingestion_status
+    ? `Output ${latestDigitalHumanVideoJob.comfyui_output_ingestion_status}`
+    : language === "zh-CN"
+      ? "输出待取回"
+      : "Output pending";
+  const digitalHumanDeliveryText = latestDigitalHumanVideoJob?.delivery_asset_status
+    ? `${latestDigitalHumanVideoJob.delivery_asset_status} / ${latestDigitalHumanVideoJob.delivery_output_count ?? 0}`
+    : language === "zh-CN"
+      ? "交付未就绪"
+      : "Delivery not ready";
   const operationResultSummary = closedLoopDeliveryStatus
     ? closedLoopDeliveryStatus
     : nextCycleDraftStatus
@@ -5486,10 +5515,20 @@ function ChatPanel({
               <span>{language === "zh-CN" ? `输出 ${digitalHumanVideoOutputCount}` : `${digitalHumanVideoOutputCount} outputs`}</span>
               <span>{digitalHumanWorkflowBindingText}</span>
               <span>{digitalHumanWorkflowReadinessText}</span>
+              <span>{digitalHumanIngestionText}</span>
+              <span>{digitalHumanDeliveryText}</span>
               <span>{latestDigitalHumanVideoJob?.linked_comfyui_video_job_id ? "ComfyUI linked" : "ComfyUI pending"}</span>
               <button className="refresh-button" onClick={() => void refreshLatestDigitalHumanVideo()} disabled={digitalHumanVideoLoading}>
                 <RefreshCcw size={14} />
                 {digitalHumanVideoLoading ? (language === "zh-CN" ? "刷新中" : "Refreshing") : workbenchCopy.operationRefreshLoop}
+              </button>
+              <button
+                className="refresh-button"
+                onClick={() => void ingestLatestDigitalHumanVideoOutput()}
+                disabled={digitalHumanVideoLoading || !latestDigitalHumanVideoJob?.linked_comfyui_video_job_id}
+              >
+                <Package size={14} />
+                {language === "zh-CN" ? "取回视频" : "Ingest video"}
               </button>
             </div>
           </div>

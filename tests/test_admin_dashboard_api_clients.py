@@ -74,6 +74,8 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh",
         "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/execute",
         "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/workflow-binding",
+        "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/workflow-readiness-check",
+        "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/comfyui-output-ingestion",
         "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}",
         "/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history",
         "/comfyui-runtime/queue",

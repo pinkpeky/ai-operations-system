@@ -15,6 +15,7 @@ from app.schemas.digital_human import (
     DigitalHumanAssetListResponse,
     DigitalHumanAssetResponse,
     DigitalHumanCapabilitiesResponse,
+    DigitalHumanComfyUIOutputIngestionRequest,
     DigitalHumanComfyUIWorkflowBindingRequest,
     DigitalHumanComfyUIWorkflowReadinessRequest,
     DigitalHumanWorkflowTemplateListResponse,
@@ -229,6 +230,31 @@ async def check_digital_human_comfyui_workflow_readiness(
         gpu_name=payload.gpu_name,
         free_vram_mb=payload.free_vram_mb,
         queue_depth=payload.queue_depth,
+        operator_note=payload.operator_note,
+        metadata=payload.metadata,
+    )
+
+
+@router.post("/video-jobs/{job_id}/comfyui-output-ingestion", response_model=DigitalHumanVideoJobResponse)
+async def ingest_digital_human_comfyui_output(
+    job_id: UUID,
+    request: DigitalHumanComfyUIOutputIngestionRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanVideoJobResponse:
+    """Refresh and ingest linked ComfyUI outputs as a digital human delivery asset."""
+
+    payload = request or DigitalHumanComfyUIOutputIngestionRequest()
+    return await service.ingest_comfyui_output(
+        session,
+        workspace_id=context.workspace_id,
+        job_id=job_id,
+        comfyui_video_job_id=payload.comfyui_video_job_id,
+        refresh_comfyui_job=payload.refresh_comfyui_job,
+        poll_history=payload.poll_history,
+        resubmit_if_waiting=payload.resubmit_if_waiting,
+        asset_name=payload.asset_name,
         operator_note=payload.operator_note,
         metadata=payload.metadata,
     )

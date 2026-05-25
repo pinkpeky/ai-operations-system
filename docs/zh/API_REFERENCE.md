@@ -3893,3 +3893,10 @@ API:
 - `POST /api/v1/digital-humans/video-jobs/{job_id}/{action}`
 
 Boundary: Phase 67A stores consent status, approval status, provider boundary fields, scene plans, and uploaded files. Defaults are mock/disabled; no provider execution, publishing, account control, workflow installation, runtime mutation, service restart, approval bypass, or package rebuild is added.
+## Phase 67E Digital Human Output Ingestion
+
+Status: production output ingestion / provider execution disabled by default. Phase 67E connects a guarded ComfyUI video job back into the digital-human delivery line. `POST /api/v1/digital-humans/video-jobs/{job_id}/comfyui-output-ingestion` refreshes the linked ComfyUI video job, reads recorded output files, and registers them as a generated digital-human `video` asset. Defaults are safe: `refresh_comfyui_job=true`, `poll_history=true`, and `resubmit_if_waiting=false`, so output ingestion does not resubmit the ComfyUI job unless an operator explicitly opts in.
+
+Response fields include `comfyui_output_ingestion_status`, `delivery_asset_id`, `delivery_asset_status`, `delivery_asset_name`, `delivery_source_uri`, and `delivery_output_count`. When outputs exist, the job stores `digital_human_comfyui_delivery_asset` and `digital_human_comfyui_output_ingestion` records and becomes `completed`; otherwise it records waiting or blocked status for recovery.
+
+Boundary: no automatic ComfyUI upload, workflow install, model download, publishing, account control, approval bypass, runtime config mutation, service restart, or package rebuild is performed.

@@ -14711,6 +14711,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
   const [workflowGpuName, setWorkflowGpuName] = useState("primary-video-gpu");
   const [workflowFreeVramMb, setWorkflowFreeVramMb] = useState("24576");
   const [workflowQueueDepth, setWorkflowQueueDepth] = useState("0");
+  const [deliveryAssetName, setDeliveryAssetName] = useState(language === "zh-CN" ? "数字人最终视频" : "Digital human final video");
 
   const copy = {
     title: language === "zh-CN" ? "数字人制作台" : "Digital human studio",
@@ -14739,6 +14740,11 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
       language === "zh-CN"
         ? "记录真实工作流导入、节点、模型、素材上传、输出监听和 GPU 显存证据；未齐全前不提交真实 prompt。"
         : "Record imported graph, node/model evidence, asset uploads, output watch path, and GPU VRAM before any real prompt submission.",
+    outputTitle: language === "zh-CN" ? "ComfyUI 输出取回" : "ComfyUI output ingestion",
+    outputDescription:
+      language === "zh-CN"
+        ? "刷新关联 ComfyUI 视频任务，将真实输出注册为数字人交付资产。默认不重新提交任务。"
+        : "Refresh the linked ComfyUI video job and register real outputs as a digital human delivery asset. By default this does not resubmit the job.",
     jobListTitle: language === "zh-CN" ? "视频任务" : "Video jobs",
     assetListTitle: language === "zh-CN" ? "素材资产" : "Assets",
   };
@@ -14807,6 +14813,9 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     readiness: valueAt(job, ["workflow_readiness_status"], "-"),
     uploads: valueAt(job, ["workflow_asset_upload_status"], "-"),
     output_watch: valueAt(job, ["workflow_output_watch_status"], "-"),
+    ingestion: valueAt(job, ["comfyui_output_ingestion_status"], "-"),
+    delivery: valueAt(job, ["delivery_asset_status"], "-"),
+    delivery_outputs: valueAt(job, ["delivery_output_count"], "0"),
     outputs: Array.isArray(job.outputs) ? job.outputs.length : 0,
     summary: valueAt(job, ["result_summary"]),
   }));
@@ -15002,11 +15011,36 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     }
   };
 
+  const ingestLatestComfyuiOutput = async () => {
+    if (!latestJobId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const ingested = await digitalHumansApi.ingestComfyuiOutput(
+        latestJobId,
+        {
+          refresh_comfyui_job: true,
+          poll_history: true,
+          resubmit_if_waiting: false,
+          asset_name: deliveryAssetName.trim() || undefined,
+          operator_note: "ComfyUI output ingested from Digital Humans page",
+          metadata: { source_page: "digital-humans", phase: "67E", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: ingested, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "ComfyUI output ingestion unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
   return (
     <div className="page-stack">
       <section className="overview-command-center">
         <div>
-          <p className="section-eyebrow">Phase 67C</p>
+          <p className="section-eyebrow">Phase 67E</p>
           <h2>{copy.title}</h2>
           <p>{copy.description}</p>
         </div>
@@ -15252,6 +15286,35 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
         />
       </Panel>
 
+      <Panel title={copy.outputTitle} description={copy.outputDescription}>
+        <div className="commercial-detail-grid">
+          <Field label="linked_comfyui_job" value={valueAt(latestJob, ["linked_comfyui_video_job_id"], "-")} />
+          <Field label="ingestion_status" value={<StatusPill value={valueAt(latestJob, ["comfyui_output_ingestion_status"], "not_started")} />} />
+          <Field label="delivery_asset_status" value={<StatusPill value={valueAt(latestJob, ["delivery_asset_status"], "not_ready")} />} />
+          <Field label="delivery_asset_id" value={valueAt(latestJob, ["delivery_asset_id"], "-")} />
+          <Field label="delivery_output_count" value={valueAt(latestJob, ["delivery_output_count"], "0")} />
+          <Field label="delivery_source" value={valueAt(latestJob, ["delivery_source_uri"], "-")} />
+        </div>
+        <div className="commercial-form-grid">
+          <label>
+            {language === "zh-CN" ? "交付资产名称" : "Delivery asset name"}
+            <input value={deliveryAssetName} onChange={(event) => setDeliveryAssetName(event.target.value)} />
+          </label>
+        </div>
+        <div className="commercial-action-row">
+          <button
+            className="primary-button"
+            onClick={() => void ingestLatestComfyuiOutput()}
+            disabled={!latestJobId || actionState.loading || !valueAt(latestJob, ["linked_comfyui_video_job_id"], "")}
+          >
+            {language === "zh-CN" ? "取回 ComfyUI 输出" : "Ingest ComfyUI outputs"}
+          </button>
+          <button className="ghost-button" onClick={() => void refreshLatestJob()} disabled={!latestJobId || actionState.loading}>
+            {language === "zh-CN" ? "刷新状态" : "Refresh status"}
+          </button>
+        </div>
+      </Panel>
+
       <Panel title={copy.jobListTitle}>
         <Table
           rows={jobRows}
@@ -15269,6 +15332,9 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
             { key: "readiness", label: "readiness" },
             { key: "uploads", label: "uploads" },
             { key: "output_watch", label: "output_watch" },
+            { key: "ingestion", label: "ingestion" },
+            { key: "delivery", label: "delivery" },
+            { key: "delivery_outputs", label: "delivery_outputs" },
             { key: "outputs", label: "outputs" },
             { key: "summary", label: "summary" },
           ]}
