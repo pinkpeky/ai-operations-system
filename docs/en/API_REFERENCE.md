@@ -4379,6 +4379,19 @@ Endpoints:
 
 Boundary: Phase 65A submits prompts and reads history/queue only through the guarded adapter. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
+## Phase 65B: Commercial ComfyUI Execution Link
+
+Phase 65B connects approved commercial operation ComfyUI adapter dispatches to the guarded real ComfyUI runtime adapter.
+
+Routes:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/submit-runtime`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/refresh-runtime`
+
+`submit-runtime` requires an approved adapter dispatch and a valid ComfyUI API prompt graph in the dispatch prompt/workflow/dispatch payload. It calls the Phase 65A guarded `/prompt` adapter, records `runtime_prompt_id`, runtime submission metadata, queue status, history output metadata, and generated output filenames, and marks the linked asset request prepared when outputs are present. `refresh-runtime` re-reads history and queue status for the stored prompt ID.
+
+Boundary: Phase 65B still requires commercial approval and every Phase 65A runtime gate. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
 ## Phase 62Y: Commercial Operation Loop Protocol
 
 Phase 62Y adds one read-only commercial-operation loop summary for server and customer-machine frontends. `GET /api/v1/commercial-operations/{operation_id}/operation-loop` returns `CommercialOperationLoopSummaryResponse` with `loop_status`, `current_stage_key`, `next_action`, `completion_ratio`, `stages`, `counts`, `execution_protocol`, `readiness`, and `boundaries`.

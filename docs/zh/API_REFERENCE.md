@@ -3781,4 +3781,17 @@ Endpoints:
 
 Boundary: Phase 65A submits prompts and reads history/queue only through the guarded adapter. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
+## Phase 65B: Commercial ComfyUI Execution Link
+
+Phase 65B connects approved commercial operation ComfyUI adapter dispatches to the guarded real ComfyUI runtime adapter.
+
+Routes:
+
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/submit-runtime`
+- `POST /api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/refresh-runtime`
+
+`submit-runtime` requires an approved adapter dispatch and a valid ComfyUI API prompt graph in the dispatch prompt/workflow/dispatch payload. It calls the Phase 65A guarded `/prompt` adapter, records `runtime_prompt_id`, runtime submission metadata, queue status, history output metadata, and generated output filenames, and marks the linked asset request prepared when outputs are present. `refresh-runtime` re-reads history and queue status for the stored prompt ID.
+
+Boundary: Phase 65B still requires commercial approval and every Phase 65A runtime gate. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
 边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。

@@ -1572,6 +1572,16 @@ class CommercialOperationComfyUIAdapterDispatchDecisionRequest(BaseModel):
     failure_reason: str | None = None
 
 
+class CommercialOperationComfyUIRuntimeSubmitRequest(BaseModel):
+    """Submit or refresh a guarded real ComfyUI job for an approved adapter dispatch."""
+
+    client_id: str | None = Field(default=None, min_length=1, max_length=128)
+    poll_history: bool = True
+    reviewer_notes: str | None = None
+    result_summary: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class CommercialOperationComfyUIAdapterDispatchResponse(BaseModel):
     """Commercial operation metadata-only ComfyUI adapter dispatch response."""
 

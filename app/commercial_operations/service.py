@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.comfyui_runtime.service import ComfyUIRuntimeService
 from app.models.commercial_operation import (
     CommercialOperation,
     CommercialOperationApproval,
@@ -3984,6 +3985,230 @@ class CommercialOperationService:
             result_summary=result_summary,
             failure_reason=None,
         )
+
+    async def submit_comfyui_adapter_dispatch_runtime_job(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        submitted_by: str | None = None,
+        client_id: str | None = None,
+        poll_history: bool = True,
+        reviewer_notes: str | None = None,
+        result_summary: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        """Submit an approved commercial ComfyUI dispatch through the guarded real runtime adapter."""
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+        )
+        if dispatch.dispatch_status not in {
+            CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value,
+            CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value,
+        }:
+            raise ValueError("Only approved, dispatched, or failed ComfyUI adapter dispatches can submit real runtime jobs")
+        if not dispatch.approved_by:
+            raise ValueError("Real ComfyUI runtime submission requires an approved adapter dispatch")
+
+        prompt = self._extract_comfyui_runtime_prompt(dispatch.prompt_payload)
+        if prompt is None:
+            prompt = self._extract_comfyui_runtime_prompt(dispatch.workflow_payload)
+        if prompt is None:
+            prompt = self._extract_comfyui_runtime_prompt(dispatch.dispatch_payload)
+        if prompt is None:
+            raise ValueError("ComfyUI adapter dispatch does not contain a valid ComfyUI API prompt graph")
+
+        now = datetime.now(UTC)
+        runtime = ComfyUIRuntimeService()
+        clean_client_id = (
+            client_id.strip()[:128]
+            if client_id and client_id.strip()
+            else f"commercial-operation-{dispatch.id}"
+        )
+        submit = runtime.submit_prompt_job(
+            prompt=prompt,
+            client_id=clean_client_id,
+            workflow=dispatch.workflow_payload,
+            extra_data={
+                "commercial_operation": {
+                    "operation_id": str(operation.id),
+                    "adapter_dispatch_id": str(dispatch.id),
+                    "asset_request_id": str(dispatch.asset_request_id),
+                    "step_key": dispatch.step_key,
+                }
+            },
+            metadata={
+                "phase": "65B",
+                "source": "commercial_operation_adapter_dispatch",
+                **(metadata or {}),
+            },
+            workspace_id=workspace_id,
+        )
+        history = runtime.prompt_history(prompt_id=submit.prompt_id, workspace_id=workspace_id) if submit.prompt_id and poll_history else None
+        queue = runtime.queue_status(workspace_id=workspace_id)
+        outputs = self._extract_comfyui_runtime_outputs(history.outputs if history else {})
+        runtime_metadata = self._build_comfyui_runtime_submission_metadata(
+            submitted_at=now,
+            submitted_by=submitted_by,
+            client_id=clean_client_id,
+            submit=submit,
+            history=history,
+            queue=queue,
+            outputs=outputs,
+            metadata=metadata,
+        )
+        dispatch.dispatch_metadata = {
+            **(dispatch.dispatch_metadata or {}),
+            "phase": "65B",
+            "runtime_submission": runtime_metadata["runtime_submission"],
+            "runtime_history": runtime_metadata["runtime_history"],
+            "runtime_queue": runtime_metadata["runtime_queue"],
+            "runtime_outputs": outputs,
+        }
+        dispatch.dispatch_payload = {
+            **(dispatch.dispatch_payload or {}),
+            "dispatch_mode": "guarded_runtime_submission",
+            "network_request": bool(submit.external_request_attempted),
+            "queue_read": bool(queue.external_request_attempted),
+            "queue_submission": bool(submit.success),
+            "prompt_submission": bool(submit.external_request_attempted),
+            "submit_job": bool(submit.success),
+            "submit_jobs": bool(submit.success),
+            "upload_files": False,
+            "generation_started": bool(submit.success),
+            "external_calls": "guarded_runtime_adapter",
+            "dry_run_only": False,
+            "runtime_prompt_id": submit.prompt_id,
+            "runtime_prompt_success": bool(submit.success),
+            "runtime_outputs": outputs,
+            "runtime_error": submit.error,
+        }
+        dispatch.queue_payload = {
+            **(dispatch.queue_payload or {}),
+            "queue_read": bool(queue.external_request_attempted),
+            "queue_submission": bool(submit.success),
+            "runtime_queue_success": bool(queue.success),
+            "runtime_prompt_id": submit.prompt_id,
+        }
+        dispatch.dispatch_mode = "guarded_runtime_submission"
+        dispatch.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else dispatch.reviewer_notes
+        dispatch.updated_by = submitted_by
+        dispatch.dispatched_by = submitted_by if submit.success else dispatch.dispatched_by
+        if submit.success:
+            dispatch.dispatch_status = CommercialOperationComfyUIAdapterDispatchStatus.DISPATCHED.value
+            dispatch.dispatched_at = now
+            dispatch.failed_at = None
+            dispatch.failure_reason = None
+            dispatch.result_summary = (
+                result_summary.strip()
+                if result_summary and result_summary.strip()
+                else self._comfyui_runtime_result_summary(prompt_id=submit.prompt_id, outputs=outputs)
+            )
+        else:
+            dispatch.dispatch_status = CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value
+            dispatch.failed_at = now
+            dispatch.failure_reason = submit.error or "ComfyUI runtime prompt submission failed"
+            dispatch.result_summary = None
+
+        await self._apply_comfyui_runtime_outputs_to_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            operation=operation,
+            dispatch=dispatch,
+            outputs=outputs,
+            prompt_id=submit.prompt_id,
+            actor_user_id=submitted_by,
+        )
+        dispatch.retry_policy = self._build_comfyui_adapter_dispatch_retry_policy(
+            retry_policy=dispatch.retry_policy,
+            dispatch_status=dispatch.dispatch_status,
+            failure_reason=dispatch.failure_reason,
+        )
+        dispatch.recovery_plan = self._build_comfyui_adapter_dispatch_recovery_plan(
+            recovery_plan=dispatch.recovery_plan,
+            dispatch_status=dispatch.dispatch_status,
+            failure_reason=dispatch.failure_reason,
+        )
+        self._apply_comfyui_adapter_dispatch_to_plan(operation, dispatch)
+        await self.session.commit()
+        await self.session.refresh(dispatch)
+        return dispatch
+
+    async def refresh_comfyui_adapter_dispatch_runtime_job(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        adapter_dispatch_id: UUID,
+        refreshed_by: str | None = None,
+        poll_history: bool = True,
+        metadata: dict[str, Any] | None = None,
+    ) -> CommercialOperationComfyUIAdapterDispatch:
+        """Refresh real ComfyUI prompt history and queue status for a previously submitted dispatch."""
+
+        operation = await self.require_operation(workspace_id=workspace_id, operation_id=operation_id)
+        dispatch = await self.require_comfyui_adapter_dispatch(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+        )
+        prompt_id = self._comfyui_runtime_prompt_id_from_dispatch(dispatch)
+        if not prompt_id:
+            raise ValueError("ComfyUI adapter dispatch has no runtime prompt_id to refresh")
+
+        now = datetime.now(UTC)
+        runtime = ComfyUIRuntimeService()
+        history = runtime.prompt_history(prompt_id=prompt_id, workspace_id=workspace_id) if poll_history else None
+        queue = runtime.queue_status(workspace_id=workspace_id)
+        outputs = self._extract_comfyui_runtime_outputs(history.outputs if history else {})
+        dispatch.dispatch_metadata = {
+            **(dispatch.dispatch_metadata or {}),
+            "phase": "65B",
+            "runtime_history": self._comfyui_runtime_history_metadata(history, checked_at=now) if history else None,
+            "runtime_queue": self._comfyui_runtime_queue_metadata(queue, checked_at=now),
+            "runtime_outputs": outputs,
+            "runtime_refresh": {
+                "refreshed_at": now.isoformat(),
+                "refreshed_by": refreshed_by,
+                "metadata": metadata or {},
+            },
+        }
+        dispatch.dispatch_payload = {
+            **(dispatch.dispatch_payload or {}),
+            "runtime_prompt_id": prompt_id,
+            "runtime_outputs": outputs,
+            "runtime_history_success": bool(history.success) if history else None,
+            "runtime_queue_success": bool(queue.success),
+        }
+        dispatch.queue_payload = {
+            **(dispatch.queue_payload or {}),
+            "queue_read": bool(queue.external_request_attempted),
+            "runtime_queue_success": bool(queue.success),
+            "runtime_prompt_id": prompt_id,
+        }
+        dispatch.updated_by = refreshed_by
+        if outputs:
+            dispatch.result_summary = self._comfyui_runtime_result_summary(prompt_id=prompt_id, outputs=outputs)
+            dispatch.failure_reason = None
+        await self._apply_comfyui_runtime_outputs_to_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            operation=operation,
+            dispatch=dispatch,
+            outputs=outputs,
+            prompt_id=prompt_id,
+            actor_user_id=refreshed_by,
+        )
+        self._apply_comfyui_adapter_dispatch_to_plan(operation, dispatch)
+        await self.session.commit()
+        await self.session.refresh(dispatch)
+        return dispatch
 
     async def fail_comfyui_adapter_dispatch(
         self,
@@ -11924,6 +12149,7 @@ class CommercialOperationService:
         execution_plan: CommercialOperationComfyUIExecutionPlan,
     ) -> dict[str, Any]:
         payload = prompt_payload.copy() if isinstance(prompt_payload, dict) else {}
+        supplied_prompt = self._extract_comfyui_runtime_prompt(payload)
         payload.update(
             {
                 "source": "metadata_only",
@@ -11937,6 +12163,14 @@ class CommercialOperationService:
                 "execution_boundary": "metadata-only prompt payload; no ComfyUI prompt is submitted",
             }
         )
+        if supplied_prompt is not None:
+            payload["comfyui_prompt"] = supplied_prompt
+            payload["comfyui_prompt_source"] = "operator_payload"
+        else:
+            payload["comfyui_prompt"] = self._default_comfyui_empty_image_prompt(
+                filename_prefix=f"aiops_commercial_{str(handoff.id)[:8]}"
+            )
+            payload["comfyui_prompt_source"] = "default_empty_image_smoke"
         return payload
 
     def _build_comfyui_adapter_dispatch_workflow_payload(
@@ -12258,6 +12492,208 @@ class CommercialOperationService:
                 "no approval bypass",
             ],
         }
+
+    def _extract_comfyui_runtime_prompt(self, payload: Any) -> dict[str, Any] | None:
+        if not isinstance(payload, dict):
+            return None
+        if self._is_comfyui_prompt_graph(payload):
+            return dict(payload)
+        for key in ("comfyui_prompt", "api_prompt", "prompt_graph"):
+            candidate = payload.get(key)
+            if self._is_comfyui_prompt_graph(candidate):
+                return dict(candidate)
+        direct_prompt = payload.get("prompt")
+        if self._is_comfyui_prompt_graph(direct_prompt):
+            return dict(direct_prompt)
+        for key in (
+            "prompt_payload",
+            "runtime_payload",
+            "workflow_payload",
+            "dispatch_payload",
+            "request_payload",
+            "handoff_workflow_payload",
+        ):
+            nested = self._extract_comfyui_runtime_prompt(payload.get(key))
+            if nested is not None:
+                return nested
+        return None
+
+    def _is_comfyui_prompt_graph(self, candidate: Any) -> bool:
+        if not isinstance(candidate, dict) or not candidate:
+            return False
+        for node_id, node in candidate.items():
+            if not isinstance(node_id, str) or not isinstance(node, dict):
+                return False
+            if not isinstance(node.get("class_type"), str) or not isinstance(node.get("inputs"), dict):
+                return False
+        return True
+
+    def _default_comfyui_empty_image_prompt(self, *, filename_prefix: str) -> dict[str, Any]:
+        return {
+            "1": {
+                "class_type": "EmptyImage",
+                "inputs": {
+                    "width": 512,
+                    "height": 512,
+                    "batch_size": 1,
+                    "color": 65280,
+                },
+            },
+            "2": {
+                "class_type": "SaveImage",
+                "inputs": {
+                    "images": ["1", 0],
+                    "filename_prefix": filename_prefix,
+                },
+            },
+        }
+
+    def _extract_comfyui_runtime_outputs(self, outputs: dict[str, Any]) -> list[dict[str, Any]]:
+        if not isinstance(outputs, dict):
+            return []
+        items: list[dict[str, Any]] = []
+        for node_id, node_outputs in outputs.items():
+            if not isinstance(node_outputs, dict):
+                continue
+            for output_kind in ("images", "videos", "gifs", "audio", "files"):
+                entries = node_outputs.get(output_kind)
+                if not isinstance(entries, list):
+                    continue
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    filename = entry.get("filename")
+                    if not isinstance(filename, str) or not filename:
+                        continue
+                    items.append(
+                        {
+                            "node_id": str(node_id),
+                            "kind": output_kind,
+                            "filename": filename,
+                            "subfolder": entry.get("subfolder") if isinstance(entry.get("subfolder"), str) else "",
+                            "type": entry.get("type") if isinstance(entry.get("type"), str) else None,
+                        }
+                    )
+        return items
+
+    def _comfyui_runtime_result_summary(self, *, prompt_id: str | None, outputs: list[dict[str, Any]]) -> str:
+        if outputs:
+            filenames = ", ".join(str(item.get("filename")) for item in outputs[:3])
+            return f"Real ComfyUI job {prompt_id or '-'} produced {len(outputs)} output file(s): {filenames}."
+        return f"Real ComfyUI prompt job {prompt_id or '-'} was submitted; output history is pending refresh."
+
+    def _comfyui_runtime_prompt_id_from_dispatch(
+        self,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> str | None:
+        payload_prompt_id = (dispatch.dispatch_payload or {}).get("runtime_prompt_id")
+        if isinstance(payload_prompt_id, str) and payload_prompt_id.strip():
+            return payload_prompt_id.strip()
+        metadata = dispatch.dispatch_metadata or {}
+        submission = metadata.get("runtime_submission")
+        if isinstance(submission, dict):
+            metadata_prompt_id = submission.get("prompt_id")
+            if isinstance(metadata_prompt_id, str) and metadata_prompt_id.strip():
+                return metadata_prompt_id.strip()
+        return None
+
+    def _comfyui_runtime_history_metadata(self, history: Any, *, checked_at: datetime) -> dict[str, Any]:
+        return {
+            "checked_at": checked_at.isoformat(),
+            "success": bool(history.success),
+            "prompt_id": history.prompt_id,
+            "status_code": history.status_code,
+            "external_request_attempted": bool(history.external_request_attempted),
+            "runtime_calls_enabled": bool(history.runtime_calls_enabled),
+            "prompt_submission_enabled": bool(history.prompt_submission_enabled),
+            "outputs": history.outputs,
+            "error": history.error,
+        }
+
+    def _comfyui_runtime_queue_metadata(self, queue: Any, *, checked_at: datetime) -> dict[str, Any]:
+        return {
+            "checked_at": checked_at.isoformat(),
+            "success": bool(queue.success),
+            "status_code": queue.status_code,
+            "external_request_attempted": bool(queue.external_request_attempted),
+            "runtime_calls_enabled": bool(queue.runtime_calls_enabled),
+            "prompt_submission_enabled": bool(queue.prompt_submission_enabled),
+            "running_count": len(queue.running or []),
+            "pending_count": len(queue.pending or []),
+            "error": queue.error,
+        }
+
+    def _build_comfyui_runtime_submission_metadata(
+        self,
+        *,
+        submitted_at: datetime,
+        submitted_by: str | None,
+        client_id: str,
+        submit: Any,
+        history: Any | None,
+        queue: Any,
+        outputs: list[dict[str, Any]],
+        metadata: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        return {
+            "runtime_submission": {
+                "submitted_at": submitted_at.isoformat(),
+                "submitted_by": submitted_by,
+                "client_id": client_id,
+                "success": bool(submit.success),
+                "prompt_id": submit.prompt_id,
+                "status_code": submit.status_code,
+                "external_request_attempted": bool(submit.external_request_attempted),
+                "runtime_calls_enabled": bool(submit.runtime_calls_enabled),
+                "prompt_submission_enabled": bool(submit.prompt_submission_enabled),
+                "node_errors": submit.node_errors,
+                "error": submit.error,
+                "metadata": metadata or {},
+            },
+            "runtime_history": self._comfyui_runtime_history_metadata(history, checked_at=submitted_at) if history else None,
+            "runtime_queue": self._comfyui_runtime_queue_metadata(queue, checked_at=submitted_at),
+            "runtime_outputs": outputs,
+        }
+
+    async def _apply_comfyui_runtime_outputs_to_asset_request(
+        self,
+        *,
+        workspace_id: str,
+        operation_id: UUID,
+        operation: CommercialOperation,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        outputs: list[dict[str, Any]],
+        prompt_id: str | None,
+        actor_user_id: str | None,
+    ) -> None:
+        if not outputs:
+            return
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=dispatch.asset_request_id,
+        )
+        now = datetime.now(UTC)
+        asset_request.handoff_payload = {
+            **(asset_request.handoff_payload or {}),
+            "comfyui_runtime_prompt_id": prompt_id,
+            "comfyui_runtime_outputs": outputs,
+            "comfyui_adapter_dispatch_id": str(dispatch.id),
+            "comfyui_runtime_recorded_at": now.isoformat(),
+        }
+        asset_request.result_summary = self._comfyui_runtime_result_summary(prompt_id=prompt_id, outputs=outputs)
+        asset_request.failure_reason = None
+        asset_request.updated_by = actor_user_id
+        if asset_request.request_status in {
+            CommercialOperationAssetRequestStatus.APPROVED.value,
+            CommercialOperationAssetRequestStatus.FAILED.value,
+        }:
+            asset_request.request_status = CommercialOperationAssetRequestStatus.PREPARED.value
+            asset_request.prepared_by = actor_user_id
+            asset_request.prepared_at = now
+            asset_request.failed_at = None
+            asset_request.archived_at = None
+        self._apply_asset_request_to_plan(operation, asset_request)
 
     def _build_comfyui_runtime_gate_environment_payload(
         self,

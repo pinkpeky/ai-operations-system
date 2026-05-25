@@ -5236,9 +5236,12 @@ function CommercialOperationsPage({
           approveAction: "Approve",
           rejectAction: "Reject",
           dispatchAction: "Record dispatch",
+          submitRuntimeAction: "Submit ComfyUI",
+          refreshRuntimeAction: "Refresh output",
           failAction: "Fail",
           cancelAction: "Cancel",
           archiveAction: "Archive",
+          runtimePromptLabel: "Runtime prompt",
           selectedHint: "Select an operation and record at least one ComfyUI connection probe first.",
           requiresProbe: "Record one ComfyUI connection probe first.",
           noDispatches: "No ComfyUI adapter dispatches yet.",
@@ -5892,10 +5895,12 @@ function CommercialOperationsPage({
   const [comfyuiDispatchConnectionProbeId, setComfyuiDispatchConnectionProbeId] = useState("");
   const [comfyuiDispatchTitle, setComfyuiDispatchTitle] = useState(language === "zh-CN" ? "ComfyUI 适配器调度记录" : "ComfyUI adapter dispatch");
   const [comfyuiDispatchMode, setComfyuiDispatchMode] = useState("metadata_only");
-  const [comfyuiDispatchPromptPayloadDraft, setComfyuiDispatchPromptPayloadDraft] = useState('{"source":"metadata_only"}');
+  const [comfyuiDispatchPromptPayloadDraft, setComfyuiDispatchPromptPayloadDraft] = useState(
+    '{"comfyui_prompt":{"1":{"class_type":"EmptyImage","inputs":{"width":512,"height":512,"batch_size":1,"color":65280}},"2":{"class_type":"SaveImage","inputs":{"images":["1",0],"filename_prefix":"aiops_commercial_dispatch"}}}}',
+  );
   const [comfyuiDispatchWorkflowPayloadDraft, setComfyuiDispatchWorkflowPayloadDraft] = useState('{"workflow_validation":"documented_only"}');
   const [comfyuiDispatchQueuePayloadDraft, setComfyuiDispatchQueuePayloadDraft] = useState('{"queue_submission":false,"queue_read":false}');
-  const [comfyuiDispatchPayloadDraft, setComfyuiDispatchPayloadDraft] = useState('{"dispatch_mode":"metadata_only","queue_submission":false,"prompt_submission":false}');
+  const [comfyuiDispatchPayloadDraft, setComfyuiDispatchPayloadDraft] = useState('{"dispatch_mode":"metadata_only","queue_submission":false,"prompt_submission":false,"allow_runtime_submission_after_approval":true}');
   const [comfyuiDispatchGuardrailsDraft, setComfyuiDispatchGuardrailsDraft] = useState("[]");
   const [comfyuiDispatchChecklistDraft, setComfyuiDispatchChecklistDraft] = useState("connection probe recorded, operator approval required, no real adapter call");
   const [comfyuiDispatchRetryDraft, setComfyuiDispatchRetryDraft] = useState('{"retry_mode":"operator_review_only","max_attempts":1}');
@@ -8304,7 +8309,7 @@ function CommercialOperationsPage({
 
   const mutateComfyuiAdapterDispatch = async (
     adapterDispatchId: string,
-    action: "ready" | "approve" | "reject" | "dispatch" | "fail" | "cancel" | "archive",
+    action: "ready" | "approve" | "reject" | "dispatch" | "submitRuntime" | "refreshRuntime" | "fail" | "cancel" | "archive",
   ) => {
     if (!selectedOperationId || !adapterDispatchId) {
       return;
@@ -8320,11 +8325,15 @@ function CommercialOperationsPage({
               ? await commercialOperationsApi.rejectComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
               : action === "dispatch"
                 ? await commercialOperationsApi.dispatchComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
-                : action === "fail"
-                  ? await commercialOperationsApi.failComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, "Failed during metadata-only ComfyUI adapter dispatch review; maintainer action required.", settings)
-                  : action === "cancel"
-                    ? await commercialOperationsApi.cancelComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
-                    : await commercialOperationsApi.archiveComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings);
+                : action === "submitRuntime"
+                  ? await commercialOperationsApi.submitComfyuiAdapterDispatchRuntime(selectedOperationId, adapterDispatchId, settings)
+                  : action === "refreshRuntime"
+                    ? await commercialOperationsApi.refreshComfyuiAdapterDispatchRuntime(selectedOperationId, adapterDispatchId, settings)
+                    : action === "fail"
+                      ? await commercialOperationsApi.failComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, "Failed during metadata-only ComfyUI adapter dispatch review; maintainer action required.", settings)
+                      : action === "cancel"
+                        ? await commercialOperationsApi.cancelComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings)
+                        : await commercialOperationsApi.archiveComfyuiAdapterDispatch(selectedOperationId, adapterDispatchId, settings);
       setActionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
       await loadComfyuiAdapterDispatches(selectedOperationId);
       await load();
@@ -12299,11 +12308,20 @@ function CommercialOperationsPage({
                 {comfyuiAdapterDispatches.map((dispatch) => {
                   const adapterDispatchId = valueAt(dispatch, ["id"], "");
                   const dispatchStatus = valueAt(dispatch, ["dispatch_status"], "");
+                  const dispatchPayload = (dispatch.dispatch_payload as JsonRecord | undefined) || {};
+                  const dispatchMetadata = (dispatch.metadata as JsonRecord | undefined) || {};
+                  const runtimePromptId = valueAt(dispatchPayload, ["runtime_prompt_id"], "");
+                  const runtimeOutputs = dispatchMetadata.runtime_outputs || dispatchPayload.runtime_outputs;
+                  const submitRuntimeLabel = (comfyuiDispatchCopy as { submitRuntimeAction?: string }).submitRuntimeAction || "Submit ComfyUI";
+                  const refreshRuntimeLabel = (comfyuiDispatchCopy as { refreshRuntimeAction?: string }).refreshRuntimeAction || "Refresh output";
+                  const runtimePromptLabel = (comfyuiDispatchCopy as { runtimePromptLabel?: string }).runtimePromptLabel || "Runtime prompt";
                   return (
                     <article className="commercial-asset-item" key={adapterDispatchId}>
                       <div>
                         <strong>{valueAt(dispatch, ["title"])}</strong>
                         <span>{valueAt(dispatch, ["target_url"], "-")} / {valueAt(dispatch, ["queue_name"], "-")} / {valueAt(dispatch, ["workflow_name"], "-")}</span>
+                        <p>{runtimePromptLabel}: {runtimePromptId || "-"}</p>
+                        <p>{shortJson(runtimeOutputs, 90)}</p>
                         <p>{shortJson(dispatch.guardrails, 90)}</p>
                         <p>{shortJson(dispatch.dispatch_plan_payload, 90)}</p>
                         <StatusPill value={dispatchStatus} />
@@ -12344,6 +12362,22 @@ function CommercialOperationsPage({
                         >
                           <PlayCircle size={15} />
                           {comfyuiDispatchCopy.dispatchAction}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "submitRuntime")}
+                          disabled={!["approved", "failed", "dispatched"].includes(dispatchStatus) || actionState.loading}
+                        >
+                          <PlayCircle size={15} />
+                          {submitRuntimeLabel}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void mutateComfyuiAdapterDispatch(adapterDispatchId, "refreshRuntime")}
+                          disabled={!runtimePromptId || actionState.loading}
+                        >
+                          <RefreshCcw size={15} />
+                          {refreshRuntimeLabel}
                         </button>
                         <button
                           className="ghost-button danger-button"

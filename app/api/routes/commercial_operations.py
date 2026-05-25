@@ -36,6 +36,7 @@ from app.schemas.commercial_operation import (
     CommercialOperationComfyUIAdapterDispatchDecisionRequest,
     CommercialOperationComfyUIAdapterDispatchListResponse,
     CommercialOperationComfyUIAdapterDispatchResponse,
+    CommercialOperationComfyUIRuntimeSubmitRequest,
     CommercialOperationComfyUIAdapterDispatchUpdateRequest,
     CommercialOperationComfyUIConnectionProbeCreateRequest,
     CommercialOperationComfyUIConnectionProbeDecisionRequest,
@@ -3525,6 +3526,75 @@ async def dispatch_commercial_operation_comfyui_adapter_dispatch(
             extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
         )
         raise AppError("Commercial operation ComfyUI adapter dispatch record failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/submit-runtime",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def submit_commercial_operation_comfyui_adapter_dispatch_runtime_job(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIRuntimeSubmitRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Submit an approved commercial ComfyUI adapter dispatch through the guarded real runtime adapter."""
+
+    try:
+        dispatch = await CommercialOperationService(session).submit_comfyui_adapter_dispatch_runtime_job(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            submitted_by=context.user_id,
+            **request.model_dump(),
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime submission API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime submission failed", status_code=500) from exc
+
+
+@router.post(
+    "/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/refresh-runtime",
+    response_model=CommercialOperationComfyUIAdapterDispatchResponse,
+)
+async def refresh_commercial_operation_comfyui_adapter_dispatch_runtime_job(
+    operation_id: UUID,
+    adapter_dispatch_id: UUID,
+    request: CommercialOperationComfyUIRuntimeSubmitRequest,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+) -> CommercialOperationComfyUIAdapterDispatchResponse:
+    """Refresh ComfyUI history and queue status for a submitted commercial runtime job."""
+
+    try:
+        dispatch = await CommercialOperationService(session).refresh_comfyui_adapter_dispatch_runtime_job(
+            workspace_id=context.workspace_id,
+            operation_id=operation_id,
+            adapter_dispatch_id=adapter_dispatch_id,
+            refreshed_by=context.user_id,
+            poll_history=request.poll_history,
+            metadata=request.metadata,
+        )
+        return CommercialOperationComfyUIAdapterDispatchResponse.from_model(dispatch)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise AppError(message, status_code=status_code) from exc
+    except Exception as exc:
+        logger.exception(
+            "Commercial operation ComfyUI runtime refresh API failed",
+            extra={"operation_id": str(operation_id), "adapter_dispatch_id": str(adapter_dispatch_id)},
+        )
+        raise AppError("Commercial operation ComfyUI runtime refresh failed", status_code=500) from exc
 
 
 @router.post(
