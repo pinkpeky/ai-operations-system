@@ -5947,6 +5947,11 @@ function CommercialOperationsPage({
   const [comfyuiVideoEstimateMb, setComfyuiVideoEstimateMb] = useState("8192");
   const [comfyuiVideoReserveMb, setComfyuiVideoReserveMb] = useState("2048");
   const [comfyuiVideoResourcePlan, setComfyuiVideoResourcePlan] = useState<JsonRecord | null>(null);
+  const [comfyuiVideoPromptText, setComfyuiVideoPromptText] = useState(
+    language === "zh-CN" ? "产品运营短视频素材，清晰、稳定、可用于审批" : "Product operation short-video asset, clear, stable, approval-ready",
+  );
+  const [comfyuiVideoWorkflowName, setComfyuiVideoWorkflowName] = useState("server_configured_video_workflow");
+  const [comfyuiVideoOperatorNote, setComfyuiVideoOperatorNote] = useState("");
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -6066,6 +6071,7 @@ function CommercialOperationsPage({
         manualApplyEvidence,
         postManualReadinessChecks,
         guardedProbeExecutions,
+        videoJobs,
         queueStatus,
       ] = await Promise.all([
         comfyuiRuntimeApi.capabilities(settings),
@@ -6076,6 +6082,7 @@ function CommercialOperationsPage({
         comfyuiRuntimeApi.manualApplyEvidence(settings),
         comfyuiRuntimeApi.postManualReadinessChecks(settings),
         comfyuiRuntimeApi.guardedProbeExecutions(settings),
+        comfyuiRuntimeApi.videoJobs({ limit: 20 }, settings),
         comfyuiRuntimeApi.queueStatus(settings),
       ]);
       const health = {
@@ -6101,6 +6108,7 @@ function CommercialOperationsPage({
           manualApplyEvidence: toItems(manualApplyEvidence),
           postManualReadinessChecks: toItems(postManualReadinessChecks),
           guardedProbeExecutions: toItems(guardedProbeExecutions),
+          videoJobs: toItems(videoJobs),
           queueStatus,
         },
         error: null,
@@ -6532,6 +6540,129 @@ function CommercialOperationsPage({
     language,
     settings,
   ]);
+
+  const createComfyuiVideoJob = useCallback(async () => {
+    const toPositiveNumber = (value: string, fallback: number) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    };
+    const width = Math.round(toPositiveNumber(comfyuiVideoWidth, 1280));
+    const height = Math.round(toPositiveNumber(comfyuiVideoHeight, 720));
+    const frames = Math.round(toPositiveNumber(comfyuiVideoFrames, 96));
+    const fps = toPositiveNumber(comfyuiVideoFps, 24);
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const job = await comfyuiRuntimeApi.createVideoJob(
+        {
+          prompt: {
+            "1": {
+              class_type: "EmptyImage",
+              inputs: {
+                width,
+                height,
+                batch_size: 1,
+                color: 0,
+              },
+            },
+            "2": {
+              class_type: "SaveImage",
+              inputs: {
+                images: ["1", 0],
+                filename_prefix: "aiops_video_job",
+              },
+            },
+          },
+          workflow: {
+            name: comfyuiVideoWorkflowName.trim() || "server_configured_video_workflow",
+            media_type: "video",
+            text_prompt: comfyuiVideoPromptText.trim(),
+          },
+          extra_data: {
+            aiops_video_prompt: comfyuiVideoPromptText.trim(),
+            aiops_workflow_template: comfyuiVideoWorkflowName.trim() || "server_configured_video_workflow",
+          },
+          client_id: "aiops-admin-dashboard-video",
+          resource_profile: comfyuiVideoProfile.trim() || "standard",
+          width,
+          height,
+          frames,
+          fps,
+          estimated_vram_mb: Math.round(toPositiveNumber(comfyuiVideoEstimateMb, 8192)),
+          reserve_vram_mb: Math.round(toPositiveNumber(comfyuiVideoReserveMb, 2048)),
+          submit_immediately: true,
+          poll_history: true,
+          operator_note: comfyuiVideoOperatorNote.trim(),
+          metadata: { source_page: "comfyui-operations", phase: "66B", ui_language: language },
+        },
+        settings,
+      );
+      setComfyuiVideoResourcePlan((job.resource_plan as JsonRecord | undefined) ?? null);
+      setActionState({
+        data: { action: "comfyui_video_job_create", job },
+        error: null,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      await loadComfyuiRuntimeAdapter();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI video job create failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    comfyuiVideoEstimateMb,
+    comfyuiVideoFps,
+    comfyuiVideoFrames,
+    comfyuiVideoHeight,
+    comfyuiVideoOperatorNote,
+    comfyuiVideoProfile,
+    comfyuiVideoPromptText,
+    comfyuiVideoReserveMb,
+    comfyuiVideoWidth,
+    comfyuiVideoWorkflowName,
+    language,
+    loadComfyuiRuntimeAdapter,
+    settings,
+  ]);
+
+  const refreshComfyuiVideoJob = useCallback(
+    async (jobId: string) => {
+      if (!jobId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const job = await comfyuiRuntimeApi.refreshVideoJob(
+          jobId,
+          {
+            poll_history: true,
+            resubmit_if_waiting: true,
+            metadata: { source_page: "comfyui-operations", phase: "66B", ui_language: language },
+          },
+          settings,
+        );
+        setComfyuiVideoResourcePlan((job.resource_plan as JsonRecord | undefined) ?? null);
+        setActionState({
+          data: { action: "comfyui_video_job_refresh", job },
+          error: null,
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+        await loadComfyuiRuntimeAdapter();
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "ComfyUI video job refresh failed",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [language, loadComfyuiRuntimeAdapter, settings],
+  );
 
   const submitComfyuiRuntimeSmokePrompt = useCallback(async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -9939,6 +10070,14 @@ function CommercialOperationsPage({
   const comfyuiRuntimeQueueStatus = comfyuiRuntimeAdapterState.data?.queueStatus as JsonRecord | undefined;
   const comfyuiRuntimeVideoResourcePlan =
     comfyuiVideoResourcePlan ?? (comfyuiRuntimeAdapterState.data?.videoResourcePlan as JsonRecord | undefined) ?? null;
+  const comfyuiRuntimeVideoJobs = toItems(comfyuiRuntimeAdapterState.data?.videoJobs);
+  const latestComfyuiRuntimeVideoJob = comfyuiRuntimeVideoJobs[0] ?? null;
+  const comfyuiRuntimeVideoJobRows = comfyuiRuntimeVideoJobs.map((job) => ({
+    ...job,
+    endpoint_name: valueAt(job.selected_endpoint as JsonRecord | undefined, ["name"], "-"),
+    gpu_name: valueAt(job.selected_gpu as JsonRecord | undefined, ["name"], "-"),
+    output_count: Array.isArray(job.outputs) ? String(job.outputs.length) : "0",
+  }));
   const comfyuiRuntimePromptSubmission = comfyuiRuntimeAdapterState.data?.lastPromptSubmission as JsonRecord | undefined;
   const comfyuiRuntimePromptHistory = comfyuiRuntimeAdapterState.data?.promptJobHistory as JsonRecord | undefined;
   const comfyuiRuntimeQueueRunning = Array.isArray(comfyuiRuntimeQueueStatus?.queue_running)
@@ -9986,7 +10125,7 @@ function CommercialOperationsPage({
   const eligibleComfyuiHandoffs = comfyuiHandoffs.filter((handoff) => ["approved", "prepared"].includes(valueAt(handoff, ["handoff_status"], "")));
   const links = linksState.data || [];
   const commercialStepDetail = `${copy.approvalsTitle}: ${approvals.length} / ${contentCopy.title}: ${contentDrafts.length} / ${assetCopy.title}: ${assetRequests.length} / ${deliverableCopy.title}: ${deliverables.length} / ${evidenceCopy.title}: ${evidenceSnapshots.length} / ${executionRequestCopy.title}: ${executionRequests.length} / ${executionRunCopy.title}: ${executionRuns.length} / ${resultCopy.title}: ${results.length} / ${monitoringCopy.title}: ${monitoringObservations.length} / ${optimizationCopy.title}: ${optimizationDecisions.length} / ${copy.dryRunsTitle}: ${dryRuns.length} / ${copy.linksTitle}: ${links.length}`;
-  const comfyuiStepDetail = `${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length} / ${comfyuiSurfaceCopy.runtimeGuardedProbeExecutions}: ${comfyuiRuntimeGuardedProbeExecutions.length}`;
+  const comfyuiStepDetail = `${comfyuiCopy.title}: ${comfyuiHandoffs.length} / ${comfyuiAdapterCopy.title}: ${comfyuiAdapterConfigs.length} / ${comfyuiPreflightCopy.title}: ${comfyuiPreflights.length} / ${comfyuiJobCopy.title}: ${comfyuiJobRequests.length} / ${comfyuiExecutionCopy.title}: ${comfyuiExecutionPlans.length} / ${comfyuiProbeCopy.title}: ${comfyuiConnectionProbes.length} / ${comfyuiDispatchCopy.title}: ${comfyuiAdapterDispatches.length} / ${comfyuiRuntimeGateCopy.title}: ${comfyuiRuntimeGates.length} / ${comfyuiRuntimeDryRunCopy.title}: ${comfyuiRuntimeDryRuns.length} / ${comfyuiRuntimeActivationCopy.title}: ${comfyuiRuntimeActivations.length} / Video jobs: ${comfyuiRuntimeVideoJobs.length} / ${comfyuiSurfaceCopy.runtimeGuardedProbeExecutions}: ${comfyuiRuntimeGuardedProbeExecutions.length}`;
   const comfyuiRecordCount =
     comfyuiHandoffs.length +
     comfyuiAdapterConfigs.length +
@@ -9998,6 +10137,7 @@ function CommercialOperationsPage({
     comfyuiRuntimeGates.length +
     comfyuiRuntimeDryRuns.length +
     comfyuiRuntimeActivations.length +
+    comfyuiRuntimeVideoJobs.length +
     comfyuiRuntimeGuardedProbeExecutions.length;
 
   useEffect(() => {
@@ -10709,6 +10849,66 @@ function CommercialOperationsPage({
       ) : null}
 
       {isComfyuiPage ? (
+        <Panel
+          title={language === "zh-CN" ? "视频生成作业" : "Video generation jobs"}
+          description={
+            language === "zh-CN"
+              ? "把视频请求保存为可恢复作业：先做 GPU/队列准入，允许时提交 /prompt，再刷新 history 与输出。"
+              : "Persist video requests as recoverable jobs: admit GPU/queue resources, submit /prompt when allowed, then refresh history and outputs."
+          }
+          action={<RefreshButton onClick={loadComfyuiRuntimeAdapter} />}
+        >
+          <div className="commercial-form-grid">
+            <label className="commercial-wide-label">
+              {language === "zh-CN" ? "视频需求" : "Video brief"}
+              <textarea value={comfyuiVideoPromptText} onChange={(event) => setComfyuiVideoPromptText(event.target.value)} />
+            </label>
+            <label>
+              {language === "zh-CN" ? "工作流模板" : "Workflow template"}
+              <input value={comfyuiVideoWorkflowName} onChange={(event) => setComfyuiVideoWorkflowName(event.target.value)} />
+            </label>
+            <label>
+              {language === "zh-CN" ? "维护备注" : "Operator note"}
+              <input value={comfyuiVideoOperatorNote} onChange={(event) => setComfyuiVideoOperatorNote(event.target.value)} />
+            </label>
+          </div>
+          <div className="commercial-action-row">
+            <button className="primary-button" onClick={() => void createComfyuiVideoJob()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
+              <PlayCircle size={15} />
+              {language === "zh-CN" ? "创建视频作业" : "Create video job"}
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void refreshComfyuiVideoJob(valueAt(latestComfyuiRuntimeVideoJob, ["id"], ""))}
+              disabled={!latestComfyuiRuntimeVideoJob || comfyuiRuntimeAdapterState.loading || actionState.loading}
+            >
+              <RefreshCcw size={15} />
+              {language === "zh-CN" ? "刷新最新作业" : "Refresh latest job"}
+            </button>
+          </div>
+          <div className="commercial-detail-grid">
+            <Field label="video_job_count" value={String(comfyuiRuntimeVideoJobs.length)} />
+            <Field label="latest_video_job_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeVideoJob, ["job_status"], "none")} />} />
+            <Field label="latest_video_prompt_id" value={valueAt(latestComfyuiRuntimeVideoJob, ["runtime_prompt_id"], "-")} />
+            <Field label="latest_video_outputs" value={shortJson((latestComfyuiRuntimeVideoJob as JsonRecord | null)?.outputs, 180)} />
+          </div>
+          <Table
+            rows={comfyuiRuntimeVideoJobRows}
+            emptyLabel={language === "zh-CN" ? "暂无视频作业。" : "No video jobs yet."}
+            columns={[
+              { key: "job_status", label: "status" },
+              { key: "runtime_prompt_id", label: "prompt_id" },
+              { key: "resource_profile", label: "profile" },
+              { key: "endpoint_name", label: "endpoint" },
+              { key: "gpu_name", label: "gpu" },
+              { key: "output_count", label: "outputs" },
+              { key: "result_summary", label: "summary" },
+            ]}
+          />
+        </Panel>
+      ) : null}
+
+      {isComfyuiPage ? (
         <Panel title={comfyuiSurfaceCopy.runtimeTitle} description={comfyuiSurfaceCopy.runtimeDescription} action={<RefreshButton onClick={loadComfyuiRuntimeAdapter} />}>
           <LoadNotice state={comfyuiRuntimeAdapterState} />
           {comfyuiRuntimeAdapterState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {comfyuiRuntimeAdapterState.updatedAt}</div> : null}
@@ -10753,6 +10953,9 @@ function CommercialOperationsPage({
             <Field label="latest_guarded_probe_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["execution_status"], "none")} />} />
             <Field label="latest_guarded_probe_result" value={<StatusPill value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["probe_result_status"], "none")} />} />
             <Field label="latest_guarded_probe_code" value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["probe_status_code"], "-")} />
+            <Field label="video_job_count" value={String(comfyuiRuntimeVideoJobs.length)} />
+            <Field label="latest_video_job_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeVideoJob, ["job_status"], "none")} />} />
+            <Field label="latest_video_prompt_id" value={valueAt(latestComfyuiRuntimeVideoJob, ["runtime_prompt_id"], "-")} />
             <Field label="prompt_submission_ready" value={<StatusPill value={valueAt(comfyuiRuntimeCapabilitiesRaw, ["prompt_submission_ready"], "false")} />} />
             <Field label="allowed_execution_paths" value={shortJson(comfyuiRuntimeCapabilitiesRaw?.allowed_execution_paths, 120)} />
             <Field label="queue_status" value={<StatusPill value={valueAt(comfyuiRuntimeQueueStatus, ["success"], "false")} />} />

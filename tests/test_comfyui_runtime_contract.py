@@ -597,6 +597,149 @@ def test_comfyui_runtime_video_submit_blocks_when_vram_is_insufficient() -> None
 
 
 @pytest.mark.asyncio
+async def test_comfyui_runtime_video_job_persists_resource_blocked_by_default(session: AsyncSession) -> None:
+    """Persisted video jobs should record guarded resource blockers without calling ComfyUI by default."""
+
+    get_calls: list[tuple[str, float]] = []
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+    service = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_get=lambda url, timeout: get_calls.append((url, timeout)) or {"status_code": 200},
+        http_post=lambda url, payload, timeout: post_calls.append((url, dict(payload), timeout)) or {},
+    )
+
+    job = await service.create_video_job(
+        session,
+        workspace_id="workspace-comfyui-video-jobs",
+        user_id="user-comfyui",
+        prompt={"1": {"class_type": "EmptyImage", "inputs": {"width": 1280, "height": 720}}},
+        resource_profile="standard",
+        width=1280,
+        height=720,
+        frames=96,
+        operator_note="default gates should block this job",
+        metadata={"source_page": "comfyui-operations"},
+    )
+    listed = await service.list_video_jobs(session, workspace_id="workspace-comfyui-video-jobs", limit=10)
+
+    assert job.workspace_id == "workspace-comfyui-video-jobs"
+    assert job.user_id == "user-comfyui"
+    assert job.job_status == "resource_blocked"
+    assert job.runtime_prompt_id is None
+    assert job.external_request_attempted is False
+    assert job.runtime_calls_enabled is False
+    assert job.prompt_submission_enabled is False
+    assert job.resource_plan["admission_status"] == "blocked"
+    assert job.metadata["phase"] == "66B"
+    assert job.operator_note == "default gates should block this job"
+    assert "COMFYUI_RUNTIME_PROVIDER=guarded" in str(job.failure_reason)
+    refreshed = await service.refresh_video_job(
+        session,
+        workspace_id="workspace-comfyui-video-jobs",
+        job_id=job.id,
+        resubmit_if_waiting=False,
+    )
+    assert refreshed.job_status == "resource_blocked"
+    assert "COMFYUI_RUNTIME_PROVIDER=guarded" in str(refreshed.failure_reason)
+    assert len(listed.items) == 1
+    assert listed.items[0].id == job.id
+    assert get_calls == []
+    assert post_calls == []
+
+
+@pytest.mark.asyncio
+async def test_comfyui_runtime_video_job_submits_polls_and_refreshes_outputs(session: AsyncSession) -> None:
+    """Persisted video jobs should submit, poll history, and retain output files when every gate allows it."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=6,
+    )
+    get_calls: list[tuple[str, float]] = []
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.endswith("/system_stats"):
+            return {
+                "status_code": 200,
+                "json": {"devices": [{"name": "Video GPU", "vram_total": 24_000, "vram_free": 20_000}]},
+                "text": "{}",
+            }
+        if url.endswith("/queue"):
+            return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+        if url.endswith("/history/video-job-prompt-1"):
+            return {
+                "status_code": 200,
+                "json": {
+                    "video-job-prompt-1": {
+                        "outputs": {
+                            "9": {
+                                "gifs": [{"filename": "clip.gif", "subfolder": "video", "type": "output"}],
+                                "videos": [{"filename": "clip.mp4", "subfolder": "video", "type": "output"}],
+                            }
+                        }
+                    }
+                },
+                "text": "{}",
+            }
+        return {"status_code": 404, "json": {}, "text": "{}"}
+
+    def fake_http_post(url: str, payload: dict[str, object], timeout: float) -> dict[str, object]:
+        post_calls.append((url, payload, timeout))
+        return {"status_code": 200, "json": {"prompt_id": "video-job-prompt-1", "number": 8, "node_errors": {}}, "text": "{}"}
+
+    service = ComfyUIRuntimeService(settings=settings, http_get=fake_http_get, http_post=fake_http_post)
+    job = await service.create_video_job(
+        session,
+        workspace_id="workspace-comfyui-video-output",
+        user_id="user-comfyui",
+        prompt={"1": {"class_type": "EmptyImage", "inputs": {"width": 1280, "height": 720}}},
+        workflow={"name": "server_configured_video_workflow"},
+        resource_profile="standard",
+        width=1280,
+        height=720,
+        frames=96,
+        estimated_vram_mb=4096,
+        reserve_vram_mb=1024,
+        metadata={"source_page": "comfyui-operations"},
+    )
+    refreshed = await service.refresh_video_job(
+        session,
+        workspace_id="workspace-comfyui-video-output",
+        job_id=job.id,
+        metadata={"source_page": "comfyui-operations"},
+    )
+
+    assert job.job_status == "output_ready"
+    assert job.runtime_prompt_id == "video-job-prompt-1"
+    assert job.runtime_base_url == "http://localhost:8188"
+    assert job.resource_plan["admission_status"] == "admitted"
+    assert job.selected_gpu["name"] == "Video GPU"
+    assert {output["filename"] for output in job.outputs} == {"clip.gif", "clip.mp4"}
+    assert "produced 2 output file" in str(job.result_summary)
+    assert refreshed.job_status == "output_ready"
+    assert refreshed.runtime_prompt_id == "video-job-prompt-1"
+    assert len(refreshed.outputs) == 2
+    assert post_calls == [("http://localhost:8188/prompt", job.submit_payload, 6.0)]
+    assert get_calls == [
+        ("http://localhost:8188/system_stats", 6.0),
+        ("http://localhost:8188/queue", 6.0),
+        ("http://localhost:8188/history/video-job-prompt-1", 6.0),
+        ("http://localhost:8188/queue", 6.0),
+        ("http://localhost:8188/history/video-job-prompt-1", 6.0),
+        ("http://localhost:8188/queue", 6.0),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_comfyui_runtime_diagnostic_snapshot_persists_without_network(session: AsyncSession) -> None:
     """Persisted diagnostics snapshots should retain readiness state without touching ComfyUI."""
 
@@ -1172,6 +1315,57 @@ async def test_comfyui_runtime_video_resource_plan_api(monkeypatch) -> None:  # 
     assert plan.json()["should_submit_now"] is True
     assert plan.json()["selected_gpu"]["name"] == "API GPU"
     assert get_calls == [("http://localhost:8188/system_stats", 17.0), ("http://localhost:8188/queue", 17.0)]
+
+
+@pytest.mark.asyncio
+async def test_comfyui_runtime_video_job_api_persists_and_refreshes(monkeypatch, session: AsyncSession) -> None:  # type: ignore[no-untyped-def]
+    """API should expose persisted ComfyUI video jobs for dashboard and client status views."""
+
+    settings = Settings()
+    monkeypatch.setattr(comfyui_runtime_routes, "get_settings", lambda: settings)
+
+    async def override_get_session():  # type: ignore[no-untyped-def]
+        yield session
+
+    app = FastAPI()
+    app.add_exception_handler(AppError, app_error_handler)
+    app.include_router(comfyui_runtime_routes.router, prefix="/api/v1")
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[comfyui_runtime_routes.get_session] = override_get_session
+
+    headers = {"X-Workspace-Id": "workspace-comfyui-video-job-api", "X-User-Id": "user-comfyui"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        created = await client.post(
+            "/api/v1/comfyui-runtime/video-jobs",
+            headers=headers,
+            json={
+                "prompt": {"1": {"class_type": "EmptyImage", "inputs": {"width": 1280, "height": 720}}},
+                "workflow": {"name": "server_configured_video_workflow"},
+                "operator_note": "api default blocked",
+                "metadata": {"source_page": "comfyui-operations"},
+            },
+        )
+        listed = await client.get("/api/v1/comfyui-runtime/video-jobs?limit=5", headers=headers)
+        fetched = await client.get(f"/api/v1/comfyui-runtime/video-jobs/{created.json()['id']}", headers=headers)
+        refreshed = await client.post(
+            f"/api/v1/comfyui-runtime/video-jobs/{created.json()['id']}/refresh",
+            headers=headers,
+            json={"poll_history": True, "resubmit_if_waiting": True, "metadata": {"source_page": "comfyui-operations"}},
+        )
+
+    assert created.status_code == 200
+    assert created.json()["workspace_id"] == "workspace-comfyui-video-job-api"
+    assert created.json()["user_id"] == "user-comfyui"
+    assert created.json()["job_status"] == "resource_blocked"
+    assert created.json()["runtime_prompt_id"] is None
+    assert created.json()["resource_plan"]["admission_status"] == "blocked"
+    assert created.json()["metadata"]["phase"] == "66B"
+    assert listed.status_code == 200
+    assert len(listed.json()["items"]) == 1
+    assert fetched.status_code == 200
+    assert fetched.json()["id"] == created.json()["id"]
+    assert refreshed.status_code == 200
+    assert refreshed.json()["job_status"] == "resource_blocked"
 
 
 @pytest.mark.asyncio

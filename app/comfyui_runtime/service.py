@@ -21,6 +21,7 @@ from app.models.comfyui_runtime import (
     ComfyUIRuntimeGuardedProbeExecution,
     ComfyUIRuntimeManualApplyEvidence,
     ComfyUIRuntimePostManualReadinessCheck,
+    ComfyUIRuntimeVideoJob,
 )
 from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeCapabilitiesResponse,
@@ -42,6 +43,8 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeQueueResponse,
     ComfyUIRuntimePostManualReadinessCheckListResponse,
     ComfyUIRuntimePostManualReadinessCheckResponse,
+    ComfyUIRuntimeVideoJobListResponse,
+    ComfyUIRuntimeVideoJobResponse,
     ComfyUIRuntimeVideoResourcePlanResponse,
 )
 
@@ -89,6 +92,16 @@ COMFYUI_RUNTIME_GUARDED_PROBE_EXECUTION_STATUSES = {
     "rejected",
     "executing",
     "succeeded",
+    "failed",
+    "cancelled",
+    "archived",
+}
+COMFYUI_RUNTIME_VIDEO_JOB_STATUSES = {
+    "draft",
+    "resource_blocked",
+    "queued",
+    "submitted",
+    "output_ready",
     "failed",
     "cancelled",
     "archived",
@@ -1306,6 +1319,272 @@ class ComfyUIRuntimeService:
             items=[ComfyUIRuntimeDiagnosticSnapshotResponse.from_model(snapshot) for snapshot in snapshots],
         )
 
+    async def create_video_job(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        user_id: str | None = None,
+        prompt: Mapping[str, Any] | None = None,
+        workflow: Mapping[str, Any] | None = None,
+        extra_data: Mapping[str, Any] | None = None,
+        client_id: str | None = None,
+        resource_profile: str = "standard",
+        width: int | None = 1280,
+        height: int | None = 720,
+        frames: int | None = 96,
+        fps: float | None = 24.0,
+        duration_seconds: float | None = None,
+        estimated_vram_mb: int | None = None,
+        reserve_vram_mb: int | None = None,
+        submit_immediately: bool = True,
+        poll_history: bool = True,
+        operator_note: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeVideoJobResponse:
+        """Create a persisted video job and submit it through the guarded ComfyUI gates when allowed."""
+
+        normalized = self._normalize_video_job_request(
+            resource_profile=resource_profile,
+            width=width,
+            height=height,
+            frames=frames,
+            fps=fps,
+            duration_seconds=duration_seconds,
+            estimated_vram_mb=estimated_vram_mb,
+            reserve_vram_mb=reserve_vram_mb,
+        )
+        request_metadata = {
+            **dict(metadata or {}),
+            "phase": "66B",
+            "media_type": "video",
+            "source": "comfyui_runtime_video_job",
+            "submit_immediately": bool(submit_immediately),
+        }
+        submit = None
+        history = None
+        queue = None
+        outputs: list[dict[str, Any]] = []
+        if submit_immediately:
+            submit = self.submit_prompt_job(
+                workspace_id=workspace_id,
+                prompt=dict(prompt or {}),
+                client_id=client_id,
+                extra_data=extra_data,
+                workflow=workflow,
+                media_type="video",
+                resource_profile=normalized["resource_profile"],
+                width=normalized["width"],
+                height=normalized["height"],
+                frames=normalized["frames"],
+                fps=normalized["fps"],
+                duration_seconds=normalized["duration_seconds"],
+                estimated_vram_mb=normalized["estimated_vram_mb"],
+                reserve_vram_mb=normalized["reserve_vram_mb"],
+                metadata=request_metadata,
+            )
+            if submit.success and submit.prompt_id and poll_history:
+                history, queue = self._poll_video_job_runtime(
+                    workspace_id=workspace_id,
+                    prompt_id=submit.prompt_id,
+                    base_url=submit.base_url,
+                )
+                outputs = self._extract_prompt_output_files(history.outputs if history else {})
+
+        resource_plan = self._video_resource_plan_from_submit(submit)
+        queue_payload = dict(queue.response_payload) if queue else self._queue_payload_from_resource_plan(resource_plan)
+        job_status = self._video_job_status_from_runtime(submit=submit, resource_plan=resource_plan, outputs=outputs)
+        failure_reason = self._video_job_failure_reason(submit=submit, history=history, queue=queue, status=job_status)
+        job = ComfyUIRuntimeVideoJob(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            job_status=job_status,
+            provider=self._provider(),
+            media_type="video",
+            resource_profile=normalized["resource_profile"],
+            client_id=client_id,
+            prompt=dict(prompt or {}),
+            workflow=dict(workflow or {}),
+            extra_data=dict(extra_data or {}),
+            width=normalized["width"],
+            height=normalized["height"],
+            frames=normalized["frames"],
+            fps=normalized["fps"],
+            duration_seconds=normalized["duration_seconds"],
+            estimated_vram_mb=normalized["estimated_vram_mb"],
+            reserve_vram_mb=normalized["reserve_vram_mb"],
+            resource_plan=resource_plan,
+            selected_endpoint=self._selected_endpoint_from_resource_plan(resource_plan),
+            selected_gpu=self._selected_gpu_from_resource_plan(resource_plan),
+            runtime_base_url=submit.base_url if submit else self.settings.comfyui_runtime_base_url,
+            runtime_prompt_id=submit.prompt_id if submit else None,
+            submit_payload=submit.request_payload if submit else {},
+            submit_response=submit.response_payload if submit else {},
+            history_payload=history.response_payload if history else {},
+            queue_payload=queue_payload,
+            outputs=outputs,
+            external_request_attempted=bool(
+                (submit.external_request_attempted if submit else False)
+                or (history.external_request_attempted if history else False)
+                or (queue.external_request_attempted if queue else False)
+            ),
+            runtime_calls_enabled=bool(
+                (submit.runtime_calls_enabled if submit else False)
+                or (history.runtime_calls_enabled if history else False)
+                or (queue.runtime_calls_enabled if queue else False)
+            ),
+            prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
+            failure_reason=failure_reason,
+            result_summary=self._video_job_result_summary(status=job_status, prompt_id=submit.prompt_id if submit else None, outputs=outputs),
+            operator_note=operator_note,
+            job_metadata=request_metadata,
+        )
+        session.add(job)
+        await session.commit()
+        await session.refresh(job)
+        return ComfyUIRuntimeVideoJobResponse.from_model(job)
+
+    async def list_video_jobs(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        status: str | None = None,
+        limit: int = 20,
+    ) -> ComfyUIRuntimeVideoJobListResponse:
+        """List recent ComfyUI video jobs for one workspace."""
+
+        bounded_limit = max(1, min(limit, 100))
+        query = select(ComfyUIRuntimeVideoJob).where(ComfyUIRuntimeVideoJob.workspace_id == workspace_id)
+        if status:
+            query = query.where(ComfyUIRuntimeVideoJob.job_status == status)
+        result = await session.execute(query.order_by(ComfyUIRuntimeVideoJob.created_at.desc()).limit(bounded_limit))
+        jobs = result.scalars().all()
+        return ComfyUIRuntimeVideoJobListResponse(
+            workspace_id=workspace_id,
+            items=[ComfyUIRuntimeVideoJobResponse.from_model(job) for job in jobs],
+        )
+
+    async def get_video_job(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+    ) -> ComfyUIRuntimeVideoJobResponse:
+        """Return one ComfyUI video job by id."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        return ComfyUIRuntimeVideoJobResponse.from_model(job)
+
+    async def refresh_video_job(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+        poll_history: bool = True,
+        resubmit_if_waiting: bool = True,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeVideoJobResponse:
+        """Refresh a persisted video job from guarded ComfyUI queue/history, resubmitting waiting jobs when allowed."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        if job.job_status in {"cancelled", "archived"}:
+            return ComfyUIRuntimeVideoJobResponse.from_model(job)
+
+        submit = None
+        history = None
+        queue = None
+        outputs = list(job.outputs or [])
+        merged_metadata = {
+            **(job.job_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "66B",
+            "refresh_attempted": True,
+        }
+
+        if job.runtime_prompt_id:
+            if poll_history:
+                history, queue = self._poll_video_job_runtime(
+                    workspace_id=workspace_id,
+                    prompt_id=job.runtime_prompt_id,
+                    base_url=job.runtime_base_url or self.settings.comfyui_runtime_base_url,
+                )
+                outputs = self._extract_prompt_output_files(history.outputs if history else {})
+        elif resubmit_if_waiting and job.job_status in {"draft", "resource_blocked", "queued", "failed"}:
+            submit = self.submit_prompt_job(
+                workspace_id=workspace_id,
+                prompt=job.prompt or {},
+                client_id=job.client_id,
+                extra_data=job.extra_data or {},
+                workflow=job.workflow or {},
+                media_type="video",
+                resource_profile=job.resource_profile,
+                width=job.width,
+                height=job.height,
+                frames=job.frames,
+                fps=job.fps,
+                duration_seconds=job.duration_seconds,
+                estimated_vram_mb=job.estimated_vram_mb,
+                reserve_vram_mb=job.reserve_vram_mb,
+                metadata=merged_metadata,
+            )
+            if submit.success and submit.prompt_id and poll_history:
+                history, queue = self._poll_video_job_runtime(
+                    workspace_id=workspace_id,
+                    prompt_id=submit.prompt_id,
+                    base_url=submit.base_url,
+                )
+                outputs = self._extract_prompt_output_files(history.outputs if history else {})
+
+        resource_plan = self._video_resource_plan_from_submit(submit) or (job.resource_plan or {})
+        job.job_status = self._video_job_status_from_runtime(
+            submit=submit,
+            resource_plan=resource_plan,
+            outputs=outputs,
+            current_status=job.job_status,
+            has_prompt_id=bool(job.runtime_prompt_id or (submit.prompt_id if submit else None)),
+        )
+        job.resource_plan = resource_plan
+        job.selected_endpoint = self._selected_endpoint_from_resource_plan(resource_plan)
+        job.selected_gpu = self._selected_gpu_from_resource_plan(resource_plan)
+        if submit:
+            job.runtime_base_url = submit.base_url
+            job.runtime_prompt_id = submit.prompt_id
+            job.submit_payload = submit.request_payload
+            job.submit_response = submit.response_payload
+        if history:
+            job.history_payload = history.response_payload
+        if queue:
+            job.queue_payload = queue.response_payload
+        elif resource_plan:
+            job.queue_payload = self._queue_payload_from_resource_plan(resource_plan)
+        job.outputs = outputs
+        job.external_request_attempted = bool(
+            job.external_request_attempted
+            or (submit.external_request_attempted if submit else False)
+            or (history.external_request_attempted if history else False)
+            or (queue.external_request_attempted if queue else False)
+        )
+        job.runtime_calls_enabled = bool(
+            (submit.runtime_calls_enabled if submit else False)
+            or (history.runtime_calls_enabled if history else False)
+            or (queue.runtime_calls_enabled if queue else False)
+        )
+        job.prompt_submission_enabled = self.settings.comfyui_runtime_prompt_submission_enabled
+        job.failure_reason = self._video_job_failure_reason(
+            submit=submit,
+            history=history,
+            queue=queue,
+            status=job.job_status,
+        ) or job.failure_reason
+        job.result_summary = self._video_job_result_summary(status=job.job_status, prompt_id=job.runtime_prompt_id, outputs=outputs)
+        job.job_metadata = merged_metadata
+        await session.commit()
+        await session.refresh(job)
+        return ComfyUIRuntimeVideoJobResponse.from_model(job)
+
     def submit_prompt_job(
         self,
         *,
@@ -1824,6 +2103,192 @@ class ComfyUIRuntimeService:
             queue_pending=pending,
             error=None if success else str(response.get("error") or "ComfyUI queue status read failed."),
         )
+
+    async def _get_video_job_model(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+    ) -> ComfyUIRuntimeVideoJob:
+        result = await session.execute(
+            select(ComfyUIRuntimeVideoJob).where(
+                ComfyUIRuntimeVideoJob.workspace_id == workspace_id,
+                ComfyUIRuntimeVideoJob.id == job_id,
+            )
+        )
+        job = result.scalar_one_or_none()
+        if job is None:
+            raise LookupError("ComfyUI video job not found")
+        return job
+
+    def _normalize_video_job_request(
+        self,
+        *,
+        resource_profile: str,
+        width: int | None,
+        height: int | None,
+        frames: int | None,
+        fps: float | None,
+        duration_seconds: float | None,
+        estimated_vram_mb: int | None,
+        reserve_vram_mb: int | None,
+    ) -> dict[str, Any]:
+        safe_fps = max(1.0, min(float(fps or 24.0), 240.0))
+        if duration_seconds is not None:
+            safe_frames = max(1, min(int(round(float(duration_seconds) * safe_fps)), 20000))
+        else:
+            safe_frames = max(1, min(int(frames or 96), 20000))
+        return {
+            "resource_profile": str(resource_profile or "standard").strip().lower()[:64] or "standard",
+            "width": max(64, min(int(width or 1280), 8192)),
+            "height": max(64, min(int(height or 720), 8192)),
+            "frames": safe_frames,
+            "fps": safe_fps,
+            "duration_seconds": duration_seconds,
+            "estimated_vram_mb": estimated_vram_mb,
+            "reserve_vram_mb": reserve_vram_mb,
+        }
+
+    def _poll_video_job_runtime(
+        self,
+        *,
+        workspace_id: str,
+        prompt_id: str,
+        base_url: str | None,
+    ) -> tuple[ComfyUIRuntimePromptHistoryResponse, ComfyUIRuntimeQueueResponse]:
+        history = self.prompt_history(workspace_id=workspace_id, prompt_id=prompt_id, base_url=base_url)
+        queue = self.queue_status(workspace_id=workspace_id, base_url=base_url)
+        return history, queue
+
+    def _video_resource_plan_from_submit(
+        self,
+        submit: ComfyUIRuntimePromptJobSubmitResponse | None,
+    ) -> dict[str, Any]:
+        if submit is None:
+            return {}
+        plan = submit.metadata.get("video_resource_plan") if isinstance(submit.metadata, dict) else None
+        if isinstance(plan, dict):
+            return plan
+        extra_data = submit.request_payload.get("extra_data") if isinstance(submit.request_payload, dict) else None
+        if isinstance(extra_data, dict) and isinstance(extra_data.get("aiops_video_resource_plan"), dict):
+            return dict(extra_data["aiops_video_resource_plan"])
+        return {}
+
+    def _selected_endpoint_from_resource_plan(self, resource_plan: Mapping[str, Any] | None) -> dict[str, Any]:
+        selected = (resource_plan or {}).get("selected_endpoint") if isinstance(resource_plan, Mapping) else None
+        return dict(selected) if isinstance(selected, Mapping) else {}
+
+    def _selected_gpu_from_resource_plan(self, resource_plan: Mapping[str, Any] | None) -> dict[str, Any]:
+        selected = (resource_plan or {}).get("selected_gpu") if isinstance(resource_plan, Mapping) else None
+        return dict(selected) if isinstance(selected, Mapping) else {}
+
+    def _queue_payload_from_resource_plan(self, resource_plan: Mapping[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(resource_plan, Mapping):
+            return {}
+        queue_payload = resource_plan.get("queue_payload")
+        if isinstance(queue_payload, Mapping):
+            return dict(queue_payload)
+        endpoint_plans = resource_plan.get("endpoint_plans")
+        if isinstance(endpoint_plans, list):
+            for endpoint_plan in endpoint_plans:
+                if isinstance(endpoint_plan, Mapping) and isinstance(endpoint_plan.get("queue_payload"), Mapping):
+                    return dict(endpoint_plan["queue_payload"])
+        return {}
+
+    def _video_job_status_from_runtime(
+        self,
+        *,
+        submit: ComfyUIRuntimePromptJobSubmitResponse | None,
+        resource_plan: Mapping[str, Any] | None,
+        outputs: list[dict[str, Any]],
+        current_status: str | None = None,
+        has_prompt_id: bool = False,
+    ) -> str:
+        if outputs:
+            return "output_ready"
+        if submit is not None:
+            if submit.success:
+                return "submitted"
+            admission_status = str((resource_plan or {}).get("admission_status") or "").strip().lower()
+            if admission_status == "queued":
+                return "queued"
+            if admission_status == "blocked":
+                return "resource_blocked"
+            return "failed"
+        if has_prompt_id:
+            return current_status if current_status == "output_ready" else "submitted"
+        return current_status if current_status in COMFYUI_RUNTIME_VIDEO_JOB_STATUSES else "draft"
+
+    def _video_job_failure_reason(
+        self,
+        *,
+        submit: ComfyUIRuntimePromptJobSubmitResponse | None,
+        history: ComfyUIRuntimePromptHistoryResponse | None,
+        queue: ComfyUIRuntimeQueueResponse | None,
+        status: str,
+    ) -> str | None:
+        if submit and submit.error:
+            return submit.error
+        if status in {"submitted", "output_ready"}:
+            if history and history.error:
+                return history.error
+            if queue and queue.error:
+                return queue.error
+        if status == "failed":
+            return "ComfyUI video job failed without a runtime prompt_id."
+        return None
+
+    def _video_job_result_summary(
+        self,
+        *,
+        status: str,
+        prompt_id: str | None,
+        outputs: list[dict[str, Any]],
+    ) -> str:
+        if outputs:
+            return f"ComfyUI video job {prompt_id or 'unknown'} produced {len(outputs)} output file(s)."
+        if status == "submitted":
+            return f"ComfyUI video job {prompt_id or 'unknown'} submitted; refresh history until outputs appear."
+        if status == "queued":
+            return "ComfyUI video job is waiting for an admitted GPU/queue slot."
+        if status == "resource_blocked":
+            return "ComfyUI video job is blocked by GPU, queue, or guarded runtime admission."
+        if status == "failed":
+            return "ComfyUI video job failed before output was available."
+        return "ComfyUI video job has been recorded."
+
+    def _extract_prompt_output_files(self, outputs: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+        if not isinstance(outputs, Mapping):
+            return []
+        extracted: list[dict[str, Any]] = []
+        for node_id, node_outputs in outputs.items():
+            if not isinstance(node_outputs, Mapping):
+                continue
+            for kind, value in node_outputs.items():
+                values = value if isinstance(value, list) else [value]
+                for item in values:
+                    if isinstance(item, Mapping) and item.get("filename") is not None:
+                        extracted.append(
+                            {
+                                "node_id": str(node_id),
+                                "kind": str(kind),
+                                "filename": str(item.get("filename")),
+                                "subfolder": str(item.get("subfolder") or ""),
+                                "type": str(item.get("type") or ""),
+                            }
+                        )
+                    elif isinstance(item, str) and item:
+                        extracted.append(
+                            {
+                                "node_id": str(node_id),
+                                "kind": str(kind),
+                                "filename": item,
+                                "subfolder": "",
+                                "type": "",
+                            }
+                        )
+        return extracted
 
     def _recommended_config_changes(
         self,

@@ -41,6 +41,10 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
     ComfyUIRuntimePostManualReadinessCheckListResponse,
     ComfyUIRuntimePostManualReadinessCheckResponse,
+    ComfyUIRuntimeVideoJobCreateRequest,
+    ComfyUIRuntimeVideoJobListResponse,
+    ComfyUIRuntimeVideoJobRefreshRequest,
+    ComfyUIRuntimeVideoJobResponse,
     ComfyUIRuntimeVideoResourcePlanRequest,
     ComfyUIRuntimeVideoResourcePlanResponse,
 )
@@ -967,6 +971,114 @@ async def create_comfyui_runtime_video_resource_plan(
     except Exception as exc:
         logger.exception("ComfyUI runtime video resource plan API failed")
         raise AppError("ComfyUI runtime video resource plan failed", status_code=500) from exc
+
+
+@router.post("/video-jobs", response_model=ComfyUIRuntimeVideoJobResponse)
+async def create_comfyui_runtime_video_job(
+    request: ComfyUIRuntimeVideoJobCreateRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeVideoJobResponse:
+    """Create a persisted ComfyUI video job and submit it when guarded resource admission allows."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).create_video_job(
+            session,
+            workspace_id=context.workspace_id,
+            user_id=context.user_id,
+            prompt=request.prompt,
+            workflow=request.workflow,
+            extra_data=request.extra_data,
+            client_id=request.client_id,
+            resource_profile=request.resource_profile,
+            width=request.width,
+            height=request.height,
+            frames=request.frames,
+            fps=request.fps,
+            duration_seconds=request.duration_seconds,
+            estimated_vram_mb=request.estimated_vram_mb,
+            reserve_vram_mb=request.reserve_vram_mb,
+            submit_immediately=request.submit_immediately,
+            poll_history=request.poll_history,
+            operator_note=request.operator_note,
+            metadata=request.metadata,
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime video job create API failed")
+        raise AppError("ComfyUI runtime video job create failed", status_code=500) from exc
+
+
+@router.get("/video-jobs", response_model=ComfyUIRuntimeVideoJobListResponse)
+async def list_comfyui_runtime_video_jobs(
+    status: str | None = Query(default=None, max_length=64),
+    limit: int = Query(default=20, ge=1, le=100),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeVideoJobListResponse:
+    """List persisted ComfyUI video jobs for the current workspace."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).list_video_jobs(
+            session,
+            workspace_id=context.workspace_id,
+            status=status,
+            limit=limit,
+        )
+    except Exception as exc:
+        logger.exception("ComfyUI runtime video job list API failed")
+        raise AppError("ComfyUI runtime video job list failed", status_code=500) from exc
+
+
+@router.get("/video-jobs/{job_id}", response_model=ComfyUIRuntimeVideoJobResponse)
+async def get_comfyui_runtime_video_job(
+    job_id: UUID,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeVideoJobResponse:
+    """Return one persisted ComfyUI video job."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).get_video_job(
+            session,
+            workspace_id=context.workspace_id,
+            job_id=job_id,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime video job not found", status_code=404) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime video job get API failed", extra={"job_id": str(job_id)})
+        raise AppError("ComfyUI runtime video job get failed", status_code=500) from exc
+
+
+@router.post("/video-jobs/{job_id}/refresh", response_model=ComfyUIRuntimeVideoJobResponse)
+async def refresh_comfyui_runtime_video_job(
+    job_id: UUID,
+    request: ComfyUIRuntimeVideoJobRefreshRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
+) -> ComfyUIRuntimeVideoJobResponse:
+    """Refresh a persisted ComfyUI video job from guarded queue/history endpoints."""
+
+    try:
+        return await ComfyUIRuntimeService(settings=settings).refresh_video_job(
+            session,
+            workspace_id=context.workspace_id,
+            job_id=job_id,
+            poll_history=request.poll_history,
+            resubmit_if_waiting=request.resubmit_if_waiting,
+            metadata=request.metadata,
+        )
+    except LookupError as exc:
+        raise AppError("ComfyUI runtime video job not found", status_code=404) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime video job refresh API failed", extra={"job_id": str(job_id)})
+        raise AppError("ComfyUI runtime video job refresh failed", status_code=500) from exc
 
 
 @router.get("/prompt-jobs/{prompt_id}/history", response_model=ComfyUIRuntimePromptHistoryResponse)
