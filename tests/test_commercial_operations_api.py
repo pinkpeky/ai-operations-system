@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -38,7 +40,7 @@ from app.models import (
 
 
 @pytest.mark.asyncio
-async def test_commercial_operations_api_flow() -> None:
+async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     _ = (
         CommercialOperation,
         CommercialOperationApproval,
@@ -81,6 +83,63 @@ async def test_commercial_operations_api_flow() -> None:
 
     app.dependency_overrides[get_session] = override_get_session
     headers = {"X-Workspace-Id": "workspace-commercial-api", "X-User-Id": "user-commercial-api"}
+
+    class FakeComfyUIRuntimeService:
+        def submit_prompt_job(self, **kwargs):  # type: ignore[no-untyped-def]
+            assert kwargs["workspace_id"] == "workspace-commercial-api"
+            assert kwargs["prompt"]["1"]["class_type"] == "EmptyImage"
+            assert kwargs["prompt"]["2"]["inputs"]["filename_prefix"] == "operator_direct_graph"
+            return SimpleNamespace(
+                success=True,
+                prompt_id="commercial-runtime-prompt-1",
+                status_code=200,
+                external_request_attempted=True,
+                runtime_calls_enabled=True,
+                prompt_submission_enabled=True,
+                node_errors={},
+                error=None,
+            )
+
+        def prompt_history(self, **kwargs):  # type: ignore[no-untyped-def]
+            assert kwargs["prompt_id"] == "commercial-runtime-prompt-1"
+            return SimpleNamespace(
+                success=True,
+                prompt_id=kwargs["prompt_id"],
+                status_code=200,
+                external_request_attempted=True,
+                runtime_calls_enabled=True,
+                prompt_submission_enabled=True,
+                outputs={
+                    "2": {
+                        "images": [
+                            {
+                                "filename": "aiops_commercial_dispatch_00001_.png",
+                                "subfolder": "",
+                                "type": "output",
+                            }
+                        ]
+                    }
+                },
+                error=None,
+            )
+
+        def queue_status(self, **kwargs):  # type: ignore[no-untyped-def]
+            assert kwargs["workspace_id"] == "workspace-commercial-api"
+            return SimpleNamespace(
+                success=True,
+                status_code=200,
+                external_request_attempted=True,
+                runtime_calls_enabled=True,
+                prompt_submission_enabled=True,
+                running=[],
+                pending=[],
+                error=None,
+            )
+
+    monkeypatch.setattr(
+        "app.commercial_operations.service.ComfyUIRuntimeService",
+        FakeComfyUIRuntimeService,
+    )
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -990,7 +1049,24 @@ async def test_commercial_operations_api_flow() -> None:
                 json={
                     "title": "Newsletter hero ComfyUI adapter dispatch",
                     "dispatch_mode": "future_guarded_dispatch",
-                    "prompt_payload": {"source": "operator", "generation_started": True},
+                    "prompt_payload": {
+                        "1": {
+                            "class_type": "EmptyImage",
+                            "inputs": {
+                                "width": 512,
+                                "height": 512,
+                                "batch_size": 1,
+                                "color": 65280,
+                            },
+                        },
+                        "2": {
+                            "class_type": "SaveImage",
+                            "inputs": {
+                                "images": ["1", 0],
+                                "filename_prefix": "operator_direct_graph",
+                            },
+                        },
+                    },
                     "workflow_payload": {"workflow_validation": "live"},
                     "queue_payload": {"queue_submission": True, "queue_read": True},
                     "dispatch_payload": {
@@ -1016,6 +1092,11 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_adapter_dispatch_body["dispatch_status"] == "draft"
             assert comfyui_adapter_dispatch_body["connection_probe_id"] == comfyui_connection_probe_id
             assert comfyui_adapter_dispatch_body["dispatch_mode"] == "metadata_only"
+            assert comfyui_adapter_dispatch_body["prompt_payload"]["comfyui_prompt_source"] == "operator_payload"
+            assert (
+                comfyui_adapter_dispatch_body["prompt_payload"]["comfyui_prompt"]["2"]["inputs"]["filename_prefix"]
+                == "operator_direct_graph"
+            )
             assert comfyui_adapter_dispatch_body["dispatch_payload"]["dispatch_mode"] == "metadata_only"
             assert comfyui_adapter_dispatch_body["dispatch_payload"]["network_request"] is False
             assert comfyui_adapter_dispatch_body["dispatch_payload"]["queue_submission"] is False
@@ -1502,6 +1583,37 @@ async def test_commercial_operations_api_flow() -> None:
             assert comfyui_step["comfyui_runtime_activation_queue_name"] == "commercial-assets"
             assert comfyui_step["comfyui_runtime_activation_mode"] == "metadata_only"
             assert comfyui_step["comfyui_runtime_activation_server_switch"] == "COMFYUI_RUNTIME_ENABLED"
+
+            submitted_runtime_dispatch = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}/submit-runtime",
+                headers=headers,
+                json={"poll_history": True, "metadata": {"test": "commercial-runtime"}},
+            )
+            assert submitted_runtime_dispatch.status_code == 200
+            submitted_runtime_body = submitted_runtime_dispatch.json()
+            assert submitted_runtime_body["dispatch_status"] == "dispatched"
+            assert submitted_runtime_body["dispatch_mode"] == "guarded_runtime_submission"
+            assert submitted_runtime_body["dispatch_payload"]["runtime_prompt_id"] == "commercial-runtime-prompt-1"
+            assert submitted_runtime_body["metadata"]["runtime_submission"]["success"] is True
+            assert submitted_runtime_body["metadata"]["runtime_outputs"][0]["filename"] == "aiops_commercial_dispatch_00001_.png"
+
+            refreshed_runtime_dispatch = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{comfyui_adapter_dispatch_id}/refresh-runtime",
+                headers=headers,
+                json={"poll_history": True, "metadata": {"test": "commercial-runtime-refresh"}},
+            )
+            assert refreshed_runtime_dispatch.status_code == 200
+            assert refreshed_runtime_dispatch.json()["metadata"]["runtime_history"]["success"] is True
+            assert refreshed_runtime_dispatch.json()["metadata"]["runtime_outputs"][0]["kind"] == "images"
+
+            prepared_asset_request = await client.get(
+                f"/api/v1/commercial-operations/{operation_id}/asset-requests",
+                headers=headers,
+            )
+            assert prepared_asset_request.status_code == 200
+            prepared_asset_body = prepared_asset_request.json()["items"][0]
+            assert prepared_asset_body["request_status"] == "prepared"
+            assert prepared_asset_body["handoff_payload"]["comfyui_runtime_prompt_id"] == "commercial-runtime-prompt-1"
 
             async with session_factory() as db_session:
                 asset_rag_document = Document(

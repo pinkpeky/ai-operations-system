@@ -144,6 +144,8 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/approve",
         "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/reject",
         "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/dispatch",
+        "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/submit-runtime",
+        "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/refresh-runtime",
         "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/fail",
         "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/cancel",
         "/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/archive",

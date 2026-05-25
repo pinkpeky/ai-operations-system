@@ -944,6 +944,31 @@ export const commercialOperationsApi = {
       },
       settings,
     ),
+  submitComfyuiAdapterDispatchRuntime: (operationId: string, adapterDispatchId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/submit-runtime`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          poll_history: true,
+          result_summary: "Submitted approved commercial adapter dispatch through guarded real ComfyUI runtime.",
+          metadata: { source: "admin_dashboard", phase: "65B" },
+        }),
+      },
+      settings,
+    ),
+  refreshComfyuiAdapterDispatchRuntime: (operationId: string, adapterDispatchId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/comfyui-adapter-dispatches/${encodeURIComponent(adapterDispatchId)}/refresh-runtime`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          poll_history: true,
+          metadata: { source: "admin_dashboard", phase: "65B" },
+        }),
+      },
+      settings,
+    ),
   failComfyuiAdapterDispatch: (
     operationId: string,
     adapterDispatchId: string,
