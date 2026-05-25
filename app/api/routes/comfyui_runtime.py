@@ -41,6 +41,8 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
     ComfyUIRuntimePostManualReadinessCheckListResponse,
     ComfyUIRuntimePostManualReadinessCheckResponse,
+    ComfyUIRuntimeVideoResourcePlanRequest,
+    ComfyUIRuntimeVideoResourcePlanResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -921,6 +923,15 @@ async def submit_comfyui_runtime_prompt_job(
             client_id=request.client_id,
             extra_data=request.extra_data,
             workflow=request.workflow,
+            media_type=request.media_type,
+            resource_profile=request.resource_profile,
+            width=request.width,
+            height=request.height,
+            frames=request.frames,
+            fps=request.fps,
+            duration_seconds=request.duration_seconds,
+            estimated_vram_mb=request.estimated_vram_mb,
+            reserve_vram_mb=request.reserve_vram_mb,
             metadata=request.metadata,
         )
     except ValueError as exc:
@@ -928,6 +939,34 @@ async def submit_comfyui_runtime_prompt_job(
     except Exception as exc:
         logger.exception("ComfyUI runtime prompt job submission API failed")
         raise AppError("ComfyUI runtime prompt job submission failed", status_code=500) from exc
+
+
+@router.post("/video-resource-plans", response_model=ComfyUIRuntimeVideoResourcePlanResponse)
+async def create_comfyui_runtime_video_resource_plan(
+    request: ComfyUIRuntimeVideoResourcePlanRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+) -> ComfyUIRuntimeVideoResourcePlanResponse:
+    """Plan GPU and queue admission before submitting a real ComfyUI video prompt."""
+
+    try:
+        return ComfyUIRuntimeService(settings=settings).video_resource_plan(
+            workspace_id=context.workspace_id,
+            resource_profile=request.resource_profile,
+            width=request.width,
+            height=request.height,
+            frames=request.frames,
+            fps=request.fps,
+            duration_seconds=request.duration_seconds,
+            estimated_vram_mb=request.estimated_vram_mb,
+            reserve_vram_mb=request.reserve_vram_mb,
+            priority=request.priority,
+            allow_queue=request.allow_queue,
+            metadata=request.metadata,
+        )
+    except Exception as exc:
+        logger.exception("ComfyUI runtime video resource plan API failed")
+        raise AppError("ComfyUI runtime video resource plan failed", status_code=500) from exc
 
 
 @router.get("/prompt-jobs/{prompt_id}/history", response_model=ComfyUIRuntimePromptHistoryResponse)

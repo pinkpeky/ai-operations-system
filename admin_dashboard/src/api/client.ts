@@ -2015,6 +2015,8 @@ export const comfyuiRuntimeApi = {
     ),
   submitPromptJob: (payload: JsonRecord, settings?: AdminSettings) =>
     requestJson<JsonRecord>("/comfyui-runtime/prompt-jobs", { method: "POST", body: JSON.stringify(payload) }, settings),
+  videoResourcePlan: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>("/comfyui-runtime/video-resource-plans", { method: "POST", body: JSON.stringify(payload) }, settings),
   promptJobHistory: (promptId: string, settings?: AdminSettings) =>
     requestJson<JsonRecord>(`/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history`, {}, settings),
   queueStatus: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/queue", {}, settings),

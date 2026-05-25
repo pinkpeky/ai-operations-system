@@ -59,6 +59,7 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(action)}",
         "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/execute",
         "/comfyui-runtime/prompt-jobs",
+        "/comfyui-runtime/video-resource-plans",
         "/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history",
         "/comfyui-runtime/queue",
         "/comfyui-runtime/diagnostic-snapshots",

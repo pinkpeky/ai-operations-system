@@ -41,8 +41,8 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert 'phase: "61Z"' in text
     assert "Runtime adapter contract" in text
     assert "Phase 62F" in text
-    assert "Phase 62G" in text
-    assert "Phase 62H" in text
+    assert 'phase: "62G"' in text
+    assert 'phase: "62H"' in text
     assert "read_only_probe_enabled" in text
     assert "read_only_probe_attempted" in text
     assert "readiness_status" in text
@@ -92,6 +92,12 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "allowed_health_paths" in text
     assert "probe_latency_ms" in text
     assert "health_probe_deferred_to_guarded_execution" in text
+    assert "Video resource plan" in text
+    assert "Check video resources" in text
+    assert "should_submit_now" in text
+    assert "selected_endpoint" in text
+    assert "endpoint_plans" in text
+    assert "planComfyuiVideoResources" in text
     assert "comfyuiRuntimeApi.capabilities" in text
     assert "comfyuiRuntimeApi.diagnostics" in text
     assert "comfyuiRuntimeApi.maintenanceRunbook" in text
@@ -108,6 +114,7 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "comfyuiRuntimeApi.createGuardedProbeExecution" in text
     assert "comfyuiRuntimeApi.updateGuardedProbeExecutionStatus" in text
     assert "comfyuiRuntimeApi.executeGuardedProbeExecution" in text
+    assert "comfyuiRuntimeApi.videoResourcePlan" in text
     assert "comfyuiRuntimeApi.diagnosticSnapshots" in text
     assert "comfyuiRuntimeApi.createDiagnosticSnapshot" in text
     assert "Approval gates" in text
@@ -348,6 +355,7 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/guarded-probe-executions" in text
     assert "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(action)}" in text
     assert "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/execute" in text
+    assert "/comfyui-runtime/video-resource-plans" in text
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text

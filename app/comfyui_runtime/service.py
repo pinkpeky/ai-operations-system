@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from math import ceil
 from time import perf_counter
 from typing import Any, Callable, Mapping
 from uuid import UUID
@@ -41,6 +42,7 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeQueueResponse,
     ComfyUIRuntimePostManualReadinessCheckListResponse,
     ComfyUIRuntimePostManualReadinessCheckResponse,
+    ComfyUIRuntimeVideoResourcePlanResponse,
 )
 
 
@@ -1313,10 +1315,18 @@ class ComfyUIRuntimeService:
         workflow: Mapping[str, Any] | None = None,
         metadata: Mapping[str, Any] | None = None,
         workspace_id: str | None = None,
+        media_type: str = "image",
+        resource_profile: str = "standard",
+        width: int | None = None,
+        height: int | None = None,
+        frames: int | None = None,
+        fps: float | None = None,
+        duration_seconds: float | None = None,
+        estimated_vram_mb: int | None = None,
+        reserve_vram_mb: int | None = None,
     ) -> ComfyUIRuntimePromptJobSubmitResponse:
         """Submit one guarded real ComfyUI prompt job to /prompt."""
 
-        readiness_error = self._runtime_execution_error(path="/prompt")
         request_payload: dict[str, Any] = {"prompt": dict(prompt or {})}
         if client_id:
             request_payload["client_id"] = client_id
@@ -1328,19 +1338,67 @@ class ComfyUIRuntimeService:
         if merged_extra_data:
             request_payload["extra_data"] = merged_extra_data
 
+        clean_media_type = str(media_type or "image").strip().lower()
+        target_base_url = self.settings.comfyui_runtime_base_url
+        resource_plan_payload: dict[str, Any] | None = None
+        if clean_media_type in {"video", "animation", "motion"}:
+            resource_plan = self.video_resource_plan(
+                workspace_id=workspace_id,
+                resource_profile=resource_profile,
+                width=width or self._dimension_from_prompt(prompt, "width", 1280),
+                height=height or self._dimension_from_prompt(prompt, "height", 720),
+                frames=frames or self._frames_from_prompt(prompt, duration_seconds=duration_seconds, fps=fps or 24.0),
+                fps=fps or 24.0,
+                duration_seconds=duration_seconds,
+                estimated_vram_mb=estimated_vram_mb,
+                reserve_vram_mb=reserve_vram_mb,
+                metadata={**dict(metadata or {}), "source": "submit_prompt_job"},
+            )
+            selected_endpoint = resource_plan.selected_endpoint or {}
+            target_base_url = str(selected_endpoint.get("base_url") or target_base_url)
+            if not resource_plan.should_submit_now:
+                plan_payload = resource_plan.model_dump(mode="json")
+                return ComfyUIRuntimePromptJobSubmitResponse(
+                    success=False,
+                    workspace_id=workspace_id,
+                    provider=self._provider(),
+                    enabled=self.settings.comfyui_runtime_enabled,
+                    base_url=target_base_url,
+                    external_request_attempted=resource_plan.external_request_attempted,
+                    runtime_calls_enabled=False,
+                    prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
+                    request_payload=request_payload,
+                    error=f"ComfyUI video resource admission {resource_plan.admission_status}: {resource_plan.error or '; '.join(resource_plan.blocking_reasons)}",
+                    metadata={
+                        **dict(metadata or {}),
+                        "media_type": "video",
+                        "prompt_submission_skipped": True,
+                        "video_resource_plan": plan_payload,
+                    },
+                )
+            request_payload["extra_data"] = {
+                **dict(request_payload.get("extra_data") or {}),
+                "aiops_video_resource_plan": resource_plan.model_dump(mode="json"),
+            }
+            resource_plan_payload = resource_plan.model_dump(mode="json")
+
+        readiness_error = self._runtime_execution_error(path="/prompt", base_url=target_base_url)
         if readiness_error:
             return ComfyUIRuntimePromptJobSubmitResponse(
                 success=False,
                 workspace_id=workspace_id,
                 provider=self._provider(),
                 enabled=self.settings.comfyui_runtime_enabled,
-                base_url=self.settings.comfyui_runtime_base_url,
+                base_url=target_base_url,
                 external_request_attempted=False,
                 runtime_calls_enabled=False,
                 prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
                 request_payload=request_payload,
                 error=readiness_error,
-                metadata=dict(metadata or {}),
+                metadata={
+                    **dict(metadata or {}),
+                    **({"media_type": clean_media_type, "video_resource_plan": resource_plan_payload} if resource_plan_payload else {}),
+                },
             )
 
         if not request_payload["prompt"]:
@@ -1349,16 +1407,19 @@ class ComfyUIRuntimeService:
                 workspace_id=workspace_id,
                 provider=self._provider(),
                 enabled=self.settings.comfyui_runtime_enabled,
-                base_url=self.settings.comfyui_runtime_base_url,
+                base_url=target_base_url,
                 external_request_attempted=False,
                 runtime_calls_enabled=False,
                 prompt_submission_enabled=True,
                 request_payload=request_payload,
                 error="ComfyUI prompt payload is empty; provide a valid workflow prompt graph before submission.",
-                metadata=dict(metadata or {}),
+                metadata={
+                    **dict(metadata or {}),
+                    **({"media_type": clean_media_type, "video_resource_plan": resource_plan_payload} if resource_plan_payload else {}),
+                },
             )
 
-        url = self._build_runtime_url(self.settings.comfyui_runtime_base_url, "/prompt")
+        url = self._build_runtime_url(target_base_url, "/prompt")
         response = self.http_post(url, request_payload, self.settings.comfyui_runtime_timeout_seconds)
         status_code = self._status_code(response)
         payload = response.get("json")
@@ -1369,7 +1430,7 @@ class ComfyUIRuntimeService:
             workspace_id=workspace_id,
             provider=self._provider(),
             enabled=self.settings.comfyui_runtime_enabled,
-            base_url=self.settings.comfyui_runtime_base_url,
+            base_url=target_base_url,
             external_request_attempted=True,
             runtime_calls_enabled=True,
             prompt_submission_enabled=True,
@@ -1380,7 +1441,299 @@ class ComfyUIRuntimeService:
             response_payload=response_payload,
             request_payload=request_payload,
             error=None if success else str(response.get("error") or response_payload.get("error") or "ComfyUI prompt submission did not return a prompt_id."),
-            metadata=dict(metadata or {}),
+            metadata={
+                **dict(metadata or {}),
+                **({"media_type": clean_media_type, "video_resource_plan": resource_plan_payload} if resource_plan_payload else {}),
+            },
+        )
+
+    def video_resource_plan(
+        self,
+        *,
+        workspace_id: str | None = None,
+        resource_profile: str = "standard",
+        width: int = 1280,
+        height: int = 720,
+        frames: int = 96,
+        fps: float = 24.0,
+        duration_seconds: float | None = None,
+        estimated_vram_mb: int | None = None,
+        reserve_vram_mb: int | None = None,
+        priority: str = "normal",
+        allow_queue: bool = True,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ComfyUIRuntimeVideoResourcePlanResponse:
+        """Plan whether a ComfyUI video request may submit now based on live GPU and queue state."""
+
+        def unique(items: list[str]) -> list[str]:
+            seen: set[str] = set()
+            cleaned: list[str] = []
+            for item in items:
+                value = str(item or "").strip()
+                if value and value not in seen:
+                    seen.add(value)
+                    cleaned.append(value)
+            return cleaned
+
+        normalized_profile = str(resource_profile or "standard").strip().lower()[:64] or "standard"
+        safe_width = max(64, min(int(width or 1280), 8192))
+        safe_height = max(64, min(int(height or 720), 8192))
+        safe_fps = max(1.0, min(float(fps or 24.0), 240.0))
+        if duration_seconds is not None:
+            safe_frames = max(1, min(int(round(float(duration_seconds) * safe_fps)), 20000))
+        else:
+            safe_frames = max(1, min(int(frames or 96), 20000))
+        clean_priority = str(priority or "normal").strip().lower()[:32] or "normal"
+        estimate_mb = self._estimate_video_vram_mb(
+            width=safe_width,
+            height=safe_height,
+            frames=safe_frames,
+            profile=normalized_profile,
+            explicit_estimate_mb=estimated_vram_mb,
+        )
+        reserve_mb = int(reserve_vram_mb if reserve_vram_mb is not None else self.settings.comfyui_video_min_free_vram_mb)
+        required_free_mb = estimate_mb + max(0, reserve_mb)
+        max_concurrent = self.settings.comfyui_video_max_concurrent_jobs
+        pending_limit = self.settings.comfyui_video_queue_pending_limit
+        endpoint_candidates = self._video_endpoint_candidates()
+        endpoint_plans: list[dict[str, Any]] = []
+        system_stats_attempted = False
+        queue_status_attempted = False
+
+        for endpoint in endpoint_candidates:
+            endpoint_name = str(endpoint["name"])
+            endpoint_base_url = str(endpoint["base_url"])
+            endpoint_gpu_index = endpoint.get("gpu_index")
+            endpoint_blocking_reasons: list[str] = []
+            endpoint_recommended_actions: list[str] = []
+            system_stats_response: Mapping[str, Any] | None = None
+            endpoint_system_stats_attempted = False
+            stats_error = self._read_only_system_stats_error(base_url=endpoint_base_url)
+            if stats_error:
+                endpoint_blocking_reasons.append(stats_error)
+                endpoint_recommended_actions.append("Enable the guarded ComfyUI read-only /system_stats gate before video GPU admission.")
+            else:
+                endpoint_system_stats_attempted = True
+                system_stats_attempted = True
+                try:
+                    system_stats_response = self.http_get(
+                        self._build_runtime_url(endpoint_base_url, "/system_stats"),
+                        self.settings.comfyui_runtime_timeout_seconds,
+                    )
+                except Exception as exc:
+                    endpoint_blocking_reasons.append(f"ComfyUI /system_stats failed for {endpoint_name}: {exc.__class__.__name__}")
+                    endpoint_recommended_actions.append("Confirm the selected ComfyUI instance is running before admitting video generation.")
+
+            system_stats_payload = (
+                system_stats_response.get("json")
+                if isinstance(system_stats_response, Mapping) and isinstance(system_stats_response.get("json"), dict)
+                else {}
+            )
+            system_stats_status = self._status_code(system_stats_response or {})
+            if endpoint_system_stats_attempted and not (system_stats_status is not None and 200 <= system_stats_status < 300):
+                endpoint_blocking_reasons.append(f"ComfyUI /system_stats returned HTTP {system_stats_status or 'unknown'} for {endpoint_name}.")
+                endpoint_recommended_actions.append("Refresh ComfyUI diagnostics and avoid submitting video jobs until GPU stats are readable.")
+
+            gpu_devices = self._extract_gpu_devices(system_stats_payload)
+            annotated_gpu_devices: list[dict[str, Any]] = []
+            for device in gpu_devices:
+                annotated = {
+                    **device,
+                    "endpoint_name": endpoint_name,
+                    "endpoint_base_url": endpoint_base_url,
+                }
+                annotated_gpu_devices.append(annotated)
+
+            endpoint_gpu_devices = annotated_gpu_devices
+            if isinstance(endpoint_gpu_index, int):
+                endpoint_gpu_devices = [device for device in annotated_gpu_devices if int(device.get("index", -1)) == endpoint_gpu_index]
+                if annotated_gpu_devices and not endpoint_gpu_devices:
+                    endpoint_blocking_reasons.append(f"Configured GPU index {endpoint_gpu_index} was not found on {endpoint_name}.")
+                    endpoint_recommended_actions.append("Update COMFYUI_VIDEO_GPU_ENDPOINTS so each endpoint points at the GPU index used by that ComfyUI process.")
+
+            if not endpoint_gpu_devices:
+                endpoint_blocking_reasons.append(f"No GPU device with readable VRAM statistics was found for {endpoint_name}.")
+                endpoint_recommended_actions.append("Start this ComfyUI instance with CUDA/DirectML GPU support or remove it from the video endpoint pool.")
+            selected_gpu = self._select_gpu(endpoint_gpu_devices, required_free_mb=required_free_mb)
+            if endpoint_gpu_devices and selected_gpu is None:
+                best_free = max((int(device.get("vram_free_mb") or 0) for device in endpoint_gpu_devices), default=0)
+                endpoint_blocking_reasons.append(
+                    f"Insufficient free VRAM on {endpoint_name}: requires {required_free_mb} MB including reserve, best GPU has {best_free} MB free."
+                )
+                endpoint_recommended_actions.append("Reduce resolution, frames, model profile, or wait for other GPU jobs to finish.")
+
+            queue = self.queue_status(workspace_id=workspace_id, base_url=endpoint_base_url)
+            endpoint_queue_status_attempted = bool(queue.external_request_attempted)
+            queue_status_attempted = queue_status_attempted or endpoint_queue_status_attempted
+            if queue.error and not queue.success:
+                endpoint_blocking_reasons.append(queue.error)
+                endpoint_recommended_actions.append("Enable guarded /queue access before admitting video submissions.")
+            running_count = len(queue.queue_running or [])
+            pending_count = len(queue.queue_pending or [])
+
+            endpoint_status = "blocked"
+            endpoint_should_submit_now = False
+            if endpoint_blocking_reasons:
+                endpoint_status = "blocked"
+            elif running_count >= max_concurrent:
+                endpoint_status = "queued" if allow_queue else "blocked"
+                endpoint_recommended_actions.append("Keep the video request queued until a GPU slot is free.")
+            elif pending_count > pending_limit:
+                endpoint_status = "queued" if allow_queue else "blocked"
+                endpoint_recommended_actions.append("Wait for the ComfyUI pending queue to drain before submitting another video job.")
+            else:
+                endpoint_status = "admitted"
+                endpoint_should_submit_now = True
+                endpoint_recommended_actions.append("Submit the video prompt now; record prompt_id and refresh history until outputs appear.")
+
+            endpoint_plans.append(
+                {
+                    "name": endpoint_name,
+                    "base_url": endpoint_base_url,
+                    "gpu_index": endpoint_gpu_index,
+                    "source": endpoint.get("source"),
+                    "admission_status": endpoint_status,
+                    "should_submit_now": endpoint_should_submit_now,
+                    "success": endpoint_status in {"admitted", "queued"},
+                    "selected_gpu": selected_gpu,
+                    "gpu_devices": endpoint_gpu_devices,
+                    "queue_running_count": running_count,
+                    "queue_pending_count": pending_count,
+                    "system_stats_attempted": endpoint_system_stats_attempted,
+                    "system_stats_status_code": system_stats_status,
+                    "queue_status_attempted": endpoint_queue_status_attempted,
+                    "queue_success": queue.success,
+                    "queue_error": queue.error,
+                    "blocking_reasons": unique(endpoint_blocking_reasons),
+                    "recommended_actions": unique(endpoint_recommended_actions),
+                    "queue_payload": queue.response_payload,
+                }
+            )
+
+        def endpoint_sort_key(plan: dict[str, Any]) -> tuple[int, int, int]:
+            selected = plan.get("selected_gpu") if isinstance(plan.get("selected_gpu"), dict) else {}
+            free_vram = int(selected.get("vram_free_mb") or 0)
+            return (int(plan.get("queue_running_count") or 0), int(plan.get("queue_pending_count") or 0), -free_vram)
+
+        admitted_plans = [plan for plan in endpoint_plans if plan.get("should_submit_now")]
+        queued_plans = [plan for plan in endpoint_plans if plan.get("admission_status") == "queued"]
+        selected_endpoint_plan: dict[str, Any] | None = None
+        if admitted_plans:
+            selected_endpoint_plan = sorted(admitted_plans, key=endpoint_sort_key)[0]
+            admission_status = "admitted"
+            should_submit_now = True
+        elif queued_plans:
+            selected_endpoint_plan = sorted(queued_plans, key=endpoint_sort_key)[0]
+            admission_status = "queued"
+            should_submit_now = False
+        else:
+            admission_status = "blocked"
+            should_submit_now = False
+
+        selected_endpoint = None
+        selected_gpu = None
+        selected_queue_payload: dict[str, Any] = {}
+        running_count = 0
+        pending_count = 0
+        selected_system_stats_status: int | None = None
+        if selected_endpoint_plan:
+            selected_gpu = selected_endpoint_plan.get("selected_gpu") if isinstance(selected_endpoint_plan.get("selected_gpu"), dict) else None
+            selected_endpoint = {
+                "name": selected_endpoint_plan.get("name"),
+                "base_url": selected_endpoint_plan.get("base_url"),
+                "gpu_index": selected_endpoint_plan.get("gpu_index"),
+                "admission_status": selected_endpoint_plan.get("admission_status"),
+                "queue_running_count": selected_endpoint_plan.get("queue_running_count"),
+                "queue_pending_count": selected_endpoint_plan.get("queue_pending_count"),
+                "selected_gpu": selected_gpu,
+            }
+            selected_queue_payload = selected_endpoint_plan.get("queue_payload") if isinstance(selected_endpoint_plan.get("queue_payload"), dict) else {}
+            running_count = int(selected_endpoint_plan.get("queue_running_count") or 0)
+            pending_count = int(selected_endpoint_plan.get("queue_pending_count") or 0)
+            selected_system_stats_status = (
+                selected_endpoint_plan.get("system_stats_status_code")
+                if isinstance(selected_endpoint_plan.get("system_stats_status_code"), int)
+                else None
+            )
+
+        if admission_status == "blocked":
+            blocking_reasons = unique(
+                [
+                    reason
+                    for plan in endpoint_plans
+                    for reason in plan.get("blocking_reasons", [])
+                    if isinstance(reason, str)
+                ]
+            )
+            recommended_actions = unique(
+                [
+                    action
+                    for plan in endpoint_plans
+                    for action in plan.get("recommended_actions", [])
+                    if isinstance(action, str)
+                ]
+            )
+        else:
+            blocking_reasons = []
+            recommended_actions = unique(
+                [
+                    action
+                    for action in (selected_endpoint_plan or {}).get("recommended_actions", [])
+                    if isinstance(action, str)
+                ]
+            )
+
+        gpu_devices = [
+            device
+            for plan in endpoint_plans
+            for device in plan.get("gpu_devices", [])
+            if isinstance(device, dict)
+        ]
+        response_base_url = str((selected_endpoint or {}).get("base_url") or self.settings.comfyui_runtime_base_url)
+        error = "; ".join(blocking_reasons) if blocking_reasons else None
+        return ComfyUIRuntimeVideoResourcePlanResponse(
+            success=admission_status in {"admitted", "queued"},
+            workspace_id=workspace_id,
+            provider=self._provider(),
+            base_url=response_base_url,
+            resource_profile=normalized_profile,
+            width=safe_width,
+            height=safe_height,
+            frames=safe_frames,
+            fps=safe_fps,
+            duration_seconds=duration_seconds,
+            estimated_vram_mb=estimate_mb,
+            reserve_vram_mb=reserve_mb,
+            required_free_vram_mb=required_free_mb,
+            max_concurrent_video_jobs=max_concurrent,
+            queue_pending_limit=pending_limit,
+            admission_status=admission_status,
+            should_submit_now=should_submit_now,
+            external_request_attempted=system_stats_attempted or queue_status_attempted,
+            system_stats_attempted=system_stats_attempted,
+            queue_status_attempted=queue_status_attempted,
+            runtime_calls_enabled=should_submit_now,
+            prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
+            selected_endpoint=selected_endpoint,
+            endpoint_plans=endpoint_plans,
+            selected_gpu=selected_gpu,
+            gpu_devices=gpu_devices,
+            queue_running_count=running_count,
+            queue_pending_count=pending_count,
+            blocking_reasons=blocking_reasons,
+            recommended_actions=recommended_actions,
+            queue_payload=selected_queue_payload,
+            raw={
+                "phase": "66A",
+                "priority": clean_priority,
+                "allow_queue": allow_queue,
+                "metadata": dict(metadata or {}),
+                "endpoint_pool_configured": bool(str(self.settings.comfyui_video_gpu_endpoints or "").strip()),
+                "endpoint_count": len(endpoint_candidates),
+                "system_stats_status_code": selected_system_stats_status,
+                "selected_endpoint_name": (selected_endpoint or {}).get("name"),
+            },
+            error=error,
         )
 
     def prompt_history(
@@ -1388,18 +1741,20 @@ class ComfyUIRuntimeService:
         *,
         prompt_id: str,
         workspace_id: str | None = None,
+        base_url: str | None = None,
     ) -> ComfyUIRuntimePromptHistoryResponse:
         """Read one guarded real ComfyUI prompt history response."""
 
         safe_prompt_id = self._sanitize_prompt_id(prompt_id)
         path = f"/history/{safe_prompt_id}"
-        readiness_error = self._runtime_execution_error(path=path)
+        runtime_base_url = base_url or self.settings.comfyui_runtime_base_url
+        readiness_error = self._runtime_execution_error(path=path, base_url=runtime_base_url)
         if readiness_error:
             return ComfyUIRuntimePromptHistoryResponse(
                 success=False,
                 workspace_id=workspace_id,
                 provider=self._provider(),
-                base_url=self.settings.comfyui_runtime_base_url,
+                base_url=runtime_base_url,
                 path=path,
                 prompt_id=safe_prompt_id,
                 external_request_attempted=False,
@@ -1408,7 +1763,7 @@ class ComfyUIRuntimeService:
                 error=readiness_error,
             )
 
-        response = self.http_get(self._build_runtime_url(self.settings.comfyui_runtime_base_url, path), self.settings.comfyui_runtime_timeout_seconds)
+        response = self.http_get(self._build_runtime_url(runtime_base_url, path), self.settings.comfyui_runtime_timeout_seconds)
         status_code = self._status_code(response)
         payload = response.get("json")
         response_payload = payload if isinstance(payload, dict) else {}
@@ -1419,7 +1774,7 @@ class ComfyUIRuntimeService:
             success=success,
             workspace_id=workspace_id,
             provider=self._provider(),
-            base_url=self.settings.comfyui_runtime_base_url,
+            base_url=runtime_base_url,
             path=path,
             prompt_id=safe_prompt_id,
             external_request_attempted=True,
@@ -1431,23 +1786,24 @@ class ComfyUIRuntimeService:
             error=None if success else str(response.get("error") or "ComfyUI prompt history read failed."),
         )
 
-    def queue_status(self, *, workspace_id: str | None = None) -> ComfyUIRuntimeQueueResponse:
+    def queue_status(self, *, workspace_id: str | None = None, base_url: str | None = None) -> ComfyUIRuntimeQueueResponse:
         """Read guarded real ComfyUI queue status."""
 
-        readiness_error = self._runtime_execution_error(path="/queue")
+        runtime_base_url = base_url or self.settings.comfyui_runtime_base_url
+        readiness_error = self._runtime_execution_error(path="/queue", base_url=runtime_base_url)
         if readiness_error:
             return ComfyUIRuntimeQueueResponse(
                 success=False,
                 workspace_id=workspace_id,
                 provider=self._provider(),
-                base_url=self.settings.comfyui_runtime_base_url,
+                base_url=runtime_base_url,
                 external_request_attempted=False,
                 runtime_calls_enabled=False,
                 prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
                 error=readiness_error,
             )
 
-        response = self.http_get(self._build_runtime_url(self.settings.comfyui_runtime_base_url, "/queue"), self.settings.comfyui_runtime_timeout_seconds)
+        response = self.http_get(self._build_runtime_url(runtime_base_url, "/queue"), self.settings.comfyui_runtime_timeout_seconds)
         status_code = self._status_code(response)
         payload = response.get("json")
         response_payload = payload if isinstance(payload, dict) else {}
@@ -1458,7 +1814,7 @@ class ComfyUIRuntimeService:
             success=success,
             workspace_id=workspace_id,
             provider=self._provider(),
-            base_url=self.settings.comfyui_runtime_base_url,
+            base_url=runtime_base_url,
             external_request_attempted=True,
             runtime_calls_enabled=True,
             prompt_submission_enabled=True,
@@ -1751,9 +2107,67 @@ class ComfyUIRuntimeService:
             ]
         return actions
 
-    def _runtime_execution_error(self, *, path: str) -> str | None:
+    def _video_endpoint_candidates(self) -> list[dict[str, Any]]:
+        raw_pool = str(self.settings.comfyui_video_gpu_endpoints or "").strip()
+        if not raw_pool:
+            return [
+                {
+                    "name": "default",
+                    "base_url": self.settings.comfyui_runtime_base_url,
+                    "gpu_index": None,
+                    "source": "COMFYUI_RUNTIME_BASE_URL",
+                }
+            ]
+
+        endpoints: list[dict[str, Any]] = []
+        for index, raw_item in enumerate(raw_pool.split(";")):
+            item = raw_item.strip()
+            if not item:
+                continue
+            parts = [part.strip() for part in item.split("|")]
+            name = f"video-gpu-{index}"
+            base_url = ""
+            gpu_index: int | None = None
+            if len(parts) == 1:
+                base_url = parts[0]
+            elif parts[0].startswith(("http://", "https://")):
+                base_url = parts[0]
+                try:
+                    gpu_index = int(parts[1]) if len(parts) > 1 and parts[1] != "" else None
+                except ValueError:
+                    gpu_index = None
+            else:
+                name = parts[0] or name
+                base_url = parts[1] if len(parts) > 1 else ""
+                try:
+                    gpu_index = int(parts[2]) if len(parts) > 2 and parts[2] != "" else None
+                except ValueError:
+                    gpu_index = None
+            if not base_url:
+                continue
+            endpoints.append(
+                {
+                    "name": name[:80],
+                    "base_url": base_url.rstrip("/"),
+                    "gpu_index": gpu_index,
+                    "source": "COMFYUI_VIDEO_GPU_ENDPOINTS",
+                }
+            )
+        if endpoints:
+            return endpoints
+        return [
+            {
+                "name": "default",
+                "base_url": self.settings.comfyui_runtime_base_url,
+                "gpu_index": None,
+                "source": "COMFYUI_RUNTIME_BASE_URL",
+            }
+        ]
+
+    def _runtime_execution_error(self, *, path: str, base_url: str | None = None) -> str | None:
         provider = self._provider()
-        parsed = urlparse(self.settings.comfyui_runtime_base_url)
+        runtime_base_url = base_url or self.settings.comfyui_runtime_base_url
+        parsed = urlparse(runtime_base_url)
         host = (parsed.hostname or "").lower()
         normalized_path = self._normalize_path(path)
         if provider != "guarded":
@@ -1775,6 +2189,27 @@ class ComfyUIRuntimeService:
             return "ComfyUI prompt submission is disabled by COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=false."
         if not self._path_is_allowed(normalized_path, self.settings.comfyui_runtime_allowed_execution_path_set):
             return "ComfyUI runtime execution path is not in COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS."
+        return None
+
+    def _read_only_system_stats_error(self, *, base_url: str | None = None) -> str | None:
+        provider = self._provider()
+        runtime_base_url = base_url or self.settings.comfyui_runtime_base_url
+        parsed = urlparse(runtime_base_url)
+        host = (parsed.hostname or "").lower()
+        if provider != "guarded":
+            return "ComfyUI runtime provider is disabled; set COMFYUI_RUNTIME_PROVIDER=guarded before video GPU admission."
+        if not self.settings.comfyui_runtime_enabled:
+            return "ComfyUI runtime is disabled by COMFYUI_RUNTIME_ENABLED=false."
+        if not self.settings.comfyui_runtime_allow_network:
+            return "ComfyUI runtime network access is disabled by COMFYUI_RUNTIME_ALLOW_NETWORK=false."
+        if parsed.scheme not in {"http", "https"}:
+            return "ComfyUI runtime base URL must use http or https."
+        if not host or host not in self.settings.comfyui_runtime_allowed_host_set:
+            return "ComfyUI runtime base URL host is not in COMFYUI_RUNTIME_ALLOWED_HOSTS."
+        if not self.settings.comfyui_runtime_read_only_probe_enabled:
+            return "ComfyUI read-only probe gate is disabled by COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=false."
+        if "/system_stats" not in self.settings.comfyui_runtime_allowed_health_path_set:
+            return "ComfyUI /system_stats is not in COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS."
         return None
 
     def _provider(self) -> str:
@@ -1813,6 +2248,131 @@ class ComfyUIRuntimeService:
         if not value or any(token in value for token in ("/", "\\", "?", "#", "&")) or ".." in value:
             raise ValueError("Invalid ComfyUI prompt_id.")
         return value
+
+    def _dimension_from_prompt(self, prompt: Mapping[str, Any], key: str, default: int) -> int:
+        for node in (prompt or {}).values():
+            if not isinstance(node, Mapping):
+                continue
+            inputs = node.get("inputs")
+            if not isinstance(inputs, Mapping):
+                continue
+            value = inputs.get(key)
+            if isinstance(value, (int, float)) and value > 0:
+                return max(64, min(int(value), 8192))
+        return default
+
+    def _frames_from_prompt(
+        self,
+        prompt: Mapping[str, Any],
+        *,
+        duration_seconds: float | None = None,
+        fps: float = 24.0,
+    ) -> int:
+        for node in (prompt or {}).values():
+            if not isinstance(node, Mapping):
+                continue
+            inputs = node.get("inputs")
+            if not isinstance(inputs, Mapping):
+                continue
+            for key in ("frames", "frame_count", "num_frames", "length"):
+                value = inputs.get(key)
+                if isinstance(value, (int, float)) and value > 0:
+                    return max(1, min(int(value), 20000))
+        if duration_seconds is not None:
+            return max(1, min(int(ceil(float(duration_seconds) * float(fps or 24.0))), 20000))
+        return 96
+
+    def _estimate_video_vram_mb(
+        self,
+        *,
+        width: int,
+        height: int,
+        frames: int,
+        profile: str,
+        explicit_estimate_mb: int | None = None,
+    ) -> int:
+        if explicit_estimate_mb is not None:
+            return max(256, min(int(explicit_estimate_mb), 131072))
+        normalized = str(profile or "standard").strip().lower()
+        profile_floor = {
+            "preview": 4096,
+            "low": 6144,
+            "standard": self.settings.comfyui_video_default_vram_estimate_mb,
+            "high": 12288,
+            "sdxl_video": 12288,
+            "animatediff": 12288,
+            "wan_2_1": 16384,
+            "wan": 16384,
+            "wan_14b": 24576,
+        }.get(normalized, self.settings.comfyui_video_default_vram_estimate_mb)
+        megapixel_frames = (max(width, 64) * max(height, 64) * max(frames, 1)) / 1_000_000
+        dynamic_mb = int(ceil(megapixel_frames * 64))
+        return max(self.settings.comfyui_video_default_vram_estimate_mb, profile_floor + dynamic_mb)
+
+    def _extract_gpu_devices(self, system_stats_payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+        devices = system_stats_payload.get("devices") if isinstance(system_stats_payload, Mapping) else None
+        if not isinstance(devices, list):
+            return []
+        gpu_devices: list[dict[str, Any]] = []
+        for index, raw_device in enumerate(devices):
+            if not isinstance(raw_device, Mapping):
+                continue
+            name = str(raw_device.get("name") or raw_device.get("device_name") or f"gpu-{index}")
+            device_type = str(raw_device.get("type") or raw_device.get("device_type") or "gpu")
+            total_mb = self._runtime_bytes_to_mb(
+                raw_device.get("vram_total")
+                or raw_device.get("total_vram")
+                or raw_device.get("torch_vram_total")
+                or raw_device.get("total_memory")
+            )
+            free_candidates = [
+                self._runtime_bytes_to_mb(raw_device.get("vram_free")),
+                self._runtime_bytes_to_mb(raw_device.get("free_vram")),
+                self._runtime_bytes_to_mb(raw_device.get("torch_vram_free")),
+                self._runtime_bytes_to_mb(raw_device.get("free_memory")),
+            ]
+            free_mb = max((value for value in free_candidates if value is not None), default=None)
+            used_mb = self._runtime_bytes_to_mb(raw_device.get("vram_used") or raw_device.get("torch_vram_used") or raw_device.get("used_memory"))
+            if free_mb is None and total_mb is not None and used_mb is not None:
+                free_mb = max(0, total_mb - used_mb)
+            if free_mb is None:
+                continue
+            gpu_devices.append(
+                {
+                    "index": int(raw_device.get("index") if isinstance(raw_device.get("index"), int) else index),
+                    "name": name,
+                    "type": device_type,
+                    "vram_total_mb": total_mb,
+                    "vram_free_mb": free_mb,
+                    "vram_used_mb": used_mb,
+                }
+            )
+        return gpu_devices
+
+    @staticmethod
+    def _runtime_bytes_to_mb(value: Any) -> int | None:
+        if not isinstance(value, (int, float)):
+            return None
+        if value < 0:
+            return None
+        if value > 1_000_000:
+            return int(value // (1024 * 1024))
+        return int(value)
+
+    @staticmethod
+    def _select_gpu(
+        gpu_devices: list[dict[str, Any]],
+        *,
+        required_free_mb: int,
+    ) -> dict[str, Any] | None:
+        eligible = [
+            device
+            for device in gpu_devices
+            if int(device.get("vram_free_mb") or 0) >= required_free_mb
+        ]
+        if not eligible:
+            return None
+        return max(eligible, key=lambda device: int(device.get("vram_free_mb") or 0))
 
     @staticmethod
     def _status_code(response: Mapping[str, Any]) -> int | None:

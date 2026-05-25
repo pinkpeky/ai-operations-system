@@ -219,6 +219,16 @@ class Settings(BaseSettings):
         default="/prompt,/history,/queue",
         alias="COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS",
     )
+    comfyui_video_max_concurrent_jobs: int = Field(default=1, ge=1, le=16, alias="COMFYUI_VIDEO_MAX_CONCURRENT_JOBS")
+    comfyui_video_queue_pending_limit: int = Field(default=2, ge=0, le=100, alias="COMFYUI_VIDEO_QUEUE_PENDING_LIMIT")
+    comfyui_video_min_free_vram_mb: int = Field(default=2048, ge=0, le=131072, alias="COMFYUI_VIDEO_MIN_FREE_VRAM_MB")
+    comfyui_video_default_vram_estimate_mb: int = Field(
+        default=8192,
+        ge=1024,
+        le=131072,
+        alias="COMFYUI_VIDEO_DEFAULT_VRAM_ESTIMATE_MB",
+    )
+    comfyui_video_gpu_endpoints: str = Field(default="", alias="COMFYUI_VIDEO_GPU_ENDPOINTS")
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:
