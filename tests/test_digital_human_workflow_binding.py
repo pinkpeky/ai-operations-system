@@ -78,7 +78,7 @@ def test_digital_human_workflow_templates_are_visible_without_runtime_calls() ->
     template_ids = {item.template_id for item in templates.items}
     assert "liveportrait-musetalk-broll" in template_ids
     assert "wan-i2v-reference-avatar" in template_ids
-    assert capabilities.raw["phase"] == "67C"
+    assert capabilities.raw["phase"] == "67D"
     assert "liveportrait-musetalk-broll" in capabilities.raw["workflow_template_ids"]
     assert template.provider == "comfyui"
     assert template.default_resource_profile == "standard"
@@ -135,6 +135,112 @@ async def test_bind_comfyui_workflow_creates_reviewable_input_contract(
     assert any(asset["asset_id"] == str(material.id) for asset in binding["input_assets"])
     assert output["workflow_template_id"] == "liveportrait-musetalk-broll"
     assert "ComfyUI-AdvancedLivePortrait" in output["required_nodes"]
+    assert any(item["upload_status"] == "pending_upload" for item in binding["upload_manifest"])
+
+
+@pytest.mark.asyncio
+async def test_workflow_readiness_check_tracks_real_runtime_evidence(
+    session: AsyncSession,
+    tmp_path: Path,
+) -> None:
+    service = DigitalHumanService(
+        settings=Settings(
+            DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
+            DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+        )
+    )
+    portrait, material, approved = await _create_approved_workflow_job(
+        session,
+        service,
+        workspace_id="workspace-digital-human-workflow-readiness",
+    )
+    bound = await service.bind_comfyui_workflow(
+        session,
+        workspace_id="workspace-digital-human-workflow-readiness",
+        job_id=approved.id,
+        template_id="liveportrait-musetalk-broll",
+        material_asset_ids=[material.id],
+    )
+
+    blocked = await service.check_comfyui_workflow_readiness(
+        session,
+        workspace_id="workspace-digital-human-workflow-readiness",
+        job_id=bound.id,
+        operator_imported_workflow=False,
+    )
+
+    assert blocked.workflow_readiness_status == "needs_workflow_import"
+    assert blocked.workflow_asset_upload_status == "pending_uploads"
+    assert blocked.workflow_output_watch_status == "not_configured"
+    assert "Import and save the real ComfyUI graph" in blocked.failure_reason
+
+    required_nodes = bound.metadata["comfyui_workflow_binding"]["required_nodes"]
+    required_models = bound.metadata["comfyui_workflow_binding"]["required_models"]
+    ready = await service.check_comfyui_workflow_readiness(
+        session,
+        workspace_id="workspace-digital-human-workflow-readiness",
+        job_id=bound.id,
+        operator_imported_workflow=True,
+        installed_nodes=required_nodes,
+        installed_models=required_models,
+        uploaded_asset_ids=[portrait.id, material.id],
+        comfyui_base_url="http://127.0.0.1:8188",
+        output_watch_path="ComfyUI/output",
+        gpu_name="RTX 4090",
+        free_vram_mb=24576,
+        queue_depth=0,
+        operator_note="Real graph imported and assets uploaded.",
+        metadata={"commercial_operation_id": "operation-workflow-readiness"},
+    )
+    readiness = ready.metadata["comfyui_workflow_readiness"]
+    readiness_output = next(item for item in ready.outputs if item["output_type"] == "digital_human_comfyui_workflow_readiness")
+
+    assert ready.workflow_readiness_status == "ready_for_guarded_comfyui_execution"
+    assert ready.workflow_asset_upload_status == "ready"
+    assert ready.workflow_output_watch_status == "ready"
+    assert ready.workflow_missing_nodes == []
+    assert ready.workflow_missing_models == []
+    assert ready.failure_reason is None
+    assert ready.provider_response["phase"] == "67D"
+    assert readiness["gpu_resource"]["status"] == "ready"
+    assert readiness["output_watch"]["path"] == "ComfyUI/output"
+    assert all(item["upload_status"] == "operator_confirmed" for item in readiness["upload_manifest"])
+    assert readiness_output["status"] == "ready_for_guarded_comfyui_execution"
+
+
+@pytest.mark.asyncio
+async def test_bound_workflow_prompt_submission_requires_readiness(
+    session: AsyncSession,
+    tmp_path: Path,
+) -> None:
+    service = DigitalHumanService(
+        settings=Settings(
+            DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
+            DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+        )
+    )
+    _, material, approved = await _create_approved_workflow_job(
+        session,
+        service,
+        workspace_id="workspace-digital-human-readiness-gate",
+    )
+    bound = await service.bind_comfyui_workflow(
+        session,
+        workspace_id="workspace-digital-human-readiness-gate",
+        job_id=approved.id,
+        template_id="liveportrait-musetalk-broll",
+        material_asset_ids=[material.id],
+    )
+
+    with pytest.raises(AppError, match="workflow-readiness check"):
+        await service.execute_video_job(
+            session,
+            workspace_id="workspace-digital-human-readiness-gate",
+            job_id=bound.id,
+            execution_mode="comfyui_handoff",
+            submit_immediately=True,
+            prompt={"real_prompt": {"class_type": "SaveVideo", "inputs": {}}},
+        )
 
 
 @pytest.mark.asyncio
@@ -261,6 +367,22 @@ async def test_digital_human_workflow_binding_api(tmp_path: Path) -> None:
                 "metadata": {"commercial_operation_id": "operation-api-workflow"},
             },
         )
+        readiness = await client.post(
+            f"/api/v1/digital-humans/video-jobs/{created.json()['id']}/workflow-readiness-check",
+            headers=headers,
+            json={
+                "operator_imported_workflow": True,
+                "installed_nodes": template.json()["required_nodes"],
+                "installed_models": template.json()["required_models"],
+                "uploaded_asset_ids": [portrait.json()["id"], material.json()["id"]],
+                "comfyui_base_url": "http://127.0.0.1:8188",
+                "output_watch_path": "ComfyUI/output",
+                "gpu_name": "RTX 4090",
+                "free_vram_mb": 24576,
+                "queue_depth": 0,
+                "metadata": {"commercial_operation_id": "operation-api-workflow-readiness"},
+            },
+        )
 
     assert templates.status_code == 200
     assert any(item["template_id"] == "liveportrait-musetalk-broll" for item in templates.json()["items"])
@@ -270,5 +392,9 @@ async def test_digital_human_workflow_binding_api(tmp_path: Path) -> None:
     assert bound.json()["selected_workflow_template_id"] == "liveportrait-musetalk-broll"
     assert bound.json()["workflow_binding_status"] == "ready_for_operator_review"
     assert bound.json()["outputs"][0]["output_type"] == "digital_human_comfyui_input_binding"
+    assert readiness.status_code == 200
+    assert readiness.json()["workflow_readiness_status"] == "ready_for_guarded_comfyui_execution"
+    assert readiness.json()["workflow_asset_upload_status"] == "ready"
+    assert readiness.json()["workflow_output_watch_status"] == "ready"
 
     await engine.dispose()

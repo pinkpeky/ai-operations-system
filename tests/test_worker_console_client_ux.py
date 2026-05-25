@@ -2185,7 +2185,9 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
             "client-digital-human-progress",
             "Digital human video",
             "digitalHumanWorkflowBindingText",
+            "digitalHumanWorkflowReadinessText",
             "Workflow pending",
+            "Real workflow not checked",
             "ComfyUI linked",
         ]:
             assert token in text
@@ -2200,6 +2202,9 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
             "linked_comfyui_video_job_id",
             "selected_workflow_template_id",
             "workflow_binding_status",
+            "workflow_readiness_status",
+            "workflow_asset_upload_status",
+            "workflow_output_watch_status",
         ]:
             assert token in text
 

@@ -14702,6 +14702,15 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
   const [durationSeconds, setDurationSeconds] = useState("30");
   const [channelsDraft, setChannelsDraft] = useState("douyin,xiaohongshu");
   const [selectedWorkflowTemplateId, setSelectedWorkflowTemplateId] = useState("liveportrait-musetalk-broll");
+  const [workflowImported, setWorkflowImported] = useState(false);
+  const [workflowInstalledNodesDraft, setWorkflowInstalledNodesDraft] = useState("");
+  const [workflowInstalledModelsDraft, setWorkflowInstalledModelsDraft] = useState("");
+  const [workflowUploadedAssetIdsDraft, setWorkflowUploadedAssetIdsDraft] = useState("");
+  const [workflowComfyuiBaseUrl, setWorkflowComfyuiBaseUrl] = useState("http://127.0.0.1:8188");
+  const [workflowOutputWatchPath, setWorkflowOutputWatchPath] = useState("ComfyUI/output");
+  const [workflowGpuName, setWorkflowGpuName] = useState("primary-video-gpu");
+  const [workflowFreeVramMb, setWorkflowFreeVramMb] = useState("24576");
+  const [workflowQueueDepth, setWorkflowQueueDepth] = useState("0");
 
   const copy = {
     title: language === "zh-CN" ? "数字人制作台" : "Digital human studio",
@@ -14725,6 +14734,11 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
       language === "zh-CN"
         ? "选择数字人工作流模板，把人物照、素材、模型/插件清单和输入槽位绑定到最新任务。"
         : "Bind portrait, materials, plugin/model checklist, and input slots to the selected ComfyUI digital-human workflow.",
+    readinessTitle: language === "zh-CN" ? "ComfyUI 真实运行准备度" : "ComfyUI real workflow readiness",
+    readinessDescription:
+      language === "zh-CN"
+        ? "记录真实工作流导入、节点、模型、素材上传、输出监听和 GPU 显存证据；未齐全前不提交真实 prompt。"
+        : "Record imported graph, node/model evidence, asset uploads, output watch path, and GPU VRAM before any real prompt submission.",
     jobListTitle: language === "zh-CN" ? "视频任务" : "Video jobs",
     assetListTitle: language === "zh-CN" ? "素材资产" : "Assets",
   };
@@ -14764,6 +14778,9 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
   const selectedAvatar = selectedAvatarId || valueAt(portraitAssets[0], ["id"], "");
   const latestJob = jobs[0] || null;
   const latestJobId = valueAt(latestJob, ["id"], "");
+  const latestJobMetadata = latestJob?.metadata && typeof latestJob.metadata === "object" ? (latestJob.metadata as JsonRecord) : {};
+  const latestWorkflowReadiness = latestJobMetadata.comfyui_workflow_readiness as JsonRecord | undefined;
+  const latestWorkflowUploadManifest = Array.isArray(latestWorkflowReadiness?.upload_manifest) ? latestWorkflowReadiness.upload_manifest : [];
   const selectedWorkflowTemplate =
     workflowTemplates.find((template) => valueAt(template, ["template_id"], "") === selectedWorkflowTemplateId) ||
     workflowTemplates[0] ||
@@ -14787,8 +14804,19 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     comfyui: valueAt(job, ["linked_comfyui_video_job_id"], "-"),
     workflow: valueAt(job, ["selected_workflow_template_id"], "-"),
     binding: valueAt(job, ["workflow_binding_status"], "-"),
+    readiness: valueAt(job, ["workflow_readiness_status"], "-"),
+    uploads: valueAt(job, ["workflow_asset_upload_status"], "-"),
+    output_watch: valueAt(job, ["workflow_output_watch_status"], "-"),
     outputs: Array.isArray(job.outputs) ? job.outputs.length : 0,
     summary: valueAt(job, ["result_summary"]),
+  }));
+  const readinessRows = latestWorkflowUploadManifest.map((item) => ({
+    slot: valueAt(item, ["slot"], "-"),
+    asset: valueAt(item, ["name"], "-"),
+    file: valueAt(item, ["file_name"], "-"),
+    kind: valueAt(item, ["upload_kind"], "-"),
+    status: valueAt(item, ["upload_status"], "-"),
+    path: valueAt(item, ["upload_path"], "-"),
   }));
   const assetRows = assets.map((asset) => ({
     id: valueAt(asset, ["id"]),
@@ -14914,6 +14942,36 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
       await load();
     } catch (error) {
       setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human workflow binding unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
+  const checkLatestWorkflowReadiness = async () => {
+    if (!latestJobId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const checked = await digitalHumansApi.checkWorkflowReadiness(
+        latestJobId,
+        {
+          operator_imported_workflow: workflowImported,
+          installed_nodes: splitDraftList(workflowInstalledNodesDraft),
+          installed_models: splitDraftList(workflowInstalledModelsDraft),
+          uploaded_asset_ids: splitDraftList(workflowUploadedAssetIdsDraft),
+          comfyui_base_url: workflowComfyuiBaseUrl.trim() || undefined,
+          output_watch_path: workflowOutputWatchPath.trim() || undefined,
+          gpu_name: workflowGpuName.trim() || undefined,
+          free_vram_mb: Number(workflowFreeVramMb) || undefined,
+          queue_depth: Number(workflowQueueDepth) || 0,
+          operator_note: "Workflow readiness evidence recorded from Digital Humans page",
+          metadata: { source_page: "digital-humans", phase: "67D", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: checked, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human workflow readiness unavailable", loading: false, updatedAt: nowLabel() });
     }
   };
 
@@ -15114,6 +15172,86 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
         />
       </Panel>
 
+      <Panel title={copy.readinessTitle} description={copy.readinessDescription}>
+        <div className="commercial-detail-grid">
+          <Field label="readiness_status" value={<StatusPill value={valueAt(latestJob, ["workflow_readiness_status"], "not_checked")} />} />
+          <Field label="asset_upload_status" value={<StatusPill value={valueAt(latestJob, ["workflow_asset_upload_status"], "not_checked")} />} />
+          <Field label="output_watch" value={<StatusPill value={valueAt(latestJob, ["workflow_output_watch_status"], "not_checked")} />} />
+          <Field label="missing_nodes" value={shortJson(latestJob?.workflow_missing_nodes || [])} />
+          <Field label="missing_models" value={shortJson(latestJob?.workflow_missing_models || [])} />
+        </div>
+        <div className="commercial-form-grid">
+          <label className="checkbox-row">
+            <input type="checkbox" checked={workflowImported} onChange={(event) => setWorkflowImported(event.target.checked)} />
+            {language === "zh-CN" ? "已导入真实 ComfyUI 工作流" : "Real ComfyUI workflow imported"}
+          </label>
+          <label>
+            {language === "zh-CN" ? "已安装节点" : "Installed nodes"}
+            <input value={workflowInstalledNodesDraft} onChange={(event) => setWorkflowInstalledNodesDraft(event.target.value)} placeholder="ComfyUI-AdvancedLivePortrait, ComfyUI-MuseTalk" />
+          </label>
+          <label>
+            {language === "zh-CN" ? "已安装模型" : "Installed models"}
+            <input value={workflowInstalledModelsDraft} onChange={(event) => setWorkflowInstalledModelsDraft(event.target.value)} placeholder="LivePortrait, MuseTalk, face_analysis" />
+          </label>
+          <label>
+            {language === "zh-CN" ? "已上传素材 ID" : "Uploaded asset ids"}
+            <input value={workflowUploadedAssetIdsDraft} onChange={(event) => setWorkflowUploadedAssetIdsDraft(event.target.value)} placeholder="asset-id-1, asset-id-2" />
+          </label>
+          <label>
+            ComfyUI URL
+            <input value={workflowComfyuiBaseUrl} onChange={(event) => setWorkflowComfyuiBaseUrl(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "输出监听路径" : "Output watch path"}
+            <input value={workflowOutputWatchPath} onChange={(event) => setWorkflowOutputWatchPath(event.target.value)} />
+          </label>
+          <label>
+            GPU
+            <input value={workflowGpuName} onChange={(event) => setWorkflowGpuName(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "可用显存 MB" : "Free VRAM MB"}
+            <input type="number" min="0" value={workflowFreeVramMb} onChange={(event) => setWorkflowFreeVramMb(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "队列深度" : "Queue depth"}
+            <input type="number" min="0" value={workflowQueueDepth} onChange={(event) => setWorkflowQueueDepth(event.target.value)} />
+          </label>
+        </div>
+        <div className="commercial-action-row">
+          <button
+            className="ghost-button"
+            onClick={() => {
+              setWorkflowInstalledNodesDraft(Array.isArray(selectedWorkflowTemplate?.required_nodes) ? selectedWorkflowTemplate.required_nodes.join(", ") : "");
+              setWorkflowInstalledModelsDraft(Array.isArray(selectedWorkflowTemplate?.required_models) ? selectedWorkflowTemplate.required_models.join(", ") : "");
+            }}
+          >
+            {language === "zh-CN" ? "填入模板清单" : "Fill template checklist"}
+          </button>
+          <button
+            className="ghost-button"
+            onClick={() => setWorkflowUploadedAssetIdsDraft([selectedAvatar, ...materialAssets.map((asset) => valueAt(asset, ["id"], ""))].filter(Boolean).join(", "))}
+          >
+            {language === "zh-CN" ? "填入当前素材" : "Use current assets"}
+          </button>
+          <button className="primary-button" onClick={() => void checkLatestWorkflowReadiness()} disabled={!latestJobId || actionState.loading}>
+            {language === "zh-CN" ? "检查真实工作流准备度" : "Check real workflow readiness"}
+          </button>
+        </div>
+        <Table
+          rows={readinessRows}
+          emptyLabel={language === "zh-CN" ? "绑定工作流后会显示素材上传清单。" : "Bind a workflow to see the asset upload checklist."}
+          columns={[
+            { key: "slot", label: "slot" },
+            { key: "asset", label: "asset" },
+            { key: "file", label: "file" },
+            { key: "kind", label: "kind" },
+            { key: "status", label: "status" },
+            { key: "path", label: "upload_path" },
+          ]}
+        />
+      </Panel>
+
       <Panel title={copy.jobListTitle}>
         <Table
           rows={jobRows}
@@ -15128,6 +15266,9 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
             { key: "comfyui", label: "comfyui_job" },
             { key: "workflow", label: "workflow" },
             { key: "binding", label: "binding" },
+            { key: "readiness", label: "readiness" },
+            { key: "uploads", label: "uploads" },
+            { key: "output_watch", label: "output_watch" },
             { key: "outputs", label: "outputs" },
             { key: "summary", label: "summary" },
           ]}

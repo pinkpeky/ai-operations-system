@@ -740,6 +740,7 @@ class DocsRuntimeVerifier:
             "/api/v1/digital-humans/video-jobs",
             "/api/v1/digital-humans/video-jobs/{job_id}",
             "/api/v1/digital-humans/video-jobs/{job_id}/workflow-binding",
+            "/api/v1/digital-humans/video-jobs/{job_id}/workflow-readiness-check",
             "/api/v1/digital-humans/video-jobs/{job_id}/refresh",
             "/api/v1/digital-humans/video-jobs/{job_id}/execute",
             "/api/v1/digital-humans/video-jobs/{job_id}/{action}",

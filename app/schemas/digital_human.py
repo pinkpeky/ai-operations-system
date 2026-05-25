@@ -174,6 +174,22 @@ class DigitalHumanComfyUIWorkflowBindingRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DigitalHumanComfyUIWorkflowReadinessRequest(BaseModel):
+    """Record operator evidence that a bound ComfyUI workflow is ready for guarded execution."""
+
+    operator_imported_workflow: bool = False
+    installed_nodes: list[str] = Field(default_factory=list)
+    installed_models: list[str] = Field(default_factory=list)
+    uploaded_asset_ids: list[UUID] = Field(default_factory=list)
+    comfyui_base_url: str | None = Field(default=None, max_length=1024)
+    output_watch_path: str | None = Field(default=None, max_length=2048)
+    gpu_name: str | None = Field(default=None, max_length=255)
+    free_vram_mb: int | None = Field(default=None, ge=0, le=262144)
+    queue_depth: int | None = Field(default=None, ge=0, le=100000)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class DigitalHumanVideoJobActionRequest(BaseModel):
     """Apply a human review action to a digital human job."""
 
@@ -217,6 +233,11 @@ class DigitalHumanVideoJobResponse(BaseModel):
     linked_comfyui_video_job_id: str | None = None
     selected_workflow_template_id: str | None = None
     workflow_binding_status: str | None = None
+    workflow_readiness_status: str | None = None
+    workflow_asset_upload_status: str | None = None
+    workflow_output_watch_status: str | None = None
+    workflow_missing_nodes: list[str] = Field(default_factory=list)
+    workflow_missing_models: list[str] = Field(default_factory=list)
     operator_note: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
@@ -257,6 +278,11 @@ class DigitalHumanVideoJobResponse(BaseModel):
             linked_comfyui_video_job_id=_linked_comfyui_video_job_id(job.outputs or []),
             selected_workflow_template_id=_selected_workflow_template_id(job.job_metadata or {}),
             workflow_binding_status=_workflow_binding_status(job.job_metadata or {}),
+            workflow_readiness_status=_workflow_readiness_status(job.job_metadata or {}),
+            workflow_asset_upload_status=_workflow_asset_upload_status(job.job_metadata or {}),
+            workflow_output_watch_status=_workflow_output_watch_status(job.job_metadata or {}),
+            workflow_missing_nodes=_workflow_missing_items(job.job_metadata or {}, "missing_nodes"),
+            workflow_missing_models=_workflow_missing_items(job.job_metadata or {}, "missing_models"),
             operator_note=job.operator_note,
             metadata=job.job_metadata or {},
             created_at=job.created_at,
@@ -350,3 +376,38 @@ def _workflow_binding_status(metadata: dict[str, Any]) -> str | None:
         if isinstance(status, str) and status.strip():
             return status.strip()
     return None
+
+
+def _workflow_readiness(metadata: dict[str, Any]) -> dict[str, Any]:
+    readiness = metadata.get("comfyui_workflow_readiness")
+    return readiness if isinstance(readiness, dict) else {}
+
+
+def _workflow_readiness_status(metadata: dict[str, Any]) -> str | None:
+    status = _workflow_readiness(metadata).get("status")
+    if isinstance(status, str) and status.strip():
+        return status.strip()
+    return None
+
+
+def _workflow_asset_upload_status(metadata: dict[str, Any]) -> str | None:
+    status = _workflow_readiness(metadata).get("asset_upload_status")
+    if isinstance(status, str) and status.strip():
+        return status.strip()
+    return None
+
+
+def _workflow_output_watch_status(metadata: dict[str, Any]) -> str | None:
+    output_watch = _workflow_readiness(metadata).get("output_watch")
+    if isinstance(output_watch, dict):
+        status = output_watch.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
+    return None
+
+
+def _workflow_missing_items(metadata: dict[str, Any], key: str) -> list[str]:
+    items = _workflow_readiness(metadata).get(key)
+    if not isinstance(items, list):
+        return []
+    return [str(item) for item in items if str(item).strip()]

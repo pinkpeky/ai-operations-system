@@ -3824,6 +3824,22 @@ Endpoints:
 Boundary: Phase 66B reuses the existing guarded runtime and video resource gates. It does not upload files, install workflows, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
 边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。
+# Phase 67D Digital Human Workflow Readiness
+
+Status: production workflow readiness evidence / provider execution disabled by default. Phase 67D records the operator evidence needed before a bound digital-human ComfyUI workflow can submit a real prompt through guarded runtime gates. It does not install workflows, download models, upload files automatically, submit prompts by default, publish, control accounts, or bypass approval.
+
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_OUTPUT_DIR=storage/digital_human_outputs`.
+
+Tables: `digital_human_assets`, `digital_human_video_jobs`, `comfyui_runtime_video_jobs`.
+
+## POST `/api/v1/digital-humans/video-jobs/{job_id}/workflow-readiness-check`
+
+Records evidence that the selected real ComfyUI workflow was imported and that required nodes, model files, asset uploads, output watch path, and GPU/queue state are ready. The request accepts `operator_imported_workflow`, `installed_nodes`, `installed_models`, `uploaded_asset_ids`, `comfyui_base_url`, `output_watch_path`, `gpu_name`, `free_vram_mb`, `queue_depth`, `operator_note`, and `metadata`.
+
+The response adds `workflow_readiness_status`, `workflow_asset_upload_status`, `workflow_output_watch_status`, `workflow_missing_nodes`, and `workflow_missing_models`, and stores a `digital_human_comfyui_workflow_readiness` output plus `comfyui_workflow_readiness` metadata. Real prompt submission for a bound workflow is refused unless this status is `ready_for_guarded_comfyui_execution`.
+
+Boundary: readiness evidence requires an existing workflow binding. It records operator evidence only; no ComfyUI upload, model install, workflow install, prompt submission, publishing, account control, runtime mutation, service restart, or approval bypass is performed.
+
 # Phase 67C Digital Human Workflow Binding
 
 Status: production workflow contract / provider execution disabled by default. Phase 67C adds ComfyUI workflow-template discovery and job input binding on top of the Phase 67B Digital Human Execution Loop. It does not install workflows, download models, upload files to ComfyUI, submit prompts by default, publish, control accounts, or bypass approval.
