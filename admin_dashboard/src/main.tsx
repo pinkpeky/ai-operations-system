@@ -14686,6 +14686,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
   const [capabilitiesState, setCapabilitiesState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [assetsState, setAssetsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [jobsState, setJobsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [workflowTemplatesState, setWorkflowTemplatesState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
   const [portraitFile, setPortraitFile] = useState<File | null>(null);
   const [portraitName, setPortraitName] = useState(language === "zh-CN" ? "授权人物照片" : "Authorized portrait");
@@ -14700,6 +14701,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
   const [aspectRatio, setAspectRatio] = useState("9:16");
   const [durationSeconds, setDurationSeconds] = useState("30");
   const [channelsDraft, setChannelsDraft] = useState("douyin,xiaohongshu");
+  const [selectedWorkflowTemplateId, setSelectedWorkflowTemplateId] = useState("liveportrait-musetalk-broll");
 
   const copy = {
     title: language === "zh-CN" ? "数字人制作台" : "Digital human studio",
@@ -14718,6 +14720,11 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
         ? "选择人物照片、输入运营目标和口播剧本，系统会生成任务计划、Provider 请求边界和人工审批状态。"
         : "Select a portrait, enter the goal and script, and the system creates the plan, provider boundary, and review state.",
     capabilityTitle: language === "zh-CN" ? "Provider 能力边界" : "Provider boundary",
+    workflowTitle: language === "zh-CN" ? "ComfyUI 工作流绑定" : "ComfyUI workflow binding",
+    workflowDescription:
+      language === "zh-CN"
+        ? "选择数字人工作流模板，把人物照、素材、模型/插件清单和输入槽位绑定到最新任务。"
+        : "Bind portrait, materials, plugin/model checklist, and input slots to the selected ComfyUI digital-human workflow.",
     jobListTitle: language === "zh-CN" ? "视频任务" : "Video jobs",
     assetListTitle: language === "zh-CN" ? "素材资产" : "Assets",
   };
@@ -14726,18 +14733,22 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     setCapabilitiesState((current) => ({ ...current, loading: true, error: null }));
     setAssetsState((current) => ({ ...current, loading: true, error: null }));
     setJobsState((current) => ({ ...current, loading: true, error: null }));
+    setWorkflowTemplatesState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [capabilities, assets, jobs] = await Promise.all([
+      const [capabilities, workflowTemplates, assets, jobs] = await Promise.all([
         digitalHumansApi.capabilities(settings),
+        digitalHumansApi.workflowTemplates(settings),
         digitalHumansApi.assets({ limit: 80 }, settings),
         digitalHumansApi.videoJobs({ limit: 50 }, settings),
       ]);
       setCapabilitiesState({ data: capabilities, error: null, loading: false, updatedAt: nowLabel() });
+      setWorkflowTemplatesState({ data: toItems(workflowTemplates), error: null, loading: false, updatedAt: nowLabel() });
       setAssetsState({ data: toItems(assets), error: null, loading: false, updatedAt: nowLabel() });
       setJobsState({ data: toItems(jobs), error: null, loading: false, updatedAt: nowLabel() });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Digital human API unavailable";
       setCapabilitiesState({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setWorkflowTemplatesState({ data: [], error: message, loading: false, updatedAt: nowLabel() });
       setAssetsState({ data: [], error: message, loading: false, updatedAt: nowLabel() });
       setJobsState({ data: [], error: message, loading: false, updatedAt: nowLabel() });
     }
@@ -14747,11 +14758,24 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
 
   const assets = assetsState.data || [];
   const jobs = jobsState.data || [];
+  const workflowTemplates = workflowTemplatesState.data || [];
   const portraitAssets = assets.filter((asset) => valueAt(asset, ["asset_type"], "") === "portrait");
   const materialAssets = assets.filter((asset) => valueAt(asset, ["asset_type"], "") !== "portrait");
   const selectedAvatar = selectedAvatarId || valueAt(portraitAssets[0], ["id"], "");
   const latestJob = jobs[0] || null;
   const latestJobId = valueAt(latestJob, ["id"], "");
+  const selectedWorkflowTemplate =
+    workflowTemplates.find((template) => valueAt(template, ["template_id"], "") === selectedWorkflowTemplateId) ||
+    workflowTemplates[0] ||
+    null;
+  const workflowRows = workflowTemplates.map((template) => ({
+    id: valueAt(template, ["template_id"]),
+    name: valueAt(template, ["name"]),
+    kind: valueAt(template, ["workflow_kind"]),
+    profile: valueAt(template, ["default_resource_profile"]),
+    vram: valueAt(template, ["recommended_vram_mb"]),
+    use: valueAt(template, ["recommended_use"]),
+  }));
   const jobRows = jobs.map((job) => ({
     id: valueAt(job, ["id"]),
     status: valueAt(job, ["job_status"]),
@@ -14761,6 +14785,8 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     consent: valueAt(job, ["consent_status"]),
     mode: valueAt(job, ["execution_mode"]),
     comfyui: valueAt(job, ["linked_comfyui_video_job_id"], "-"),
+    workflow: valueAt(job, ["selected_workflow_template_id"], "-"),
+    binding: valueAt(job, ["workflow_binding_status"], "-"),
     outputs: Array.isArray(job.outputs) ? job.outputs.length : 0,
     summary: valueAt(job, ["result_summary"]),
   }));
@@ -14818,7 +14844,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
           voice_profile: { voice_id: voiceId.trim() || "zh-CN-default" },
           aspect_ratio: aspectRatio,
           duration_seconds: Number(durationSeconds) || 30,
-          metadata: { source_page: "digital-humans", phase: "67B", ui_language: language },
+          metadata: { source_page: "digital-humans", phase: "67C", ui_language: language, workflow_template_id: selectedWorkflowTemplateId },
         },
         settings,
       );
@@ -14835,7 +14861,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     }
     setActionState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const refreshed = await digitalHumansApi.refreshVideoJob(latestJobId, { metadata: { source_page: "digital-humans", phase: "67B" } }, settings);
+      const refreshed = await digitalHumansApi.refreshVideoJob(latestJobId, { metadata: { source_page: "digital-humans", phase: "67C" } }, settings);
       setActionState({ data: refreshed, error: null, loading: false, updatedAt: nowLabel() });
       await load();
     } catch (error) {
@@ -14852,13 +14878,42 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
       const reviewed = await digitalHumansApi.reviewVideoJob(
         latestJobId,
         action,
-        { reviewer_notes: `Digital Humans page ${action}`, metadata: { source_page: "digital-humans", phase: "67B" } },
+        { reviewer_notes: `Digital Humans page ${action}`, metadata: { source_page: "digital-humans", phase: "67C" } },
         settings,
       );
       setActionState({ data: reviewed, error: null, loading: false, updatedAt: nowLabel() });
       await load();
     } catch (error) {
       setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human review unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
+  const bindLatestWorkflow = async () => {
+    if (!latestJobId) {
+      return;
+    }
+    const templateId = valueAt(selectedWorkflowTemplate, ["template_id"], selectedWorkflowTemplateId);
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const bound = await digitalHumansApi.bindWorkflow(
+        latestJobId,
+        {
+          template_id: templateId,
+          material_asset_ids: materialAssets.map((asset) => valueAt(asset, ["id"], "")).filter(Boolean),
+          resource_profile: valueAt(selectedWorkflowTemplate, ["default_resource_profile"], "standard"),
+          width: aspectRatio === "16:9" ? 1920 : 1080,
+          height: aspectRatio === "16:9" ? 1080 : 1920,
+          fps: 24,
+          estimated_vram_mb: Number(valueAt(selectedWorkflowTemplate, ["recommended_vram_mb"], "0")) || undefined,
+          operator_note: "Bound from Digital Humans workflow panel",
+          metadata: { source_page: "digital-humans", phase: "67C", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: bound, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human workflow binding unavailable", loading: false, updatedAt: nowLabel() });
     }
   };
 
@@ -14878,7 +14933,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
           height: aspectRatio === "16:9" ? 1080 : 1920,
           duration_seconds: Number(durationSeconds) || 30,
           fps: 24,
-          metadata: { source_page: "digital-humans", phase: "67B", ui_language: language },
+          metadata: { source_page: "digital-humans", phase: "67C", ui_language: language, workflow_template_id: selectedWorkflowTemplateId },
         },
         settings,
       );
@@ -14893,7 +14948,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     <div className="page-stack">
       <section className="overview-command-center">
         <div>
-          <p className="section-eyebrow">Phase 67B</p>
+          <p className="section-eyebrow">Phase 67C</p>
           <h2>{copy.title}</h2>
           <p>{copy.description}</p>
         </div>
@@ -14906,6 +14961,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
       <section className="metrics-grid compact">
         <DataCard title="asset_count" value={assets.length} detail={`${portraitAssets.length} portrait / ${materialAssets.length} material`} icon={<Package size={20} />} />
         <DataCard title="video_job_count" value={jobs.length} detail={`latest ${valueAt(latestJob, ["job_status"], "none")} / ${valueAt(latestJob, ["progress_percent"], "0")}%`} icon={<PlayCircle size={20} />} />
+        <DataCard title="workflow_template_count" value={workflowTemplates.length} detail={valueAt(selectedWorkflowTemplate, ["template_id"], "none")} icon={<GitBranch size={20} />} />
         <DataCard title="provider" value={valueAt(capabilitiesState.data, ["provider"], "mock")} detail={valueAt(capabilitiesState.data, ["provider_calls_enabled"], "false")} icon={<Bot size={20} />} />
         <DataCard title="latest_approval" value={valueAt(latestJob, ["approval_status"], "none")} detail={valueAt(latestJob, ["execution_mode"], "-")} icon={<ShieldCheck size={20} />} />
       </section>
@@ -15021,6 +15077,43 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
         {actionState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {actionState.updatedAt}</div> : null}
       </Panel>
 
+      <Panel title={copy.workflowTitle} description={copy.workflowDescription}>
+        <div className="commercial-form-grid">
+          <label>
+            Workflow template
+            <select value={selectedWorkflowTemplateId} onChange={(event) => setSelectedWorkflowTemplateId(event.target.value)}>
+              {workflowTemplates.map((template) => (
+                <option key={valueAt(template, ["template_id"])} value={valueAt(template, ["template_id"])}>
+                  {valueAt(template, ["name"])}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field label="kind" value={valueAt(selectedWorkflowTemplate, ["workflow_kind"], "-")} />
+          <Field label="resource_profile" value={valueAt(selectedWorkflowTemplate, ["default_resource_profile"], "-")} />
+          <Field label="recommended_vram_mb" value={valueAt(selectedWorkflowTemplate, ["recommended_vram_mb"], "-")} />
+        </div>
+        <div className="commercial-action-row">
+          <button className="primary-button" onClick={() => void bindLatestWorkflow()} disabled={!latestJobId || actionState.loading}>
+            Bind latest job inputs
+          </button>
+          <button className="ghost-button" onClick={() => void executeLatestJob("comfyui_handoff")} disabled={!latestJobId || actionState.loading || valueAt(latestJob, ["approval_status"], "") !== "approved"}>
+            Queue bound ComfyUI handoff
+          </button>
+        </div>
+        <Table
+          rows={workflowRows}
+          emptyLabel="No workflow templates yet."
+          columns={[
+            { key: "name", label: "template" },
+            { key: "kind", label: "kind" },
+            { key: "profile", label: "profile" },
+            { key: "vram", label: "vram_mb" },
+            { key: "use", label: "recommended_use" },
+          ]}
+        />
+      </Panel>
+
       <Panel title={copy.jobListTitle}>
         <Table
           rows={jobRows}
@@ -15033,6 +15126,8 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
             { key: "consent", label: "consent" },
             { key: "mode", label: "mode" },
             { key: "comfyui", label: "comfyui_job" },
+            { key: "workflow", label: "workflow" },
+            { key: "binding", label: "binding" },
             { key: "outputs", label: "outputs" },
             { key: "summary", label: "summary" },
           ]}

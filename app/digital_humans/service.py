@@ -22,6 +22,8 @@ from app.schemas.digital_human import (
     DigitalHumanAssetListResponse,
     DigitalHumanAssetResponse,
     DigitalHumanCapabilitiesResponse,
+    DigitalHumanWorkflowTemplateListResponse,
+    DigitalHumanWorkflowTemplateResponse,
     DigitalHumanVideoJobListResponse,
     DigitalHumanVideoJobResponse,
 )
@@ -55,6 +57,121 @@ DIGITAL_HUMAN_JOB_STATUSES = {
     "archived",
 }
 DIGITAL_HUMAN_PROVIDER_ORDER = ["heygen", "tavus", "local_musetalk_liveportrait", "mock"]
+DIGITAL_HUMAN_WORKFLOW_TEMPLATES: list[dict[str, Any]] = [
+    {
+        "template_id": "liveportrait-musetalk-broll",
+        "name": "LivePortrait + MuseTalk product b-roll",
+        "workflow_kind": "portrait_photo_script_to_short_video",
+        "recommended_use": "A product-facing short video from one authorized portrait, script audio, and product/reference images.",
+        "default_resource_profile": "standard",
+        "recommended_vram_mb": 12288,
+        "required_assets": ["authorized portrait image", "script or generated voice audio", "product/reference images"],
+        "required_nodes": [
+            "ComfyUI-AdvancedLivePortrait",
+            "ComfyUI-MuseTalk",
+            "ComfyUI-VideoHelperSuite",
+            "ComfyUI-Impact-Pack",
+            "ComfyUI-Manager",
+        ],
+        "required_models": [
+            "LivePortrait base models",
+            "MuseTalk sync model",
+            "face landmark / face detector models",
+            "SDXL or FLUX image model for product b-roll",
+            "video interpolation or frame composition model as selected by operator",
+        ],
+        "plugin_installation": [
+            {"name": "ComfyUI-Manager", "purpose": "install and audit custom nodes"},
+            {"name": "ComfyUI-AdvancedLivePortrait", "purpose": "drive portrait animation from reference motion"},
+            {"name": "ComfyUI-MuseTalk", "purpose": "audio/lip-sync pass for talking-head segments"},
+            {"name": "ComfyUI-VideoHelperSuite", "purpose": "load, combine, and export frame/video sequences"},
+            {"name": "ComfyUI-Impact-Pack", "purpose": "face detection, segmentation, and crop helpers"},
+        ],
+        "model_installation": [
+            {"name": "LivePortrait", "target": "ComfyUI/models/liveportrait", "required": True},
+            {"name": "MuseTalk", "target": "ComfyUI/models/musetalk", "required": True},
+            {"name": "face_analysis", "target": "ComfyUI/models/insightface", "required": True},
+            {"name": "base image/video model", "target": "ComfyUI/models/checkpoints", "required": True},
+        ],
+        "input_slots": [
+            {"slot": "avatar_portrait", "asset_types": ["portrait"], "required": True, "comfyui_upload_kind": "image", "node_hint": "LoadImage.image"},
+            {"slot": "script_text", "asset_types": ["script"], "required": True, "comfyui_upload_kind": "text", "node_hint": "TTS.prompt"},
+            {"slot": "product_materials", "asset_types": ["material", "product_image", "reference_image", "background"], "required": False, "comfyui_upload_kind": "image_or_video", "node_hint": "LoadImage/LoadVideo"},
+            {"slot": "voice_audio", "asset_types": ["audio", "voice"], "required": False, "comfyui_upload_kind": "audio", "node_hint": "LoadAudio.audio"},
+        ],
+        "output_slots": [
+            {"slot": "avatar_segment", "media_type": "video"},
+            {"slot": "product_broll", "media_type": "video"},
+            {"slot": "composited_delivery", "media_type": "video"},
+        ],
+        "guardrails": [
+            "Do not submit until the operator verifies installed custom nodes and model paths.",
+            "Portrait consent must remain authorized.",
+            "Generated media still requires human review before publishing.",
+        ],
+    },
+    {
+        "template_id": "wan-i2v-reference-avatar",
+        "name": "Reference image to video avatar / b-roll",
+        "workflow_kind": "reference_image_to_video",
+        "recommended_use": "Higher-motion product/avatar clips when the server has enough VRAM and a WAN/I2V workflow installed.",
+        "default_resource_profile": "high_vram",
+        "recommended_vram_mb": 24576,
+        "required_assets": ["authorized portrait image", "reference/product image", "script direction"],
+        "required_nodes": ["ComfyUI-VideoHelperSuite", "WAN video custom nodes or operator-imported I2V workflow", "ComfyUI-Manager"],
+        "required_models": ["WAN image-to-video model", "VAE/text encoder pair required by the chosen WAN workflow"],
+        "plugin_installation": [
+            {"name": "ComfyUI-Manager", "purpose": "install and audit custom nodes"},
+            {"name": "WAN/I2V workflow nodes", "purpose": "operator-selected image-to-video pipeline"},
+            {"name": "ComfyUI-VideoHelperSuite", "purpose": "video combine/export"},
+        ],
+        "model_installation": [
+            {"name": "WAN/I2V model", "target": "ComfyUI/models/diffusion_models or workflow-specific model folder", "required": True},
+            {"name": "matching VAE/text encoder", "target": "ComfyUI/models/vae and text_encoders", "required": True},
+        ],
+        "input_slots": [
+            {"slot": "avatar_portrait", "asset_types": ["portrait"], "required": True, "comfyui_upload_kind": "image", "node_hint": "LoadImage.image"},
+            {"slot": "reference_image", "asset_types": ["reference_image", "product_image", "material"], "required": True, "comfyui_upload_kind": "image", "node_hint": "LoadImage.image"},
+            {"slot": "script_direction", "asset_types": ["script"], "required": True, "comfyui_upload_kind": "text", "node_hint": "Prompt.text"},
+        ],
+        "output_slots": [
+            {"slot": "generated_motion_clip", "media_type": "video"},
+            {"slot": "delivery_candidate", "media_type": "video"},
+        ],
+        "guardrails": [
+            "Use only when GPU admission shows enough free VRAM.",
+            "Keep prompt submission disabled until the real imported workflow graph has been reviewed.",
+            "No publishing or account control is included.",
+        ],
+    },
+    {
+        "template_id": "talking-head-fast-proof",
+        "name": "Fast talking-head proof",
+        "workflow_kind": "fast_avatar_proof",
+        "recommended_use": "A lower-cost proof pass to validate portrait authorization, script timing, and review flow before high-VRAM generation.",
+        "default_resource_profile": "low_vram",
+        "recommended_vram_mb": 8192,
+        "required_assets": ["authorized portrait image", "script"],
+        "required_nodes": ["ComfyUI-VideoHelperSuite", "operator-selected talking-head workflow"],
+        "required_models": ["operator-selected talking-head or lip-sync model"],
+        "plugin_installation": [
+            {"name": "ComfyUI-VideoHelperSuite", "purpose": "video combine/export"},
+            {"name": "talking-head workflow nodes", "purpose": "operator-installed lightweight proof workflow"},
+        ],
+        "model_installation": [
+            {"name": "talking-head proof model", "target": "workflow-specific model folder", "required": True},
+        ],
+        "input_slots": [
+            {"slot": "avatar_portrait", "asset_types": ["portrait"], "required": True, "comfyui_upload_kind": "image", "node_hint": "LoadImage.image"},
+            {"slot": "script_text", "asset_types": ["script"], "required": True, "comfyui_upload_kind": "text", "node_hint": "Prompt.text"},
+        ],
+        "output_slots": [{"slot": "proof_video", "media_type": "video"}],
+        "guardrails": [
+            "Use as a validation pass before high-cost video generation.",
+            "Do not treat proof output as final without human review.",
+        ],
+    },
+]
 
 
 class DigitalHumanService:
@@ -90,16 +207,31 @@ class DigitalHumanService:
             guardrails=[
                 "Portrait assets require explicit authorization before provider execution.",
                 "Default mode stores plans and assets but does not call external avatar APIs.",
+                "ComfyUI workflow templates are binding contracts until an operator imports and verifies the real graph.",
                 "Generated videos must go through human review before publishing.",
             ],
             workspace_id=workspace_id,
             raw={
-                "phase": "67A",
+                "phase": "67C",
                 "no_external_call_performed": True,
                 "asset_types": sorted(DIGITAL_HUMAN_ASSET_TYPES),
                 "execution_modes": ["mock_render", "comfyui_handoff"],
+                "workflow_template_ids": [str(template["template_id"]) for template in DIGITAL_HUMAN_WORKFLOW_TEMPLATES],
             },
         )
+
+    def list_workflow_templates(self, *, workspace_id: str | None = None) -> DigitalHumanWorkflowTemplateListResponse:
+        """Return built-in ComfyUI workflow template contracts without calling ComfyUI."""
+
+        return DigitalHumanWorkflowTemplateListResponse(
+            workspace_id=workspace_id,
+            items=[self._workflow_template_response(template) for template in DIGITAL_HUMAN_WORKFLOW_TEMPLATES],
+        )
+
+    def get_workflow_template(self, *, template_id: str) -> DigitalHumanWorkflowTemplateResponse:
+        """Return one built-in ComfyUI workflow template contract."""
+
+        return self._workflow_template_response(self._workflow_template(template_id))
 
     async def create_asset(
         self,
@@ -305,6 +437,125 @@ class DigitalHumanService:
         """Return one digital human video job by id."""
 
         job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        return DigitalHumanVideoJobResponse.from_model(job)
+
+    async def bind_comfyui_workflow(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+        template_id: str,
+        material_asset_ids: Sequence[UUID] | None = None,
+        reference_asset_ids: Sequence[UUID] | None = None,
+        resource_profile: str | None = None,
+        width: int | None = 1080,
+        height: int | None = 1920,
+        frames: int | None = None,
+        fps: float | None = 24.0,
+        estimated_vram_mb: int | None = None,
+        reserve_vram_mb: int | None = None,
+        operator_parameters: Mapping[str, Any] | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> DigitalHumanVideoJobResponse:
+        """Bind a digital human job to a ComfyUI workflow template and local input assets."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        if job.job_status in {"completed", "failed", "cancelled", "archived"}:
+            raise AppError("Terminal digital human jobs cannot be rebound to a ComfyUI workflow", status_code=400)
+        if not job.avatar_asset_id:
+            raise AppError("Workflow binding requires an uploaded portrait asset", status_code=400)
+        avatar_asset = await self._get_asset_model(session, workspace_id=workspace_id, asset_id=job.avatar_asset_id)
+        if avatar_asset.consent_status != "authorized":
+            raise AppError("Workflow binding requires authorized portrait consent", status_code=400)
+
+        template = self._workflow_template(template_id)
+        material_ids = [str(asset_id) for asset_id in material_asset_ids] if material_asset_ids is not None else list(job.material_asset_ids or [])
+        reference_ids = [str(asset_id) for asset_id in reference_asset_ids] if reference_asset_ids is not None else list(job.reference_asset_ids or [])
+        bound_material_assets = await self._load_assets_by_ids(session, workspace_id=workspace_id, asset_ids=material_ids)
+        bound_reference_assets = await self._load_assets_by_ids(session, workspace_id=workspace_id, asset_ids=reference_ids)
+        binding = self._build_comfyui_workflow_binding(
+            job=job,
+            template=template,
+            avatar_asset=avatar_asset,
+            material_assets=bound_material_assets,
+            reference_assets=bound_reference_assets,
+            resource_profile=resource_profile,
+            width=width,
+            height=height,
+            frames=frames,
+            fps=fps,
+            estimated_vram_mb=estimated_vram_mb,
+            reserve_vram_mb=reserve_vram_mb,
+            operator_parameters=operator_parameters,
+            operator_note=operator_note,
+            metadata=metadata,
+        )
+        output_record = {
+            "output_type": "digital_human_comfyui_input_binding",
+            "media_type": "video",
+            "status": binding["status"],
+            "workflow_template_id": binding["template_id"],
+            "workflow_template_name": binding["template_name"],
+            "input_asset_count": len(binding["input_assets"]),
+            "missing_inputs": binding["missing_inputs"],
+            "required_nodes": template.get("required_nodes", []),
+            "required_models": template.get("required_models", []),
+            "created_at": binding["created_at"],
+        }
+        job.material_asset_ids = material_ids
+        job.reference_asset_ids = reference_ids
+        job.outputs = self._upsert_output(
+            job.outputs or [],
+            output_record,
+            key="output_type",
+            value="digital_human_comfyui_input_binding",
+        )
+        job.provider_request = {
+            **(job.provider_request or {}),
+            "comfyui_workflow_binding": {
+                "template_id": binding["template_id"],
+                "template_name": binding["template_name"],
+                "status": binding["status"],
+                "resource_profile": binding["resource_plan"]["resource_profile"],
+                "input_asset_count": len(binding["input_assets"]),
+                "submit_policy": binding["submit_policy"],
+            },
+        }
+        job.provider_response = {
+            "phase": "67C",
+            "provider": job.provider,
+            "execution_mode": job.execution_mode,
+            "workflow_template_id": binding["template_id"],
+            "workflow_binding_status": binding["status"],
+            "external_request_attempted": False,
+        }
+        job.external_request_attempted = False
+        job.failure_reason = None if binding["status"] == "ready_for_operator_review" else "; ".join(binding["missing_inputs"])
+        job.result_summary = (
+            "ComfyUI workflow inputs are bound and ready for operator graph verification."
+            if binding["status"] == "ready_for_operator_review"
+            else "ComfyUI workflow binding needs missing inputs before handoff."
+        )
+        job.operator_note = operator_note or job.operator_note
+        job.job_metadata = {
+            **(job.job_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "67C",
+            "comfyui_workflow_binding": binding,
+            "workflow_binding_status": binding["status"],
+            "selected_workflow_template_id": binding["template_id"],
+        }
+        job.scene_plan = self._build_scene_plan(
+            status=job.job_status,
+            provider=job.provider,
+            has_avatar=True,
+            material_count=len(material_ids),
+            reference_count=len(reference_ids),
+        )
+        await session.commit()
+        await session.refresh(job)
         return DigitalHumanVideoJobResponse.from_model(job)
 
     async def refresh_video_job(
@@ -596,11 +847,21 @@ class DigitalHumanService:
         metadata: Mapping[str, object] | None,
     ) -> None:
         now = datetime.now(timezone.utc)
+        workflow_binding = self._workflow_binding_from_job(job)
+        handoff_phase = "67C" if workflow_binding else "67B"
+        binding_resource_plan = workflow_binding.get("resource_plan") if isinstance(workflow_binding.get("resource_plan"), Mapping) else {}
         supplied_prompt = bool(prompt)
-        prompt_payload = dict(prompt or self._build_comfyui_handoff_prompt(job))
-        workflow_payload = dict(workflow or self._build_comfyui_handoff_workflow(job))
+        prompt_payload = dict(prompt or workflow_binding.get("prompt") or self._build_comfyui_handoff_prompt(job))
+        workflow_payload = dict(workflow or workflow_binding.get("workflow") or self._build_comfyui_handoff_workflow(job))
         effective_submit = bool(submit_immediately and supplied_prompt)
         duration_seconds = job.duration_seconds or self._duration_from_frames(frames=frames, fps=fps)
+        handoff_resource_profile = resource_profile or str(binding_resource_plan.get("resource_profile") or "standard")
+        handoff_width = width if width is not None else binding_resource_plan.get("width")
+        handoff_height = height if height is not None else binding_resource_plan.get("height")
+        handoff_frames = frames or binding_resource_plan.get("frames")
+        handoff_fps = fps if fps is not None else binding_resource_plan.get("fps")
+        handoff_estimated_vram_mb = estimated_vram_mb or binding_resource_plan.get("estimated_vram_mb")
+        handoff_reserve_vram_mb = reserve_vram_mb if reserve_vram_mb is not None else binding_resource_plan.get("reserve_vram_mb")
         comfyui_job = await ComfyUIRuntimeService(settings=self.settings).create_video_job(
             session,
             workspace_id=workspace_id,
@@ -614,26 +875,30 @@ class DigitalHumanService:
                     "avatar_asset_id": str(job.avatar_asset_id) if job.avatar_asset_id else None,
                     "material_asset_ids": job.material_asset_ids or [],
                     "target_channels": job.target_channels or [],
+                    "workflow_template_id": workflow_binding.get("template_id"),
+                    "workflow_binding_status": workflow_binding.get("status"),
                 },
                 "aiops_digital_human_handoff": True,
             },
             client_id=f"digital-human-{job.id}",
-            resource_profile=resource_profile,
-            width=width,
-            height=height,
-            frames=frames or self._frames_from_duration(duration_seconds=duration_seconds, fps=fps),
-            fps=fps,
+            resource_profile=str(handoff_resource_profile),
+            width=int(handoff_width) if handoff_width is not None else None,
+            height=int(handoff_height) if handoff_height is not None else None,
+            frames=int(handoff_frames) if handoff_frames is not None else self._frames_from_duration(duration_seconds=duration_seconds, fps=handoff_fps),
+            fps=float(handoff_fps) if handoff_fps is not None else None,
             duration_seconds=duration_seconds,
-            estimated_vram_mb=estimated_vram_mb,
-            reserve_vram_mb=reserve_vram_mb,
+            estimated_vram_mb=int(handoff_estimated_vram_mb) if handoff_estimated_vram_mb is not None else None,
+            reserve_vram_mb=int(handoff_reserve_vram_mb) if handoff_reserve_vram_mb is not None else None,
             submit_immediately=effective_submit,
             poll_history=poll_history,
             operator_note=operator_note,
             metadata={
-                "phase": "67B",
+                "phase": handoff_phase,
                 "source": "digital_human_comfyui_handoff",
                 "digital_human_video_job_id": str(job.id),
                 "generated_prompt_submission_skipped": bool(submit_immediately and not supplied_prompt),
+                "workflow_template_id": workflow_binding.get("template_id"),
+                "workflow_binding_status": workflow_binding.get("status"),
                 **dict(metadata or {}),
             },
         )
@@ -651,6 +916,8 @@ class DigitalHumanService:
             "prompt_submission_enabled": comfyui_job.prompt_submission_enabled,
             "submit_immediately_requested": submit_immediately,
             "submit_immediately_effective": effective_submit,
+            "workflow_template_id": workflow_binding.get("template_id"),
+            "workflow_binding_status": workflow_binding.get("status"),
             "created_at": now.isoformat(),
         }
         job.execution_mode = "comfyui_handoff"
@@ -664,7 +931,7 @@ class DigitalHumanService:
         )
         job.outputs = self._upsert_output(job.outputs or [], output_record, key="output_type", value="comfyui_video_job")
         job.provider_response = {
-            "phase": "67B",
+            "phase": handoff_phase,
             "provider": job.provider,
             "execution_mode": "comfyui_handoff",
             "comfyui_video_job_id": str(comfyui_job.id),
@@ -672,6 +939,8 @@ class DigitalHumanService:
             "resource_plan": comfyui_job.resource_plan,
             "external_request_attempted": comfyui_job.external_request_attempted,
             "generated_prompt_submission_skipped": bool(submit_immediately and not supplied_prompt),
+            "workflow_template_id": workflow_binding.get("template_id"),
+            "workflow_binding_status": workflow_binding.get("status"),
         }
         job.external_request_attempted = comfyui_job.external_request_attempted
         job.failure_reason = comfyui_job.failure_reason or self._comfyui_resource_block_reason(comfyui_job.resource_plan)
@@ -680,13 +949,242 @@ class DigitalHumanService:
         job.job_metadata = {
             **(job.job_metadata or {}),
             **dict(metadata or {}),
-            "phase": "67B",
+            "phase": handoff_phase,
             "execution_mode": "comfyui_handoff",
             "linked_comfyui_video_job_id": str(comfyui_job.id),
+            "selected_workflow_template_id": workflow_binding.get("template_id"),
+            "workflow_binding_status": workflow_binding.get("status"),
             "progress_percent": 60 if job.job_status == "queued_for_comfyui" else 75,
             "current_stage": "comfyui_video_queue" if job.job_status == "queued_for_comfyui" else "video_rendering",
             "last_execution_at": now.isoformat(),
         }
+
+    def _workflow_template_response(self, template: Mapping[str, Any]) -> DigitalHumanWorkflowTemplateResponse:
+        prompt_contract = {
+            "template_id": template["template_id"],
+            "contract_type": "operator_verified_comfyui_prompt",
+            "input_slots": template.get("input_slots", []),
+            "submission_policy": "requires operator-imported graph and guarded ComfyUI runtime gates",
+        }
+        workflow_contract = {
+            "template_id": template["template_id"],
+            "workflow_kind": template["workflow_kind"],
+            "default_resource_profile": template.get("default_resource_profile", "standard"),
+            "output_slots": template.get("output_slots", []),
+        }
+        return DigitalHumanWorkflowTemplateResponse(
+            template_id=str(template["template_id"]),
+            name=str(template["name"]),
+            workflow_kind=str(template["workflow_kind"]),
+            recommended_use=str(template["recommended_use"]),
+            provider="comfyui",
+            default_resource_profile=str(template.get("default_resource_profile") or "standard"),
+            recommended_vram_mb=int(template["recommended_vram_mb"]) if template.get("recommended_vram_mb") else None,
+            required_assets=[str(item) for item in template.get("required_assets", [])],
+            required_nodes=[str(item) for item in template.get("required_nodes", [])],
+            required_models=[str(item) for item in template.get("required_models", [])],
+            plugin_installation=list(template.get("plugin_installation", [])),
+            model_installation=list(template.get("model_installation", [])),
+            input_slots=list(template.get("input_slots", [])),
+            output_slots=list(template.get("output_slots", [])),
+            guardrails=list(template.get("guardrails", [])),
+            prompt_contract=prompt_contract,
+            workflow_contract=workflow_contract,
+            metadata={
+                "phase": "67C",
+                "source": "digital_human_builtin_workflow_template",
+                "no_external_call_performed": True,
+            },
+        )
+
+    def _workflow_template(self, template_id: str) -> dict[str, Any]:
+        normalized = str(template_id or "").strip().lower()
+        for template in DIGITAL_HUMAN_WORKFLOW_TEMPLATES:
+            if str(template["template_id"]).lower() == normalized:
+                return template
+        raise AppError("Digital human workflow template not found", status_code=404)
+
+    async def _load_assets_by_ids(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        asset_ids: Sequence[str],
+    ) -> list[DigitalHumanAsset]:
+        assets: list[DigitalHumanAsset] = []
+        for raw_id in asset_ids:
+            if not raw_id:
+                continue
+            try:
+                asset_id = UUID(str(raw_id))
+            except (TypeError, ValueError) as exc:
+                raise AppError("Invalid digital human asset id for workflow binding", status_code=400) from exc
+            assets.append(await self._get_asset_model(session, workspace_id=workspace_id, asset_id=asset_id))
+        return assets
+
+    def _build_comfyui_workflow_binding(
+        self,
+        *,
+        job: DigitalHumanVideoJob,
+        template: Mapping[str, Any],
+        avatar_asset: DigitalHumanAsset,
+        material_assets: Sequence[DigitalHumanAsset],
+        reference_assets: Sequence[DigitalHumanAsset],
+        resource_profile: str | None,
+        width: int | None,
+        height: int | None,
+        frames: int | None,
+        fps: float | None,
+        estimated_vram_mb: int | None,
+        reserve_vram_mb: int | None,
+        operator_parameters: Mapping[str, Any] | None,
+        operator_note: str | None,
+        metadata: Mapping[str, object] | None,
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        input_assets = [
+            self._asset_binding_record(avatar_asset, slot="avatar_portrait", role="authorized_portrait"),
+            *[
+                self._asset_binding_record(asset, slot="product_materials", role="material")
+                for asset in material_assets
+            ],
+            *[
+                self._asset_binding_record(asset, slot="reference_image", role="reference")
+                for asset in reference_assets
+            ],
+        ]
+        missing_inputs = self._workflow_missing_inputs(template=template, input_assets=input_assets, job=job)
+        binding_id = f"dhwf-{job.id}-{str(template['template_id'])}"
+        resource_plan = {
+            "resource_profile": resource_profile or str(template.get("default_resource_profile") or "standard"),
+            "width": width,
+            "height": height,
+            "frames": frames or self._frames_from_duration(duration_seconds=job.duration_seconds, fps=fps),
+            "fps": fps,
+            "duration_seconds": job.duration_seconds,
+            "estimated_vram_mb": estimated_vram_mb or template.get("recommended_vram_mb"),
+            "reserve_vram_mb": reserve_vram_mb,
+        }
+        binding: dict[str, Any] = {
+            "binding_id": binding_id,
+            "phase": "67C",
+            "status": "ready_for_operator_review" if not missing_inputs else "needs_inputs",
+            "created_at": now.isoformat(),
+            "template_id": str(template["template_id"]),
+            "template_name": str(template["name"]),
+            "workflow_kind": str(template["workflow_kind"]),
+            "input_assets": input_assets,
+            "missing_inputs": missing_inputs,
+            "resource_plan": resource_plan,
+            "required_nodes": list(template.get("required_nodes", [])),
+            "required_models": list(template.get("required_models", [])),
+            "plugin_installation": list(template.get("plugin_installation", [])),
+            "model_installation": list(template.get("model_installation", [])),
+            "operator_parameters": dict(operator_parameters or {}),
+            "operator_note": operator_note,
+            "metadata": dict(metadata or {}),
+            "submit_policy": "operator_must_import_real_graph_then_enable_guarded_runtime",
+            "execution_boundary": "This is a real input binding and workflow contract; it does not install models, mutate ComfyUI, upload files, submit prompts, publish, or control accounts.",
+        }
+        binding["prompt"] = self._build_bound_comfyui_prompt(job=job, template=template, binding=binding)
+        binding["workflow"] = self._build_bound_comfyui_workflow(job=job, template=template, binding=binding)
+        return binding
+
+    def _asset_binding_record(self, asset: DigitalHumanAsset, *, slot: str, role: str) -> dict[str, Any]:
+        return {
+            "slot": slot,
+            "role": role,
+            "asset_id": str(asset.id),
+            "asset_type": asset.asset_type,
+            "name": asset.name,
+            "source_uri": asset.source_uri,
+            "file_name": asset.file_name,
+            "mime_type": asset.mime_type,
+            "checksum": asset.checksum,
+            "consent_status": asset.consent_status,
+            "comfyui_upload": self._comfyui_upload_hint(asset),
+        }
+
+    def _comfyui_upload_hint(self, asset: DigitalHumanAsset) -> dict[str, Any]:
+        mime_type = (asset.mime_type or "").lower()
+        if mime_type.startswith("image/"):
+            return {"kind": "image", "path": "/upload/image", "field": "image", "requires_operator_upload": True}
+        if mime_type.startswith("video/"):
+            return {"kind": "video", "path": "operator_import_or_workflow_specific_upload", "field": "video", "requires_operator_upload": True}
+        if mime_type.startswith("audio/"):
+            return {"kind": "audio", "path": "operator_import_or_workflow_specific_upload", "field": "audio", "requires_operator_upload": True}
+        return {"kind": "metadata", "path": None, "field": None, "requires_operator_upload": False}
+
+    def _workflow_missing_inputs(
+        self,
+        *,
+        template: Mapping[str, Any],
+        input_assets: Sequence[Mapping[str, Any]],
+        job: DigitalHumanVideoJob,
+    ) -> list[str]:
+        missing: list[str] = []
+        for slot in template.get("input_slots", []):
+            if not isinstance(slot, Mapping) or not slot.get("required"):
+                continue
+            slot_name = str(slot.get("slot") or "")
+            if slot_name == "script_text":
+                if not job.script.strip():
+                    missing.append("script_text")
+                continue
+            if not any(str(asset.get("slot")) == slot_name for asset in input_assets):
+                missing.append(slot_name)
+        return missing
+
+    def _build_bound_comfyui_prompt(
+        self,
+        *,
+        job: DigitalHumanVideoJob,
+        template: Mapping[str, Any],
+        binding: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "aiops_bound_digital_human_workflow": {
+                "class_type": "AIOpsDigitalHumanWorkflowBinding",
+                "inputs": {
+                    "template_id": template["template_id"],
+                    "binding_id": binding["binding_id"],
+                    "objective": job.objective,
+                    "script": job.script,
+                    "aspect_ratio": job.aspect_ratio,
+                    "duration_seconds": job.duration_seconds,
+                    "input_assets": binding["input_assets"],
+                    "operator_parameters": binding["operator_parameters"],
+                    "submission_note": "Replace this contract node with the operator-imported real ComfyUI workflow before enabling prompt submission.",
+                },
+            }
+        }
+
+    def _build_bound_comfyui_workflow(
+        self,
+        *,
+        job: DigitalHumanVideoJob,
+        template: Mapping[str, Any],
+        binding: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "name": f"aiops_{template['template_id']}",
+            "phase": "67C",
+            "media_type": "video",
+            "job_id": str(job.id),
+            "binding_id": binding["binding_id"],
+            "template_id": template["template_id"],
+            "workflow_kind": template["workflow_kind"],
+            "required_nodes": list(template.get("required_nodes", [])),
+            "required_models": list(template.get("required_models", [])),
+            "input_assets": binding["input_assets"],
+            "output_slots": list(template.get("output_slots", [])),
+            "resource_plan": binding["resource_plan"],
+            "execution_boundary": binding["execution_boundary"],
+        }
+
+    def _workflow_binding_from_job(self, job: DigitalHumanVideoJob) -> dict[str, Any]:
+        binding = (job.job_metadata or {}).get("comfyui_workflow_binding")
+        return dict(binding) if isinstance(binding, Mapping) else {}
 
     async def _get_asset_model(self, session: AsyncSession, *, workspace_id: str, asset_id: UUID) -> DigitalHumanAsset:
         result = await session.execute(

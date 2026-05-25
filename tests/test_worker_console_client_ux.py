@@ -2184,6 +2184,8 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
             "refreshLatestDigitalHumanVideo",
             "client-digital-human-progress",
             "Digital human video",
+            "digitalHumanWorkflowBindingText",
+            "Workflow pending",
             "ComfyUI linked",
         ]:
             assert token in text
@@ -2196,6 +2198,8 @@ def test_worker_consoles_expose_digital_human_video_progress() -> None:
             "`/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh`",
             "progress_percent",
             "linked_comfyui_video_job_id",
+            "selected_workflow_template_id",
+            "workflow_binding_status",
         ]:
             assert token in text
 

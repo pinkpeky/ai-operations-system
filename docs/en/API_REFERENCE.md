@@ -13,6 +13,28 @@ X-Workspace-Id: <workspace id>
 X-User-Id: <optional user id>
 ```
 
+## Phase 67C Digital Human Workflow Binding
+
+Status: production workflow contract / provider execution disabled by default. Phase 67C adds ComfyUI workflow-template discovery and job input binding on top of the Phase 67B Digital Human Execution Loop. It does not install workflows, download models, upload files to ComfyUI, submit prompts by default, publish, control accounts, or bypass approval.
+
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_OUTPUT_DIR=storage/digital_human_outputs`.
+
+Tables: `digital_human_assets`, `digital_human_video_jobs`, `comfyui_runtime_video_jobs`.
+
+### GET `/api/v1/digital-humans/workflow-templates`
+
+Lists built-in ComfyUI workflow template contracts such as `liveportrait-musetalk-broll`, `wan-i2v-reference-avatar`, and `talking-head-fast-proof`. Responses include required assets, custom nodes, models, input slots, output slots, guardrails, default resource profile, recommended VRAM, prompt contract, and workflow contract metadata.
+
+### GET `/api/v1/digital-humans/workflow-templates/{template_id}`
+
+Fetches one workflow template contract by id. The response is metadata-only and does not call ComfyUI.
+
+### POST `/api/v1/digital-humans/video-jobs/{job_id}/workflow-binding`
+
+Binds a digital-human video job to a workflow template and selected local assets. The request accepts `template_id`, `material_asset_ids`, `reference_asset_ids`, resource sizing fields, `operator_parameters`, `operator_note`, and `metadata`. The response adds `selected_workflow_template_id`, `workflow_binding_status`, a `digital_human_comfyui_input_binding` output, and a `comfyui_workflow_binding` metadata payload.
+
+Boundary: binding requires an authorized portrait and refuses terminal jobs. It records an operator-verifiable input contract only; no ComfyUI upload, model install, workflow install, prompt submission, publishing, account control, runtime mutation, service restart, or approval bypass is performed.
+
 ## Phase 67B Digital Human Execution Loop
 
 Status: production handoff / provider execution disabled by default. Phase 67B adds an approved-job execution endpoint on top of the Phase 67A Digital Human Foundation. It can create a local delivery manifest asset or a guarded ComfyUI video handoff record. It does not call HeyGen, Tavus, D-ID, local MuseTalk/LivePortrait, OpenClaw/Playwright publishing, social platforms, or real accounts by default.

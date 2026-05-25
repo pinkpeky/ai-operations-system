@@ -1357,7 +1357,7 @@ class ComfyUIRuntimeService:
         )
         request_metadata = {
             **dict(metadata or {}),
-            "phase": "66B",
+            "phase": str((metadata or {}).get("phase") or "66B"),
             "media_type": "video",
             "source": "comfyui_runtime_video_job",
             "submit_immediately": bool(submit_immediately),

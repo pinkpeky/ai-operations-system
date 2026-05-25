@@ -8,16 +8,21 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_phase_67b_status_docs_are_current() -> None:
+def test_phase_67c_status_docs_are_current() -> None:
     required = [
+        "codex/phase-67c-digital-human-workflow-binding",
+        "Phase 67C Digital Human Workflow Binding",
         "codex/phase-67b-digital-human-execution-loop",
-        "Phase 67B Digital Human Execution Loop",
         "codex/phase-67a-digital-human-foundation",
         "Phase 67A Digital Human Foundation",
         "/api/v1/digital-humans/capabilities",
         "/api/v1/digital-humans/assets",
         "/api/v1/digital-humans/video-jobs",
+        "/api/v1/digital-humans/workflow-templates",
+        "/api/v1/digital-humans/workflow-templates/{template_id}",
+        "/api/v1/digital-humans/video-jobs/{job_id}/workflow-binding",
         "/api/v1/digital-humans/video-jobs/{job_id}/execute",
+        "liveportrait-musetalk-broll",
         "DIGITAL_HUMAN_PROVIDER",
         "DIGITAL_HUMAN_ALLOW_EXTERNAL_API",
         "DIGITAL_HUMAN_OUTPUT_DIR",
@@ -41,8 +46,11 @@ def test_digital_human_api_docs_cover_public_paths() -> None:
         "/api/v1/digital-humans/capabilities",
         "/api/v1/digital-humans/assets",
         "/api/v1/digital-humans/assets/{asset_id}",
+        "/api/v1/digital-humans/workflow-templates",
+        "/api/v1/digital-humans/workflow-templates/{template_id}",
         "/api/v1/digital-humans/video-jobs",
         "/api/v1/digital-humans/video-jobs/{job_id}",
+        "/api/v1/digital-humans/video-jobs/{job_id}/workflow-binding",
         "/api/v1/digital-humans/video-jobs/{job_id}/refresh",
         "/api/v1/digital-humans/video-jobs/{job_id}/execute",
         "/api/v1/digital-humans/video-jobs/{job_id}/{action}",
