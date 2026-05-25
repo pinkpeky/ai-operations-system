@@ -141,6 +141,8 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/comfyui-runtime/guarded-probe-executions",
         "/api/v1/comfyui-runtime/prompt-jobs",
         "/api/v1/comfyui-runtime/video-resource-plans",
+        "/api/v1/comfyui-runtime/video-jobs",
+        "/api/v1/comfyui-runtime/video-jobs/{job_id}/refresh",
         "/api/v1/comfyui-runtime/prompt-jobs/{prompt_id}/history",
         "/api/v1/comfyui-runtime/queue",
         "/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/submit-runtime",
@@ -193,6 +195,9 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Runtime Post-Manual Readiness Checks",
         "ComfyUI Runtime Guarded Probe Execution Audit",
         "ComfyUI Video Resource Line",
+        "ComfyUI Video Job Loop",
+        "video_job_count",
+        "runtime_prompt_id",
         "configuration change requests",
         "manual apply evidence",
         "post-manual readiness",
@@ -247,6 +252,7 @@ def test_recovery_docs_point_to_phase_62j_comfyui_runtime_guarded_probe_executio
         assert "/comfyui-runtime/guarded-probe-executions" in text, relative
         assert "/comfyui-runtime/diagnostic-snapshots" in text, relative
         assert "/comfyui-runtime/video-resource-plans" in text, relative
+        assert "/comfyui-runtime/video-jobs" in text, relative
         assert "api_config_mutation_performed" in text or "manual_config_applied" in text, relative
         assert "guarded_probe_ready" in text or "health_probe_executed" in text, relative
         assert "probe_result_status" in text or "external_request_attempted" in text, relative

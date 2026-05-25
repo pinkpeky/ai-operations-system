@@ -14,6 +14,7 @@ from app.models.comfyui_runtime import (
     ComfyUIRuntimeGuardedProbeExecution,
     ComfyUIRuntimeManualApplyEvidence,
     ComfyUIRuntimePostManualReadinessCheck,
+    ComfyUIRuntimeVideoJob,
 )
 
 
@@ -761,3 +762,125 @@ class ComfyUIRuntimeVideoResourcePlanResponse(BaseModel):
     queue_payload: dict[str, Any] = Field(default_factory=dict)
     raw: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
+
+
+class ComfyUIRuntimeVideoJobCreateRequest(BaseModel):
+    """Create and optionally submit one guarded ComfyUI video generation job."""
+
+    prompt: dict[str, Any] = Field(default_factory=dict)
+    workflow: dict[str, Any] | None = None
+    extra_data: dict[str, Any] = Field(default_factory=dict)
+    client_id: str | None = Field(default=None, max_length=200)
+    resource_profile: str = Field(default="standard", max_length=64)
+    width: int | None = Field(default=1280, ge=64, le=8192)
+    height: int | None = Field(default=720, ge=64, le=8192)
+    frames: int | None = Field(default=96, ge=1, le=20000)
+    fps: float | None = Field(default=24.0, ge=1.0, le=240.0)
+    duration_seconds: float | None = Field(default=None, ge=0.1, le=3600.0)
+    estimated_vram_mb: int | None = Field(default=None, ge=256, le=131072)
+    reserve_vram_mb: int | None = Field(default=None, ge=0, le=131072)
+    submit_immediately: bool = True
+    poll_history: bool = True
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeVideoJobRefreshRequest(BaseModel):
+    """Refresh a persisted ComfyUI video job from guarded queue/history endpoints."""
+
+    poll_history: bool = True
+    resubmit_if_waiting: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeVideoJobResponse(BaseModel):
+    """Persisted ComfyUI video job response."""
+
+    success: bool = True
+    id: UUID
+    workspace_id: str
+    user_id: str | None = None
+    job_status: str
+    provider: str
+    media_type: str
+    resource_profile: str
+    client_id: str | None = None
+    prompt: dict[str, Any] = Field(default_factory=dict)
+    workflow: dict[str, Any] = Field(default_factory=dict)
+    extra_data: dict[str, Any] = Field(default_factory=dict)
+    width: int | None = None
+    height: int | None = None
+    frames: int | None = None
+    fps: float | None = None
+    duration_seconds: float | None = None
+    estimated_vram_mb: int | None = None
+    reserve_vram_mb: int | None = None
+    resource_plan: dict[str, Any] = Field(default_factory=dict)
+    selected_endpoint: dict[str, Any] = Field(default_factory=dict)
+    selected_gpu: dict[str, Any] = Field(default_factory=dict)
+    runtime_base_url: str | None = None
+    runtime_prompt_id: str | None = None
+    submit_payload: dict[str, Any] = Field(default_factory=dict)
+    submit_response: dict[str, Any] = Field(default_factory=dict)
+    history_payload: dict[str, Any] = Field(default_factory=dict)
+    queue_payload: dict[str, Any] = Field(default_factory=dict)
+    outputs: list[dict[str, Any]] = Field(default_factory=list)
+    external_request_attempted: bool = False
+    runtime_calls_enabled: bool = False
+    prompt_submission_enabled: bool = False
+    failure_reason: str | None = None
+    result_summary: str | None = None
+    operator_note: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, job: ComfyUIRuntimeVideoJob) -> "ComfyUIRuntimeVideoJobResponse":
+        return cls(
+            id=job.id,
+            workspace_id=job.workspace_id,
+            user_id=job.user_id,
+            job_status=job.job_status,
+            provider=job.provider,
+            media_type=job.media_type,
+            resource_profile=job.resource_profile,
+            client_id=job.client_id,
+            prompt=job.prompt or {},
+            workflow=job.workflow or {},
+            extra_data=job.extra_data or {},
+            width=job.width,
+            height=job.height,
+            frames=job.frames,
+            fps=job.fps,
+            duration_seconds=job.duration_seconds,
+            estimated_vram_mb=job.estimated_vram_mb,
+            reserve_vram_mb=job.reserve_vram_mb,
+            resource_plan=job.resource_plan or {},
+            selected_endpoint=job.selected_endpoint or {},
+            selected_gpu=job.selected_gpu or {},
+            runtime_base_url=job.runtime_base_url,
+            runtime_prompt_id=job.runtime_prompt_id,
+            submit_payload=job.submit_payload or {},
+            submit_response=job.submit_response or {},
+            history_payload=job.history_payload or {},
+            queue_payload=job.queue_payload or {},
+            outputs=job.outputs or [],
+            external_request_attempted=job.external_request_attempted,
+            runtime_calls_enabled=job.runtime_calls_enabled,
+            prompt_submission_enabled=job.prompt_submission_enabled,
+            failure_reason=job.failure_reason,
+            result_summary=job.result_summary,
+            operator_note=job.operator_note,
+            metadata=job.job_metadata or {},
+            created_at=job.created_at,
+            updated_at=job.updated_at,
+        )
+
+
+class ComfyUIRuntimeVideoJobListResponse(BaseModel):
+    """List response for persisted ComfyUI video jobs."""
+
+    success: bool = True
+    workspace_id: str
+    items: list[ComfyUIRuntimeVideoJobResponse] = Field(default_factory=list)

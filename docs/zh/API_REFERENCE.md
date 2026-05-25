@@ -3808,4 +3808,19 @@ Response fields include `admission_status`, `should_submit_now`, `estimated_vram
 
 Boundary: Phase 66A reads only guarded `/system_stats` and `/queue` for admission and submits `/prompt` only when every existing runtime gate and the video plan allow it. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
+## Phase 66B: ComfyUI Video Job Loop
+
+Phase 66B adds persisted, refreshable video jobs around the Phase 66A resource gate.
+
+Endpoints:
+
+- `POST /api/v1/comfyui-runtime/video-jobs`
+- `GET /api/v1/comfyui-runtime/video-jobs`
+- `GET /api/v1/comfyui-runtime/video-jobs/{job_id}`
+- `POST /api/v1/comfyui-runtime/video-jobs/{job_id}/refresh`
+
+`POST /video-jobs` accepts a ComfyUI `prompt` graph plus optional `workflow`, `extra_data`, `client_id`, video dimensions, frame/fps/profile estimates, `operator_note`, and metadata. The service persists the request, runs the Phase 66A GPU/queue plan, submits real `/prompt` only when admitted, optionally polls `/history/{prompt_id}` and `/queue`, and stores `job_status`, `runtime_prompt_id`, `runtime_base_url`, `resource_plan`, `selected_endpoint`, `selected_gpu`, `submit_payload`, `submit_response`, `history_payload`, `queue_payload`, `outputs`, `failure_reason`, and `result_summary`.
+
+Boundary: Phase 66B reuses the existing guarded runtime and video resource gates. It does not upload files, install workflows, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
 边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。

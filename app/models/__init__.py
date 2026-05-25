@@ -25,6 +25,7 @@ from app.models.comfyui_runtime import (
     ComfyUIRuntimeGuardedProbeExecution,
     ComfyUIRuntimeManualApplyEvidence,
     ComfyUIRuntimePostManualReadinessCheck,
+    ComfyUIRuntimeVideoJob,
 )
 from app.models.commercial_operation import (
     CommercialOperation,
@@ -231,6 +232,7 @@ __all__ = [
     "ComfyUIRuntimeGuardedProbeExecution",
     "ComfyUIRuntimeManualApplyEvidence",
     "ComfyUIRuntimePostManualReadinessCheck",
+    "ComfyUIRuntimeVideoJob",
     "CommercialOperation",
     "CommercialOperationApproval",
     "CommercialOperationApprovalStatus",

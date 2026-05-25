@@ -94,6 +94,13 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "health_probe_deferred_to_guarded_execution" in text
     assert "Video resource plan" in text
     assert "Check video resources" in text
+    assert "Video generation jobs" in text
+    assert "Create video job" in text
+    assert "Refresh latest job" in text
+    assert "video_job_count" in text
+    assert "latest_video_job_status" in text
+    assert "createComfyuiVideoJob" in text
+    assert "refreshComfyuiVideoJob" in text
     assert "should_submit_now" in text
     assert "selected_endpoint" in text
     assert "endpoint_plans" in text
@@ -115,6 +122,9 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "comfyuiRuntimeApi.updateGuardedProbeExecutionStatus" in text
     assert "comfyuiRuntimeApi.executeGuardedProbeExecution" in text
     assert "comfyuiRuntimeApi.videoResourcePlan" in text
+    assert "comfyuiRuntimeApi.videoJobs" in text
+    assert "comfyuiRuntimeApi.createVideoJob" in text
+    assert "comfyuiRuntimeApi.refreshVideoJob" in text
     assert "comfyuiRuntimeApi.diagnosticSnapshots" in text
     assert "comfyuiRuntimeApi.createDiagnosticSnapshot" in text
     assert "Approval gates" in text
@@ -356,6 +366,8 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(action)}" in text
     assert "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/execute" in text
     assert "/comfyui-runtime/video-resource-plans" in text
+    assert "/comfyui-runtime/video-jobs" in text
+    assert "/comfyui-runtime/video-jobs/${encodeURIComponent(jobId)}/refresh" in text
     assert "/comfyui-runtime/diagnostic-snapshots" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text

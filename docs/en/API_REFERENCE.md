@@ -4406,6 +4406,21 @@ Response fields include `admission_status`, `should_submit_now`, `estimated_vram
 
 Boundary: Phase 66A reads only guarded `/system_stats` and `/queue` for admission and submits `/prompt` only when every existing runtime gate and the video plan allow it. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
+## Phase 66B: ComfyUI Video Job Loop
+
+Phase 66B adds persisted, refreshable video jobs around the Phase 66A resource gate.
+
+Endpoints:
+
+- `POST /api/v1/comfyui-runtime/video-jobs`
+- `GET /api/v1/comfyui-runtime/video-jobs`
+- `GET /api/v1/comfyui-runtime/video-jobs/{job_id}`
+- `POST /api/v1/comfyui-runtime/video-jobs/{job_id}/refresh`
+
+`POST /video-jobs` accepts a ComfyUI `prompt` graph plus optional `workflow`, `extra_data`, `client_id`, video dimensions, frame/fps/profile estimates, `operator_note`, and metadata. The service persists the request, runs the Phase 66A GPU/queue plan, submits real `/prompt` only when admitted, optionally polls `/history/{prompt_id}` and `/queue`, and stores `job_status`, `runtime_prompt_id`, `runtime_base_url`, `resource_plan`, `selected_endpoint`, `selected_gpu`, `submit_payload`, `submit_response`, `history_payload`, `queue_payload`, `outputs`, `failure_reason`, and `result_summary`.
+
+Boundary: Phase 66B reuses the existing guarded runtime and video resource gates. It does not upload files, install workflows, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
 ## Phase 62Y: Commercial Operation Loop Protocol
 
 Phase 62Y adds one read-only commercial-operation loop summary for server and customer-machine frontends. `GET /api/v1/commercial-operations/{operation_id}/operation-loop` returns `CommercialOperationLoopSummaryResponse` with `loop_status`, `current_stage_key`, `next_action`, `completion_ratio`, `stages`, `counts`, `execution_protocol`, `readiness`, and `boundaries`.

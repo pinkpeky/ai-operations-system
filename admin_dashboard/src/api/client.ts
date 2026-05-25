@@ -2017,6 +2017,25 @@ export const comfyuiRuntimeApi = {
     requestJson<JsonRecord>("/comfyui-runtime/prompt-jobs", { method: "POST", body: JSON.stringify(payload) }, settings),
   videoResourcePlan: (payload: JsonRecord, settings?: AdminSettings) =>
     requestJson<JsonRecord>("/comfyui-runtime/video-resource-plans", { method: "POST", body: JSON.stringify(payload) }, settings),
+  videoJobs: (filters: { status?: string; limit?: number } = {}, settings?: AdminSettings) => {
+    const params = new URLSearchParams();
+    if (filters.status) {
+      params.set("status", filters.status);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<ApiList<JsonRecord>>(`/comfyui-runtime/video-jobs${suffix}`, {}, settings);
+  },
+  createVideoJob: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>("/comfyui-runtime/video-jobs", { method: "POST", body: JSON.stringify(payload) }, settings),
+  refreshVideoJob: (jobId: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/comfyui-runtime/video-jobs/${encodeURIComponent(jobId)}/refresh`,
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
   promptJobHistory: (promptId: string, settings?: AdminSettings) =>
     requestJson<JsonRecord>(`/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history`, {}, settings),
   queueStatus: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/queue", {}, settings),

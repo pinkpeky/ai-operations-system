@@ -44,6 +44,47 @@ class ComfyUIRuntimeDiagnosticSnapshot(IdTimestampMixin, Base):
     snapshot_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
 
+class ComfyUIRuntimeVideoJob(IdTimestampMixin, Base):
+    """Workspace-scoped ComfyUI video generation job with resource admission and output polling state."""
+
+    __tablename__ = "comfyui_runtime_video_jobs"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    job_status: Mapped[str] = mapped_column(String(64), default="draft", index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    media_type: Mapped[str] = mapped_column(String(32), default="video", index=True, nullable=False)
+    resource_profile: Mapped[str] = mapped_column(String(64), default="standard", index=True, nullable=False)
+    client_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    prompt: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    workflow: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    extra_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    frames: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fps: Mapped[float | None] = mapped_column(Float, nullable=True)
+    duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    estimated_vram_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reserve_vram_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resource_plan: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    selected_endpoint: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    selected_gpu: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    runtime_base_url: Mapped[str | None] = mapped_column(String(512), index=True, nullable=True)
+    runtime_prompt_id: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    submit_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    submit_response: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    history_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    queue_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    outputs: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    external_request_attempted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    runtime_calls_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    prompt_submission_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operator_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    job_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
 class ComfyUIRuntimeConfigChangeRequest(IdTimestampMixin, Base):
     """Workspace-scoped, metadata-only ComfyUI runtime configuration change request."""
 
