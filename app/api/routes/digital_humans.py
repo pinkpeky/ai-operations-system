@@ -15,6 +15,9 @@ from app.schemas.digital_human import (
     DigitalHumanAssetListResponse,
     DigitalHumanAssetResponse,
     DigitalHumanCapabilitiesResponse,
+    DigitalHumanComfyUIWorkflowBindingRequest,
+    DigitalHumanWorkflowTemplateListResponse,
+    DigitalHumanWorkflowTemplateResponse,
     DigitalHumanVideoJobActionRequest,
     DigitalHumanVideoJobCreateRequest,
     DigitalHumanVideoJobExecuteRequest,
@@ -39,6 +42,26 @@ async def get_digital_human_capabilities(
     """Return digital human provider readiness without calling external providers."""
 
     return service.capabilities(workspace_id=context.workspace_id)
+
+
+@router.get("/workflow-templates", response_model=DigitalHumanWorkflowTemplateListResponse)
+async def list_digital_human_workflow_templates(
+    context: WorkspaceContext = Depends(get_workspace_context),
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanWorkflowTemplateListResponse:
+    """List built-in digital human ComfyUI workflow template contracts."""
+
+    return service.list_workflow_templates(workspace_id=context.workspace_id)
+
+
+@router.get("/workflow-templates/{template_id}", response_model=DigitalHumanWorkflowTemplateResponse)
+async def get_digital_human_workflow_template(
+    template_id: str,
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanWorkflowTemplateResponse:
+    """Return one built-in digital human ComfyUI workflow template contract."""
+
+    return service.get_workflow_template(template_id=template_id)
 
 
 @router.post("/assets", response_model=DigitalHumanAssetResponse)
@@ -148,6 +171,37 @@ async def get_digital_human_video_job(
     """Return one digital human video job."""
 
     return await service.get_video_job(session, workspace_id=context.workspace_id, job_id=job_id)
+
+
+@router.post("/video-jobs/{job_id}/workflow-binding", response_model=DigitalHumanVideoJobResponse)
+async def bind_digital_human_comfyui_workflow(
+    job_id: UUID,
+    request: DigitalHumanComfyUIWorkflowBindingRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanVideoJobResponse:
+    """Bind a digital human video job to a ComfyUI workflow template and local assets."""
+
+    payload = request or DigitalHumanComfyUIWorkflowBindingRequest()
+    return await service.bind_comfyui_workflow(
+        session,
+        workspace_id=context.workspace_id,
+        job_id=job_id,
+        template_id=payload.template_id,
+        material_asset_ids=payload.material_asset_ids,
+        reference_asset_ids=payload.reference_asset_ids,
+        resource_profile=payload.resource_profile,
+        width=payload.width,
+        height=payload.height,
+        frames=payload.frames,
+        fps=payload.fps,
+        estimated_vram_mb=payload.estimated_vram_mb,
+        reserve_vram_mb=payload.reserve_vram_mb,
+        operator_parameters=payload.operator_parameters,
+        operator_note=payload.operator_note,
+        metadata=payload.metadata,
+    )
 
 
 @router.post("/video-jobs/{job_id}/refresh", response_model=DigitalHumanVideoJobResponse)

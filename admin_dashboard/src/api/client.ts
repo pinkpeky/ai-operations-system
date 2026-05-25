@@ -138,6 +138,10 @@ export const healthApi = {
 
 export const digitalHumansApi = {
   capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/digital-humans/capabilities", {}, settings),
+  workflowTemplates: (settings?: AdminSettings) =>
+    requestJson<ApiList<JsonRecord>>("/digital-humans/workflow-templates", {}, settings),
+  workflowTemplate: (templateId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/digital-humans/workflow-templates/${encodeURIComponent(templateId)}`, {}, settings),
   assets: (filters: { assetType?: string; limit?: number } = {}, settings?: AdminSettings) => {
     const params = new URLSearchParams();
     if (filters.assetType) {
@@ -190,6 +194,15 @@ export const digitalHumansApi = {
   executeVideoJob: (jobId: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
     requestJson<JsonRecord>(
       `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/execute`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  bindWorkflow: (jobId: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/workflow-binding`,
       {
         method: "POST",
         body: JSON.stringify(payload),

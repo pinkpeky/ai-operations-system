@@ -29,6 +29,38 @@ class DigitalHumanCapabilitiesResponse(BaseModel):
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
+class DigitalHumanWorkflowTemplateResponse(BaseModel):
+    """Built-in digital human ComfyUI workflow template contract."""
+
+    success: bool = True
+    template_id: str
+    name: str
+    workflow_kind: str
+    recommended_use: str
+    provider: str = "comfyui"
+    default_resource_profile: str = "standard"
+    recommended_vram_mb: int | None = None
+    required_assets: list[str] = Field(default_factory=list)
+    required_nodes: list[str] = Field(default_factory=list)
+    required_models: list[str] = Field(default_factory=list)
+    plugin_installation: list[dict[str, Any]] = Field(default_factory=list)
+    model_installation: list[dict[str, Any]] = Field(default_factory=list)
+    input_slots: list[dict[str, Any]] = Field(default_factory=list)
+    output_slots: list[dict[str, Any]] = Field(default_factory=list)
+    guardrails: list[str] = Field(default_factory=list)
+    prompt_contract: dict[str, Any] = Field(default_factory=dict)
+    workflow_contract: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DigitalHumanWorkflowTemplateListResponse(BaseModel):
+    """Built-in digital human workflow template list."""
+
+    success: bool = True
+    workspace_id: str | None = None
+    items: list[DigitalHumanWorkflowTemplateResponse] = Field(default_factory=list)
+
+
 class DigitalHumanAssetResponse(BaseModel):
     """Persisted digital human asset."""
 
@@ -124,6 +156,24 @@ class DigitalHumanVideoJobExecuteRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DigitalHumanComfyUIWorkflowBindingRequest(BaseModel):
+    """Bind a digital human job to a ComfyUI workflow template and local assets."""
+
+    template_id: str = Field(default="liveportrait-musetalk-broll", max_length=128)
+    material_asset_ids: list[UUID] | None = None
+    reference_asset_ids: list[UUID] | None = None
+    resource_profile: str | None = Field(default=None, max_length=64)
+    width: int | None = Field(default=1080, ge=64, le=8192)
+    height: int | None = Field(default=1920, ge=64, le=8192)
+    frames: int | None = Field(default=None, ge=1, le=20000)
+    fps: float | None = Field(default=24.0, ge=1.0, le=240.0)
+    estimated_vram_mb: int | None = Field(default=None, ge=256, le=131072)
+    reserve_vram_mb: int | None = Field(default=None, ge=0, le=131072)
+    operator_parameters: dict[str, Any] = Field(default_factory=dict)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class DigitalHumanVideoJobActionRequest(BaseModel):
     """Apply a human review action to a digital human job."""
 
@@ -165,6 +215,8 @@ class DigitalHumanVideoJobResponse(BaseModel):
     current_stage: str = "intake"
     next_action: str | None = None
     linked_comfyui_video_job_id: str | None = None
+    selected_workflow_template_id: str | None = None
+    workflow_binding_status: str | None = None
     operator_note: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
@@ -203,6 +255,8 @@ class DigitalHumanVideoJobResponse(BaseModel):
             current_stage=_digital_human_current_stage(job.job_status),
             next_action=_digital_human_next_action(job.job_status),
             linked_comfyui_video_job_id=_linked_comfyui_video_job_id(job.outputs or []),
+            selected_workflow_template_id=_selected_workflow_template_id(job.job_metadata or {}),
+            workflow_binding_status=_workflow_binding_status(job.job_metadata or {}),
             operator_note=job.operator_note,
             metadata=job.job_metadata or {},
             created_at=job.created_at,
@@ -277,4 +331,22 @@ def _linked_comfyui_video_job_id(outputs: list[dict[str, Any]]) -> str | None:
         candidate = output.get("comfyui_video_job_id")
         if isinstance(candidate, str) and candidate.strip():
             return candidate.strip()
+    return None
+
+
+def _selected_workflow_template_id(metadata: dict[str, Any]) -> str | None:
+    binding = metadata.get("comfyui_workflow_binding")
+    if isinstance(binding, dict):
+        template_id = binding.get("template_id")
+        if isinstance(template_id, str) and template_id.strip():
+            return template_id.strip()
+    return None
+
+
+def _workflow_binding_status(metadata: dict[str, Any]) -> str | None:
+    binding = metadata.get("comfyui_workflow_binding")
+    if isinstance(binding, dict):
+        status = binding.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
     return None

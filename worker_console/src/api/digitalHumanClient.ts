@@ -10,6 +10,8 @@ export type DigitalHumanVideoJob = {
   current_stage?: string;
   next_action?: string | null;
   linked_comfyui_video_job_id?: string | null;
+  selected_workflow_template_id?: string | null;
+  workflow_binding_status?: string | null;
   result_summary?: string | null;
   outputs?: Record<string, unknown>[];
   updated_at?: string;
