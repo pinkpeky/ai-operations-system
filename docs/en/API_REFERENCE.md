@@ -4365,6 +4365,20 @@ Execution endpoint:
 
 Boundary: create/list/review endpoints remain no-network. The execute endpoint rechecks current diagnostics and can call only the existing guarded `GET /system_stats` health path after the execution record is `approved_for_execution`. It records `external_request_attempted`, `health_probe_executed`, `read_only_probe_attempted`, `probe_status_code`, `probe_latency_ms`, `probe_result_status`, and `probe_response`; it still does not import adapters, submit prompts, read queues, submit queues, upload files, generate media, enable runtime switches, write environment variables, restart services, mutate runtime configuration, resolve secret values, publish, run OpenClaw, run Browser Worker actions, control accounts, or bypass approval.
 
+## Phase 65A: ComfyUI Real Adapter
+
+Phase 65A adds guarded real ComfyUI prompt and status routes for server maintainers. These routes are disabled by default and require `COMFYUI_RUNTIME_PROVIDER=guarded`, `COMFYUI_RUNTIME_ENABLED=true`, `COMFYUI_RUNTIME_ALLOW_NETWORK=true`, `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=true`, allowed host and health path gates, `COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=true`, and `COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS` containing the requested execution path.
+
+Endpoints:
+
+- `POST /api/v1/comfyui-runtime/prompt-jobs`
+- `GET /api/v1/comfyui-runtime/prompt-jobs/{prompt_id}/history`
+- `GET /api/v1/comfyui-runtime/queue`
+
+`POST /prompt-jobs` accepts a ComfyUI `prompt` graph plus optional `client_id`, `extra_data`, `workflow`, and `metadata`, then forwards the guarded payload to ComfyUI `/prompt`. The response records `external_request_attempted`, `runtime_calls_enabled`, `prompt_submission_enabled`, `status_code`, `prompt_id`, `number`, `node_errors`, `request_payload`, and `response_payload`. History and queue endpoints call only `/history/{prompt_id}` and `/queue` when those paths are allowlisted.
+
+Boundary: Phase 65A submits prompts and reads history/queue only through the guarded adapter. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
 ## Phase 62Y: Commercial Operation Loop Protocol
 
 Phase 62Y adds one read-only commercial-operation loop summary for server and customer-machine frontends. `GET /api/v1/commercial-operations/{operation_id}/operation-loop` returns `CommercialOperationLoopSummaryResponse` with `loop_status`, `current_stage_key`, `next_action`, `completion_ratio`, `stages`, `counts`, `execution_protocol`, `readiness`, and `boundaries`.

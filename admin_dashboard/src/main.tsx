@@ -468,8 +468,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "基础模式",
     operatorMode: "运行处理",
     readOnlyMode: "只读查看",
-    boundaryTitle: "Phase 62H",
-    boundaryBody: "ComfyUI 运行应用后就绪对比：从已验证人工应用证据创建服务器维护人员可审查的无网络就绪对比；当前仍不请求 ComfyUI、不触发 /system_stats、不提交队列、不上传文件、不生成媒体、不启用开关、不重启服务、不修改配置。",
+    boundaryTitle: "Phase 65A",
+    boundaryBody: "ComfyUI 真实适配器：服务器维护人员可在显式门禁开启后查看队列、提交受控 smoke prompt 并读取 history；默认仍关闭 prompt 提交，不上传文件、不发布、不控制账号、不重启服务、不修改配置。",
     activeTasks: "运行中任务",
     needsAttention: "需要处理",
     threads: "对话",
@@ -731,8 +731,8 @@ const uiText: Record<UiLanguage, Record<UiTextKey, string>> = {
     foundationMode: "foundation",
     operatorMode: "operational",
     readOnlyMode: "read-only",
-    boundaryTitle: "Phase 62H",
-    boundaryBody: "ComfyUI runtime post-manual readiness checks: create reviewable no-network readiness comparisons from verified manual apply evidence while keeping /system_stats probes, ComfyUI HTTP, queue reads/submissions, uploads, media generation, runtime switch enablement, service restarts, and config mutation disabled.",
+    boundaryTitle: "Phase 65A",
+    boundaryBody: "ComfyUI real adapter: server maintainers can view queue status, submit a guarded smoke prompt, and read history after explicit gates are enabled. Prompt submission stays off by default; uploads, publishing, account control, service restarts, and config mutation remain disabled.",
     activeTasks: "Active tasks",
     needsAttention: "needs attention",
     threads: "Threads",
@@ -4392,7 +4392,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 62H",
+    phaseLabel: "Phase 65A",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4477,7 +4477,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 62H",
+    phaseLabel: "Phase 65A",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4696,14 +4696,14 @@ function CommercialOperationsPage({
       ? {
           title: "ComfyUI 运行工作台",
           description: "把 ComfyUI 素材交接、预检、任务请求、执行预案、连接探测、运行门禁、干运行和启用请求集中到独立页签。",
-          summary: "当前仍只保存可审阅元数据，不请求 ComfyUI、不提交队列、不上传文件、不生成媒体、不启用运行开关。",
+          summary: "当前已具备受控真实 ComfyUI 队列读取和 smoke prompt 提交能力；默认仍关闭 prompt 提交，不上传文件、不发布、不修改配置。",
           flow: ["选择项目", "素材交接", "连接预检", "任务请求", "运行门禁", "启用交接"],
           entryTitle: "ComfyUI 素材运行",
           entryDescription: "ComfyUI 交接、预检、任务请求、执行预案、连接探测、运行门禁、干运行和启用请求已移到独立页签，避免商业运营主流程过长。",
           openAction: "打开 ComfyUI 页签",
           actionResultTitle: "ComfyUI 操作结果",
           runtimeTitle: "运行适配器契约",
-          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、启用开关、目标地址、allowlist、只读健康路径、诊断阻塞原因、禁用动作、最近诊断快照、Phase 62E 维护 runbook、Phase 62F 配置变更申请、Phase 62G 人工应用证据和 Phase 62H 应用后就绪对比。只有显式打开只读探测开关后才会请求 /system_stats，不会提交 prompt、读取队列、上传文件或生成媒体。",
+          runtimeDescription: "服务器维护人员可查看 ComfyUI runtime provider、目标地址、allowlist、诊断阻塞原因、配置证据、只读探针审计、真实队列状态和受控 smoke prompt 结果。默认不提交 prompt；只有显式打开 provider/network/read-only/prompt/execution path 门禁后，才允许调用 /prompt、/history 和 /queue。",
           runtimeRefresh: "刷新适配器状态",
           runtimeSnapshot: "保存诊断快照",
           runtimeConfigRequest: "创建配置变更申请",
@@ -4747,14 +4747,14 @@ function CommercialOperationsPage({
       : {
           title: "ComfyUI operations workspace",
           description: "Keep ComfyUI asset handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests in a dedicated tab.",
-          summary: "This still stores reviewable metadata only. It does not call ComfyUI, submit queues, upload files, generate media, or enable runtime switches.",
+          summary: "This now includes guarded real ComfyUI queue reads and smoke prompt submission. Prompt submission remains off by default, with no uploads, publishing, or config mutation.",
           flow: ["Select operation", "Asset handoff", "Preflight", "Job request", "Runtime gate", "Activation handoff"],
           entryTitle: "ComfyUI asset runtime",
           entryDescription: "ComfyUI handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests now live in their own tab so Commercial Ops stays focused.",
           openAction: "Open ComfyUI tab",
           actionResultTitle: "ComfyUI action result",
           runtimeTitle: "Runtime adapter contract",
-          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, enable switch, target URL, allowlist, read-only health path, diagnostic blockers, disabled actions, recent diagnostic snapshots, the Phase 62E maintenance runbook, Phase 62F config change requests, Phase 62G manual apply evidence, and Phase 62H post-manual readiness checks. /system_stats is only called when every explicit read-only probe gate is enabled, and prompts, queues, uploads, and media generation remain disabled.",
+          runtimeDescription: "Server maintainers can inspect the ComfyUI runtime provider, target URL, allowlist, diagnostic blockers, config evidence, guarded probe audit, real queue status, and guarded smoke prompt result. Prompt submission stays off by default; /prompt, /history, and /queue are available only after every provider, network, read-only, prompt, and execution-path gate is enabled.",
           runtimeRefresh: "Refresh adapter status",
           runtimeSnapshot: "Save diagnostics snapshot",
           runtimeConfigRequest: "Create config change request",
@@ -6053,6 +6053,7 @@ function CommercialOperationsPage({
         manualApplyEvidence,
         postManualReadinessChecks,
         guardedProbeExecutions,
+        queueStatus,
       ] = await Promise.all([
         comfyuiRuntimeApi.capabilities(settings),
         comfyuiRuntimeApi.diagnostics(settings),
@@ -6062,6 +6063,7 @@ function CommercialOperationsPage({
         comfyuiRuntimeApi.manualApplyEvidence(settings),
         comfyuiRuntimeApi.postManualReadinessChecks(settings),
         comfyuiRuntimeApi.guardedProbeExecutions(settings),
+        comfyuiRuntimeApi.queueStatus(settings),
       ]);
       const health = {
         ...diagnostics,
@@ -6086,6 +6088,7 @@ function CommercialOperationsPage({
           manualApplyEvidence: toItems(manualApplyEvidence),
           postManualReadinessChecks: toItems(postManualReadinessChecks),
           guardedProbeExecutions: toItems(guardedProbeExecutions),
+          queueStatus,
         },
         error: null,
         loading: false,
@@ -6439,6 +6442,88 @@ function CommercialOperationsPage({
     },
     [language, loadComfyuiRuntimeAdapter, settings],
   );
+
+  const refreshComfyuiRuntimeQueueStatus = useCallback(async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const queueStatus = await comfyuiRuntimeApi.queueStatus(settings);
+      setActionState({
+        data: { action: "comfyui_runtime_queue_status", queueStatus },
+        error: null,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      setComfyuiRuntimeAdapterState((current) => ({
+        ...current,
+        data: { ...(current.data ?? {}), queueStatus },
+        updatedAt: nowLabel(),
+      }));
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI runtime queue status unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const submitComfyuiRuntimeSmokePrompt = useCallback(async () => {
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const submit = await comfyuiRuntimeApi.submitPromptJob(
+        {
+          prompt: {
+            "1": {
+              class_type: "EmptyImage",
+              inputs: {
+                width: 256,
+                height: 256,
+                batch_size: 1,
+                color: 65280,
+              },
+            },
+            "2": {
+              class_type: "SaveImage",
+              inputs: {
+                images: ["1", 0],
+                filename_prefix: "aiops_admin_dashboard_smoke",
+              },
+            },
+          },
+          client_id: "aiops-admin-dashboard-smoke",
+          metadata: { source_page: "comfyui-operations", phase: "65A", purpose: "real-adapter-smoke" },
+        },
+        settings,
+      );
+      const promptId = valueAt(submit, ["prompt_id"], "");
+      if (promptId) {
+        await new Promise((resolve) => window.setTimeout(resolve, 600));
+      }
+      const [history, queueStatus] = await Promise.all([
+        promptId ? comfyuiRuntimeApi.promptJobHistory(promptId, settings) : Promise.resolve({}),
+        comfyuiRuntimeApi.queueStatus(settings),
+      ]);
+      setActionState({
+        data: { action: "comfyui_runtime_smoke_prompt", submit, history, queueStatus },
+        error: null,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      setComfyuiRuntimeAdapterState((current) => ({
+        ...current,
+        data: { ...(current.data ?? {}), queueStatus, promptJobHistory: history, lastPromptSubmission: submit },
+        updatedAt: nowLabel(),
+      }));
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI runtime smoke prompt failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
 
   useEffect(() => {
     if (isComfyuiPage) {
@@ -9742,6 +9827,9 @@ function CommercialOperationsPage({
   const comfyuiRuntimeDiagnosticSnapshots = toItems(comfyuiRuntimeAdapterState.data?.snapshots);
   const latestComfyuiRuntimeDiagnosticSnapshot = comfyuiRuntimeDiagnosticSnapshots[0] ?? null;
   const comfyuiRuntimeRunbook = comfyuiRuntimeAdapterState.data?.runbook as JsonRecord | undefined;
+  const comfyuiRuntimeCapabilitiesRaw = (comfyuiRuntimeAdapterState.data?.capabilities as JsonRecord | undefined)?.raw as
+    | JsonRecord
+    | undefined;
   const comfyuiRuntimeRunbookSteps = Array.isArray(comfyuiRuntimeRunbook?.steps)
     ? (comfyuiRuntimeRunbook.steps as JsonRecord[])
     : [];
@@ -9779,6 +9867,24 @@ function CommercialOperationsPage({
   const canExecuteComfyuiRuntimeGuardedProbeExecution =
     Boolean(latestComfyuiRuntimeGuardedProbeExecutionId) &&
     latestComfyuiRuntimeGuardedProbeExecutionStatus === "approved_for_execution";
+  const comfyuiRuntimeQueueStatus = comfyuiRuntimeAdapterState.data?.queueStatus as JsonRecord | undefined;
+  const comfyuiRuntimePromptSubmission = comfyuiRuntimeAdapterState.data?.lastPromptSubmission as JsonRecord | undefined;
+  const comfyuiRuntimePromptHistory = comfyuiRuntimeAdapterState.data?.promptJobHistory as JsonRecord | undefined;
+  const comfyuiRuntimeQueueRunning = Array.isArray(comfyuiRuntimeQueueStatus?.queue_running)
+    ? comfyuiRuntimeQueueStatus.queue_running.map((item, index) => ({
+        slot: String(index + 1),
+        prompt_id: Array.isArray(item) ? String(item[1] ?? "-") : shortJson(item, 80),
+        status: "running",
+      }))
+    : [];
+  const comfyuiRuntimeQueuePending = Array.isArray(comfyuiRuntimeQueueStatus?.queue_pending)
+    ? comfyuiRuntimeQueueStatus.queue_pending.map((item, index) => ({
+        slot: String(index + 1),
+        prompt_id: Array.isArray(item) ? String(item[1] ?? "-") : shortJson(item, 80),
+        status: "pending",
+      }))
+    : [];
+  const comfyuiRuntimeQueueRows = [...comfyuiRuntimeQueueRunning, ...comfyuiRuntimeQueuePending];
   const deliverables = deliverablesState.data || [];
   const evidenceSnapshots = evidenceSnapshotsState.data || [];
   const executionRequests = executionRequestsState.data || [];
@@ -10508,6 +10614,14 @@ function CommercialOperationsPage({
             <Field label="latest_guarded_probe_status" value={<StatusPill value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["execution_status"], "none")} />} />
             <Field label="latest_guarded_probe_result" value={<StatusPill value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["probe_result_status"], "none")} />} />
             <Field label="latest_guarded_probe_code" value={valueAt(latestComfyuiRuntimeGuardedProbeExecution, ["probe_status_code"], "-")} />
+            <Field label="prompt_submission_ready" value={<StatusPill value={valueAt(comfyuiRuntimeCapabilitiesRaw, ["prompt_submission_ready"], "false")} />} />
+            <Field label="allowed_execution_paths" value={shortJson(comfyuiRuntimeCapabilitiesRaw?.allowed_execution_paths, 120)} />
+            <Field label="queue_status" value={<StatusPill value={valueAt(comfyuiRuntimeQueueStatus, ["success"], "false")} />} />
+            <Field label="queue_running" value={String(comfyuiRuntimeQueueRunning.length)} />
+            <Field label="queue_pending" value={String(comfyuiRuntimeQueuePending.length)} />
+            <Field label="last_prompt_success" value={<StatusPill value={valueAt(comfyuiRuntimePromptSubmission, ["success"], "none")} />} />
+            <Field label="last_prompt_id" value={valueAt(comfyuiRuntimePromptSubmission, ["prompt_id"], "-")} />
+            <Field label="last_prompt_outputs" value={shortJson(comfyuiRuntimePromptHistory?.outputs, 180)} />
           </div>
           <h3>{comfyuiSurfaceCopy.runtimeRunbook}</h3>
           <Table
@@ -10574,10 +10688,28 @@ function CommercialOperationsPage({
               { key: "created_at", label: "created_at" },
             ]}
           />
+          <h3>Real adapter queue</h3>
+          <Table
+            rows={comfyuiRuntimeQueueRows}
+            emptyLabel="No running or pending ComfyUI jobs."
+            columns={[
+              { key: "slot", label: "slot" },
+              { key: "prompt_id", label: "prompt_id" },
+              { key: "status", label: "status" },
+            ]}
+          />
           <div className="commercial-action-row">
             <button className="ghost-button" onClick={() => void loadComfyuiRuntimeAdapter()} disabled={comfyuiRuntimeAdapterState.loading}>
               <RefreshCcw size={15} />
               {comfyuiSurfaceCopy.runtimeRefresh}
+            </button>
+            <button className="ghost-button" onClick={() => void refreshComfyuiRuntimeQueueStatus()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
+              <Activity size={15} />
+              Queue status
+            </button>
+            <button className="primary-button" onClick={() => void submitComfyuiRuntimeSmokePrompt()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
+              <PlayCircle size={15} />
+              Smoke prompt
             </button>
             <button className="primary-button" onClick={() => void saveComfyuiRuntimeDiagnosticSnapshot()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
               <HardDrive size={15} />

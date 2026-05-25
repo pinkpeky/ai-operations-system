@@ -254,6 +254,122 @@ def test_comfyui_runtime_guarded_read_only_probe_reports_network_error() -> None
     assert "TimeoutError" in str(health.error)
 
 
+def test_comfyui_runtime_prompt_submission_is_blocked_by_default() -> None:
+    """Real prompt submission should stay disabled until explicit runtime gates are enabled."""
+
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+    service = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_post=lambda url, payload, timeout: post_calls.append((url, dict(payload), timeout)) or {},
+    )
+
+    result = service.submit_prompt_job(
+        workspace_id="workspace-comfyui",
+        prompt={"1": {"class_type": "CheckpointLoaderSimple"}},
+        metadata={"source": "test"},
+    )
+
+    assert result.success is False
+    assert result.external_request_attempted is False
+    assert result.runtime_calls_enabled is False
+    assert result.prompt_submission_enabled is False
+    assert "COMFYUI_RUNTIME_PROVIDER=guarded" in str(result.error)
+    assert post_calls == []
+
+
+def test_comfyui_runtime_prompt_submission_calls_real_prompt_endpoint_when_enabled() -> None:
+    """The guarded adapter should submit /prompt and read /history plus /queue when every gate is enabled."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=9,
+    )
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+    get_calls: list[tuple[str, float]] = []
+
+    def fake_http_post(url: str, payload: dict[str, object], timeout: float) -> dict[str, object]:
+        post_calls.append((url, payload, timeout))
+        return {
+            "status_code": 200,
+            "json": {"prompt_id": "prompt-123", "number": 4, "node_errors": {}},
+            "text": '{"prompt_id":"prompt-123"}',
+        }
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.endswith("/queue"):
+            return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+        return {
+            "status_code": 200,
+            "json": {"prompt-123": {"outputs": {"9": {"images": [{"filename": "demo.png"}]}}}},
+            "text": "{}",
+        }
+
+    service = ComfyUIRuntimeService(settings=settings, http_get=fake_http_get, http_post=fake_http_post)
+    capabilities = service.capabilities(workspace_id="workspace-comfyui")
+    submitted = service.submit_prompt_job(
+        workspace_id="workspace-comfyui",
+        prompt={"1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "demo.safetensors"}}},
+        client_id="aiops-test-client",
+        workflow={"nodes": []},
+        metadata={"source": "test"},
+    )
+    history = service.prompt_history(workspace_id="workspace-comfyui", prompt_id="prompt-123")
+    queue = service.queue_status(workspace_id="workspace-comfyui")
+
+    assert "submit_comfyui_prompt_job" in capabilities.available_actions
+    assert "submit_prompt" not in capabilities.disabled_actions
+    assert capabilities.mock is False
+    assert capabilities.raw["prompt_submission_ready"] is True
+    assert submitted.success is True
+    assert submitted.external_request_attempted is True
+    assert submitted.runtime_calls_enabled is True
+    assert submitted.prompt_submission_enabled is True
+    assert submitted.prompt_id == "prompt-123"
+    assert submitted.status_code == 200
+    assert submitted.request_payload["client_id"] == "aiops-test-client"
+    assert post_calls == [("http://localhost:8188/prompt", submitted.request_payload, 9.0)]
+    assert history.success is True
+    assert history.outputs["9"]["images"][0]["filename"] == "demo.png"
+    assert queue.success is True
+    assert queue.queue_running == []
+    assert queue.queue_pending == []
+    assert get_calls == [("http://localhost:8188/history/prompt-123", 9.0), ("http://localhost:8188/queue", 9.0)]
+
+
+def test_comfyui_runtime_prompt_submission_rejects_unlisted_execution_path() -> None:
+    """Execution path allowlists should block history and queue reads outside the configured paths."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt",
+    )
+    calls: list[tuple[str, float]] = []
+    history = ComfyUIRuntimeService(
+        settings=settings,
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {"status_code": 200},
+    ).prompt_history(workspace_id="workspace-comfyui", prompt_id="prompt-123")
+
+    assert history.success is False
+    assert history.external_request_attempted is False
+    assert history.runtime_calls_enabled is False
+    assert "COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS" in str(history.error)
+    assert calls == []
+
+
 @pytest.mark.asyncio
 async def test_comfyui_runtime_diagnostic_snapshot_persists_without_network(session: AsyncSession) -> None:
     """Persisted diagnostics snapshots should retain readiness state without touching ComfyUI."""
@@ -779,6 +895,72 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert snapshot_list.json()["workspace_id"] == "workspace-comfyui-api"
     assert len(snapshot_list.json()["items"]) == 1
     assert snapshot_list.json()["items"][0]["id"] == created_snapshot.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_comfyui_runtime_real_prompt_adapter_api(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """API should expose guarded real prompt submission, history, and queue reads."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=11,
+    )
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+    get_calls: list[tuple[str, float]] = []
+
+    def fake_http_post(url: str, payload: dict[str, object], timeout: float) -> dict[str, object]:
+        post_calls.append((url, payload, timeout))
+        return {"status_code": 200, "json": {"prompt_id": "api-prompt-1", "number": 1, "node_errors": {}}, "text": "{}"}
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.endswith("/queue"):
+            return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+        return {"status_code": 200, "json": {"api-prompt-1": {"outputs": {"4": {"images": []}}}}, "text": "{}"}
+
+    monkeypatch.setattr(comfyui_runtime_routes, "get_settings", lambda: settings)
+    monkeypatch.setattr(ComfyUIRuntimeService, "_default_http_post_json", staticmethod(fake_http_post))
+    monkeypatch.setattr(ComfyUIRuntimeService, "_default_http_get", staticmethod(fake_http_get))
+
+    app = FastAPI()
+    app.add_exception_handler(AppError, app_error_handler)
+    app.include_router(comfyui_runtime_routes.router, prefix="/api/v1")
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    headers = {"X-Workspace-Id": "workspace-comfyui-real-api", "X-User-Id": "user-comfyui"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        submitted = await client.post(
+            "/api/v1/comfyui-runtime/prompt-jobs",
+            headers=headers,
+            json={
+                "client_id": "aiops-api-test",
+                "prompt": {"1": {"class_type": "PreviewImage", "inputs": {}}},
+                "workflow": {"nodes": []},
+                "metadata": {"phase": "65A"},
+            },
+        )
+        history = await client.get("/api/v1/comfyui-runtime/prompt-jobs/api-prompt-1/history", headers=headers)
+        queue = await client.get("/api/v1/comfyui-runtime/queue", headers=headers)
+
+    assert submitted.status_code == 200
+    assert submitted.json()["success"] is True
+    assert submitted.json()["workspace_id"] == "workspace-comfyui-real-api"
+    assert submitted.json()["prompt_id"] == "api-prompt-1"
+    assert submitted.json()["runtime_calls_enabled"] is True
+    assert history.status_code == 200
+    assert history.json()["success"] is True
+    assert history.json()["outputs"]["4"]["images"] == []
+    assert queue.status_code == 200
+    assert queue.json()["success"] is True
+    assert post_calls == [("http://localhost:8188/prompt", submitted.json()["request_payload"], 11.0)]
+    assert get_calls == [("http://localhost:8188/history/api-prompt-1", 11.0), ("http://localhost:8188/queue", 11.0)]
 
 
 @pytest.mark.asyncio

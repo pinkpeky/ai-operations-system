@@ -629,3 +629,71 @@ class ComfyUIRuntimeDiagnosticSnapshotListResponse(BaseModel):
     success: bool = True
     workspace_id: str
     items: list[ComfyUIRuntimeDiagnosticSnapshotResponse] = Field(default_factory=list)
+
+
+class ComfyUIRuntimePromptJobSubmitRequest(BaseModel):
+    """Submit one guarded real ComfyUI prompt workflow."""
+
+    prompt: dict[str, Any] = Field(default_factory=dict)
+    client_id: str | None = Field(default=None, max_length=200)
+    extra_data: dict[str, Any] = Field(default_factory=dict)
+    workflow: dict[str, Any] | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimePromptJobSubmitResponse(BaseModel):
+    """Response from a guarded real ComfyUI /prompt submission."""
+
+    success: bool
+    workspace_id: str | None = None
+    provider: str
+    enabled: bool
+    base_url: str
+    path: str = "/prompt"
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    prompt_submission_enabled: bool
+    status_code: int | None = None
+    prompt_id: str | None = None
+    number: int | float | None = None
+    node_errors: dict[str, Any] = Field(default_factory=dict)
+    response_payload: dict[str, Any] = Field(default_factory=dict)
+    request_payload: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimePromptHistoryResponse(BaseModel):
+    """Response from a guarded real ComfyUI /history/{prompt_id} read."""
+
+    success: bool
+    workspace_id: str | None = None
+    provider: str
+    base_url: str
+    path: str
+    prompt_id: str
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    prompt_submission_enabled: bool
+    status_code: int | None = None
+    response_payload: dict[str, Any] = Field(default_factory=dict)
+    outputs: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class ComfyUIRuntimeQueueResponse(BaseModel):
+    """Response from a guarded real ComfyUI /queue read."""
+
+    success: bool
+    workspace_id: str | None = None
+    provider: str
+    base_url: str
+    path: str = "/queue"
+    external_request_attempted: bool
+    runtime_calls_enabled: bool
+    prompt_submission_enabled: bool
+    status_code: int | None = None
+    response_payload: dict[str, Any] = Field(default_factory=dict)
+    queue_running: list[Any] = Field(default_factory=list)
+    queue_pending: list[Any] = Field(default_factory=list)
+    error: str | None = None

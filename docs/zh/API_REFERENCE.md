@@ -3767,4 +3767,18 @@ Execution endpoint:
 
 - `POST /api/v1/comfyui-runtime/guarded-probe-executions/{execution_id}/execute`
 
+## Phase 65A: ComfyUI Real Adapter
+
+Phase 65A adds guarded real ComfyUI prompt and status routes for server maintainers. They are disabled by default and require `COMFYUI_RUNTIME_PROVIDER=guarded`, `COMFYUI_RUNTIME_ENABLED=true`, `COMFYUI_RUNTIME_ALLOW_NETWORK=true`, `COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=true`, allowed host and health path gates, `COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=true`, and `COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS` containing the requested execution path.
+
+Endpoints:
+
+- `POST /api/v1/comfyui-runtime/prompt-jobs`
+- `GET /api/v1/comfyui-runtime/prompt-jobs/{prompt_id}/history`
+- `GET /api/v1/comfyui-runtime/queue`
+
+`POST /prompt-jobs` accepts a ComfyUI `prompt` graph plus optional `client_id`, `extra_data`, `workflow`, and `metadata`, then forwards the guarded payload to ComfyUI `/prompt`. The response records `external_request_attempted`, `runtime_calls_enabled`, `prompt_submission_enabled`, `status_code`, `prompt_id`, `number`, `node_errors`, `request_payload`, and `response_payload`. History and queue endpoints call only `/history/{prompt_id}` and `/queue` when those paths are allowlisted.
+
+Boundary: Phase 65A submits prompts and reads history/queue only through the guarded adapter. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
 边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。

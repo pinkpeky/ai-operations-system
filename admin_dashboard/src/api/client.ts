@@ -1988,6 +1988,11 @@ export const comfyuiRuntimeApi = {
       { method: "POST", body: JSON.stringify(payload) },
       settings,
     ),
+  submitPromptJob: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>("/comfyui-runtime/prompt-jobs", { method: "POST", body: JSON.stringify(payload) }, settings),
+  promptJobHistory: (promptId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(`/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history`, {}, settings),
+  queueStatus: (settings?: AdminSettings) => requestJson<JsonRecord>("/comfyui-runtime/queue", {}, settings),
   diagnosticSnapshots: (settings?: AdminSettings) =>
     requestJson<ApiList<JsonRecord>>("/comfyui-runtime/diagnostic-snapshots?limit=20", {}, settings),
   createDiagnosticSnapshot: (payload: JsonRecord, settings?: AdminSettings) =>

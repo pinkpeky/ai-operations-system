@@ -211,6 +211,14 @@ class Settings(BaseSettings):
         default="/system_stats",
         alias="COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS",
     )
+    comfyui_runtime_prompt_submission_enabled: bool = Field(
+        default=False,
+        alias="COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED",
+    )
+    comfyui_runtime_allowed_execution_paths: str = Field(
+        default="/prompt,/history,/queue",
+        alias="COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS",
+    )
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:
@@ -236,6 +244,18 @@ class Settings(BaseSettings):
 
         paths: set[str] = set()
         for item in self.comfyui_runtime_allowed_health_paths.split(","):
+            candidate = item.strip()
+            if not candidate:
+                continue
+            paths.add(candidate if candidate.startswith("/") else f"/{candidate}")
+        return paths
+
+    @property
+    def comfyui_runtime_allowed_execution_path_set(self) -> set[str]:
+        """Parse ComfyUI runtime execution path allowlist from CSV config."""
+
+        paths: set[str] = set()
+        for item in self.comfyui_runtime_allowed_execution_paths.split(","):
             candidate = item.strip()
             if not candidate:
                 continue
