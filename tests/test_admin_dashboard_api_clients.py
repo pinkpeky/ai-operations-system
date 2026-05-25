@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "admin_dashboard/src/api/client.ts"
+DASHBOARD = ROOT / "admin_dashboard/src/main.tsx"
 
 
 def test_admin_dashboard_api_client_modules_exist() -> None:
@@ -57,6 +58,9 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/comfyui-runtime/post-manual-readiness-checks/${encodeURIComponent(checkId)}/guarded-probe-executions",
         "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/${encodeURIComponent(action)}",
         "/comfyui-runtime/guarded-probe-executions/${encodeURIComponent(executionId)}/execute",
+        "/comfyui-runtime/prompt-jobs",
+        "/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history",
+        "/comfyui-runtime/queue",
         "/comfyui-runtime/diagnostic-snapshots",
         "/commercial-operations/${encodeURIComponent(operationId)}",
         "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft",
@@ -247,3 +251,12 @@ def test_admin_dashboard_api_client_handles_errors() -> None:
     assert "safeRequest" in client
     assert "Request failed with status" in client
     assert "API unavailable" in client
+
+
+def test_admin_dashboard_comfyui_smoke_prompt_matches_runtime_contract() -> None:
+    dashboard = DASHBOARD.read_text(encoding="utf-8")
+
+    assert 'class_type: "EmptyImage"' in dashboard
+    assert "color: 65280" in dashboard
+    assert 'class_type: "SaveImage"' in dashboard
+    assert 'filename_prefix: "aiops_admin_dashboard_smoke"' in dashboard

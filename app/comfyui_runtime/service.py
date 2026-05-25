@@ -36,6 +36,9 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeMaintenanceStep,
     ComfyUIRuntimeManualApplyEvidenceListResponse,
     ComfyUIRuntimeManualApplyEvidenceResponse,
+    ComfyUIRuntimePromptHistoryResponse,
+    ComfyUIRuntimePromptJobSubmitResponse,
+    ComfyUIRuntimeQueueResponse,
     ComfyUIRuntimePostManualReadinessCheckListResponse,
     ComfyUIRuntimePostManualReadinessCheckResponse,
 )
@@ -90,14 +93,21 @@ COMFYUI_RUNTIME_GUARDED_PROBE_EXECUTION_STATUSES = {
 }
 
 HttpGet = Callable[[str, float], Mapping[str, Any]]
+HttpPost = Callable[[str, Mapping[str, Any], float], Mapping[str, Any]]
 
 
 class ComfyUIRuntimeService:
     """Expose ComfyUI runtime readiness with an explicit read-only probe gate."""
 
-    def __init__(self, settings: Settings | None = None, http_get: HttpGet | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        http_get: HttpGet | None = None,
+        http_post: HttpPost | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
         self.http_get = http_get or self._default_http_get
+        self.http_post = http_post or self._default_http_post_json
 
     def health_check(self, *, workspace_id: str | None = None) -> ComfyUIRuntimeHealthResponse:
         """Return adapter contract state and optionally run one guarded read-only probe."""
@@ -254,28 +264,42 @@ class ComfyUIRuntimeService:
             "configuration_review",
             "disabled_health_contract",
         ]
+        prompt_submission_ready = self._runtime_execution_error(path="/prompt") is None
         if read_only_probe_ready:
             available_actions.append(COMFYUI_RUNTIME_READ_ONLY_ACTION)
+        if prompt_submission_ready:
+            available_actions.extend(
+                [
+                    "submit_comfyui_prompt_job",
+                    "read_comfyui_prompt_history",
+                    "read_comfyui_queue_status",
+                ]
+            )
         return ComfyUIRuntimeCapabilitiesResponse(
             provider=provider,
             enabled=self.settings.comfyui_runtime_enabled,
             guarded=True,
-            mock=True,
+            mock=not prompt_submission_ready,
             base_url=self.settings.comfyui_runtime_base_url,
             allowed_hosts=sorted(self.settings.comfyui_runtime_allowed_host_set),
             health_path=health_path,
             allowed_health_paths=sorted(self.settings.comfyui_runtime_allowed_health_path_set),
             read_only_probe_enabled=self.settings.comfyui_runtime_read_only_probe_enabled,
             available_actions=available_actions,
-            disabled_actions=self._disabled_actions(read_only_probe_ready=read_only_probe_ready),
+            disabled_actions=self._disabled_actions(
+                read_only_probe_ready=read_only_probe_ready,
+                prompt_submission_ready=prompt_submission_ready,
+            ),
             guardrails=[
                 "COMFYUI_RUNTIME_ENABLED must be true before any future live adapter can be considered",
                 "COMFYUI_RUNTIME_ALLOW_NETWORK must be true before the read-only health probe can be considered",
                 "COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED must be true before a ComfyUI health endpoint is called",
                 "COMFYUI_RUNTIME_BASE_URL host must be in COMFYUI_RUNTIME_ALLOWED_HOSTS",
                 "COMFYUI_RUNTIME_HEALTH_PATH must be in COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS",
-                "Phase 62B only permits a read-only system_stats health probe when every explicit gate is enabled",
-                "Prompt submission, queue reads/submissions, uploads, media generation, adapter imports, and runtime switch changes remain disabled",
+                "COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED must be true before guarded prompt submission is allowed",
+                "COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS must allow /prompt, /history, and /queue before real adapter calls",
+                "Prompt submission remains disabled unless every explicit guarded runtime gate is enabled",
+                "Uploads, secret resolution, account control, publishing, and runtime switch changes remain disabled",
             ],
             required_configuration=[
                 "COMFYUI_RUNTIME_PROVIDER=guarded",
@@ -286,13 +310,17 @@ class ComfyUIRuntimeService:
                 "COMFYUI_RUNTIME_ALLOWED_HOSTS",
                 "COMFYUI_RUNTIME_HEALTH_PATH=/system_stats",
                 "COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS=/system_stats",
+                "COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=true",
+                "COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS=/prompt,/history,/queue",
             ],
             workspace_id=workspace_id,
             raw={
-                "phase": "62B",
-                "contract_mode": "guarded_adapter_contract",
-                "runtime_calls_enabled": False,
+                "phase": "65A",
+                "contract_mode": "guarded_real_prompt_adapter",
+                "runtime_calls_enabled": prompt_submission_ready,
                 "read_only_probe_ready": read_only_probe_ready,
+                "prompt_submission_ready": prompt_submission_ready,
+                "allowed_execution_paths": sorted(self.settings.comfyui_runtime_allowed_execution_path_set),
             },
         )
 
@@ -1276,6 +1304,171 @@ class ComfyUIRuntimeService:
             items=[ComfyUIRuntimeDiagnosticSnapshotResponse.from_model(snapshot) for snapshot in snapshots],
         )
 
+    def submit_prompt_job(
+        self,
+        *,
+        prompt: Mapping[str, Any],
+        client_id: str | None = None,
+        extra_data: Mapping[str, Any] | None = None,
+        workflow: Mapping[str, Any] | None = None,
+        metadata: Mapping[str, Any] | None = None,
+        workspace_id: str | None = None,
+    ) -> ComfyUIRuntimePromptJobSubmitResponse:
+        """Submit one guarded real ComfyUI prompt job to /prompt."""
+
+        readiness_error = self._runtime_execution_error(path="/prompt")
+        request_payload: dict[str, Any] = {"prompt": dict(prompt or {})}
+        if client_id:
+            request_payload["client_id"] = client_id
+        merged_extra_data = dict(extra_data or {})
+        if workflow is not None:
+            extra_pnginfo = dict(merged_extra_data.get("extra_pnginfo") or {})
+            extra_pnginfo["workflow"] = dict(workflow)
+            merged_extra_data["extra_pnginfo"] = extra_pnginfo
+        if merged_extra_data:
+            request_payload["extra_data"] = merged_extra_data
+
+        if readiness_error:
+            return ComfyUIRuntimePromptJobSubmitResponse(
+                success=False,
+                workspace_id=workspace_id,
+                provider=self._provider(),
+                enabled=self.settings.comfyui_runtime_enabled,
+                base_url=self.settings.comfyui_runtime_base_url,
+                external_request_attempted=False,
+                runtime_calls_enabled=False,
+                prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
+                request_payload=request_payload,
+                error=readiness_error,
+                metadata=dict(metadata or {}),
+            )
+
+        if not request_payload["prompt"]:
+            return ComfyUIRuntimePromptJobSubmitResponse(
+                success=False,
+                workspace_id=workspace_id,
+                provider=self._provider(),
+                enabled=self.settings.comfyui_runtime_enabled,
+                base_url=self.settings.comfyui_runtime_base_url,
+                external_request_attempted=False,
+                runtime_calls_enabled=False,
+                prompt_submission_enabled=True,
+                request_payload=request_payload,
+                error="ComfyUI prompt payload is empty; provide a valid workflow prompt graph before submission.",
+                metadata=dict(metadata or {}),
+            )
+
+        url = self._build_runtime_url(self.settings.comfyui_runtime_base_url, "/prompt")
+        response = self.http_post(url, request_payload, self.settings.comfyui_runtime_timeout_seconds)
+        status_code = self._status_code(response)
+        payload = response.get("json")
+        response_payload = payload if isinstance(payload, dict) else {}
+        success = status_code is not None and 200 <= status_code < 300 and "prompt_id" in response_payload
+        return ComfyUIRuntimePromptJobSubmitResponse(
+            success=success,
+            workspace_id=workspace_id,
+            provider=self._provider(),
+            enabled=self.settings.comfyui_runtime_enabled,
+            base_url=self.settings.comfyui_runtime_base_url,
+            external_request_attempted=True,
+            runtime_calls_enabled=True,
+            prompt_submission_enabled=True,
+            status_code=status_code,
+            prompt_id=str(response_payload.get("prompt_id")) if response_payload.get("prompt_id") is not None else None,
+            number=response_payload.get("number") if isinstance(response_payload.get("number"), (int, float)) else None,
+            node_errors=response_payload.get("node_errors") if isinstance(response_payload.get("node_errors"), dict) else {},
+            response_payload=response_payload,
+            request_payload=request_payload,
+            error=None if success else str(response.get("error") or response_payload.get("error") or "ComfyUI prompt submission did not return a prompt_id."),
+            metadata=dict(metadata or {}),
+        )
+
+    def prompt_history(
+        self,
+        *,
+        prompt_id: str,
+        workspace_id: str | None = None,
+    ) -> ComfyUIRuntimePromptHistoryResponse:
+        """Read one guarded real ComfyUI prompt history response."""
+
+        safe_prompt_id = self._sanitize_prompt_id(prompt_id)
+        path = f"/history/{safe_prompt_id}"
+        readiness_error = self._runtime_execution_error(path=path)
+        if readiness_error:
+            return ComfyUIRuntimePromptHistoryResponse(
+                success=False,
+                workspace_id=workspace_id,
+                provider=self._provider(),
+                base_url=self.settings.comfyui_runtime_base_url,
+                path=path,
+                prompt_id=safe_prompt_id,
+                external_request_attempted=False,
+                runtime_calls_enabled=False,
+                prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
+                error=readiness_error,
+            )
+
+        response = self.http_get(self._build_runtime_url(self.settings.comfyui_runtime_base_url, path), self.settings.comfyui_runtime_timeout_seconds)
+        status_code = self._status_code(response)
+        payload = response.get("json")
+        response_payload = payload if isinstance(payload, dict) else {}
+        history_item = response_payload.get(safe_prompt_id) if isinstance(response_payload.get(safe_prompt_id), dict) else {}
+        outputs = history_item.get("outputs") if isinstance(history_item.get("outputs"), dict) else {}
+        success = status_code is not None and 200 <= status_code < 300
+        return ComfyUIRuntimePromptHistoryResponse(
+            success=success,
+            workspace_id=workspace_id,
+            provider=self._provider(),
+            base_url=self.settings.comfyui_runtime_base_url,
+            path=path,
+            prompt_id=safe_prompt_id,
+            external_request_attempted=True,
+            runtime_calls_enabled=True,
+            prompt_submission_enabled=True,
+            status_code=status_code,
+            response_payload=response_payload,
+            outputs=outputs,
+            error=None if success else str(response.get("error") or "ComfyUI prompt history read failed."),
+        )
+
+    def queue_status(self, *, workspace_id: str | None = None) -> ComfyUIRuntimeQueueResponse:
+        """Read guarded real ComfyUI queue status."""
+
+        readiness_error = self._runtime_execution_error(path="/queue")
+        if readiness_error:
+            return ComfyUIRuntimeQueueResponse(
+                success=False,
+                workspace_id=workspace_id,
+                provider=self._provider(),
+                base_url=self.settings.comfyui_runtime_base_url,
+                external_request_attempted=False,
+                runtime_calls_enabled=False,
+                prompt_submission_enabled=self.settings.comfyui_runtime_prompt_submission_enabled,
+                error=readiness_error,
+            )
+
+        response = self.http_get(self._build_runtime_url(self.settings.comfyui_runtime_base_url, "/queue"), self.settings.comfyui_runtime_timeout_seconds)
+        status_code = self._status_code(response)
+        payload = response.get("json")
+        response_payload = payload if isinstance(payload, dict) else {}
+        running = response_payload.get("queue_running") if isinstance(response_payload.get("queue_running"), list) else []
+        pending = response_payload.get("queue_pending") if isinstance(response_payload.get("queue_pending"), list) else []
+        success = status_code is not None and 200 <= status_code < 300
+        return ComfyUIRuntimeQueueResponse(
+            success=success,
+            workspace_id=workspace_id,
+            provider=self._provider(),
+            base_url=self.settings.comfyui_runtime_base_url,
+            external_request_attempted=True,
+            runtime_calls_enabled=True,
+            prompt_submission_enabled=True,
+            status_code=status_code,
+            response_payload=response_payload,
+            queue_running=running,
+            queue_pending=pending,
+            error=None if success else str(response.get("error") or "ComfyUI queue status read failed."),
+        )
+
     def _recommended_config_changes(
         self,
         runbook: ComfyUIRuntimeMaintenanceRunbookResponse,
@@ -1534,11 +1727,58 @@ class ComfyUIRuntimeService:
             return "ComfyUI runtime health path is not in COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS."
         return None
 
-    def _disabled_actions(self, *, read_only_probe_ready: bool) -> list[str]:
+    def _disabled_actions(
+        self,
+        *,
+        read_only_probe_ready: bool,
+        prompt_submission_ready: bool = False,
+    ) -> list[str]:
         actions = list(DISABLED_COMFYUI_RUNTIME_ACTIONS)
         if not read_only_probe_ready:
             actions.insert(1, COMFYUI_RUNTIME_READ_ONLY_ACTION)
+        if prompt_submission_ready:
+            actions = [
+                action
+                for action in actions
+                if action
+                not in {
+                    "call_comfyui_queue",
+                    "submit_prompt",
+                    "submit_queue_job",
+                    "read_history",
+                    "generate_media",
+                }
+            ]
         return actions
+
+    def _runtime_execution_error(self, *, path: str) -> str | None:
+        provider = self._provider()
+        parsed = urlparse(self.settings.comfyui_runtime_base_url)
+        host = (parsed.hostname or "").lower()
+        normalized_path = self._normalize_path(path)
+        if provider != "guarded":
+            return "ComfyUI runtime provider is disabled; set COMFYUI_RUNTIME_PROVIDER=guarded before real prompt submission."
+        if not self.settings.comfyui_runtime_enabled:
+            return "ComfyUI runtime is disabled by COMFYUI_RUNTIME_ENABLED=false."
+        if not self.settings.comfyui_runtime_allow_network:
+            return "ComfyUI runtime network access is disabled by COMFYUI_RUNTIME_ALLOW_NETWORK=false."
+        if not self.settings.comfyui_runtime_read_only_probe_enabled:
+            return "ComfyUI read-only probe gate is disabled by COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=false."
+        health_path = self._normalize_path(self.settings.comfyui_runtime_health_path)
+        if health_path not in self.settings.comfyui_runtime_allowed_health_path_set:
+            return "ComfyUI read-only health path is not in COMFYUI_RUNTIME_ALLOWED_HEALTH_PATHS."
+        if parsed.scheme not in {"http", "https"}:
+            return "ComfyUI runtime base URL must use http or https."
+        if not host or host not in self.settings.comfyui_runtime_allowed_host_set:
+            return "ComfyUI runtime base URL host is not in COMFYUI_RUNTIME_ALLOWED_HOSTS."
+        if not self.settings.comfyui_runtime_prompt_submission_enabled:
+            return "ComfyUI prompt submission is disabled by COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=false."
+        if not self._path_is_allowed(normalized_path, self.settings.comfyui_runtime_allowed_execution_path_set):
+            return "ComfyUI runtime execution path is not in COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS."
+        return None
+
+    def _provider(self) -> str:
+        return self.settings.comfyui_runtime_provider.strip().lower() or "disabled"
 
     @staticmethod
     def _normalize_path(value: str) -> str:
@@ -1555,6 +1795,24 @@ class ComfyUIRuntimeService:
         base_path = parsed.path.rstrip("/")
         probe_path = f"{base_path}{path}" if base_path else path
         return urlunparse((parsed.scheme, parsed.netloc, probe_path, "", "", ""))
+
+    @staticmethod
+    def _build_runtime_url(base_url: str, path: str) -> str:
+        return ComfyUIRuntimeService._build_probe_url(base_url, path)
+
+    @staticmethod
+    def _path_is_allowed(path: str, allowed_paths: set[str]) -> bool:
+        for allowed in allowed_paths:
+            if path == allowed or path.startswith(f"{allowed.rstrip('/')}/"):
+                return True
+        return False
+
+    @staticmethod
+    def _sanitize_prompt_id(prompt_id: str) -> str:
+        value = prompt_id.strip()
+        if not value or any(token in value for token in ("/", "\\", "?", "#", "&")) or ".." in value:
+            raise ValueError("Invalid ComfyUI prompt_id.")
+        return value
 
     @staticmethod
     def _status_code(response: Mapping[str, Any]) -> int | None:
@@ -1596,6 +1854,34 @@ class ComfyUIRuntimeService:
         except HTTPError as exc:
             body = exc.read(65536)
             text = body.decode("utf-8", errors="replace")
+            return {
+                "status_code": exc.code,
+                "json": ComfyUIRuntimeService._parse_json(text),
+                "text": text[:2048],
+                "error": str(exc.reason),
+            }
+
+    @staticmethod
+    def _default_http_post_json(url: str, payload: Mapping[str, Any], timeout_seconds: float) -> Mapping[str, Any]:
+        body = json.dumps(payload).encode("utf-8")
+        request = Request(
+            url,
+            data=body,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=timeout_seconds) as response:
+                response_body = response.read(65536)
+                text = response_body.decode("utf-8", errors="replace")
+                return {
+                    "status_code": int(getattr(response, "status", response.getcode())),
+                    "json": ComfyUIRuntimeService._parse_json(text),
+                    "text": text[:2048],
+                }
+        except HTTPError as exc:
+            response_body = exc.read(65536)
+            text = response_body.decode("utf-8", errors="replace")
             return {
                 "status_code": exc.code,
                 "json": ComfyUIRuntimeService._parse_json(text),

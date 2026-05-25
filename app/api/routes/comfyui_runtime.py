@@ -33,6 +33,10 @@ from app.schemas.comfyui_runtime import (
     ComfyUIRuntimeManualApplyEvidenceDecisionRequest,
     ComfyUIRuntimeManualApplyEvidenceListResponse,
     ComfyUIRuntimeManualApplyEvidenceResponse,
+    ComfyUIRuntimePromptHistoryResponse,
+    ComfyUIRuntimePromptJobSubmitRequest,
+    ComfyUIRuntimePromptJobSubmitResponse,
+    ComfyUIRuntimeQueueResponse,
     ComfyUIRuntimePostManualReadinessCheckCreateRequest,
     ComfyUIRuntimePostManualReadinessCheckDecisionRequest,
     ComfyUIRuntimePostManualReadinessCheckListResponse,
@@ -900,3 +904,61 @@ async def list_comfyui_runtime_diagnostic_snapshots(
     except Exception as exc:
         logger.exception("ComfyUI runtime diagnostic snapshot list API failed")
         raise AppError("ComfyUI runtime diagnostic snapshot list failed", status_code=500) from exc
+
+
+@router.post("/prompt-jobs", response_model=ComfyUIRuntimePromptJobSubmitResponse)
+async def submit_comfyui_runtime_prompt_job(
+    request: ComfyUIRuntimePromptJobSubmitRequest,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+) -> ComfyUIRuntimePromptJobSubmitResponse:
+    """Submit a guarded real ComfyUI prompt workflow when runtime submission is explicitly enabled."""
+
+    try:
+        return ComfyUIRuntimeService(settings=settings).submit_prompt_job(
+            workspace_id=context.workspace_id,
+            prompt=request.prompt,
+            client_id=request.client_id,
+            extra_data=request.extra_data,
+            workflow=request.workflow,
+            metadata=request.metadata,
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime prompt job submission API failed")
+        raise AppError("ComfyUI runtime prompt job submission failed", status_code=500) from exc
+
+
+@router.get("/prompt-jobs/{prompt_id}/history", response_model=ComfyUIRuntimePromptHistoryResponse)
+async def get_comfyui_runtime_prompt_history(
+    prompt_id: str,
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+) -> ComfyUIRuntimePromptHistoryResponse:
+    """Read guarded real ComfyUI prompt history for one prompt id."""
+
+    try:
+        return ComfyUIRuntimeService(settings=settings).prompt_history(
+            workspace_id=context.workspace_id,
+            prompt_id=prompt_id,
+        )
+    except ValueError as exc:
+        raise AppError(str(exc), status_code=400) from exc
+    except Exception as exc:
+        logger.exception("ComfyUI runtime prompt history API failed", extra={"prompt_id": prompt_id})
+        raise AppError("ComfyUI runtime prompt history failed", status_code=500) from exc
+
+
+@router.get("/queue", response_model=ComfyUIRuntimeQueueResponse)
+async def get_comfyui_runtime_queue_status(
+    context: WorkspaceContext = Depends(get_workspace_context),
+    settings: Settings = Depends(get_settings),
+) -> ComfyUIRuntimeQueueResponse:
+    """Read guarded real ComfyUI queue status."""
+
+    try:
+        return ComfyUIRuntimeService(settings=settings).queue_status(workspace_id=context.workspace_id)
+    except Exception as exc:
+        logger.exception("ComfyUI runtime queue status API failed")
+        raise AppError("ComfyUI runtime queue status failed", status_code=500) from exc
