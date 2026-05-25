@@ -5335,6 +5335,11 @@ function ChatPanel({
     : language === "zh-CN"
       ? "工作流待绑定"
       : "Workflow pending";
+  const digitalHumanWorkflowReadinessText = latestDigitalHumanVideoJob?.workflow_readiness_status
+    ? `Readiness ${latestDigitalHumanVideoJob.workflow_readiness_status}`
+    : language === "zh-CN"
+      ? "真实工作流待检查"
+      : "Real workflow not checked";
   const operationResultSummary = closedLoopDeliveryStatus
     ? closedLoopDeliveryStatus
     : nextCycleDraftStatus
@@ -5480,6 +5485,7 @@ function ChatPanel({
             <div className="client-digital-human-meta">
               <span>{language === "zh-CN" ? `输出 ${digitalHumanVideoOutputCount}` : `${digitalHumanVideoOutputCount} outputs`}</span>
               <span>{digitalHumanWorkflowBindingText}</span>
+              <span>{digitalHumanWorkflowReadinessText}</span>
               <span>{latestDigitalHumanVideoJob?.linked_comfyui_video_job_id ? "ComfyUI linked" : "ComfyUI pending"}</span>
               <button className="refresh-button" onClick={() => void refreshLatestDigitalHumanVideo()} disabled={digitalHumanVideoLoading}>
                 <RefreshCcw size={14} />

@@ -209,6 +209,15 @@ export const digitalHumansApi = {
       },
       settings,
     ),
+  checkWorkflowReadiness: (jobId: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/workflow-readiness-check`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
   reviewVideoJob: (jobId: string, action: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
     requestJson<JsonRecord>(
       `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}`,

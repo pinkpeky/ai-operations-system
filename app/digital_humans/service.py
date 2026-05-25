@@ -208,14 +208,16 @@ class DigitalHumanService:
                 "Portrait assets require explicit authorization before provider execution.",
                 "Default mode stores plans and assets but does not call external avatar APIs.",
                 "ComfyUI workflow templates are binding contracts until an operator imports and verifies the real graph.",
+                "Real ComfyUI execution requires workflow readiness evidence for imported graph, nodes, models, uploads, output watch, and GPU VRAM.",
                 "Generated videos must go through human review before publishing.",
             ],
             workspace_id=workspace_id,
             raw={
-                "phase": "67C",
+                "phase": "67D",
                 "no_external_call_performed": True,
                 "asset_types": sorted(DIGITAL_HUMAN_ASSET_TYPES),
                 "execution_modes": ["mock_render", "comfyui_handoff"],
+                "readiness_checks": ["workflow_import", "custom_nodes", "models", "asset_uploads", "output_watch", "gpu_vram"],
                 "workflow_template_ids": [str(template["template_id"]) for template in DIGITAL_HUMAN_WORKFLOW_TEMPLATES],
             },
         )
@@ -500,6 +502,7 @@ class DigitalHumanService:
             "workflow_template_name": binding["template_name"],
             "input_asset_count": len(binding["input_assets"]),
             "missing_inputs": binding["missing_inputs"],
+            "upload_manifest": binding["upload_manifest"],
             "required_nodes": template.get("required_nodes", []),
             "required_models": template.get("required_models", []),
             "created_at": binding["created_at"],
@@ -554,6 +557,99 @@ class DigitalHumanService:
             material_count=len(material_ids),
             reference_count=len(reference_ids),
         )
+        await session.commit()
+        await session.refresh(job)
+        return DigitalHumanVideoJobResponse.from_model(job)
+
+    async def check_comfyui_workflow_readiness(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+        operator_imported_workflow: bool = False,
+        installed_nodes: Sequence[str] | None = None,
+        installed_models: Sequence[str] | None = None,
+        uploaded_asset_ids: Sequence[UUID] | None = None,
+        comfyui_base_url: str | None = None,
+        output_watch_path: str | None = None,
+        gpu_name: str | None = None,
+        free_vram_mb: int | None = None,
+        queue_depth: int | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> DigitalHumanVideoJobResponse:
+        """Record real ComfyUI workflow readiness evidence before guarded execution."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        binding = self._workflow_binding_from_job(job)
+        if not binding:
+            raise AppError("Workflow readiness check requires a ComfyUI workflow binding first", status_code=400)
+        if job.job_status in {"completed", "failed", "cancelled", "archived"}:
+            raise AppError("Terminal digital human jobs cannot accept workflow readiness evidence", status_code=400)
+
+        template = self._workflow_template(str(binding.get("template_id") or ""))
+        readiness = self._build_comfyui_workflow_readiness(
+            job=job,
+            binding=binding,
+            template=template,
+            operator_imported_workflow=operator_imported_workflow,
+            installed_nodes=installed_nodes,
+            installed_models=installed_models,
+            uploaded_asset_ids=uploaded_asset_ids,
+            comfyui_base_url=comfyui_base_url,
+            output_watch_path=output_watch_path,
+            gpu_name=gpu_name,
+            free_vram_mb=free_vram_mb,
+            queue_depth=queue_depth,
+            operator_note=operator_note,
+            metadata=metadata,
+        )
+        output_record = {
+            "output_type": "digital_human_comfyui_workflow_readiness",
+            "media_type": "video",
+            "status": readiness["status"],
+            "workflow_template_id": readiness["template_id"],
+            "binding_id": readiness["binding_id"],
+            "asset_upload_status": readiness["asset_upload_status"],
+            "output_watch_status": readiness["output_watch"]["status"],
+            "missing_nodes": readiness["missing_nodes"],
+            "missing_models": readiness["missing_models"],
+            "blockers": readiness["blockers"],
+            "checked_at": readiness["checked_at"],
+        }
+        job.outputs = self._upsert_output(
+            job.outputs or [],
+            output_record,
+            key="output_type",
+            value="digital_human_comfyui_workflow_readiness",
+        )
+        job.provider_response = {
+            "phase": "67D",
+            "provider": job.provider,
+            "execution_mode": job.execution_mode,
+            "workflow_template_id": readiness["template_id"],
+            "workflow_readiness_status": readiness["status"],
+            "asset_upload_status": readiness["asset_upload_status"],
+            "output_watch_status": readiness["output_watch"]["status"],
+            "missing_nodes": readiness["missing_nodes"],
+            "missing_models": readiness["missing_models"],
+            "gpu_resource_status": readiness["gpu_resource"]["status"],
+            "external_request_attempted": False,
+        }
+        job.external_request_attempted = False
+        job.failure_reason = None if readiness["status"] == "ready_for_guarded_comfyui_execution" else "; ".join(readiness["blockers"])
+        job.result_summary = self._workflow_readiness_result_summary(status=readiness["status"])
+        job.operator_note = operator_note or job.operator_note
+        job.job_metadata = {
+            **(job.job_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "67D",
+            "workflow_readiness_status": readiness["status"],
+            "workflow_asset_upload_status": readiness["asset_upload_status"],
+            "workflow_output_watch_status": readiness["output_watch"]["status"],
+            "comfyui_workflow_readiness": readiness,
+        }
         await session.commit()
         await session.refresh(job)
         return DigitalHumanVideoJobResponse.from_model(job)
@@ -848,12 +944,15 @@ class DigitalHumanService:
     ) -> None:
         now = datetime.now(timezone.utc)
         workflow_binding = self._workflow_binding_from_job(job)
-        handoff_phase = "67C" if workflow_binding else "67B"
+        workflow_readiness = self._workflow_readiness_from_job(job)
+        handoff_phase = "67D" if workflow_readiness else ("67C" if workflow_binding else "67B")
         binding_resource_plan = workflow_binding.get("resource_plan") if isinstance(workflow_binding.get("resource_plan"), Mapping) else {}
         supplied_prompt = bool(prompt)
         prompt_payload = dict(prompt or workflow_binding.get("prompt") or self._build_comfyui_handoff_prompt(job))
         workflow_payload = dict(workflow or workflow_binding.get("workflow") or self._build_comfyui_handoff_workflow(job))
         effective_submit = bool(submit_immediately and supplied_prompt)
+        if workflow_binding and effective_submit and workflow_readiness.get("status") != "ready_for_guarded_comfyui_execution":
+            raise AppError("Bound ComfyUI workflow needs a ready workflow-readiness check before prompt submission", status_code=400)
         duration_seconds = job.duration_seconds or self._duration_from_frames(frames=frames, fps=fps)
         handoff_resource_profile = resource_profile or str(binding_resource_plan.get("resource_profile") or "standard")
         handoff_width = width if width is not None else binding_resource_plan.get("width")
@@ -877,6 +976,7 @@ class DigitalHumanService:
                     "target_channels": job.target_channels or [],
                     "workflow_template_id": workflow_binding.get("template_id"),
                     "workflow_binding_status": workflow_binding.get("status"),
+                    "workflow_readiness_status": workflow_readiness.get("status"),
                 },
                 "aiops_digital_human_handoff": True,
             },
@@ -899,6 +999,7 @@ class DigitalHumanService:
                 "generated_prompt_submission_skipped": bool(submit_immediately and not supplied_prompt),
                 "workflow_template_id": workflow_binding.get("template_id"),
                 "workflow_binding_status": workflow_binding.get("status"),
+                "workflow_readiness_status": workflow_readiness.get("status"),
                 **dict(metadata or {}),
             },
         )
@@ -918,6 +1019,7 @@ class DigitalHumanService:
             "submit_immediately_effective": effective_submit,
             "workflow_template_id": workflow_binding.get("template_id"),
             "workflow_binding_status": workflow_binding.get("status"),
+            "workflow_readiness_status": workflow_readiness.get("status"),
             "created_at": now.isoformat(),
         }
         job.execution_mode = "comfyui_handoff"
@@ -941,6 +1043,7 @@ class DigitalHumanService:
             "generated_prompt_submission_skipped": bool(submit_immediately and not supplied_prompt),
             "workflow_template_id": workflow_binding.get("template_id"),
             "workflow_binding_status": workflow_binding.get("status"),
+            "workflow_readiness_status": workflow_readiness.get("status"),
         }
         job.external_request_attempted = comfyui_job.external_request_attempted
         job.failure_reason = comfyui_job.failure_reason or self._comfyui_resource_block_reason(comfyui_job.resource_plan)
@@ -954,6 +1057,7 @@ class DigitalHumanService:
             "linked_comfyui_video_job_id": str(comfyui_job.id),
             "selected_workflow_template_id": workflow_binding.get("template_id"),
             "workflow_binding_status": workflow_binding.get("status"),
+            "workflow_readiness_status": workflow_readiness.get("status"),
             "progress_percent": 60 if job.job_status == "queued_for_comfyui" else 75,
             "current_stage": "comfyui_video_queue" if job.job_status == "queued_for_comfyui" else "video_rendering",
             "last_execution_at": now.isoformat(),
@@ -991,7 +1095,7 @@ class DigitalHumanService:
             prompt_contract=prompt_contract,
             workflow_contract=workflow_contract,
             metadata={
-                "phase": "67C",
+                "phase": "67D",
                 "source": "digital_human_builtin_workflow_template",
                 "no_external_call_performed": True,
             },
@@ -1083,12 +1187,126 @@ class DigitalHumanService:
             "operator_parameters": dict(operator_parameters or {}),
             "operator_note": operator_note,
             "metadata": dict(metadata or {}),
+            "upload_manifest": self._workflow_upload_manifest(input_assets=input_assets, uploaded_asset_ids=set()),
             "submit_policy": "operator_must_import_real_graph_then_enable_guarded_runtime",
             "execution_boundary": "This is a real input binding and workflow contract; it does not install models, mutate ComfyUI, upload files, submit prompts, publish, or control accounts.",
         }
         binding["prompt"] = self._build_bound_comfyui_prompt(job=job, template=template, binding=binding)
         binding["workflow"] = self._build_bound_comfyui_workflow(job=job, template=template, binding=binding)
         return binding
+
+    def _build_comfyui_workflow_readiness(
+        self,
+        *,
+        job: DigitalHumanVideoJob,
+        binding: Mapping[str, Any],
+        template: Mapping[str, Any],
+        operator_imported_workflow: bool,
+        installed_nodes: Sequence[str] | None,
+        installed_models: Sequence[str] | None,
+        uploaded_asset_ids: Sequence[UUID] | None,
+        comfyui_base_url: str | None,
+        output_watch_path: str | None,
+        gpu_name: str | None,
+        free_vram_mb: int | None,
+        queue_depth: int | None,
+        operator_note: str | None,
+        metadata: Mapping[str, object] | None,
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        previous = self._workflow_readiness_from_job(job)
+        previous_output_watch = previous.get("output_watch") if isinstance(previous.get("output_watch"), Mapping) else {}
+        previous_gpu_resource = previous.get("gpu_resource") if isinstance(previous.get("gpu_resource"), Mapping) else {}
+        previous_uploaded = previous.get("uploaded_asset_ids")
+        uploaded_ids = {str(asset_id) for asset_id in uploaded_asset_ids or []}
+        if isinstance(previous_uploaded, list):
+            uploaded_ids.update(str(asset_id) for asset_id in previous_uploaded if str(asset_id).strip())
+
+        effective_nodes = self._merged_evidence_list(previous.get("installed_nodes"), installed_nodes)
+        effective_models = self._merged_evidence_list(previous.get("installed_models"), installed_models)
+        required_nodes = [str(item) for item in binding.get("required_nodes") or template.get("required_nodes", [])]
+        required_models = [str(item) for item in binding.get("required_models") or template.get("required_models", [])]
+        missing_nodes = self._missing_requirements(required_nodes, effective_nodes)
+        missing_models = self._missing_requirements(required_models, effective_models)
+        upload_manifest = self._workflow_upload_manifest(
+            input_assets=binding.get("input_assets") if isinstance(binding.get("input_assets"), list) else [],
+            uploaded_asset_ids=uploaded_ids,
+        )
+        pending_uploads = [item for item in upload_manifest if item.get("upload_status") == "pending_upload"]
+        binding_missing_inputs = [
+            str(item) for item in binding.get("missing_inputs", []) if str(item).strip()
+        ] if isinstance(binding.get("missing_inputs"), list) else []
+        effective_output_watch_path = self._coalesce_string(output_watch_path, previous_output_watch.get("path"))
+        effective_base_url = self._coalesce_string(comfyui_base_url, previous_output_watch.get("comfyui_base_url"))
+        effective_gpu_name = self._coalesce_string(gpu_name, previous_gpu_resource.get("gpu_name"))
+        effective_free_vram_mb = free_vram_mb if free_vram_mb is not None else self._optional_int(previous_gpu_resource.get("free_vram_mb"))
+        effective_queue_depth = queue_depth if queue_depth is not None else self._optional_int(previous_gpu_resource.get("queue_depth"))
+        resource_plan = binding.get("resource_plan") if isinstance(binding.get("resource_plan"), Mapping) else {}
+        estimated_vram_mb = self._optional_int(resource_plan.get("estimated_vram_mb"))
+        gpu_status = self._workflow_gpu_resource_status(
+            estimated_vram_mb=estimated_vram_mb,
+            free_vram_mb=effective_free_vram_mb,
+        )
+        imported_workflow = bool(operator_imported_workflow or previous.get("operator_imported_workflow"))
+        asset_upload_status = "ready" if not pending_uploads else "pending_uploads"
+        output_watch_status = "ready" if effective_output_watch_path else "not_configured"
+        status = self._workflow_readiness_status(
+            binding_missing_inputs=binding_missing_inputs,
+            operator_imported_workflow=imported_workflow,
+            missing_nodes=missing_nodes,
+            missing_models=missing_models,
+            pending_upload_count=len(pending_uploads),
+            output_watch_path=effective_output_watch_path,
+            gpu_status=gpu_status,
+        )
+        blockers = self._workflow_readiness_blockers(
+            binding_missing_inputs=binding_missing_inputs,
+            operator_imported_workflow=imported_workflow,
+            missing_nodes=missing_nodes,
+            missing_models=missing_models,
+            pending_upload_count=len(pending_uploads),
+            output_watch_path=effective_output_watch_path,
+            gpu_status=gpu_status,
+            estimated_vram_mb=estimated_vram_mb,
+            free_vram_mb=effective_free_vram_mb,
+        )
+        return {
+            "phase": "67D",
+            "status": status,
+            "checked_at": now.isoformat(),
+            "binding_id": str(binding.get("binding_id") or ""),
+            "template_id": str(binding.get("template_id") or template["template_id"]),
+            "template_name": str(binding.get("template_name") or template["name"]),
+            "workflow_kind": str(binding.get("workflow_kind") or template["workflow_kind"]),
+            "operator_imported_workflow": imported_workflow,
+            "installed_nodes": effective_nodes,
+            "installed_models": effective_models,
+            "required_nodes": required_nodes,
+            "required_models": required_models,
+            "missing_nodes": missing_nodes,
+            "missing_models": missing_models,
+            "uploaded_asset_ids": sorted(uploaded_ids),
+            "upload_manifest": upload_manifest,
+            "asset_upload_status": asset_upload_status,
+            "output_watch": {
+                "status": output_watch_status,
+                "path": effective_output_watch_path,
+                "comfyui_base_url": effective_base_url,
+            },
+            "gpu_resource": {
+                "status": gpu_status,
+                "resource_profile": resource_plan.get("resource_profile"),
+                "estimated_vram_mb": estimated_vram_mb,
+                "free_vram_mb": effective_free_vram_mb,
+                "queue_depth": effective_queue_depth,
+                "gpu_name": effective_gpu_name,
+            },
+            "blockers": blockers,
+            "next_operator_actions": self._workflow_readiness_next_actions(status=status, blockers=blockers),
+            "operator_note": operator_note or previous.get("operator_note"),
+            "metadata": {**(previous.get("metadata") if isinstance(previous.get("metadata"), dict) else {}), **dict(metadata or {})},
+            "execution_boundary": "Readiness evidence is operator-recorded. It does not install nodes, download models, upload files, submit prompts, publish, control accounts, mutate runtime configuration, or bypass approval.",
+        }
 
     def _asset_binding_record(self, asset: DigitalHumanAsset, *, slot: str, role: str) -> dict[str, Any]:
         return {
@@ -1114,6 +1332,165 @@ class DigitalHumanService:
         if mime_type.startswith("audio/"):
             return {"kind": "audio", "path": "operator_import_or_workflow_specific_upload", "field": "audio", "requires_operator_upload": True}
         return {"kind": "metadata", "path": None, "field": None, "requires_operator_upload": False}
+
+    def _workflow_upload_manifest(
+        self,
+        *,
+        input_assets: Sequence[Mapping[str, Any]],
+        uploaded_asset_ids: set[str],
+    ) -> list[dict[str, Any]]:
+        manifest: list[dict[str, Any]] = []
+        for asset in input_assets:
+            if not isinstance(asset, Mapping):
+                continue
+            upload_hint = asset.get("comfyui_upload") if isinstance(asset.get("comfyui_upload"), Mapping) else {}
+            asset_id = str(asset.get("asset_id") or "").strip()
+            requires_upload = bool(upload_hint.get("requires_operator_upload"))
+            if not requires_upload:
+                upload_status = "not_required"
+            elif asset_id and asset_id in uploaded_asset_ids:
+                upload_status = "operator_confirmed"
+            else:
+                upload_status = "pending_upload"
+            manifest.append(
+                {
+                    "slot": asset.get("slot"),
+                    "role": asset.get("role"),
+                    "asset_id": asset_id,
+                    "asset_type": asset.get("asset_type"),
+                    "name": asset.get("name"),
+                    "file_name": asset.get("file_name"),
+                    "source_uri": asset.get("source_uri"),
+                    "upload_kind": upload_hint.get("kind"),
+                    "upload_path": upload_hint.get("path"),
+                    "upload_field": upload_hint.get("field"),
+                    "requires_operator_upload": requires_upload,
+                    "upload_status": upload_status,
+                }
+            )
+        return manifest
+
+    def _merged_evidence_list(self, previous: object, current: Sequence[str] | None) -> list[str]:
+        merged: list[str] = []
+        for value in [*(previous if isinstance(previous, list) else []), *(current or [])]:
+            text = str(value or "").strip()
+            if text and text.lower() not in {item.lower() for item in merged}:
+                merged.append(text)
+        return merged
+
+    def _missing_requirements(self, required: Sequence[str], available: Sequence[str]) -> list[str]:
+        return [item for item in required if not self._requirement_satisfied(item, available)]
+
+    def _requirement_satisfied(self, required: str, available: Sequence[str]) -> bool:
+        required_key = self._requirement_key(required)
+        if not required_key:
+            return True
+        for item in available:
+            available_key = self._requirement_key(str(item))
+            if not available_key:
+                continue
+            if required_key == available_key or required_key in available_key or available_key in required_key:
+                return True
+        return False
+
+    def _requirement_key(self, value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", str(value or "").strip().lower())
+
+    def _coalesce_string(self, *values: object) -> str | None:
+        for value in values:
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    def _optional_int(self, value: object) -> int | None:
+        if value is None or value == "":
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _workflow_gpu_resource_status(self, *, estimated_vram_mb: int | None, free_vram_mb: int | None) -> str:
+        if estimated_vram_mb is None:
+            return "not_required"
+        if free_vram_mb is None:
+            return "needs_gpu_evidence"
+        if free_vram_mb < estimated_vram_mb:
+            return "insufficient_vram"
+        return "ready"
+
+    def _workflow_readiness_status(
+        self,
+        *,
+        binding_missing_inputs: Sequence[str],
+        operator_imported_workflow: bool,
+        missing_nodes: Sequence[str],
+        missing_models: Sequence[str],
+        pending_upload_count: int,
+        output_watch_path: str | None,
+        gpu_status: str,
+    ) -> str:
+        if binding_missing_inputs:
+            return "needs_inputs"
+        if not operator_imported_workflow:
+            return "needs_workflow_import"
+        if missing_nodes:
+            return "missing_nodes"
+        if missing_models:
+            return "missing_models"
+        if pending_upload_count:
+            return "needs_asset_uploads"
+        if gpu_status in {"needs_gpu_evidence", "insufficient_vram"}:
+            return gpu_status
+        if not output_watch_path:
+            return "needs_output_watch"
+        return "ready_for_guarded_comfyui_execution"
+
+    def _workflow_readiness_blockers(
+        self,
+        *,
+        binding_missing_inputs: Sequence[str],
+        operator_imported_workflow: bool,
+        missing_nodes: Sequence[str],
+        missing_models: Sequence[str],
+        pending_upload_count: int,
+        output_watch_path: str | None,
+        gpu_status: str,
+        estimated_vram_mb: int | None,
+        free_vram_mb: int | None,
+    ) -> list[str]:
+        blockers: list[str] = []
+        if binding_missing_inputs:
+            blockers.append(f"Bind missing workflow inputs: {', '.join(binding_missing_inputs)}.")
+        if not operator_imported_workflow:
+            blockers.append("Import and save the real ComfyUI graph for the selected template.")
+        if missing_nodes:
+            blockers.append(f"Install or verify custom nodes: {', '.join(missing_nodes[:5])}.")
+        if missing_models:
+            blockers.append(f"Install or verify model files: {', '.join(missing_models[:5])}.")
+        if pending_upload_count:
+            blockers.append(f"Upload or confirm {pending_upload_count} bound asset(s) in ComfyUI.")
+        if gpu_status == "needs_gpu_evidence":
+            blockers.append("Record GPU free VRAM evidence before guarded video execution.")
+        if gpu_status == "insufficient_vram":
+            blockers.append(f"Free VRAM {free_vram_mb} MB is below estimated need {estimated_vram_mb} MB.")
+        if not output_watch_path:
+            blockers.append("Configure the ComfyUI output watch path for generated video retrieval.")
+        return blockers
+
+    def _workflow_readiness_next_actions(self, *, status: str, blockers: Sequence[str]) -> list[str]:
+        if status == "ready_for_guarded_comfyui_execution":
+            return [
+                "Use the guarded ComfyUI handoff after approval.",
+                "Keep prompt submission behind the existing runtime gates.",
+                "Refresh the linked ComfyUI video job to retrieve outputs.",
+            ]
+        return [str(item) for item in blockers[:5]]
+
+    def _workflow_readiness_result_summary(self, *, status: str) -> str:
+        if status == "ready_for_guarded_comfyui_execution":
+            return "Real ComfyUI workflow evidence is complete; the digital human video can enter guarded execution."
+        return f"Real ComfyUI workflow readiness is blocked: {status}."
 
     def _workflow_missing_inputs(
         self,
@@ -1185,6 +1562,10 @@ class DigitalHumanService:
     def _workflow_binding_from_job(self, job: DigitalHumanVideoJob) -> dict[str, Any]:
         binding = (job.job_metadata or {}).get("comfyui_workflow_binding")
         return dict(binding) if isinstance(binding, Mapping) else {}
+
+    def _workflow_readiness_from_job(self, job: DigitalHumanVideoJob) -> dict[str, Any]:
+        readiness = (job.job_metadata or {}).get("comfyui_workflow_readiness")
+        return dict(readiness) if isinstance(readiness, Mapping) else {}
 
     async def _get_asset_model(self, session: AsyncSession, *, workspace_id: str, asset_id: UUID) -> DigitalHumanAsset:
         result = await session.execute(

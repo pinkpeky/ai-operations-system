@@ -12,6 +12,11 @@ export type DigitalHumanVideoJob = {
   linked_comfyui_video_job_id?: string | null;
   selected_workflow_template_id?: string | null;
   workflow_binding_status?: string | null;
+  workflow_readiness_status?: string | null;
+  workflow_asset_upload_status?: string | null;
+  workflow_output_watch_status?: string | null;
+  workflow_missing_nodes?: string[];
+  workflow_missing_models?: string[];
   result_summary?: string | null;
   outputs?: Record<string, unknown>[];
   updated_at?: string;

@@ -16,6 +16,7 @@ from app.schemas.digital_human import (
     DigitalHumanAssetResponse,
     DigitalHumanCapabilitiesResponse,
     DigitalHumanComfyUIWorkflowBindingRequest,
+    DigitalHumanComfyUIWorkflowReadinessRequest,
     DigitalHumanWorkflowTemplateListResponse,
     DigitalHumanWorkflowTemplateResponse,
     DigitalHumanVideoJobActionRequest,
@@ -199,6 +200,35 @@ async def bind_digital_human_comfyui_workflow(
         estimated_vram_mb=payload.estimated_vram_mb,
         reserve_vram_mb=payload.reserve_vram_mb,
         operator_parameters=payload.operator_parameters,
+        operator_note=payload.operator_note,
+        metadata=payload.metadata,
+    )
+
+
+@router.post("/video-jobs/{job_id}/workflow-readiness-check", response_model=DigitalHumanVideoJobResponse)
+async def check_digital_human_comfyui_workflow_readiness(
+    job_id: UUID,
+    request: DigitalHumanComfyUIWorkflowReadinessRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanVideoJobResponse:
+    """Record operator evidence for a bound real ComfyUI workflow before guarded execution."""
+
+    payload = request or DigitalHumanComfyUIWorkflowReadinessRequest()
+    return await service.check_comfyui_workflow_readiness(
+        session,
+        workspace_id=context.workspace_id,
+        job_id=job_id,
+        operator_imported_workflow=payload.operator_imported_workflow,
+        installed_nodes=payload.installed_nodes,
+        installed_models=payload.installed_models,
+        uploaded_asset_ids=payload.uploaded_asset_ids,
+        comfyui_base_url=payload.comfyui_base_url,
+        output_watch_path=payload.output_watch_path,
+        gpu_name=payload.gpu_name,
+        free_vram_mb=payload.free_vram_mb,
+        queue_depth=payload.queue_depth,
         operator_note=payload.operator_note,
         metadata=payload.metadata,
     )
