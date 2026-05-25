@@ -105,6 +105,25 @@ class DigitalHumanVideoJobRefreshRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DigitalHumanVideoJobExecuteRequest(BaseModel):
+    """Execute an approved digital human video job through a guarded handoff."""
+
+    execution_mode: str = Field(default="mock_render", max_length=64)
+    submit_immediately: bool = False
+    poll_history: bool = True
+    prompt: dict[str, Any] = Field(default_factory=dict)
+    workflow: dict[str, Any] | None = None
+    resource_profile: str = Field(default="standard", max_length=64)
+    width: int | None = Field(default=1080, ge=64, le=8192)
+    height: int | None = Field(default=1920, ge=64, le=8192)
+    frames: int | None = Field(default=None, ge=1, le=20000)
+    fps: float | None = Field(default=24.0, ge=1.0, le=240.0)
+    estimated_vram_mb: int | None = Field(default=None, ge=256, le=131072)
+    reserve_vram_mb: int | None = Field(default=None, ge=0, le=131072)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class DigitalHumanVideoJobActionRequest(BaseModel):
     """Apply a human review action to a digital human job."""
 
@@ -142,6 +161,10 @@ class DigitalHumanVideoJobResponse(BaseModel):
     provider_calls_enabled: bool
     failure_reason: str | None = None
     result_summary: str | None = None
+    progress_percent: int = 0
+    current_stage: str = "intake"
+    next_action: str | None = None
+    linked_comfyui_video_job_id: str | None = None
     operator_note: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
@@ -176,6 +199,10 @@ class DigitalHumanVideoJobResponse(BaseModel):
             provider_calls_enabled=job.provider_calls_enabled,
             failure_reason=job.failure_reason,
             result_summary=job.result_summary,
+            progress_percent=_digital_human_progress_percent(job.job_status),
+            current_stage=_digital_human_current_stage(job.job_status),
+            next_action=_digital_human_next_action(job.job_status),
+            linked_comfyui_video_job_id=_linked_comfyui_video_job_id(job.outputs or []),
             operator_note=job.operator_note,
             metadata=job.job_metadata or {},
             created_at=job.created_at,
@@ -189,3 +216,65 @@ class DigitalHumanVideoJobListResponse(BaseModel):
     success: bool = True
     workspace_id: str
     items: list[DigitalHumanVideoJobResponse] = Field(default_factory=list)
+
+
+def _digital_human_progress_percent(status: str) -> int:
+    return {
+        "draft": 5,
+        "needs_assets": 10,
+        "needs_consent": 20,
+        "provider_blocked": 30,
+        "planned": 35,
+        "ready_for_review": 40,
+        "approved": 45,
+        "queued_for_comfyui": 60,
+        "rendering": 75,
+        "completed": 100,
+        "failed": 100,
+        "cancelled": 100,
+        "archived": 100,
+    }.get(status, 0)
+
+
+def _digital_human_current_stage(status: str) -> str:
+    return {
+        "draft": "intake",
+        "needs_assets": "asset_intake",
+        "needs_consent": "consent_review",
+        "provider_blocked": "runtime_gate",
+        "planned": "human_review",
+        "ready_for_review": "human_review",
+        "approved": "execution_ready",
+        "queued_for_comfyui": "comfyui_video_queue",
+        "rendering": "video_rendering",
+        "completed": "delivery_ready",
+        "failed": "recovery",
+        "cancelled": "cancelled",
+        "archived": "archived",
+    }.get(status, "unknown")
+
+
+def _digital_human_next_action(status: str) -> str:
+    return {
+        "draft": "Complete the objective, script, portrait, and material inputs.",
+        "needs_assets": "Upload and select an authorized portrait asset.",
+        "needs_consent": "Confirm explicit portrait authorization before execution.",
+        "provider_blocked": "Review provider/runtime gates and retry after configuration is ready.",
+        "planned": "Approve the planned digital human video job.",
+        "ready_for_review": "Approve or reject the digital human video job.",
+        "approved": "Execute mock delivery or create a guarded ComfyUI video handoff.",
+        "queued_for_comfyui": "Refresh the linked ComfyUI video job until output is ready.",
+        "rendering": "Wait for video output, then review the generated assets.",
+        "completed": "Use the generated delivery asset in the commercial operation loop.",
+        "failed": "Review failure reason and retry from the last safe state.",
+        "cancelled": "Create a new job if the campaign still needs a video.",
+        "archived": "No action required.",
+    }.get(status, "Review the digital human job state.")
+
+
+def _linked_comfyui_video_job_id(outputs: list[dict[str, Any]]) -> str | None:
+    for output in reversed(outputs):
+        candidate = output.get("comfyui_video_job_id")
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None

@@ -17,6 +17,7 @@ from app.schemas.digital_human import (
     DigitalHumanCapabilitiesResponse,
     DigitalHumanVideoJobActionRequest,
     DigitalHumanVideoJobCreateRequest,
+    DigitalHumanVideoJobExecuteRequest,
     DigitalHumanVideoJobListResponse,
     DigitalHumanVideoJobRefreshRequest,
     DigitalHumanVideoJobResponse,
@@ -164,6 +165,38 @@ async def refresh_digital_human_video_job(
         workspace_id=context.workspace_id,
         job_id=job_id,
         metadata=(request.metadata if request else {}),
+    )
+
+
+@router.post("/video-jobs/{job_id}/execute", response_model=DigitalHumanVideoJobResponse)
+async def execute_digital_human_video_job(
+    job_id: UUID,
+    request: DigitalHumanVideoJobExecuteRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanVideoJobResponse:
+    """Execute an approved digital human job through a local artifact or ComfyUI handoff."""
+
+    payload = request or DigitalHumanVideoJobExecuteRequest()
+    return await service.execute_video_job(
+        session,
+        workspace_id=context.workspace_id,
+        job_id=job_id,
+        execution_mode=payload.execution_mode,
+        submit_immediately=payload.submit_immediately,
+        poll_history=payload.poll_history,
+        prompt=payload.prompt,
+        workflow=payload.workflow,
+        resource_profile=payload.resource_profile,
+        width=payload.width,
+        height=payload.height,
+        frames=payload.frames,
+        fps=payload.fps,
+        estimated_vram_mb=payload.estimated_vram_mb,
+        reserve_vram_mb=payload.reserve_vram_mb,
+        operator_note=payload.operator_note,
+        metadata=payload.metadata,
     )
 
 

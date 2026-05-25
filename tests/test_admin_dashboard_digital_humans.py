@@ -30,6 +30,7 @@ def test_admin_dashboard_exposes_digital_human_page() -> None:
     assert "digitalHumansApi.uploadAsset" in text
     assert "digitalHumansApi.createVideoJob" in text
     assert "digitalHumansApi.refreshVideoJob" in text
+    assert "digitalHumansApi.executeVideoJob" in text
     assert "digitalHumansApi.reviewVideoJob" in text
 
 
@@ -43,4 +44,5 @@ def test_admin_dashboard_digital_human_api_client_paths() -> None:
     assert "/digital-humans/video-jobs" in text
     assert "/digital-humans/video-jobs${suffix}" in text
     assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh" in text
+    assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/execute" in text
     assert "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}" in text

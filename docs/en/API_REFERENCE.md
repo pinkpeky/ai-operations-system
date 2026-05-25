@@ -13,11 +13,25 @@ X-Workspace-Id: <workspace id>
 X-User-Id: <optional user id>
 ```
 
+## Phase 67B Digital Human Execution Loop
+
+Status: production handoff / provider execution disabled by default. Phase 67B adds an approved-job execution endpoint on top of the Phase 67A Digital Human Foundation. It can create a local delivery manifest asset or a guarded ComfyUI video handoff record. It does not call HeyGen, Tavus, D-ID, local MuseTalk/LivePortrait, OpenClaw/Playwright publishing, social platforms, or real accounts by default.
+
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_OUTPUT_DIR=storage/digital_human_outputs`, `DIGITAL_HUMAN_DEFAULT_VOICE_ID=zh-CN-default`, `DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO=9:16`.
+
+Tables: `digital_human_assets`, `digital_human_video_jobs`, `comfyui_runtime_video_jobs`.
+
+### POST `/api/v1/digital-humans/video-jobs/{job_id}/execute`
+
+Executes an approved digital-human video job in one of two safe modes. `mock_render` writes a delivery manifest under `DIGITAL_HUMAN_OUTPUT_DIR` and registers it as a generated video asset. `comfyui_handoff` creates a guarded `/api/v1/comfyui-runtime/video-jobs` record with resource admission, selected endpoint/GPU metadata, linked ComfyUI job id, progress, blocker reasons, and recovery details. Responses include `progress_percent`, `current_stage`, `next_action`, and `linked_comfyui_video_job_id`.
+
+Boundary: jobs must be approved and portrait consent must be authorized. Generated placeholder ComfyUI prompts are not submitted unless an operator supplies a real prompt and the existing guarded ComfyUI runtime gates permit submission. No publishing, account control, approval bypass, runtime mutation, service restart, model download, workflow installation, or package rebuild is added.
+
 ## Phase 67A Digital Human Foundation
 
 Status: production foundation / provider execution disabled by default. Phase 67A adds a dedicated Digital Humans API surface for uploading consent-tracked portraits/materials and creating reviewable script-based video job plans. It does not call HeyGen, Tavus, D-ID, local MuseTalk/LivePortrait, ComfyUI workflows, OpenClaw/Playwright publishing, social platforms, or real accounts by default.
 
-Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_DEFAULT_VOICE_ID=zh-CN-default`, `DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO=9:16`.
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_OUTPUT_DIR=storage/digital_human_outputs`, `DIGITAL_HUMAN_DEFAULT_VOICE_ID=zh-CN-default`, `DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO=9:16`.
 
 Tables: `digital_human_assets`, `digital_human_video_jobs`.
 
@@ -52,6 +66,10 @@ Fetches one digital human video job by id.
 ### POST `/api/v1/digital-humans/video-jobs/{job_id}/refresh`
 
 Recomputes provider readiness, consent blockers, and recoverable job status without executing a provider call by default.
+
+### POST `/api/v1/digital-humans/video-jobs/{job_id}/execute`
+
+Executes an approved job through Phase 67B `mock_render` or `comfyui_handoff` mode, returning progress fields and any linked ComfyUI video job id.
 
 ### POST `/api/v1/digital-humans/video-jobs/{job_id}/{action}`
 

@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
 from hashlib import sha256
+import json
 from pathlib import Path
 import re
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.comfyui_runtime import ComfyUIRuntimeService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.models.digital_human import DigitalHumanAsset, DigitalHumanVideoJob
@@ -43,6 +47,7 @@ DIGITAL_HUMAN_JOB_STATUSES = {
     "provider_blocked",
     "ready_for_review",
     "approved",
+    "queued_for_comfyui",
     "rendering",
     "completed",
     "failed",
@@ -92,6 +97,7 @@ class DigitalHumanService:
                 "phase": "67A",
                 "no_external_call_performed": True,
                 "asset_types": sorted(DIGITAL_HUMAN_ASSET_TYPES),
+                "execution_modes": ["mock_render", "comfyui_handoff"],
             },
         )
 
@@ -384,6 +390,304 @@ class DigitalHumanService:
         await session.refresh(job)
         return DigitalHumanVideoJobResponse.from_model(job)
 
+    async def execute_video_job(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+        execution_mode: str = "mock_render",
+        submit_immediately: bool = False,
+        poll_history: bool = True,
+        prompt: Mapping[str, Any] | None = None,
+        workflow: Mapping[str, Any] | None = None,
+        resource_profile: str = "standard",
+        width: int | None = 1080,
+        height: int | None = 1920,
+        frames: int | None = None,
+        fps: float | None = 24.0,
+        estimated_vram_mb: int | None = None,
+        reserve_vram_mb: int | None = None,
+        operator_note: str | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> DigitalHumanVideoJobResponse:
+        """Execute an approved job as a local delivery artifact or a guarded ComfyUI video handoff."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        if job.approval_status != "approved" or job.job_status not in {"approved", "rendering", "queued_for_comfyui"}:
+            raise AppError("Only approved digital human jobs can be executed", status_code=400)
+        if job.consent_status != "authorized":
+            raise AppError("Digital human execution requires authorized portrait consent", status_code=400)
+
+        normalized_mode = str(execution_mode or "mock_render").strip().lower()
+        if normalized_mode in {"mock", "local_manifest", "delivery_manifest"}:
+            normalized_mode = "mock_render"
+        if normalized_mode in {"comfyui", "comfyui_video", "comfyui_video_job"}:
+            normalized_mode = "comfyui_handoff"
+        if normalized_mode not in {"mock_render", "comfyui_handoff"}:
+            raise AppError("Unsupported digital human execution_mode", status_code=400)
+
+        if normalized_mode == "mock_render":
+            await self._execute_mock_render(
+                session,
+                job=job,
+                operator_note=operator_note,
+                metadata=metadata,
+            )
+        else:
+            await self._execute_comfyui_handoff(
+                session,
+                workspace_id=workspace_id,
+                job=job,
+                submit_immediately=submit_immediately,
+                poll_history=poll_history,
+                prompt=prompt,
+                workflow=workflow,
+                resource_profile=resource_profile,
+                width=width,
+                height=height,
+                frames=frames,
+                fps=fps,
+                estimated_vram_mb=estimated_vram_mb,
+                reserve_vram_mb=reserve_vram_mb,
+                operator_note=operator_note,
+                metadata=metadata,
+            )
+        await session.commit()
+        await session.refresh(job)
+        return DigitalHumanVideoJobResponse.from_model(job)
+
+    async def _execute_mock_render(
+        self,
+        session: AsyncSession,
+        *,
+        job: DigitalHumanVideoJob,
+        operator_note: str | None,
+        metadata: Mapping[str, object] | None,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        output_root = Path(str(getattr(self.settings, "digital_human_output_dir", "storage/digital_human_outputs")))
+        workspace_dir = output_root / self._safe_path_part(job.workspace_id)
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        file_name = f"digital-human-{job.id}-delivery-manifest.json"
+        output_path = workspace_dir / file_name
+        merged_metadata = {**(job.job_metadata or {}), **dict(metadata or {})}
+        commercial_operation_id = self._string_from_mapping(merged_metadata, "commercial_operation_id")
+        manifest = {
+            "phase": "67B",
+            "generated_at": now.isoformat(),
+            "workspace_id": job.workspace_id,
+            "job_id": str(job.id),
+            "commercial_operation_id": commercial_operation_id,
+            "objective": job.objective,
+            "script": job.script,
+            "provider": job.provider,
+            "avatar_asset_id": str(job.avatar_asset_id) if job.avatar_asset_id else None,
+            "material_asset_ids": job.material_asset_ids or [],
+            "reference_asset_ids": job.reference_asset_ids or [],
+            "target_channels": job.target_channels or [],
+            "voice_profile": job.voice_profile or {},
+            "aspect_ratio": job.aspect_ratio,
+            "duration_seconds": job.duration_seconds,
+            "scene_plan": self._build_scene_plan(
+                status="completed",
+                provider=job.provider,
+                has_avatar=job.avatar_asset_id is not None,
+                material_count=len(job.material_asset_ids or []),
+                reference_count=len(job.reference_asset_ids or []),
+            ),
+            "delivery_assets": [
+                {
+                    "type": "script",
+                    "title": "Approved digital human script",
+                    "status": "ready",
+                },
+                {
+                    "type": "video_manifest",
+                    "title": "Digital human delivery manifest",
+                    "status": "ready",
+                },
+            ],
+            "execution_boundary": "Local delivery manifest only; no external avatar provider, no ComfyUI prompt submission, and no publishing action was performed.",
+        }
+        content = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8")
+        output_path.write_bytes(content)
+        checksum = sha256(content).hexdigest()
+        asset = DigitalHumanAsset(
+            workspace_id=job.workspace_id,
+            user_id=job.user_id,
+            asset_type="video",
+            asset_status="generated",
+            name=self._truncate_text(f"{job.objective} delivery manifest", 255),
+            source_uri=str(output_path.as_posix()),
+            file_name=file_name,
+            mime_type="application/json",
+            size_bytes=len(content),
+            checksum=checksum,
+            consent_status=job.consent_status,
+            usage_scope="digital human generated delivery output",
+            operator_note=operator_note,
+            asset_metadata={
+                "phase": "67B",
+                "source": "digital_human_mock_render",
+                "digital_human_video_job_id": str(job.id),
+                "commercial_operation_id": commercial_operation_id,
+                "output_kind": "delivery_manifest",
+            },
+        )
+        session.add(asset)
+        await session.flush()
+        output_record = {
+            "output_type": "digital_human_delivery_manifest",
+            "media_type": "video",
+            "status": "ready",
+            "asset_id": str(asset.id),
+            "source_uri": asset.source_uri,
+            "file_name": file_name,
+            "checksum": checksum,
+            "commercial_operation_id": commercial_operation_id,
+            "progress_percent": 100,
+            "execution_boundary": manifest["execution_boundary"],
+            "created_at": now.isoformat(),
+        }
+        job.job_status = "completed"
+        job.execution_mode = "mock_render"
+        job.scene_plan = manifest["scene_plan"]
+        job.outputs = [*(job.outputs or []), output_record]
+        job.provider_response = {
+            "phase": "67B",
+            "provider": job.provider,
+            "execution_mode": "mock_render",
+            "external_request_attempted": False,
+            "output_asset_id": str(asset.id),
+            "output_manifest": str(output_path.as_posix()),
+        }
+        job.external_request_attempted = False
+        job.failure_reason = None
+        job.result_summary = "Digital human delivery manifest is ready and assetized for the commercial operation loop."
+        job.operator_note = operator_note or job.operator_note
+        job.job_metadata = {
+            **merged_metadata,
+            "phase": "67B",
+            "execution_mode": "mock_render",
+            "progress_percent": 100,
+            "current_stage": "delivery_ready",
+            "last_execution_at": now.isoformat(),
+        }
+
+    async def _execute_comfyui_handoff(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job: DigitalHumanVideoJob,
+        submit_immediately: bool,
+        poll_history: bool,
+        prompt: Mapping[str, Any] | None,
+        workflow: Mapping[str, Any] | None,
+        resource_profile: str,
+        width: int | None,
+        height: int | None,
+        frames: int | None,
+        fps: float | None,
+        estimated_vram_mb: int | None,
+        reserve_vram_mb: int | None,
+        operator_note: str | None,
+        metadata: Mapping[str, object] | None,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        supplied_prompt = bool(prompt)
+        prompt_payload = dict(prompt or self._build_comfyui_handoff_prompt(job))
+        workflow_payload = dict(workflow or self._build_comfyui_handoff_workflow(job))
+        effective_submit = bool(submit_immediately and supplied_prompt)
+        duration_seconds = job.duration_seconds or self._duration_from_frames(frames=frames, fps=fps)
+        comfyui_job = await ComfyUIRuntimeService(settings=self.settings).create_video_job(
+            session,
+            workspace_id=workspace_id,
+            user_id=job.user_id,
+            prompt=prompt_payload,
+            workflow=workflow_payload,
+            extra_data={
+                "digital_human": {
+                    "job_id": str(job.id),
+                    "objective": job.objective,
+                    "avatar_asset_id": str(job.avatar_asset_id) if job.avatar_asset_id else None,
+                    "material_asset_ids": job.material_asset_ids or [],
+                    "target_channels": job.target_channels or [],
+                },
+                "aiops_digital_human_handoff": True,
+            },
+            client_id=f"digital-human-{job.id}",
+            resource_profile=resource_profile,
+            width=width,
+            height=height,
+            frames=frames or self._frames_from_duration(duration_seconds=duration_seconds, fps=fps),
+            fps=fps,
+            duration_seconds=duration_seconds,
+            estimated_vram_mb=estimated_vram_mb,
+            reserve_vram_mb=reserve_vram_mb,
+            submit_immediately=effective_submit,
+            poll_history=poll_history,
+            operator_note=operator_note,
+            metadata={
+                "phase": "67B",
+                "source": "digital_human_comfyui_handoff",
+                "digital_human_video_job_id": str(job.id),
+                "generated_prompt_submission_skipped": bool(submit_immediately and not supplied_prompt),
+                **dict(metadata or {}),
+            },
+        )
+        output_record = {
+            "output_type": "comfyui_video_job",
+            "media_type": "video",
+            "status": comfyui_job.job_status,
+            "comfyui_video_job_id": str(comfyui_job.id),
+            "runtime_prompt_id": comfyui_job.runtime_prompt_id,
+            "runtime_base_url": comfyui_job.runtime_base_url,
+            "resource_plan": comfyui_job.resource_plan,
+            "selected_gpu": comfyui_job.selected_gpu,
+            "outputs": comfyui_job.outputs,
+            "external_request_attempted": comfyui_job.external_request_attempted,
+            "prompt_submission_enabled": comfyui_job.prompt_submission_enabled,
+            "submit_immediately_requested": submit_immediately,
+            "submit_immediately_effective": effective_submit,
+            "created_at": now.isoformat(),
+        }
+        job.execution_mode = "comfyui_handoff"
+        job.job_status = self._digital_status_from_comfyui_status(comfyui_job.job_status)
+        job.scene_plan = self._build_scene_plan(
+            status=job.job_status,
+            provider=job.provider,
+            has_avatar=job.avatar_asset_id is not None,
+            material_count=len(job.material_asset_ids or []),
+            reference_count=len(job.reference_asset_ids or []),
+        )
+        job.outputs = self._upsert_output(job.outputs or [], output_record, key="output_type", value="comfyui_video_job")
+        job.provider_response = {
+            "phase": "67B",
+            "provider": job.provider,
+            "execution_mode": "comfyui_handoff",
+            "comfyui_video_job_id": str(comfyui_job.id),
+            "comfyui_job_status": comfyui_job.job_status,
+            "resource_plan": comfyui_job.resource_plan,
+            "external_request_attempted": comfyui_job.external_request_attempted,
+            "generated_prompt_submission_skipped": bool(submit_immediately and not supplied_prompt),
+        }
+        job.external_request_attempted = comfyui_job.external_request_attempted
+        job.failure_reason = comfyui_job.failure_reason or self._comfyui_resource_block_reason(comfyui_job.resource_plan)
+        job.result_summary = self._digital_handoff_result_summary(comfyui_status=comfyui_job.job_status)
+        job.operator_note = operator_note or job.operator_note
+        job.job_metadata = {
+            **(job.job_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "67B",
+            "execution_mode": "comfyui_handoff",
+            "linked_comfyui_video_job_id": str(comfyui_job.id),
+            "progress_percent": 60 if job.job_status == "queued_for_comfyui" else 75,
+            "current_stage": "comfyui_video_queue" if job.job_status == "queued_for_comfyui" else "video_rendering",
+            "last_execution_at": now.isoformat(),
+        }
+
     async def _get_asset_model(self, session: AsyncSession, *, workspace_id: str, asset_id: UUID) -> DigitalHumanAsset:
         result = await session.execute(
             select(DigitalHumanAsset).where(
@@ -440,11 +744,17 @@ class DigitalHumanService:
             return f"Portrait consent is {consent_status}; authorized consent is required before execution."
         if status == "provider_blocked":
             return f"Digital human provider {provider} is not enabled for real execution."
+        if status == "queued_for_comfyui":
+            return "Digital human job is waiting for ComfyUI video resource admission or output refresh."
         return None
 
     def _result_summary(self, *, status: str, provider: str) -> str:
         if status == "completed":
             return "Digital human video output is ready for delivery."
+        if status == "rendering":
+            return "Digital human video job is rendering or waiting for generated media review."
+        if status == "queued_for_comfyui":
+            return "Digital human video job has a guarded ComfyUI handoff and is waiting for GPU/queue progress."
         if status == "approved":
             return "Digital human video job is approved for the execution provider."
         if status == "planned":
@@ -466,6 +776,111 @@ class DigitalHumanService:
             "message": "Provider execution is not performed in Phase 67A foundation mode.",
         }
 
+    def _build_comfyui_handoff_prompt(self, job: DigitalHumanVideoJob) -> dict[str, object]:
+        return {
+            "aiops_digital_human_video_handoff": {
+                "class_type": "AIOpsDigitalHumanVideoHandoff",
+                "inputs": {
+                    "objective": job.objective,
+                    "script": job.script,
+                    "aspect_ratio": job.aspect_ratio,
+                    "duration_seconds": job.duration_seconds,
+                    "avatar_asset_id": str(job.avatar_asset_id) if job.avatar_asset_id else None,
+                    "material_asset_ids": job.material_asset_ids or [],
+                    "reference_asset_ids": job.reference_asset_ids or [],
+                    "target_channels": job.target_channels or [],
+                    "voice_profile": job.voice_profile or {},
+                    "handoff_note": "Generated prompt is a contract placeholder. Supply a real ComfyUI workflow prompt before enabling immediate submission.",
+                },
+            }
+        }
+
+    def _build_comfyui_handoff_workflow(self, job: DigitalHumanVideoJob) -> dict[str, object]:
+        return {
+            "name": "aiops_digital_human_video_handoff",
+            "phase": "67B",
+            "media_type": "video",
+            "job_id": str(job.id),
+            "objective": job.objective,
+            "required_assets": {
+                "avatar_asset_id": str(job.avatar_asset_id) if job.avatar_asset_id else None,
+                "material_asset_ids": job.material_asset_ids or [],
+                "reference_asset_ids": job.reference_asset_ids or [],
+            },
+            "pipeline": ["portrait_or_avatar_video", "product_broll", "subtitle_overlay", "ffmpeg_compose"],
+            "execution_boundary": "This workflow is a handoff contract; submit a real ComfyUI prompt/workflow to render media.",
+        }
+
+    def _digital_status_from_comfyui_status(self, comfyui_status: str) -> str:
+        normalized = str(comfyui_status or "").strip().lower()
+        if normalized == "output_ready":
+            return "rendering"
+        if normalized == "submitted":
+            return "rendering"
+        if normalized in {"queued", "resource_blocked", "draft", "ready_to_submit"}:
+            return "queued_for_comfyui"
+        if normalized == "failed":
+            return "failed"
+        return "queued_for_comfyui"
+
+    def _digital_handoff_result_summary(self, *, comfyui_status: str) -> str:
+        if comfyui_status == "output_ready":
+            return "ComfyUI video outputs are available; review and compose the final digital human deliverable."
+        if comfyui_status == "submitted":
+            return "Digital human video job has been submitted to guarded ComfyUI runtime."
+        if comfyui_status == "queued":
+            return "Digital human video handoff is waiting for an available ComfyUI GPU/queue slot."
+        if comfyui_status == "ready_to_submit":
+            return "Digital human video handoff passed admission planning and is ready for an operator-supplied ComfyUI prompt submission."
+        if comfyui_status == "resource_blocked":
+            return "Digital human video handoff is blocked by ComfyUI GPU, queue, or runtime gates."
+        if comfyui_status == "failed":
+            return "Digital human ComfyUI handoff failed before an output was available."
+        return "Digital human video handoff has been recorded."
+
+    def _comfyui_resource_block_reason(self, resource_plan: Mapping[str, Any] | None) -> str | None:
+        if not isinstance(resource_plan, Mapping):
+            return None
+        admission_status = str(resource_plan.get("admission_status") or "").strip().lower()
+        if admission_status != "blocked":
+            return None
+        reasons = resource_plan.get("blocking_reasons")
+        if isinstance(reasons, list) and reasons:
+            return "; ".join(str(reason) for reason in reasons[:3])
+        error = resource_plan.get("error")
+        return str(error) if error else "ComfyUI video resource admission is blocked."
+
+    def _duration_from_frames(self, *, frames: int | None, fps: float | None) -> float | None:
+        if frames and fps and fps > 0:
+            return round(float(frames) / float(fps), 3)
+        return None
+
+    def _frames_from_duration(self, *, duration_seconds: float | None, fps: float | None) -> int | None:
+        if duration_seconds and fps and fps > 0:
+            return max(1, int(round(duration_seconds * fps)))
+        return None
+
+    def _upsert_output(
+        self,
+        outputs: list[dict[str, Any]],
+        output: dict[str, Any],
+        *,
+        key: str,
+        value: str,
+    ) -> list[dict[str, Any]]:
+        kept = [item for item in outputs if item.get(key) != value]
+        return [*kept, output]
+
+    def _string_from_mapping(self, payload: Mapping[str, object], key: str) -> str | None:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return None
+
+    def _truncate_text(self, value: str, limit: int) -> str:
+        normalized = " ".join(str(value or "").split()).strip()
+        return normalized[:limit] if normalized else "digital human output"
+
     def _build_scene_plan(
         self,
         *,
@@ -476,7 +891,22 @@ class DigitalHumanService:
         reference_count: int,
     ) -> list[dict[str, object]]:
         asset_status = "ready" if has_avatar else "blocked"
-        provider_status = "ready" if status in {"planned", "approved", "ready_for_review"} else status
+        if status == "completed":
+            provider_status = "complete"
+            broll_status = "complete"
+            compose_status = "complete"
+        elif status == "rendering":
+            provider_status = "running"
+            broll_status = "running"
+            compose_status = "waiting"
+        elif status == "queued_for_comfyui":
+            provider_status = "ready"
+            broll_status = "queued"
+            compose_status = "waiting"
+        else:
+            provider_status = "ready" if status in {"planned", "approved", "ready_for_review"} else status
+            broll_status = "planned"
+            compose_status = "planned"
         return [
             {
                 "step": "asset_intake",
@@ -505,13 +935,13 @@ class DigitalHumanService:
             {
                 "step": "broll_generation",
                 "label": "ComfyUI product scenes and B-roll",
-                "status": "planned",
+                "status": broll_status,
                 "detail": "Product/reference assets can feed ComfyUI video jobs after GPU admission.",
             },
             {
                 "step": "ffmpeg_compose",
                 "label": "Subtitle, material overlay, and final composition",
-                "status": "planned",
+                "status": compose_status,
                 "detail": "Final video must be reviewed before OpenClaw / Playwright publishing.",
             },
         ]

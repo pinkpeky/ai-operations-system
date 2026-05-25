@@ -100,6 +100,7 @@ COMFYUI_RUNTIME_VIDEO_JOB_STATUSES = {
     "draft",
     "resource_blocked",
     "queued",
+    "ready_to_submit",
     "submitted",
     "output_ready",
     "failed",
@@ -1365,6 +1366,20 @@ class ComfyUIRuntimeService:
         history = None
         queue = None
         outputs: list[dict[str, Any]] = []
+        planned_resource_plan: dict[str, Any] = {}
+        if not submit_immediately:
+            planned_resource_plan = self.video_resource_plan(
+                workspace_id=workspace_id,
+                resource_profile=normalized["resource_profile"],
+                width=normalized["width"],
+                height=normalized["height"],
+                frames=normalized["frames"],
+                fps=normalized["fps"],
+                duration_seconds=normalized["duration_seconds"],
+                estimated_vram_mb=normalized["estimated_vram_mb"],
+                reserve_vram_mb=normalized["reserve_vram_mb"],
+                metadata={**request_metadata, "source": "comfyui_runtime_video_job_plan"},
+            ).model_dump(mode="json")
         if submit_immediately:
             submit = self.submit_prompt_job(
                 workspace_id=workspace_id,
@@ -1391,7 +1406,7 @@ class ComfyUIRuntimeService:
                 )
                 outputs = self._extract_prompt_output_files(history.outputs if history else {})
 
-        resource_plan = self._video_resource_plan_from_submit(submit)
+        resource_plan = self._video_resource_plan_from_submit(submit) or planned_resource_plan
         queue_payload = dict(queue.response_payload) if queue else self._queue_payload_from_resource_plan(resource_plan)
         job_status = self._video_job_status_from_runtime(submit=submit, resource_plan=resource_plan, outputs=outputs)
         failure_reason = self._video_job_failure_reason(submit=submit, history=history, queue=queue, status=job_status)
@@ -2216,6 +2231,13 @@ class ComfyUIRuntimeService:
             if admission_status == "blocked":
                 return "resource_blocked"
             return "failed"
+        admission_status = str((resource_plan or {}).get("admission_status") or "").strip().lower()
+        if admission_status == "queued":
+            return "queued"
+        if admission_status == "blocked":
+            return "resource_blocked"
+        if admission_status == "admitted":
+            return "ready_to_submit"
         if has_prompt_id:
             return current_status if current_status == "output_ready" else "submitted"
         return current_status if current_status in COMFYUI_RUNTIME_VIDEO_JOB_STATUSES else "draft"
@@ -2252,6 +2274,8 @@ class ComfyUIRuntimeService:
             return f"ComfyUI video job {prompt_id or 'unknown'} submitted; refresh history until outputs appear."
         if status == "queued":
             return "ComfyUI video job is waiting for an admitted GPU/queue slot."
+        if status == "ready_to_submit":
+            return "ComfyUI video job has an admitted GPU/queue plan and is waiting for operator-approved prompt submission."
         if status == "resource_blocked":
             return "ComfyUI video job is blocked by GPU, queue, or guarded runtime admission."
         if status == "failed":

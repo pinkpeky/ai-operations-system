@@ -14755,10 +14755,12 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
   const jobRows = jobs.map((job) => ({
     id: valueAt(job, ["id"]),
     status: valueAt(job, ["job_status"]),
+    progress: `${valueAt(job, ["progress_percent"], "0")}%`,
     provider: valueAt(job, ["provider"]),
     approval: valueAt(job, ["approval_status"]),
     consent: valueAt(job, ["consent_status"]),
     mode: valueAt(job, ["execution_mode"]),
+    comfyui: valueAt(job, ["linked_comfyui_video_job_id"], "-"),
     outputs: Array.isArray(job.outputs) ? job.outputs.length : 0,
     summary: valueAt(job, ["result_summary"]),
   }));
@@ -14816,7 +14818,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
           voice_profile: { voice_id: voiceId.trim() || "zh-CN-default" },
           aspect_ratio: aspectRatio,
           duration_seconds: Number(durationSeconds) || 30,
-          metadata: { source_page: "digital-humans", phase: "67A", ui_language: language },
+          metadata: { source_page: "digital-humans", phase: "67B", ui_language: language },
         },
         settings,
       );
@@ -14833,7 +14835,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     }
     setActionState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const refreshed = await digitalHumansApi.refreshVideoJob(latestJobId, { metadata: { source_page: "digital-humans", phase: "67A" } }, settings);
+      const refreshed = await digitalHumansApi.refreshVideoJob(latestJobId, { metadata: { source_page: "digital-humans", phase: "67B" } }, settings);
       setActionState({ data: refreshed, error: null, loading: false, updatedAt: nowLabel() });
       await load();
     } catch (error) {
@@ -14850,7 +14852,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
       const reviewed = await digitalHumansApi.reviewVideoJob(
         latestJobId,
         action,
-        { reviewer_notes: `Digital Humans page ${action}`, metadata: { source_page: "digital-humans", phase: "67A" } },
+        { reviewer_notes: `Digital Humans page ${action}`, metadata: { source_page: "digital-humans", phase: "67B" } },
         settings,
       );
       setActionState({ data: reviewed, error: null, loading: false, updatedAt: nowLabel() });
@@ -14860,11 +14862,38 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
     }
   };
 
+  const executeLatestJob = async (executionMode: "mock_render" | "comfyui_handoff") => {
+    if (!latestJobId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const executed = await digitalHumansApi.executeVideoJob(
+        latestJobId,
+        {
+          execution_mode: executionMode,
+          submit_immediately: false,
+          resource_profile: "standard",
+          width: aspectRatio === "16:9" ? 1920 : 1080,
+          height: aspectRatio === "16:9" ? 1080 : 1920,
+          duration_seconds: Number(durationSeconds) || 30,
+          fps: 24,
+          metadata: { source_page: "digital-humans", phase: "67B", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: executed, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human execution unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
   return (
     <div className="page-stack">
       <section className="overview-command-center">
         <div>
-          <p className="section-eyebrow">Phase 67A</p>
+          <p className="section-eyebrow">Phase 67B</p>
           <h2>{copy.title}</h2>
           <p>{copy.description}</p>
         </div>
@@ -14876,7 +14905,7 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
 
       <section className="metrics-grid compact">
         <DataCard title="asset_count" value={assets.length} detail={`${portraitAssets.length} portrait / ${materialAssets.length} material`} icon={<Package size={20} />} />
-        <DataCard title="video_job_count" value={jobs.length} detail={`latest ${valueAt(latestJob, ["job_status"], "none")}`} icon={<PlayCircle size={20} />} />
+        <DataCard title="video_job_count" value={jobs.length} detail={`latest ${valueAt(latestJob, ["job_status"], "none")} / ${valueAt(latestJob, ["progress_percent"], "0")}%`} icon={<PlayCircle size={20} />} />
         <DataCard title="provider" value={valueAt(capabilitiesState.data, ["provider"], "mock")} detail={valueAt(capabilitiesState.data, ["provider_calls_enabled"], "false")} icon={<Bot size={20} />} />
         <DataCard title="latest_approval" value={valueAt(latestJob, ["approval_status"], "none")} detail={valueAt(latestJob, ["execution_mode"], "-")} icon={<ShieldCheck size={20} />} />
       </section>
@@ -14981,6 +15010,12 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
           <button className="ghost-button" onClick={() => void reviewLatestJob("reject")} disabled={!latestJobId || actionState.loading}>
             {language === "zh-CN" ? "退回" : "Reject"}
           </button>
+          <button className="primary-button" onClick={() => void executeLatestJob("mock_render")} disabled={!latestJobId || actionState.loading || valueAt(latestJob, ["approval_status"], "") !== "approved"}>
+            {language === "zh-CN" ? "生成交付资产" : "Create delivery asset"}
+          </button>
+          <button className="ghost-button" onClick={() => void executeLatestJob("comfyui_handoff")} disabled={!latestJobId || actionState.loading || valueAt(latestJob, ["approval_status"], "") !== "approved"}>
+            {language === "zh-CN" ? "交给 ComfyUI 调度" : "Queue ComfyUI handoff"}
+          </button>
         </div>
         <LoadNotice state={actionState} />
         {actionState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {actionState.updatedAt}</div> : null}
@@ -14992,10 +15027,12 @@ function DigitalHumansPage({ settings, language }: { settings: AdminSettings; la
           emptyLabel={language === "zh-CN" ? "暂无数字人视频任务。" : "No digital human video jobs yet."}
           columns={[
             { key: "status", label: "status" },
+            { key: "progress", label: "progress" },
             { key: "provider", label: "provider" },
             { key: "approval", label: "approval" },
             { key: "consent", label: "consent" },
             { key: "mode", label: "mode" },
+            { key: "comfyui", label: "comfyui_job" },
             { key: "outputs", label: "outputs" },
             { key: "summary", label: "summary" },
           ]}

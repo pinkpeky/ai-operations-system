@@ -10,10 +10,12 @@ WEB_MAIN = ROOT / "worker_console/src/main.tsx"
 WEB_STYLES = ROOT / "worker_console/src/styles.css"
 WEB_KNOWLEDGE_CLIENT = ROOT / "worker_console/src/api/knowledgeBaseClient.ts"
 WEB_COMMERCIAL_OPERATION_CLIENT = ROOT / "worker_console/src/api/commercialOperationClient.ts"
+WEB_DIGITAL_HUMAN_CLIENT = ROOT / "worker_console/src/api/digitalHumanClient.ts"
 DESKTOP_MAIN = ROOT / "worker_console_desktop/src/main.tsx"
 DESKTOP_STYLES = ROOT / "worker_console_desktop/src/styles.css"
 DESKTOP_KNOWLEDGE_CLIENT = ROOT / "worker_console_desktop/src/api/knowledgeBaseClient.ts"
 DESKTOP_COMMERCIAL_OPERATION_CLIENT = ROOT / "worker_console_desktop/src/api/commercialOperationClient.ts"
+DESKTOP_DIGITAL_HUMAN_CLIENT = ROOT / "worker_console_desktop/src/api/digitalHumanClient.ts"
 
 
 def test_worker_console_web_exposes_phase_62i_operator_home() -> None:
@@ -2163,6 +2165,46 @@ def test_worker_consoles_expose_phase_64c_agent_skill_orchestration() -> None:
         assert "client-agent-skill-list" in styles
         assert "client-agent-skill-next" in styles
         assert "client-agent-skill-item.needs_review" in styles
+
+
+def test_worker_consoles_expose_digital_human_video_progress() -> None:
+    web_main = WEB_MAIN.read_text(encoding="utf-8")
+    desktop_main = DESKTOP_MAIN.read_text(encoding="utf-8")
+    web_styles = WEB_STYLES.read_text(encoding="utf-8")
+    desktop_styles = DESKTOP_STYLES.read_text(encoding="utf-8")
+    web_client = WEB_DIGITAL_HUMAN_CLIENT.read_text(encoding="utf-8")
+    desktop_client = DESKTOP_DIGITAL_HUMAN_CLIENT.read_text(encoding="utf-8")
+
+    for text in (web_main, desktop_main):
+        for token in [
+            "digitalHumanClient",
+            "DigitalHumanVideoJob",
+            "digitalHumanVideoJobs",
+            "refreshDigitalHumanVideos",
+            "refreshLatestDigitalHumanVideo",
+            "client-digital-human-progress",
+            "Digital human video",
+            "ComfyUI linked",
+        ]:
+            assert token in text
+
+    for text in (web_client, desktop_client):
+        for token in [
+            "listVideoJobs",
+            "refreshVideoJob",
+            '"/digital-humans/video-jobs?limit=5"',
+            "`/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh`",
+            "progress_percent",
+            "linked_comfyui_video_job_id",
+        ]:
+            assert token in text
+
+    for styles in (web_styles, desktop_styles):
+        for token in [
+            ".client-digital-human-progress",
+            ".client-digital-human-meta",
+        ]:
+            assert token in styles
 
 
 def test_phase_63x_64b_closed_loop_delivery_pass_is_documented() -> None:

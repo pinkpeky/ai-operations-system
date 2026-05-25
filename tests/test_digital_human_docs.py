@@ -8,15 +8,19 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_phase_67a_status_docs_are_current() -> None:
+def test_phase_67b_status_docs_are_current() -> None:
     required = [
+        "codex/phase-67b-digital-human-execution-loop",
+        "Phase 67B Digital Human Execution Loop",
         "codex/phase-67a-digital-human-foundation",
         "Phase 67A Digital Human Foundation",
         "/api/v1/digital-humans/capabilities",
         "/api/v1/digital-humans/assets",
         "/api/v1/digital-humans/video-jobs",
+        "/api/v1/digital-humans/video-jobs/{job_id}/execute",
         "DIGITAL_HUMAN_PROVIDER",
         "DIGITAL_HUMAN_ALLOW_EXTERNAL_API",
+        "DIGITAL_HUMAN_OUTPUT_DIR",
     ]
     for path in [
         "docs/PHASE_INDEX.md",
@@ -40,6 +44,7 @@ def test_digital_human_api_docs_cover_public_paths() -> None:
         "/api/v1/digital-humans/video-jobs",
         "/api/v1/digital-humans/video-jobs/{job_id}",
         "/api/v1/digital-humans/video-jobs/{job_id}/refresh",
+        "/api/v1/digital-humans/video-jobs/{job_id}/execute",
         "/api/v1/digital-humans/video-jobs/{job_id}/{action}",
     ]
     for path in ["docs/en/API_REFERENCE.md", "docs/zh/API_REFERENCE.md"]:
