@@ -3824,3 +3824,23 @@ Endpoints:
 Boundary: Phase 66B reuses the existing guarded runtime and video resource gates. It does not upload files, install workflows, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
 边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。
+# Phase 67A Digital Human Foundation
+
+Status: production foundation / provider execution disabled by default. Phase 67A adds a dedicated Digital Humans API surface for portrait/material upload and reviewable script-based video job plans. It does not call HeyGen, Tavus, D-ID, local MuseTalk/LivePortrait, ComfyUI workflows, OpenClaw/Playwright publishing, social platforms, or real accounts by default.
+
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_DEFAULT_VOICE_ID=zh-CN-default`, `DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO=9:16`.
+
+Tables: `digital_human_assets`, `digital_human_video_jobs`.
+
+API:
+- `GET /api/v1/digital-humans/capabilities`
+- `POST /api/v1/digital-humans/assets`
+- `GET /api/v1/digital-humans/assets`
+- `GET /api/v1/digital-humans/assets/{asset_id}`
+- `POST /api/v1/digital-humans/video-jobs`
+- `GET /api/v1/digital-humans/video-jobs`
+- `GET /api/v1/digital-humans/video-jobs/{job_id}`
+- `POST /api/v1/digital-humans/video-jobs/{job_id}/refresh`
+- `POST /api/v1/digital-humans/video-jobs/{job_id}/{action}`
+
+Boundary: Phase 67A stores consent status, approval status, provider boundary fields, scene plans, and uploaded files. Defaults are mock/disabled; no provider execution, publishing, account control, workflow installation, runtime mutation, service restart, approval bypass, or package rebuild is added.

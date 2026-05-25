@@ -136,6 +136,68 @@ export const healthApi = {
   get: (settings?: AdminSettings) => requestJson<JsonRecord>("/health", {}, settings),
 };
 
+export const digitalHumansApi = {
+  capabilities: (settings?: AdminSettings) => requestJson<JsonRecord>("/digital-humans/capabilities", {}, settings),
+  assets: (filters: { assetType?: string; limit?: number } = {}, settings?: AdminSettings) => {
+    const params = new URLSearchParams();
+    if (filters.assetType) {
+      params.set("asset_type", filters.assetType);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<ApiList<JsonRecord>>(`/digital-humans/assets${suffix}`, {}, settings);
+  },
+  uploadAsset: (payload: FormData, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/digital-humans/assets",
+      {
+        method: "POST",
+        body: payload,
+      },
+      settings,
+    ),
+  videoJobs: (filters: { status?: string; limit?: number } = {}, settings?: AdminSettings) => {
+    const params = new URLSearchParams();
+    if (filters.status) {
+      params.set("status", filters.status);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<ApiList<JsonRecord>>(`/digital-humans/video-jobs${suffix}`, {}, settings);
+  },
+  createVideoJob: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/digital-humans/video-jobs",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  refreshVideoJob: (jobId: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  reviewVideoJob: (jobId: string, action: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+};
+
 export const workersApi = {
   list: (settings?: AdminSettings) => requestJson<ApiList<JsonRecord>>("/browser-workers", {}, settings),
   available: (settings?: AdminSettings) => requestJson<ApiList<JsonRecord>>("/browser-workers/available", {}, settings),

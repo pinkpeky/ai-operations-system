@@ -20,6 +20,7 @@ from app.api.routes.conversation_approvals import router as conversation_approva
 from app.api.routes.conversation_playbooks import router as conversation_playbooks_router
 from app.api.routes.conversation_playbooks import runs_router as conversation_playbook_runs_router
 from app.api.routes.conversations import router as conversations_router
+from app.api.routes.digital_humans import router as digital_humans_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.files import router as files_router
 from app.api.routes.health import router as health_router
@@ -71,6 +72,7 @@ def create_api_router() -> APIRouter:
         router.include_router(conversation_playbooks_router)
         router.include_router(conversation_playbook_runs_router)
         router.include_router(conversations_router)
+        router.include_router(digital_humans_router)
         router.include_router(documents_router)
         router.include_router(files_router)
         router.include_router(health_router)

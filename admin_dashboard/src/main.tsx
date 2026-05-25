@@ -38,6 +38,7 @@ import {
   browserRuntimeApi,
   comfyuiRuntimeApi,
   commercialOperationsApi,
+  digitalHumansApi,
   healthApi,
   JsonRecord,
   openclawApi,
@@ -90,6 +91,7 @@ type PageKey =
   | "run-cockpit"
   | "commercial-operations"
   | "comfyui-operations"
+  | "digital-humans"
   | "workers"
   | "browser-runtime"
   | "conversations"
@@ -397,6 +399,7 @@ const pages: PageDefinition[] = [
   { key: "run-cockpit", label: "Run Cockpit", icon: <Crosshair size={18} /> },
   { key: "commercial-operations", label: "Commercial Ops", icon: <Target size={18} /> },
   { key: "comfyui-operations", label: "ComfyUI Ops", icon: <Sparkles size={18} /> },
+  { key: "digital-humans", label: "Digital Humans", icon: <Users size={18} /> },
   { key: "workers", label: "Workers", icon: <Server size={18} /> },
   { key: "browser-runtime", label: "Browser Runtime", icon: <MonitorCheck size={18} /> },
   { key: "conversations", label: "Conversations", icon: <MessageSquareText size={18} /> },
@@ -423,6 +426,7 @@ const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
     "run-cockpit": "运行驾驶舱",
     "commercial-operations": "商业运营",
     "comfyui-operations": "ComfyUI 运行",
+    "digital-humans": "数字人制作",
     workers: "Worker 管理",
     "browser-runtime": "浏览器运行时",
     conversations: "对话",
@@ -444,6 +448,7 @@ const pageLabels: Record<UiLanguage, Record<PageKey, string>> = {
     "run-cockpit": "Run Cockpit",
     "commercial-operations": "Commercial Ops",
     "comfyui-operations": "ComfyUI Ops",
+    "digital-humans": "Digital Humans",
     workers: "Workers",
     "browser-runtime": "Browser Runtime",
     conversations: "Conversations",
@@ -1334,6 +1339,7 @@ function OverviewPage({
       ? [
           { page: "commercial-operations", title: language === "zh-CN" ? "创建商业运营项目" : "Create commercial operation", detail: language === "zh-CN" ? "把运营目标转成计划、知识集合、审批和执行入口。" : "Turn a business goal into plan, knowledge, approval, and execution entry points." },
           { page: "comfyui-operations", title: language === "zh-CN" ? "ComfyUI 素材运行" : "ComfyUI asset runtime", detail: language === "zh-CN" ? "集中处理素材交接、预检、运行门禁和启用交接。" : "Handle asset handoffs, preflights, runtime gates, and activation handoffs in one place." },
+          { page: "digital-humans", title: language === "zh-CN" ? "数字人视频制作" : "Digital human video", detail: language === "zh-CN" ? "上传人物照片和素材，按剧本生成可审批的视频任务。" : "Upload a portrait and materials, then create a reviewable scripted video job." },
           { page: "run-cockpit", title: t("operatorOpenCockpit"), detail: t("operatorOpenCockpitDetail") },
           { page: "conversations", title: t("operatorConversations"), detail: t("operatorConversationsDetail") },
           { page: "playbooks", title: t("operatorPlaybooks"), detail: t("operatorPlaybooksDetail") },
@@ -14676,6 +14682,356 @@ function CommercialOperationsPage({
   );
 }
 
+function DigitalHumansPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
+  const [capabilitiesState, setCapabilitiesState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [assetsState, setAssetsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [jobsState, setJobsState] = useState<AsyncState<JsonRecord[]>>(emptyState());
+  const [actionState, setActionState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
+  const [portraitName, setPortraitName] = useState(language === "zh-CN" ? "授权人物照片" : "Authorized portrait");
+  const [portraitAuthorized, setPortraitAuthorized] = useState(true);
+  const [materialFile, setMaterialFile] = useState<File | null>(null);
+  const [materialName, setMaterialName] = useState(language === "zh-CN" ? "产品素材" : "Product material");
+  const [selectedAvatarId, setSelectedAvatarId] = useState("");
+  const [objective, setObjective] = useState(language === "zh-CN" ? "为一个产品生成 30 秒数字人口播运营视频" : "Create a 30-second digital human product marketing video");
+  const [script, setScript] = useState(language === "zh-CN" ? "开场说明痛点，展示产品价值和素材画面，最后引导用户咨询或下单。" : "Open with the pain point, show product value and materials, then guide users to book or buy.");
+  const [provider, setProvider] = useState("mock");
+  const [voiceId, setVoiceId] = useState("zh-CN-default");
+  const [aspectRatio, setAspectRatio] = useState("9:16");
+  const [durationSeconds, setDurationSeconds] = useState("30");
+  const [channelsDraft, setChannelsDraft] = useState("douyin,xiaohongshu");
+
+  const copy = {
+    title: language === "zh-CN" ? "数字人制作台" : "Digital human studio",
+    description:
+      language === "zh-CN"
+        ? "上传授权人物照片和产品素材，按剧本创建可审批的视频任务。默认只生成可恢复任务计划，不调用外部数字人服务。"
+        : "Upload an authorized portrait and product materials, then create a reviewable scripted video job. Default mode stores a recoverable plan and does not call external avatar providers.",
+    assetsTitle: language === "zh-CN" ? "人物与素材上传" : "Portrait and material upload",
+    assetsDescription:
+      language === "zh-CN"
+        ? "人物照片必须确认授权；产品图、参考图和背景素材会作为后续 ComfyUI/B-roll 输入。"
+        : "Portraits require explicit authorization. Product, reference, and background assets feed later ComfyUI/B-roll steps.",
+    jobTitle: language === "zh-CN" ? "创建数字人视频任务" : "Create digital human video job",
+    jobDescription:
+      language === "zh-CN"
+        ? "选择人物照片、输入运营目标和口播剧本，系统会生成任务计划、Provider 请求边界和人工审批状态。"
+        : "Select a portrait, enter the goal and script, and the system creates the plan, provider boundary, and review state.",
+    capabilityTitle: language === "zh-CN" ? "Provider 能力边界" : "Provider boundary",
+    jobListTitle: language === "zh-CN" ? "视频任务" : "Video jobs",
+    assetListTitle: language === "zh-CN" ? "素材资产" : "Assets",
+  };
+
+  const load = useCallback(async () => {
+    setCapabilitiesState((current) => ({ ...current, loading: true, error: null }));
+    setAssetsState((current) => ({ ...current, loading: true, error: null }));
+    setJobsState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const [capabilities, assets, jobs] = await Promise.all([
+        digitalHumansApi.capabilities(settings),
+        digitalHumansApi.assets({ limit: 80 }, settings),
+        digitalHumansApi.videoJobs({ limit: 50 }, settings),
+      ]);
+      setCapabilitiesState({ data: capabilities, error: null, loading: false, updatedAt: nowLabel() });
+      setAssetsState({ data: toItems(assets), error: null, loading: false, updatedAt: nowLabel() });
+      setJobsState({ data: toItems(jobs), error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Digital human API unavailable";
+      setCapabilitiesState({ data: null, error: message, loading: false, updatedAt: nowLabel() });
+      setAssetsState({ data: [], error: message, loading: false, updatedAt: nowLabel() });
+      setJobsState({ data: [], error: message, loading: false, updatedAt: nowLabel() });
+    }
+  }, [settings]);
+
+  useAutoRefresh(true, settings.refreshIntervalMs, load);
+
+  const assets = assetsState.data || [];
+  const jobs = jobsState.data || [];
+  const portraitAssets = assets.filter((asset) => valueAt(asset, ["asset_type"], "") === "portrait");
+  const materialAssets = assets.filter((asset) => valueAt(asset, ["asset_type"], "") !== "portrait");
+  const selectedAvatar = selectedAvatarId || valueAt(portraitAssets[0], ["id"], "");
+  const latestJob = jobs[0] || null;
+  const latestJobId = valueAt(latestJob, ["id"], "");
+  const jobRows = jobs.map((job) => ({
+    id: valueAt(job, ["id"]),
+    status: valueAt(job, ["job_status"]),
+    provider: valueAt(job, ["provider"]),
+    approval: valueAt(job, ["approval_status"]),
+    consent: valueAt(job, ["consent_status"]),
+    mode: valueAt(job, ["execution_mode"]),
+    outputs: Array.isArray(job.outputs) ? job.outputs.length : 0,
+    summary: valueAt(job, ["result_summary"]),
+  }));
+  const assetRows = assets.map((asset) => ({
+    id: valueAt(asset, ["id"]),
+    type: valueAt(asset, ["asset_type"]),
+    name: valueAt(asset, ["name"]),
+    consent: valueAt(asset, ["consent_status"]),
+    status: valueAt(asset, ["asset_status"]),
+    size: valueAt(asset, ["size_bytes"]),
+    file: valueAt(asset, ["file_name"]),
+  }));
+
+  const uploadAsset = async (assetType: "portrait" | "material") => {
+    const file = assetType === "portrait" ? portraitFile : materialFile;
+    if (!file) {
+      setActionState({ data: null, error: language === "zh-CN" ? "请先选择文件。" : "Choose a file first.", loading: false, updatedAt: nowLabel() });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("asset_type", assetType);
+      form.append("name", assetType === "portrait" ? portraitName : materialName);
+      form.append("consent_status", assetType === "portrait" ? (portraitAuthorized ? "authorized" : "unverified") : "authorized");
+      form.append("usage_scope", "commercial digital human video");
+      form.append("operator_note", assetType === "portrait" ? "Uploaded from Digital Humans page" : "Material uploaded from Digital Humans page");
+      const uploaded = await digitalHumansApi.uploadAsset(form, settings);
+      setActionState({ data: uploaded, error: null, loading: false, updatedAt: nowLabel() });
+      if (assetType === "portrait") {
+        setSelectedAvatarId(valueAt(uploaded, ["id"], ""));
+      }
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human asset upload unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
+  const createVideoJob = async () => {
+    if (!selectedAvatar) {
+      setActionState({ data: null, error: language === "zh-CN" ? "请先上传并选择授权人物照片。" : "Upload and select an authorized portrait first.", loading: false, updatedAt: nowLabel() });
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const created = await digitalHumansApi.createVideoJob(
+        {
+          objective: objective.trim(),
+          script: script.trim(),
+          provider,
+          avatar_asset_id: selectedAvatar,
+          material_asset_ids: materialAssets.map((asset) => valueAt(asset, ["id"], "")).filter(Boolean),
+          target_channels: splitDraftList(channelsDraft),
+          voice_profile: { voice_id: voiceId.trim() || "zh-CN-default" },
+          aspect_ratio: aspectRatio,
+          duration_seconds: Number(durationSeconds) || 30,
+          metadata: { source_page: "digital-humans", phase: "67A", ui_language: language },
+        },
+        settings,
+      );
+      setActionState({ data: created, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human video job unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
+  const refreshLatestJob = async () => {
+    if (!latestJobId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const refreshed = await digitalHumansApi.refreshVideoJob(latestJobId, { metadata: { source_page: "digital-humans", phase: "67A" } }, settings);
+      setActionState({ data: refreshed, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human video refresh unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
+  const reviewLatestJob = async (action: "approve" | "reject" | "cancel") => {
+    if (!latestJobId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const reviewed = await digitalHumansApi.reviewVideoJob(
+        latestJobId,
+        action,
+        { reviewer_notes: `Digital Humans page ${action}`, metadata: { source_page: "digital-humans", phase: "67A" } },
+        settings,
+      );
+      setActionState({ data: reviewed, error: null, loading: false, updatedAt: nowLabel() });
+      await load();
+    } catch (error) {
+      setActionState({ data: null, error: error instanceof Error ? error.message : "Digital human review unavailable", loading: false, updatedAt: nowLabel() });
+    }
+  };
+
+  return (
+    <div className="page-stack">
+      <section className="overview-command-center">
+        <div>
+          <p className="section-eyebrow">Phase 67A</p>
+          <h2>{copy.title}</h2>
+          <p>{copy.description}</p>
+        </div>
+        <button className="ghost-button" onClick={() => void load()}>
+          <RefreshCcw size={15} />
+          Refresh
+        </button>
+      </section>
+
+      <section className="metrics-grid compact">
+        <DataCard title="asset_count" value={assets.length} detail={`${portraitAssets.length} portrait / ${materialAssets.length} material`} icon={<Package size={20} />} />
+        <DataCard title="video_job_count" value={jobs.length} detail={`latest ${valueAt(latestJob, ["job_status"], "none")}`} icon={<PlayCircle size={20} />} />
+        <DataCard title="provider" value={valueAt(capabilitiesState.data, ["provider"], "mock")} detail={valueAt(capabilitiesState.data, ["provider_calls_enabled"], "false")} icon={<Bot size={20} />} />
+        <DataCard title="latest_approval" value={valueAt(latestJob, ["approval_status"], "none")} detail={valueAt(latestJob, ["execution_mode"], "-")} icon={<ShieldCheck size={20} />} />
+      </section>
+
+      <Panel title={copy.assetsTitle} description={copy.assetsDescription}>
+        <div className="commercial-form-grid">
+          <label>
+            {language === "zh-CN" ? "人物照片名称" : "Portrait name"}
+            <input value={portraitName} onChange={(event) => setPortraitName(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "人物照片文件" : "Portrait file"}
+            <input type="file" accept="image/*" onChange={(event) => setPortraitFile(event.target.files?.[0] || null)} />
+          </label>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={portraitAuthorized} onChange={(event) => setPortraitAuthorized(event.target.checked)} />
+            {language === "zh-CN" ? "确认已获得人物授权" : "Portrait authorization confirmed"}
+          </label>
+          <div className="commercial-action-row">
+            <button className="primary-button" onClick={() => void uploadAsset("portrait")} disabled={actionState.loading || !portraitFile}>
+              {language === "zh-CN" ? "上传人物照片" : "Upload portrait"}
+            </button>
+          </div>
+          <label>
+            {language === "zh-CN" ? "素材名称" : "Material name"}
+            <input value={materialName} onChange={(event) => setMaterialName(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "素材文件" : "Material file"}
+            <input type="file" accept="image/*,video/*" onChange={(event) => setMaterialFile(event.target.files?.[0] || null)} />
+          </label>
+          <div className="commercial-action-row">
+            <button className="ghost-button" onClick={() => void uploadAsset("material")} disabled={actionState.loading || !materialFile}>
+              {language === "zh-CN" ? "上传素材" : "Upload material"}
+            </button>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title={copy.jobTitle} description={copy.jobDescription}>
+        <div className="commercial-form-grid">
+          <label>
+            {language === "zh-CN" ? "人物照片" : "Portrait"}
+            <select value={selectedAvatar} onChange={(event) => setSelectedAvatarId(event.target.value)}>
+              <option value="">{language === "zh-CN" ? "请选择" : "Select"}</option>
+              {portraitAssets.map((asset) => (
+                <option key={valueAt(asset, ["id"])} value={valueAt(asset, ["id"])}>
+                  {valueAt(asset, ["name"])} / {valueAt(asset, ["consent_status"])}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Provider
+            <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+              <option value="mock">mock</option>
+              <option value="heygen">heygen</option>
+              <option value="tavus">tavus</option>
+              <option value="did">did</option>
+              <option value="local_musetalk_liveportrait">local_musetalk_liveportrait</option>
+            </select>
+          </label>
+          <label className="commercial-wide-label">
+            {language === "zh-CN" ? "运营目标" : "Objective"}
+            <textarea value={objective} onChange={(event) => setObjective(event.target.value)} />
+          </label>
+          <label className="commercial-wide-label">
+            {language === "zh-CN" ? "口播剧本" : "Script"}
+            <textarea value={script} onChange={(event) => setScript(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "声音" : "Voice"}
+            <input value={voiceId} onChange={(event) => setVoiceId(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "画幅" : "Aspect ratio"}
+            <select value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value)}>
+              <option value="9:16">9:16</option>
+              <option value="16:9">16:9</option>
+              <option value="1:1">1:1</option>
+            </select>
+          </label>
+          <label>
+            {language === "zh-CN" ? "时长秒" : "Duration seconds"}
+            <input type="number" min="1" max="3600" value={durationSeconds} onChange={(event) => setDurationSeconds(event.target.value)} />
+          </label>
+          <label>
+            {language === "zh-CN" ? "渠道" : "Channels"}
+            <input value={channelsDraft} onChange={(event) => setChannelsDraft(event.target.value)} />
+          </label>
+        </div>
+        <div className="commercial-action-row">
+          <button className="primary-button" onClick={() => void createVideoJob()} disabled={actionState.loading || !objective.trim() || !script.trim()}>
+            {language === "zh-CN" ? "创建数字人视频任务" : "Create video job"}
+          </button>
+          <button className="ghost-button" onClick={() => void refreshLatestJob()} disabled={!latestJobId || actionState.loading}>
+            {language === "zh-CN" ? "刷新最新任务" : "Refresh latest"}
+          </button>
+          <button className="ghost-button" onClick={() => void reviewLatestJob("approve")} disabled={!latestJobId || actionState.loading}>
+            {language === "zh-CN" ? "审批通过" : "Approve"}
+          </button>
+          <button className="ghost-button" onClick={() => void reviewLatestJob("reject")} disabled={!latestJobId || actionState.loading}>
+            {language === "zh-CN" ? "退回" : "Reject"}
+          </button>
+        </div>
+        <LoadNotice state={actionState} />
+        {actionState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {actionState.updatedAt}</div> : null}
+      </Panel>
+
+      <Panel title={copy.jobListTitle}>
+        <Table
+          rows={jobRows}
+          emptyLabel={language === "zh-CN" ? "暂无数字人视频任务。" : "No digital human video jobs yet."}
+          columns={[
+            { key: "status", label: "status" },
+            { key: "provider", label: "provider" },
+            { key: "approval", label: "approval" },
+            { key: "consent", label: "consent" },
+            { key: "mode", label: "mode" },
+            { key: "outputs", label: "outputs" },
+            { key: "summary", label: "summary" },
+          ]}
+        />
+      </Panel>
+
+      <Panel title={copy.assetListTitle} description={capabilitiesState.updatedAt ? `${textFor(language, "lastUpdated")}: ${capabilitiesState.updatedAt}` : undefined}>
+        <LoadNotice state={capabilitiesState} />
+        <Table
+          rows={assetRows}
+          emptyLabel={language === "zh-CN" ? "暂无人物或素材资产。" : "No portrait or material assets yet."}
+          columns={[
+            { key: "type", label: "type" },
+            { key: "name", label: "name" },
+            { key: "consent", label: "consent" },
+            { key: "status", label: "status" },
+            { key: "size", label: "size" },
+            { key: "file", label: "file" },
+          ]}
+        />
+      </Panel>
+
+      <Panel title={copy.capabilityTitle}>
+        <div className="commercial-detail-grid">
+          <Field label="provider" value={valueAt(capabilitiesState.data, ["provider"], "mock")} />
+          <Field label="enabled" value={<StatusPill value={valueAt(capabilitiesState.data, ["enabled"], "false")} />} />
+          <Field label="external_api_allowed" value={<StatusPill value={valueAt(capabilitiesState.data, ["external_api_allowed"], "false")} />} />
+          <Field label="provider_calls_enabled" value={<StatusPill value={valueAt(capabilitiesState.data, ["provider_calls_enabled"], "false")} />} />
+          <Field label="recommended_order" value={shortJson(capabilitiesState.data?.recommended_provider_order)} />
+          <Field label="local_pipeline" value={shortJson(capabilitiesState.data?.local_pipeline)} />
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function RagDocumentsPage({ settings, language }: { settings: AdminSettings; language: UiLanguage }) {
   const t = useCallback((key: UiTextKey) => textFor(language, key), [language]);
   const [query, setQuery] = useState("AI automation operations");
@@ -15336,7 +15692,7 @@ function App() {
               </select>
             </label>
             <StatusPill value={t("foundationMode")} />
-            <StatusPill value={activePage === "run-cockpit" || activePage === "commercial-operations" || activePage === "comfyui-operations" ? t("operatorMode") : t("readOnlyMode")} />
+            <StatusPill value={activePage === "run-cockpit" || activePage === "commercial-operations" || activePage === "comfyui-operations" || activePage === "digital-humans" ? t("operatorMode") : t("readOnlyMode")} />
           </div>
         </header>
         <div className="content">
@@ -15344,6 +15700,7 @@ function App() {
           {activePage === "run-cockpit" ? <RunCockpitPage settings={settings} onNavigate={navigate} language={language} /> : null}
           {activePage === "commercial-operations" ? <CommercialOperationsPage settings={settings} language={language} onNavigate={navigate} /> : null}
           {activePage === "comfyui-operations" ? <CommercialOperationsPage settings={settings} language={language} onNavigate={navigate} surface="comfyui" /> : null}
+          {activePage === "digital-humans" ? <DigitalHumansPage settings={settings} language={language} /> : null}
           {activePage === "workers" ? <WorkersPage settings={settings} /> : null}
           {activePage === "browser-runtime" ? <BrowserRuntimePage settings={settings} /> : null}
           {activePage === "conversations" ? <ConversationsPage settings={settings} targetThreadId={deepLinkTarget.threadId} language={language} /> : null}

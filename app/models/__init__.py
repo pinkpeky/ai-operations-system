@@ -59,6 +59,7 @@ from app.models.conversation import (
     ConversationPlaybookRun,
     ConversationThread,
 )
+from app.models.digital_human import DigitalHumanAsset, DigitalHumanVideoJob
 from app.models.document import Document, DocumentChunk
 from app.models.enums import (
     AccountStatus,
@@ -296,6 +297,8 @@ __all__ = [
     "ConversationSessionStatus",
     "ConversationThread",
     "ConversationThreadStatus",
+    "DigitalHumanAsset",
+    "DigitalHumanVideoJob",
     "Document",
     "DocumentChunk",
     "DocumentIngestStatus",
