@@ -187,6 +187,15 @@ export const digitalHumansApi = {
       },
       settings,
     ),
+  executeVideoJob: (jobId: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/execute`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
   reviewVideoJob: (jobId: string, action: string, payload: JsonRecord = {}, settings?: AdminSettings) =>
     requestJson<JsonRecord>(
       `/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}`,

@@ -78,6 +78,8 @@ htmlcov/
 !/storage/browser_runtime_snapshots/.gitkeep
 /storage/digital_human_assets/*
 !/storage/digital_human_assets/.gitkeep
+/storage/digital_human_outputs/*
+!/storage/digital_human_outputs/.gitkeep
 /storage/output_artifacts/*
 !/storage/output_artifacts/.gitkeep
 /storage/output_packages/*

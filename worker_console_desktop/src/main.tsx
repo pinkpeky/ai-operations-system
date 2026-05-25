@@ -74,6 +74,7 @@ import {
   CommercialOperationOptimizationDecision,
   CommercialOperationResult,
 } from "./api/commercialOperationClient";
+import { digitalHumanClient, DigitalHumanVideoJob } from "./api/digitalHumanClient";
 import {
   createLocalWorkerClient,
   LocalWorkerClient,
@@ -2188,6 +2189,9 @@ function ChatPanel({
   const [nextCycleDraftLoading, setNextCycleDraftLoading] = useState(false);
   const [closedLoopDeliveryStatus, setClosedLoopDeliveryStatus] = useState<string | null>(null);
   const [closedLoopDeliveryLoading, setClosedLoopDeliveryLoading] = useState(false);
+  const [digitalHumanVideoJobs, setDigitalHumanVideoJobs] = useState<DigitalHumanVideoJob[]>([]);
+  const [digitalHumanVideoStatus, setDigitalHumanVideoStatus] = useState<string | null>(null);
+  const [digitalHumanVideoLoading, setDigitalHumanVideoLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem("desktopConversationSettings", JSON.stringify(settings));
@@ -2260,9 +2264,43 @@ function ChatPanel({
     }
   }, [selectedCommercialOperationId, settings]);
 
+  const refreshDigitalHumanVideos = useCallback(async () => {
+    setDigitalHumanVideoLoading(true);
+    try {
+      const response = await digitalHumanClient.listVideoJobs(settings);
+      setDigitalHumanVideoJobs(response.items);
+      setDigitalHumanVideoStatus(null);
+    } catch (nextError) {
+      setDigitalHumanVideoJobs([]);
+      setDigitalHumanVideoStatus(nextError instanceof Error ? nextError.message : "Digital human video progress unavailable");
+    } finally {
+      setDigitalHumanVideoLoading(false);
+    }
+  }, [settings]);
+
   useEffect(() => {
     void refreshCommercialOperationLoop();
-  }, [refreshCommercialOperationLoop]);
+    void refreshDigitalHumanVideos();
+  }, [refreshCommercialOperationLoop, refreshDigitalHumanVideos]);
+
+  const refreshLatestDigitalHumanVideo = async () => {
+    const latest = digitalHumanVideoJobs[0];
+    if (!latest) {
+      await refreshDigitalHumanVideos();
+      return;
+    }
+    setDigitalHumanVideoLoading(true);
+    try {
+      const refreshed = await digitalHumanClient.refreshVideoJob(latest.id, settings);
+      setDigitalHumanVideoJobs((current) => [refreshed, ...current.filter((item) => item.id !== refreshed.id)]);
+      setDigitalHumanVideoStatus(refreshed.result_summary ?? refreshed.next_action ?? refreshed.job_status);
+    } catch (nextError) {
+      setDigitalHumanVideoStatus(nextError instanceof Error ? nextError.message : "Digital human video refresh failed");
+    } finally {
+      setDigitalHumanVideoLoading(false);
+    }
+  };
+
 
   const refreshAgentSkillOrchestration = async () => {
     const operationId = operationLoop?.operation_id || selectedCommercialOperationId;
@@ -4743,12 +4781,13 @@ function ChatPanel({
       await refreshTaskRuns();
       await refreshWorkflows();
       await refreshCommercialOperationLoop();
+      await refreshDigitalHumanVideos();
       setConnectionState("connected");
     } catch (nextError) {
       setConnectionState("disconnected");
       setChatError(nextError instanceof Error ? nextError.message : "AI Server unreachable");
     }
-  }, [refreshCommercialOperationLoop, refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
+  }, [refreshCommercialOperationLoop, refreshDigitalHumanVideos, refreshPlaybooks, refreshTaskRuns, refreshWorkflows, settings, threadId]);
 
   useEffect(() => {
     if (!pollEvents || !threadId) {
@@ -5284,6 +5323,13 @@ function ChatPanel({
     typeof agentSkillOrchestration?.controller_agent.display_name === "string"
       ? agentSkillOrchestration.controller_agent.display_name
       : "Commercial Operation Agent";
+  const latestDigitalHumanVideoJob = digitalHumanVideoJobs[0] ?? null;
+  const digitalHumanVideoProgressText = latestDigitalHumanVideoJob
+    ? `${latestDigitalHumanVideoJob.job_status} / ${latestDigitalHumanVideoJob.progress_percent ?? 0}%`
+    : language === "zh-CN"
+      ? "暂无数字人视频任务"
+      : "No digital human video job";
+  const digitalHumanVideoOutputCount = latestDigitalHumanVideoJob?.outputs?.length ?? 0;
   const operationResultSummary = closedLoopDeliveryStatus
     ? closedLoopDeliveryStatus
     : nextCycleDraftStatus
@@ -5357,6 +5403,8 @@ function ChatPanel({
     operationExecutionRequestStatusText ||
     executionPrepStatus ||
     operationApprovalStatusText ||
+    digitalHumanVideoStatus ||
+    (latestDigitalHumanVideoJob ? digitalHumanVideoProgressText : null) ||
     firstDraftBootstrapStatus ||
     operationLoopSourceText;
 
@@ -5411,6 +5459,26 @@ function ChatPanel({
               <strong>{operationResultSummary}</strong>
               <p>{operationReadableSourceText}</p>
               <p>{workbenchCopy.operationOpenClawLabel}</p>
+            </div>
+          </div>
+          <div className="client-digital-human-progress" aria-label="Digital human video progress">
+            <div>
+              <span>{language === "zh-CN" ? "数字人视频" : "Digital human video"}</span>
+              <strong>{digitalHumanVideoProgressText}</strong>
+              <p>
+                {digitalHumanVideoStatus ||
+                  latestDigitalHumanVideoJob?.result_summary ||
+                  latestDigitalHumanVideoJob?.next_action ||
+                  (language === "zh-CN" ? "审批后可生成交付资产或交给 ComfyUI 视频调度。" : "After approval, create a delivery asset or queue a ComfyUI video handoff.")}
+              </p>
+            </div>
+            <div className="client-digital-human-meta">
+              <span>{language === "zh-CN" ? `输出 ${digitalHumanVideoOutputCount}` : `${digitalHumanVideoOutputCount} outputs`}</span>
+              <span>{latestDigitalHumanVideoJob?.linked_comfyui_video_job_id ? "ComfyUI linked" : "ComfyUI pending"}</span>
+              <button className="refresh-button" onClick={() => void refreshLatestDigitalHumanVideo()} disabled={digitalHumanVideoLoading}>
+                <RefreshCcw size={14} />
+                {digitalHumanVideoLoading ? (language === "zh-CN" ? "刷新中" : "Refreshing") : workbenchCopy.operationRefreshLoop}
+              </button>
             </div>
           </div>
           <div className="client-operation-guided-actions" aria-label={workbenchCopy.operationGuidedActionsTitle}>

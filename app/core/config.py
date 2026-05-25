@@ -233,6 +233,7 @@ class Settings(BaseSettings):
     digital_human_enabled: bool = Field(default=False, alias="DIGITAL_HUMAN_ENABLED")
     digital_human_allow_external_api: bool = Field(default=False, alias="DIGITAL_HUMAN_ALLOW_EXTERNAL_API")
     digital_human_asset_dir: str = Field(default="storage/digital_human_assets", alias="DIGITAL_HUMAN_ASSET_DIR")
+    digital_human_output_dir: str = Field(default="storage/digital_human_outputs", alias="DIGITAL_HUMAN_OUTPUT_DIR")
     digital_human_default_voice_id: str = Field(default="zh-CN-default", alias="DIGITAL_HUMAN_DEFAULT_VOICE_ID")
     digital_human_default_aspect_ratio: str = Field(default="9:16", alias="DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO")
 

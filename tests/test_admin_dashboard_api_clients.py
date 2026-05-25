@@ -70,6 +70,7 @@ def test_admin_dashboard_api_client_uses_workspace_headers_and_core_paths() -> N
         "/digital-humans/video-jobs",
         "/digital-humans/video-jobs${suffix}",
         "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/refresh",
+        "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/execute",
         "/digital-humans/video-jobs/${encodeURIComponent(jobId)}/${encodeURIComponent(action)}",
         "/comfyui-runtime/prompt-jobs/${encodeURIComponent(promptId)}/history",
         "/comfyui-runtime/queue",
