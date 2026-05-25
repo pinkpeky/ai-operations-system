@@ -638,6 +638,15 @@ class ComfyUIRuntimePromptJobSubmitRequest(BaseModel):
     client_id: str | None = Field(default=None, max_length=200)
     extra_data: dict[str, Any] = Field(default_factory=dict)
     workflow: dict[str, Any] | None = None
+    media_type: str = Field(default="image", max_length=32)
+    resource_profile: str = Field(default="standard", max_length=64)
+    width: int | None = Field(default=None, ge=64, le=8192)
+    height: int | None = Field(default=None, ge=64, le=8192)
+    frames: int | None = Field(default=None, ge=1, le=20000)
+    fps: float | None = Field(default=None, ge=1.0, le=240.0)
+    duration_seconds: float | None = Field(default=None, ge=0.1, le=3600.0)
+    estimated_vram_mb: int | None = Field(default=None, ge=256, le=131072)
+    reserve_vram_mb: int | None = Field(default=None, ge=0, le=131072)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -696,4 +705,59 @@ class ComfyUIRuntimeQueueResponse(BaseModel):
     response_payload: dict[str, Any] = Field(default_factory=dict)
     queue_running: list[Any] = Field(default_factory=list)
     queue_pending: list[Any] = Field(default_factory=list)
+    error: str | None = None
+
+
+class ComfyUIRuntimeVideoResourcePlanRequest(BaseModel):
+    """Plan GPU and queue admission for one ComfyUI video generation request."""
+
+    resource_profile: str = Field(default="standard", max_length=64)
+    width: int = Field(default=1280, ge=64, le=8192)
+    height: int = Field(default=720, ge=64, le=8192)
+    frames: int = Field(default=96, ge=1, le=20000)
+    fps: float = Field(default=24.0, ge=1.0, le=240.0)
+    duration_seconds: float | None = Field(default=None, ge=0.1, le=3600.0)
+    estimated_vram_mb: int | None = Field(default=None, ge=256, le=131072)
+    reserve_vram_mb: int | None = Field(default=None, ge=0, le=131072)
+    priority: str = Field(default="normal", max_length=32)
+    allow_queue: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComfyUIRuntimeVideoResourcePlanResponse(BaseModel):
+    """GPU/queue admission plan for ComfyUI video generation."""
+
+    success: bool
+    workspace_id: str | None = None
+    provider: str
+    base_url: str
+    media_type: str = "video"
+    resource_profile: str
+    width: int
+    height: int
+    frames: int
+    fps: float
+    duration_seconds: float | None = None
+    estimated_vram_mb: int
+    reserve_vram_mb: int
+    required_free_vram_mb: int
+    max_concurrent_video_jobs: int
+    queue_pending_limit: int
+    admission_status: str
+    should_submit_now: bool = False
+    external_request_attempted: bool = False
+    system_stats_attempted: bool = False
+    queue_status_attempted: bool = False
+    runtime_calls_enabled: bool = False
+    prompt_submission_enabled: bool = False
+    selected_endpoint: dict[str, Any] | None = None
+    endpoint_plans: list[dict[str, Any]] = Field(default_factory=list)
+    selected_gpu: dict[str, Any] | None = None
+    gpu_devices: list[dict[str, Any]] = Field(default_factory=list)
+    queue_running_count: int = 0
+    queue_pending_count: int = 0
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    queue_payload: dict[str, Any] = Field(default_factory=dict)
+    raw: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None

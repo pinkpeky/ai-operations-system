@@ -4025,11 +4025,22 @@ class CommercialOperationService:
             raise ValueError("ComfyUI adapter dispatch does not contain a valid ComfyUI API prompt graph")
 
         now = datetime.now(UTC)
+        asset_request = await self.require_asset_request(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            asset_request_id=dispatch.asset_request_id,
+        )
         runtime = ComfyUIRuntimeService()
         clean_client_id = (
             client_id.strip()[:128]
             if client_id and client_id.strip()
             else f"commercial-operation-{dispatch.id}"
+        )
+        is_video_dispatch = self._is_comfyui_video_dispatch(dispatch=dispatch, asset_request=asset_request)
+        video_resource_request = (
+            self._build_comfyui_video_resource_request(dispatch=dispatch, asset_request=asset_request)
+            if is_video_dispatch
+            else {}
         )
         submit = runtime.submit_prompt_job(
             prompt=prompt,
@@ -4044,15 +4055,25 @@ class CommercialOperationService:
                 }
             },
             metadata={
-                "phase": "65B",
+                "phase": "66A" if is_video_dispatch else "65B",
                 "source": "commercial_operation_adapter_dispatch",
+                "asset_type": asset_request.asset_type,
+                "media_type": "video" if is_video_dispatch else "image",
                 **(metadata or {}),
             },
             workspace_id=workspace_id,
+            media_type="video" if is_video_dispatch else "image",
+            **video_resource_request,
         )
-        history = runtime.prompt_history(prompt_id=submit.prompt_id, workspace_id=workspace_id) if submit.prompt_id and poll_history else None
-        queue = runtime.queue_status(workspace_id=workspace_id)
+        runtime_base_url = getattr(submit, "base_url", None) if isinstance(getattr(submit, "base_url", None), str) else None
+        history = (
+            runtime.prompt_history(prompt_id=submit.prompt_id, workspace_id=workspace_id, base_url=runtime_base_url)
+            if submit.prompt_id and poll_history
+            else None
+        )
+        queue = runtime.queue_status(workspace_id=workspace_id, base_url=runtime_base_url)
         outputs = self._extract_comfyui_runtime_outputs(history.outputs if history else {})
+        video_resource_plan = self._comfyui_video_resource_plan_from_submit(submit)
         runtime_metadata = self._build_comfyui_runtime_submission_metadata(
             submitted_at=now,
             submitted_by=submitted_by,
@@ -4065,11 +4086,12 @@ class CommercialOperationService:
         )
         dispatch.dispatch_metadata = {
             **(dispatch.dispatch_metadata or {}),
-            "phase": "65B",
+            "phase": "66A" if is_video_dispatch else "65B",
             "runtime_submission": runtime_metadata["runtime_submission"],
             "runtime_history": runtime_metadata["runtime_history"],
             "runtime_queue": runtime_metadata["runtime_queue"],
             "runtime_outputs": outputs,
+            "video_resource_plan": video_resource_plan,
         }
         dispatch.dispatch_payload = {
             **(dispatch.dispatch_payload or {}),
@@ -4085,9 +4107,12 @@ class CommercialOperationService:
             "external_calls": "guarded_runtime_adapter",
             "dry_run_only": False,
             "runtime_prompt_id": submit.prompt_id,
+            "runtime_base_url": runtime_base_url,
             "runtime_prompt_success": bool(submit.success),
             "runtime_outputs": outputs,
             "runtime_error": submit.error,
+            "media_type": "video" if is_video_dispatch else "image",
+            "video_resource_plan": video_resource_plan,
         }
         dispatch.queue_payload = {
             **(dispatch.queue_payload or {}),
@@ -4095,6 +4120,8 @@ class CommercialOperationService:
             "queue_submission": bool(submit.success),
             "runtime_queue_success": bool(queue.success),
             "runtime_prompt_id": submit.prompt_id,
+            "runtime_base_url": runtime_base_url,
+            "video_resource_plan": video_resource_plan,
         }
         dispatch.dispatch_mode = "guarded_runtime_submission"
         dispatch.reviewer_notes = reviewer_notes.strip() if reviewer_notes and reviewer_notes.strip() else dispatch.reviewer_notes
@@ -4109,6 +4136,15 @@ class CommercialOperationService:
                 result_summary.strip()
                 if result_summary and result_summary.strip()
                 else self._comfyui_runtime_result_summary(prompt_id=submit.prompt_id, outputs=outputs)
+            )
+        elif video_resource_plan and video_resource_plan.get("admission_status") == "queued":
+            dispatch.dispatch_status = CommercialOperationComfyUIAdapterDispatchStatus.APPROVED.value
+            dispatch.failed_at = None
+            dispatch.failure_reason = None
+            dispatch.result_summary = (
+                result_summary.strip()
+                if result_summary and result_summary.strip()
+                else "ComfyUI video job is waiting for an available GPU slot; retry runtime submission after the queue drains."
             )
         else:
             dispatch.dispatch_status = CommercialOperationComfyUIAdapterDispatchStatus.FAILED.value
@@ -4164,12 +4200,17 @@ class CommercialOperationService:
 
         now = datetime.now(UTC)
         runtime = ComfyUIRuntimeService()
-        history = runtime.prompt_history(prompt_id=prompt_id, workspace_id=workspace_id) if poll_history else None
-        queue = runtime.queue_status(workspace_id=workspace_id)
+        runtime_base_url = self._comfyui_runtime_base_url_from_dispatch(dispatch)
+        history = (
+            runtime.prompt_history(prompt_id=prompt_id, workspace_id=workspace_id, base_url=runtime_base_url)
+            if poll_history
+            else None
+        )
+        queue = runtime.queue_status(workspace_id=workspace_id, base_url=runtime_base_url)
         outputs = self._extract_comfyui_runtime_outputs(history.outputs if history else {})
         dispatch.dispatch_metadata = {
             **(dispatch.dispatch_metadata or {}),
-            "phase": "65B",
+            "phase": (dispatch.dispatch_metadata or {}).get("phase") or "65B",
             "runtime_history": self._comfyui_runtime_history_metadata(history, checked_at=now) if history else None,
             "runtime_queue": self._comfyui_runtime_queue_metadata(queue, checked_at=now),
             "runtime_outputs": outputs,
@@ -4182,6 +4223,7 @@ class CommercialOperationService:
         dispatch.dispatch_payload = {
             **(dispatch.dispatch_payload or {}),
             "runtime_prompt_id": prompt_id,
+            "runtime_base_url": runtime_base_url,
             "runtime_outputs": outputs,
             "runtime_history_success": bool(history.success) if history else None,
             "runtime_queue_success": bool(queue.success),
@@ -4191,6 +4233,7 @@ class CommercialOperationService:
             "queue_read": bool(queue.external_request_attempted),
             "runtime_queue_success": bool(queue.success),
             "runtime_prompt_id": prompt_id,
+            "runtime_base_url": runtime_base_url,
         }
         dispatch.updated_by = refreshed_by
         if outputs:
@@ -12576,6 +12619,152 @@ class CommercialOperationService:
                     )
         return items
 
+    def _is_comfyui_video_dispatch(
+        self,
+        *,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        asset_request: CommercialOperationAssetRequest,
+    ) -> bool:
+        media_markers = [
+            asset_request.asset_type,
+            (asset_request.asset_metadata or {}).get("media_type") if isinstance(asset_request.asset_metadata, dict) else None,
+            (asset_request.handoff_payload or {}).get("media_type") if isinstance(asset_request.handoff_payload, dict) else None,
+            (dispatch.dispatch_payload or {}).get("media_type") if isinstance(dispatch.dispatch_payload, dict) else None,
+            (dispatch.dispatch_payload or {}).get("asset_type") if isinstance(dispatch.dispatch_payload, dict) else None,
+            (dispatch.queue_payload or {}).get("media_type") if isinstance(dispatch.queue_payload, dict) else None,
+        ]
+        haystack = " ".join(str(value).lower() for value in media_markers if value is not None)
+        return any(token in haystack for token in ("video", "animation", "motion", "gif"))
+
+    def _build_comfyui_video_resource_request(
+        self,
+        *,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+        asset_request: CommercialOperationAssetRequest,
+    ) -> dict[str, Any]:
+        payloads = [
+            dispatch.dispatch_payload or {},
+            dispatch.queue_payload or {},
+            dispatch.prompt_payload or {},
+            dispatch.workflow_payload or {},
+            asset_request.handoff_payload or {},
+            asset_request.asset_metadata or {},
+        ]
+        width, height = self._extract_dimensions_from_payloads(payloads, fallback=asset_request.dimensions)
+        request: dict[str, Any] = {
+            "resource_profile": self._first_resource_string(
+                payloads,
+                keys=("resource_profile", "video_profile", "model_profile", "gpu_profile"),
+                default="standard",
+            ),
+            "width": width,
+            "height": height,
+            "frames": self._first_resource_int(payloads, keys=("frames", "frame_count", "num_frames")),
+            "fps": self._first_resource_float(payloads, keys=("fps", "frame_rate")),
+            "duration_seconds": self._first_resource_float(payloads, keys=("duration_seconds", "duration")),
+            "estimated_vram_mb": self._first_resource_int(payloads, keys=("estimated_vram_mb", "vram_estimate_mb")),
+            "reserve_vram_mb": self._first_resource_int(payloads, keys=("reserve_vram_mb", "min_free_vram_mb")),
+        }
+        return {key: value for key, value in request.items() if value is not None}
+
+    def _extract_dimensions_from_payloads(
+        self,
+        payloads: list[dict[str, Any]],
+        *,
+        fallback: str | None = None,
+    ) -> tuple[int | None, int | None]:
+        width = self._first_resource_int(payloads, keys=("width", "video_width"))
+        height = self._first_resource_int(payloads, keys=("height", "video_height"))
+        if width and height:
+            return width, height
+        for candidate in [
+            *(payload.get(key) for payload in payloads for key in ("dimensions", "resolution", "size")),
+            fallback,
+        ]:
+            parsed = self._parse_dimension_pair(candidate)
+            if parsed:
+                return parsed
+        return width, height
+
+    @staticmethod
+    def _parse_dimension_pair(value: Any) -> tuple[int, int] | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.lower().replace("×", "x").replace("*", "x")
+        parts = [part.strip() for part in normalized.split("x", 1)]
+        if len(parts) != 2:
+            return None
+        try:
+            width = max(64, min(int(float(parts[0])), 8192))
+            height = max(64, min(int(float(parts[1])), 8192))
+        except ValueError:
+            return None
+        return width, height
+
+    def _first_resource_string(
+        self,
+        payloads: list[dict[str, Any]],
+        *,
+        keys: tuple[str, ...],
+        default: str,
+    ) -> str:
+        for payload in payloads:
+            for key in keys:
+                value = self._deep_get_first(payload, key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()[:64]
+        return default
+
+    def _first_resource_int(self, payloads: list[dict[str, Any]], *, keys: tuple[str, ...]) -> int | None:
+        for payload in payloads:
+            for key in keys:
+                value = self._deep_get_first(payload, key)
+                if isinstance(value, (int, float)) and value > 0:
+                    return int(value)
+                if isinstance(value, str) and value.strip():
+                    try:
+                        return int(float(value.strip()))
+                    except ValueError:
+                        continue
+        return None
+
+    def _first_resource_float(self, payloads: list[dict[str, Any]], *, keys: tuple[str, ...]) -> float | None:
+        for payload in payloads:
+            for key in keys:
+                value = self._deep_get_first(payload, key)
+                if isinstance(value, (int, float)) and value > 0:
+                    return float(value)
+                if isinstance(value, str) and value.strip():
+                    try:
+                        return float(value.strip())
+                    except ValueError:
+                        continue
+        return None
+
+    def _deep_get_first(self, payload: Any, key: str, *, depth: int = 0) -> Any:
+        if depth > 4 or not isinstance(payload, dict):
+            return None
+        if key in payload:
+            return payload[key]
+        for value in payload.values():
+            if isinstance(value, dict):
+                found = self._deep_get_first(value, key, depth=depth + 1)
+                if found is not None:
+                    return found
+        return None
+
+    @staticmethod
+    def _comfyui_video_resource_plan_from_submit(submit: Any) -> dict[str, Any] | None:
+        metadata = getattr(submit, "metadata", None)
+        if isinstance(metadata, dict) and isinstance(metadata.get("video_resource_plan"), dict):
+            return metadata["video_resource_plan"]
+        request_payload = getattr(submit, "request_payload", None)
+        if isinstance(request_payload, dict):
+            extra_data = request_payload.get("extra_data")
+            if isinstance(extra_data, dict) and isinstance(extra_data.get("aiops_video_resource_plan"), dict):
+                return extra_data["aiops_video_resource_plan"]
+        return None
+
     def _comfyui_runtime_result_summary(self, *, prompt_id: str | None, outputs: list[dict[str, Any]]) -> str:
         if outputs:
             filenames = ", ".join(str(item.get("filename")) for item in outputs[:3])
@@ -12597,10 +12786,39 @@ class CommercialOperationService:
                 return metadata_prompt_id.strip()
         return None
 
+    def _comfyui_runtime_base_url_from_dispatch(
+        self,
+        dispatch: CommercialOperationComfyUIAdapterDispatch,
+    ) -> str | None:
+        payload_base_url = (dispatch.dispatch_payload or {}).get("runtime_base_url")
+        if isinstance(payload_base_url, str) and payload_base_url.strip():
+            return payload_base_url.strip()
+        queue_base_url = (dispatch.queue_payload or {}).get("runtime_base_url")
+        if isinstance(queue_base_url, str) and queue_base_url.strip():
+            return queue_base_url.strip()
+        metadata = dispatch.dispatch_metadata or {}
+        submission = metadata.get("runtime_submission")
+        if isinstance(submission, dict):
+            metadata_base_url = submission.get("base_url")
+            if isinstance(metadata_base_url, str) and metadata_base_url.strip():
+                return metadata_base_url.strip()
+        video_plan = metadata.get("video_resource_plan")
+        if isinstance(video_plan, dict):
+            selected_endpoint = video_plan.get("selected_endpoint")
+            if isinstance(selected_endpoint, dict):
+                endpoint_base_url = selected_endpoint.get("base_url")
+                if isinstance(endpoint_base_url, str) and endpoint_base_url.strip():
+                    return endpoint_base_url.strip()
+            plan_base_url = video_plan.get("base_url")
+            if isinstance(plan_base_url, str) and plan_base_url.strip():
+                return plan_base_url.strip()
+        return None
+
     def _comfyui_runtime_history_metadata(self, history: Any, *, checked_at: datetime) -> dict[str, Any]:
         return {
             "checked_at": checked_at.isoformat(),
             "success": bool(history.success),
+            "base_url": getattr(history, "base_url", None),
             "prompt_id": history.prompt_id,
             "status_code": history.status_code,
             "external_request_attempted": bool(history.external_request_attempted),
@@ -12611,15 +12829,18 @@ class CommercialOperationService:
         }
 
     def _comfyui_runtime_queue_metadata(self, queue: Any, *, checked_at: datetime) -> dict[str, Any]:
+        running = getattr(queue, "queue_running", getattr(queue, "running", [])) or []
+        pending = getattr(queue, "queue_pending", getattr(queue, "pending", [])) or []
         return {
             "checked_at": checked_at.isoformat(),
             "success": bool(queue.success),
+            "base_url": getattr(queue, "base_url", None),
             "status_code": queue.status_code,
             "external_request_attempted": bool(queue.external_request_attempted),
             "runtime_calls_enabled": bool(queue.runtime_calls_enabled),
             "prompt_submission_enabled": bool(queue.prompt_submission_enabled),
-            "running_count": len(queue.running or []),
-            "pending_count": len(queue.pending or []),
+            "running_count": len(running),
+            "pending_count": len(pending),
             "error": queue.error,
         }
 
@@ -12641,6 +12862,7 @@ class CommercialOperationService:
                 "submitted_by": submitted_by,
                 "client_id": client_id,
                 "success": bool(submit.success),
+                "base_url": getattr(submit, "base_url", None),
                 "prompt_id": submit.prompt_id,
                 "status_code": submit.status_code,
                 "external_request_attempted": bool(submit.external_request_attempted),
@@ -12648,6 +12870,7 @@ class CommercialOperationService:
                 "prompt_submission_enabled": bool(submit.prompt_submission_enabled),
                 "node_errors": submit.node_errors,
                 "error": submit.error,
+                "response_metadata": getattr(submit, "metadata", {}) if isinstance(getattr(submit, "metadata", {}), dict) else {},
                 "metadata": metadata or {},
             },
             "runtime_history": self._comfyui_runtime_history_metadata(history, checked_at=submitted_at) if history else None,

@@ -3777,7 +3777,7 @@ Endpoints:
 - `GET /api/v1/comfyui-runtime/prompt-jobs/{prompt_id}/history`
 - `GET /api/v1/comfyui-runtime/queue`
 
-`POST /prompt-jobs` accepts a ComfyUI `prompt` graph plus optional `client_id`, `extra_data`, `workflow`, and `metadata`, then forwards the guarded payload to ComfyUI `/prompt`. The response records `external_request_attempted`, `runtime_calls_enabled`, `prompt_submission_enabled`, `status_code`, `prompt_id`, `number`, `node_errors`, `request_payload`, and `response_payload`. History and queue endpoints call only `/history/{prompt_id}` and `/queue` when those paths are allowlisted.
+`POST /prompt-jobs` accepts a ComfyUI `prompt` graph plus optional `client_id`, `extra_data`, `workflow`, `metadata`, and Phase 66A video admission fields (`media_type`, `resource_profile`, `width`, `height`, `frames`, `fps`, `duration_seconds`, `estimated_vram_mb`, `reserve_vram_mb`), then forwards the guarded payload to ComfyUI `/prompt` only when the configured gates allow it. The response records `external_request_attempted`, `runtime_calls_enabled`, `prompt_submission_enabled`, `status_code`, `prompt_id`, `number`, `node_errors`, `request_payload`, and `response_payload`. History and queue endpoints call only `/history/{prompt_id}` and `/queue` when those paths are allowlisted.
 
 Boundary: Phase 65A submits prompts and reads history/queue only through the guarded adapter. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
@@ -3793,5 +3793,19 @@ Routes:
 `submit-runtime` requires an approved adapter dispatch and a valid ComfyUI API prompt graph in the dispatch prompt/workflow/dispatch payload. It calls the Phase 65A guarded `/prompt` adapter, records `runtime_prompt_id`, runtime submission metadata, queue status, history output metadata, and generated output filenames, and marks the linked asset request prepared when outputs are present. `refresh-runtime` re-reads history and queue status for the stored prompt ID.
 
 Boundary: Phase 65B still requires commercial approval and every Phase 65A runtime gate. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
+
+## Phase 66A: ComfyUI Video Resource Line
+
+Phase 66A adds guarded GPU/queue admission for video generation before a real ComfyUI prompt can be submitted.
+
+Endpoint:
+
+- `POST /api/v1/comfyui-runtime/video-resource-plans`
+
+Request fields: `resource_profile`, `width`, `height`, `frames`, `fps`, optional `duration_seconds`, optional `estimated_vram_mb`, optional `reserve_vram_mb`, `priority`, `allow_queue`, and `metadata`.
+
+Response fields include `admission_status`, `should_submit_now`, `estimated_vram_mb`, `reserve_vram_mb`, `required_free_vram_mb`, `selected_endpoint`, `endpoint_plans`, `selected_gpu`, `gpu_devices`, `queue_running_count`, `queue_pending_count`, `blocking_reasons`, and `recommended_actions`. When `COMFYUI_VIDEO_GPU_ENDPOINTS` is configured, the service checks every listed ComfyUI instance, selects the best admitted endpoint, and sends video `/prompt` submissions to that endpoint. Commercial ComfyUI adapter dispatch runtime submission uses the same gate for video asset requests and stores `runtime_base_url` for history/queue refresh.
+
+Boundary: Phase 66A reads only guarded `/system_stats` and `/queue` for admission and submits `/prompt` only when every existing runtime gate and the video plan allow it. It does not upload files, download models, resolve secrets, mutate runtime configuration, restart services, publish, run OpenClaw/Playwright publishing, control accounts, ingest analytics, or bypass approval.
 
 边界：create/list/review endpoints 仍然不请求网络。只有 execute endpoint 会先重新检查当前 diagnostics，并且只在执行记录已经 `approved_for_execution` 后调用现有受控 `GET /system_stats` health path。它记录 `external_request_attempted`、`health_probe_executed`、`read_only_probe_attempted`、`probe_status_code`、`probe_latency_ms`、`probe_result_status` 和 `probe_response`；仍然不会 import adapter、提交 prompt、读取/提交 queue、上传文件、生成媒体、启用 runtime switch、写环境变量、重启服务、修改 runtime configuration、解析 secret、发布、运行 OpenClaw、运行 Browser Worker actions、控制账号或绕过审批。

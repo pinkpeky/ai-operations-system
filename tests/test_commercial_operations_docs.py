@@ -49,6 +49,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "Phase 62J",
         "Phase 65A",
         "Phase 65B",
+        "Phase 66A",
         "Phase 62Y",
         "commercial_operations",
         "commercial_operation_links",
@@ -139,12 +140,20 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "/api/v1/comfyui-runtime/post-manual-readiness-checks",
         "/api/v1/comfyui-runtime/guarded-probe-executions",
         "/api/v1/comfyui-runtime/prompt-jobs",
+        "/api/v1/comfyui-runtime/video-resource-plans",
         "/api/v1/comfyui-runtime/prompt-jobs/{prompt_id}/history",
         "/api/v1/comfyui-runtime/queue",
         "/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/submit-runtime",
         "/api/v1/commercial-operations/{operation_id}/comfyui-adapter-dispatches/{adapter_dispatch_id}/refresh-runtime",
         "runtime_prompt_id",
         "runtime_outputs",
+        "admission_status",
+        "should_submit_now",
+        "selected_endpoint",
+        "endpoint_plans",
+        "selected_gpu",
+        "runtime_base_url",
+        "COMFYUI_VIDEO_GPU_ENDPOINTS",
         "COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED",
         "COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS",
         "/api/v1/commercial-operations/{operation_id}/deliverables",
@@ -183,6 +192,7 @@ def test_commercial_operations_foundation_doc_covers_runtime_and_boundary() -> N
         "ComfyUI Runtime Manual Apply Evidence",
         "ComfyUI Runtime Post-Manual Readiness Checks",
         "ComfyUI Runtime Guarded Probe Execution Audit",
+        "ComfyUI Video Resource Line",
         "configuration change requests",
         "manual apply evidence",
         "post-manual readiness",
@@ -236,6 +246,7 @@ def test_recovery_docs_point_to_phase_62j_comfyui_runtime_guarded_probe_executio
         assert "/comfyui-runtime/post-manual-readiness-checks" in text, relative
         assert "/comfyui-runtime/guarded-probe-executions" in text, relative
         assert "/comfyui-runtime/diagnostic-snapshots" in text, relative
+        assert "/comfyui-runtime/video-resource-plans" in text, relative
         assert "api_config_mutation_performed" in text or "manual_config_applied" in text, relative
         assert "guarded_probe_ready" in text or "health_probe_executed" in text, relative
         assert "probe_result_status" in text or "external_request_attempted" in text, relative

@@ -370,6 +370,232 @@ def test_comfyui_runtime_prompt_submission_rejects_unlisted_execution_path() -> 
     assert calls == []
 
 
+def test_comfyui_runtime_video_resource_plan_is_blocked_by_default_without_network() -> None:
+    """Video GPU admission should stay disabled until guarded runtime gates are explicit."""
+
+    calls: list[tuple[str, float]] = []
+    plan = ComfyUIRuntimeService(
+        settings=Settings(),
+        http_get=lambda url, timeout: calls.append((url, timeout)) or {"status_code": 200},
+    ).video_resource_plan(workspace_id="workspace-comfyui", width=1280, height=720, frames=96)
+
+    assert plan.success is False
+    assert plan.admission_status == "blocked"
+    assert plan.should_submit_now is False
+    assert plan.system_stats_attempted is False
+    assert plan.queue_status_attempted is False
+    assert plan.external_request_attempted is False
+    assert calls == []
+    assert any("COMFYUI_RUNTIME_PROVIDER=guarded" in reason for reason in plan.blocking_reasons)
+
+
+def test_comfyui_runtime_video_resource_plan_admits_and_video_submit_records_plan() -> None:
+    """Video prompt submission should check /system_stats and /queue before calling /prompt."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=13,
+    )
+    get_calls: list[tuple[str, float]] = []
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.endswith("/system_stats"):
+            return {
+                "status_code": 200,
+                "json": {
+                    "devices": [
+                        {
+                            "name": "RTX Test",
+                            "type": "cuda",
+                            "vram_total": 24 * 1024 * 1024 * 1024,
+                            "vram_free": 18 * 1024 * 1024 * 1024,
+                        }
+                    ]
+                },
+                "text": "{}",
+            }
+        if url.endswith("/queue"):
+            return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+        return {"status_code": 404, "json": {}, "text": "{}"}
+
+    def fake_http_post(url: str, payload: dict[str, object], timeout: float) -> dict[str, object]:
+        post_calls.append((url, payload, timeout))
+        return {"status_code": 200, "json": {"prompt_id": "video-prompt-1", "number": 2, "node_errors": {}}, "text": "{}"}
+
+    service = ComfyUIRuntimeService(settings=settings, http_get=fake_http_get, http_post=fake_http_post)
+    plan = service.video_resource_plan(
+        workspace_id="workspace-comfyui",
+        resource_profile="standard",
+        width=1280,
+        height=720,
+        frames=96,
+        estimated_vram_mb=4096,
+        reserve_vram_mb=1024,
+    )
+    submitted = service.submit_prompt_job(
+        workspace_id="workspace-comfyui",
+        prompt={"1": {"class_type": "EmptyImage", "inputs": {"width": 1280, "height": 720}}},
+        media_type="video",
+        resource_profile="standard",
+        frames=96,
+        estimated_vram_mb=4096,
+        reserve_vram_mb=1024,
+        metadata={"source": "video-test"},
+    )
+
+    assert plan.success is True
+    assert plan.admission_status == "admitted"
+    assert plan.should_submit_now is True
+    assert plan.selected_gpu["name"] == "RTX Test"
+    assert plan.required_free_vram_mb == 5120
+    assert submitted.success is True
+    assert submitted.prompt_id == "video-prompt-1"
+    assert submitted.metadata["video_resource_plan"]["admission_status"] == "admitted"
+    assert submitted.request_payload["extra_data"]["aiops_video_resource_plan"]["selected_gpu"]["name"] == "RTX Test"
+    assert post_calls == [("http://localhost:8188/prompt", submitted.request_payload, 13.0)]
+    assert get_calls == [
+        ("http://localhost:8188/system_stats", 13.0),
+        ("http://localhost:8188/queue", 13.0),
+        ("http://localhost:8188/system_stats", 13.0),
+        ("http://localhost:8188/queue", 13.0),
+    ]
+
+
+def test_comfyui_runtime_video_endpoint_pool_selects_available_gpu_instance() -> None:
+    """Video submissions should route to the ComfyUI endpoint whose GPU and queue can admit the job."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+        COMFYUI_VIDEO_GPU_ENDPOINTS="gpu0|http://localhost:8188|0;gpu1|http://localhost:8189|0",
+    )
+    get_calls: list[tuple[str, float]] = []
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.startswith("http://localhost:8188") and url.endswith("/system_stats"):
+            return {
+                "status_code": 200,
+                "json": {"devices": [{"index": 0, "name": "GPU 0", "vram_total": 24_000, "vram_free": 20_000}]},
+                "text": "{}",
+            }
+        if url.startswith("http://localhost:8188") and url.endswith("/queue"):
+            return {"status_code": 200, "json": {"queue_running": [{"prompt_id": "busy"}], "queue_pending": []}, "text": "{}"}
+        if url.startswith("http://localhost:8189") and url.endswith("/system_stats"):
+            return {
+                "status_code": 200,
+                "json": {"devices": [{"index": 0, "name": "GPU 1", "vram_total": 24_000, "vram_free": 18_000}]},
+                "text": "{}",
+            }
+        if url.startswith("http://localhost:8189") and url.endswith("/queue"):
+            return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+        return {"status_code": 404, "json": {}, "text": "{}"}
+
+    def fake_http_post(url: str, payload: dict[str, object], timeout: float) -> dict[str, object]:
+        post_calls.append((url, payload, timeout))
+        return {"status_code": 200, "json": {"prompt_id": "video-prompt-gpu1", "number": 7, "node_errors": {}}, "text": "{}"}
+
+    service = ComfyUIRuntimeService(settings=settings, http_get=fake_http_get, http_post=fake_http_post)
+    plan = service.video_resource_plan(
+        workspace_id="workspace-comfyui",
+        estimated_vram_mb=4096,
+        reserve_vram_mb=1024,
+    )
+    submitted = service.submit_prompt_job(
+        workspace_id="workspace-comfyui",
+        prompt={"1": {"class_type": "EmptyImage", "inputs": {"width": 1280, "height": 720}}},
+        media_type="video",
+        estimated_vram_mb=4096,
+        reserve_vram_mb=1024,
+    )
+
+    assert plan.admission_status == "admitted"
+    assert plan.selected_endpoint["name"] == "gpu1"
+    assert plan.selected_endpoint["base_url"] == "http://localhost:8189"
+    assert plan.selected_gpu["endpoint_name"] == "gpu1"
+    assert len(plan.endpoint_plans) == 2
+    assert plan.endpoint_plans[0]["admission_status"] == "queued"
+    assert submitted.success is True
+    assert submitted.base_url == "http://localhost:8189"
+    assert submitted.prompt_id == "video-prompt-gpu1"
+    assert submitted.request_payload["extra_data"]["aiops_video_resource_plan"]["selected_endpoint"]["name"] == "gpu1"
+    assert post_calls == [("http://localhost:8189/prompt", submitted.request_payload, 30.0)]
+
+
+def test_comfyui_runtime_video_submit_blocks_when_vram_is_insufficient() -> None:
+    """Video prompt submission must not call /prompt when no GPU has enough free VRAM."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+    )
+    get_calls: list[tuple[str, float]] = []
+    post_calls: list[tuple[str, dict[str, object], float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.endswith("/system_stats"):
+            return {
+                "status_code": 200,
+                "json": {
+                    "devices": [
+                        {
+                            "name": "Small GPU",
+                            "type": "cuda",
+                            "vram_total": 8 * 1024 * 1024 * 1024,
+                            "vram_free": 2 * 1024 * 1024 * 1024,
+                        }
+                    ]
+                },
+                "text": "{}",
+            }
+        return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+
+    service = ComfyUIRuntimeService(
+        settings=settings,
+        http_get=fake_http_get,
+        http_post=lambda url, payload, timeout: post_calls.append((url, payload, timeout)) or {},
+    )
+    submitted = service.submit_prompt_job(
+        workspace_id="workspace-comfyui",
+        prompt={"1": {"class_type": "EmptyImage", "inputs": {"width": 1920, "height": 1080}}},
+        media_type="video",
+        estimated_vram_mb=8192,
+        reserve_vram_mb=2048,
+    )
+
+    assert submitted.success is False
+    assert submitted.external_request_attempted is True
+    assert submitted.runtime_calls_enabled is False
+    assert submitted.metadata["prompt_submission_skipped"] is True
+    assert submitted.metadata["video_resource_plan"]["admission_status"] == "blocked"
+    assert "Insufficient free VRAM" in submitted.error
+    assert post_calls == []
+    assert get_calls == [("http://localhost:8188/system_stats", 30.0), ("http://localhost:8188/queue", 30.0)]
+
+
 @pytest.mark.asyncio
 async def test_comfyui_runtime_diagnostic_snapshot_persists_without_network(session: AsyncSession) -> None:
     """Persisted diagnostics snapshots should retain readiness state without touching ComfyUI."""
@@ -895,6 +1121,57 @@ async def test_comfyui_runtime_contract_api(monkeypatch, session: AsyncSession) 
     assert snapshot_list.json()["workspace_id"] == "workspace-comfyui-api"
     assert len(snapshot_list.json()["items"]) == 1
     assert snapshot_list.json()["items"][0]["id"] == created_snapshot.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_comfyui_runtime_video_resource_plan_api(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """API should expose guarded video GPU and queue admission planning."""
+
+    settings = Settings(
+        COMFYUI_RUNTIME_PROVIDER="guarded",
+        COMFYUI_RUNTIME_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOW_NETWORK=True,
+        COMFYUI_RUNTIME_BASE_URL="http://localhost:8188",
+        COMFYUI_RUNTIME_ALLOWED_HOSTS="localhost",
+        COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True,
+        COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True,
+        COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS="/prompt,/history,/queue",
+        COMFYUI_RUNTIME_TIMEOUT_SECONDS=17,
+    )
+    get_calls: list[tuple[str, float]] = []
+
+    def fake_http_get(url: str, timeout: float) -> dict[str, object]:
+        get_calls.append((url, timeout))
+        if url.endswith("/system_stats"):
+            return {
+                "status_code": 200,
+                "json": {"devices": [{"name": "API GPU", "vram_total": 20 * 1024 * 1024 * 1024, "vram_free": 12 * 1024 * 1024 * 1024}]},
+                "text": "{}",
+            }
+        return {"status_code": 200, "json": {"queue_running": [], "queue_pending": []}, "text": "{}"}
+
+    monkeypatch.setattr(comfyui_runtime_routes, "get_settings", lambda: settings)
+    monkeypatch.setattr(ComfyUIRuntimeService, "_default_http_get", staticmethod(fake_http_get))
+
+    app = FastAPI()
+    app.add_exception_handler(AppError, app_error_handler)
+    app.include_router(comfyui_runtime_routes.router, prefix="/api/v1")
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    headers = {"X-Workspace-Id": "workspace-comfyui-video-api", "X-User-Id": "user-comfyui"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        plan = await client.post(
+            "/api/v1/comfyui-runtime/video-resource-plans",
+            headers=headers,
+            json={"width": 1280, "height": 720, "frames": 96, "estimated_vram_mb": 4096, "reserve_vram_mb": 1024},
+        )
+
+    assert plan.status_code == 200
+    assert plan.json()["workspace_id"] == "workspace-comfyui-video-api"
+    assert plan.json()["admission_status"] == "admitted"
+    assert plan.json()["should_submit_now"] is True
+    assert plan.json()["selected_gpu"]["name"] == "API GPU"
+    assert get_calls == [("http://localhost:8188/system_stats", 17.0), ("http://localhost:8188/queue", 17.0)]
 
 
 @pytest.mark.asyncio

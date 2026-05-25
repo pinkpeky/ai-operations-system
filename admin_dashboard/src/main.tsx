@@ -4392,7 +4392,7 @@ function AuditLogsPage({ settings }: { settings: AdminSettings }) {
 const commercialOperationCopy = {
   "zh-CN": {
     connection: "AI 服务",
-    phaseLabel: "Phase 65A",
+    phaseLabel: "Phase 66A",
     title: "商业运营项目中心",
     description: "输入运营目标，保存为可追踪项目，并生成知识、内容、审批、执行和监控的保守计划草案。",
     summary: "当前只创建计划、审批、证据、内容草稿、素材请求、交付物、证据快照、执行请求、执行运行记录、商业结果、监控观察、优化决策和干运行记录；不会自动发布、不会控制真实账号、不会绕过审批。",
@@ -4477,7 +4477,7 @@ const commercialOperationCopy = {
   },
   "en-US": {
     connection: "AI Server",
-    phaseLabel: "Phase 65A",
+    phaseLabel: "Phase 66A",
     title: "Commercial operations center",
     description: "Capture a business goal as a trackable operation and draft the knowledge, content, approval, execution, and monitoring path.",
     summary: "This creates plans, approvals, evidence links, content drafts, asset requests, deliverables, evidence snapshots, execution requests, execution run records, results, monitoring observations, and dry-run records only. It does not publish, control real accounts, ingest platform analytics, or bypass approval.",
@@ -4747,8 +4747,8 @@ function CommercialOperationsPage({
       : {
           title: "ComfyUI operations workspace",
           description: "Keep ComfyUI asset handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests in a dedicated tab.",
-          summary: "This now includes guarded real ComfyUI queue reads and smoke prompt submission. Prompt submission remains off by default, with no uploads, publishing, or config mutation.",
-          flow: ["Select operation", "Asset handoff", "Preflight", "Job request", "Runtime gate", "Activation handoff"],
+          summary: "This now includes guarded real ComfyUI queue reads, smoke prompt submission, and video GPU/queue admission planning. Prompt submission remains off by default, with no uploads, publishing, or config mutation.",
+          flow: ["Select operation", "Video resources", "Asset handoff", "Preflight", "Runtime gate", "Activation handoff"],
           entryTitle: "ComfyUI asset runtime",
           entryDescription: "ComfyUI handoffs, preflights, job requests, execution plans, connection probes, runtime gates, dry-runs, and activation requests now live in their own tab so Commercial Ops stays focused.",
           openAction: "Open ComfyUI tab",
@@ -5939,6 +5939,14 @@ function CommercialOperationsPage({
   const [comfyuiRuntimeActivationChecksDraft, setComfyuiRuntimeActivationChecksDraft] = useState("[]");
   const [comfyuiRuntimeActivationChecklistDraft, setComfyuiRuntimeActivationChecklistDraft] = useState("validated dry-run reviewed, server maintainer named, rollback owner named");
   const [comfyuiRuntimeActivationRollbackDraft, setComfyuiRuntimeActivationRollbackDraft] = useState('{"next_steps":["keep COMFYUI_RUNTIME_ENABLED disabled","schedule maintainer review"]}');
+  const [comfyuiVideoWidth, setComfyuiVideoWidth] = useState("1280");
+  const [comfyuiVideoHeight, setComfyuiVideoHeight] = useState("720");
+  const [comfyuiVideoFrames, setComfyuiVideoFrames] = useState("96");
+  const [comfyuiVideoFps, setComfyuiVideoFps] = useState("24");
+  const [comfyuiVideoProfile, setComfyuiVideoProfile] = useState("standard");
+  const [comfyuiVideoEstimateMb, setComfyuiVideoEstimateMb] = useState("8192");
+  const [comfyuiVideoReserveMb, setComfyuiVideoReserveMb] = useState("2048");
+  const [comfyuiVideoResourcePlan, setComfyuiVideoResourcePlan] = useState<JsonRecord | null>(null);
   const [deliverableContentDraftId, setDeliverableContentDraftId] = useState("");
   const [deliverableAssetRequestIdsDraft, setDeliverableAssetRequestIdsDraft] = useState("");
   const [deliverableType, setDeliverableType] = useState("content_package");
@@ -6472,6 +6480,58 @@ function CommercialOperationsPage({
       });
     }
   }, [settings]);
+
+  const planComfyuiVideoResources = useCallback(async () => {
+    const toPositiveNumber = (value: string, fallback: number) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    };
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const plan = await comfyuiRuntimeApi.videoResourcePlan(
+        {
+          resource_profile: comfyuiVideoProfile.trim() || "standard",
+          width: Math.round(toPositiveNumber(comfyuiVideoWidth, 1280)),
+          height: Math.round(toPositiveNumber(comfyuiVideoHeight, 720)),
+          frames: Math.round(toPositiveNumber(comfyuiVideoFrames, 96)),
+          fps: toPositiveNumber(comfyuiVideoFps, 24),
+          estimated_vram_mb: Math.round(toPositiveNumber(comfyuiVideoEstimateMb, 8192)),
+          reserve_vram_mb: Math.round(toPositiveNumber(comfyuiVideoReserveMb, 2048)),
+          metadata: { source_page: "comfyui-operations", phase: "66A", ui_language: language },
+        },
+        settings,
+      );
+      setComfyuiVideoResourcePlan(plan);
+      setActionState({
+        data: { action: "comfyui_video_resource_plan", plan },
+        error: null,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      setComfyuiRuntimeAdapterState((current) => ({
+        ...current,
+        data: { ...(current.data ?? {}), videoResourcePlan: plan },
+        updatedAt: nowLabel(),
+      }));
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "ComfyUI video resource plan unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    comfyuiVideoEstimateMb,
+    comfyuiVideoFps,
+    comfyuiVideoFrames,
+    comfyuiVideoHeight,
+    comfyuiVideoProfile,
+    comfyuiVideoReserveMb,
+    comfyuiVideoWidth,
+    language,
+    settings,
+  ]);
 
   const submitComfyuiRuntimeSmokePrompt = useCallback(async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -9877,6 +9937,8 @@ function CommercialOperationsPage({
     Boolean(latestComfyuiRuntimeGuardedProbeExecutionId) &&
     latestComfyuiRuntimeGuardedProbeExecutionStatus === "approved_for_execution";
   const comfyuiRuntimeQueueStatus = comfyuiRuntimeAdapterState.data?.queueStatus as JsonRecord | undefined;
+  const comfyuiRuntimeVideoResourcePlan =
+    comfyuiVideoResourcePlan ?? (comfyuiRuntimeAdapterState.data?.videoResourcePlan as JsonRecord | undefined) ?? null;
   const comfyuiRuntimePromptSubmission = comfyuiRuntimeAdapterState.data?.lastPromptSubmission as JsonRecord | undefined;
   const comfyuiRuntimePromptHistory = comfyuiRuntimeAdapterState.data?.promptJobHistory as JsonRecord | undefined;
   const comfyuiRuntimeQueueRunning = Array.isArray(comfyuiRuntimeQueueStatus?.queue_running)
@@ -10577,6 +10639,74 @@ function CommercialOperationsPage({
           <div className="empty-table">{copy.agentSkillEmpty}</div>
         )}
       </Panel>
+
+      {isComfyuiPage ? (
+        <Panel
+          title={language === "zh-CN" ? "视频资源计划" : "Video resource plan"}
+          description={
+            language === "zh-CN"
+              ? "提交视频任务前先读取 ComfyUI GPU 显存和队列，只有资源允许时才进入真实 /prompt。"
+              : "Checks ComfyUI GPU memory and queue state before a video job is allowed to reach real /prompt."
+          }
+          action={<RefreshButton onClick={loadComfyuiRuntimeAdapter} />}
+        >
+          <div className="commercial-form-grid">
+            <label>
+              width
+              <input type="number" min="64" max="8192" value={comfyuiVideoWidth} onChange={(event) => setComfyuiVideoWidth(event.target.value)} />
+            </label>
+            <label>
+              height
+              <input type="number" min="64" max="8192" value={comfyuiVideoHeight} onChange={(event) => setComfyuiVideoHeight(event.target.value)} />
+            </label>
+            <label>
+              frames
+              <input type="number" min="1" max="20000" value={comfyuiVideoFrames} onChange={(event) => setComfyuiVideoFrames(event.target.value)} />
+            </label>
+            <label>
+              fps
+              <input type="number" min="1" max="240" value={comfyuiVideoFps} onChange={(event) => setComfyuiVideoFps(event.target.value)} />
+            </label>
+            <label>
+              profile
+              <select value={comfyuiVideoProfile} onChange={(event) => setComfyuiVideoProfile(event.target.value)}>
+                <option value="preview">preview</option>
+                <option value="standard">standard</option>
+                <option value="high">high</option>
+                <option value="animatediff">AnimateDiff</option>
+                <option value="wan_2_1">Wan 2.1</option>
+                <option value="wan_14b">Wan 14B</option>
+              </select>
+            </label>
+            <label>
+              vram estimate MB
+              <input type="number" min="256" max="131072" value={comfyuiVideoEstimateMb} onChange={(event) => setComfyuiVideoEstimateMb(event.target.value)} />
+            </label>
+            <label>
+              reserve MB
+              <input type="number" min="0" max="131072" value={comfyuiVideoReserveMb} onChange={(event) => setComfyuiVideoReserveMb(event.target.value)} />
+            </label>
+          </div>
+          <div className="commercial-action-row">
+            <button className="primary-button" onClick={() => void planComfyuiVideoResources()} disabled={comfyuiRuntimeAdapterState.loading || actionState.loading}>
+              <Gauge size={15} />
+              {language === "zh-CN" ? "检查视频资源" : "Check video resources"}
+            </button>
+          </div>
+          <div className="commercial-detail-grid">
+            <Field label="admission" value={<StatusPill value={valueAt(comfyuiRuntimeVideoResourcePlan, ["admission_status"], "not_checked")} />} />
+            <Field label="should_submit_now" value={<StatusPill value={valueAt(comfyuiRuntimeVideoResourcePlan, ["should_submit_now"], "false")} />} />
+            <Field label="selected_endpoint" value={valueAt(comfyuiRuntimeVideoResourcePlan?.selected_endpoint as JsonRecord | undefined, ["name"], "-")} />
+            <Field label="selected_gpu" value={valueAt(comfyuiRuntimeVideoResourcePlan?.selected_gpu as JsonRecord | undefined, ["name"], "-")} />
+            <Field label="required_free_vram_mb" value={valueAt(comfyuiRuntimeVideoResourcePlan, ["required_free_vram_mb"], "-")} />
+            <Field label="queue_running" value={valueAt(comfyuiRuntimeVideoResourcePlan, ["queue_running_count"], "-")} />
+            <Field label="queue_pending" value={valueAt(comfyuiRuntimeVideoResourcePlan, ["queue_pending_count"], "-")} />
+            <Field label="endpoint_plans" value={shortJson((comfyuiRuntimeVideoResourcePlan as JsonRecord | null)?.endpoint_plans, 180)} />
+            <Field label="blocking_reasons" value={shortJson((comfyuiRuntimeVideoResourcePlan as JsonRecord | null)?.blocking_reasons, 180)} />
+            <Field label="recommended_actions" value={shortJson((comfyuiRuntimeVideoResourcePlan as JsonRecord | null)?.recommended_actions, 180)} />
+          </div>
+        </Panel>
+      ) : null}
 
       {isComfyuiPage ? (
         <Panel title={comfyuiSurfaceCopy.runtimeTitle} description={comfyuiSurfaceCopy.runtimeDescription} action={<RefreshButton onClick={loadComfyuiRuntimeAdapter} />}>
