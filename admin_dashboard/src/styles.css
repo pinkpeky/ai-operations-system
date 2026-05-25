@@ -271,11 +271,16 @@ main {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  min-width: 0;
   min-height: 112px;
   padding: 17px;
   border: 1px solid #dde6ec;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.metric-card > div:last-child {
+  min-width: 0;
 }
 
 .metric-card-warning {
@@ -297,6 +302,7 @@ main {
   margin: 0 0 8px;
   color: #607080;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .metric-card strong {
@@ -304,6 +310,7 @@ main {
   color: #17212b;
   font-size: 24px;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .metric-card span {
@@ -311,6 +318,7 @@ main {
   margin-top: 6px;
   color: #6c7b88;
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .panel,
@@ -920,11 +928,36 @@ textarea {
 
 .commercial-form-grid label,
 .commercial-wide-label {
+  min-width: 0;
   display: grid;
   gap: 6px;
   color: #5e6e7d;
   font-size: 13px;
   font-weight: 700;
+}
+
+.commercial-form-grid input,
+.commercial-form-grid textarea,
+.commercial-form-grid select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.commercial-form-grid input[type="file"] {
+  min-height: 38px;
+  padding: 6px;
+}
+
+.commercial-form-grid .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.commercial-form-grid .checkbox-row input {
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .commercial-wide-label {
@@ -1737,6 +1770,7 @@ textarea {
   }
 
   .metrics-grid,
+  .metrics-grid.compact,
   .json-grid,
   .workflow-observability-metrics,
   .commercial-metrics-grid,
@@ -1786,6 +1820,17 @@ textarea {
 
   .overview-command-center {
     display: grid;
+  }
+
+  .topbar {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .topbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .conversation-command-center {

@@ -1,6 +1,6 @@
 # API Reference
 
-Last updated: 2026-05-23
+Last updated: 2026-05-25
 
 All current APIs are mounted under `/api/v1`.
 
@@ -12,6 +12,50 @@ Workspace-scoped APIs require:
 X-Workspace-Id: <workspace id>
 X-User-Id: <optional user id>
 ```
+
+## Phase 67A Digital Human Foundation
+
+Status: production foundation / provider execution disabled by default. Phase 67A adds a dedicated Digital Humans API surface for uploading consent-tracked portraits/materials and creating reviewable script-based video job plans. It does not call HeyGen, Tavus, D-ID, local MuseTalk/LivePortrait, ComfyUI workflows, OpenClaw/Playwright publishing, social platforms, or real accounts by default.
+
+Runtime config: `DIGITAL_HUMAN_PROVIDER=mock`, `DIGITAL_HUMAN_ENABLED=false`, `DIGITAL_HUMAN_ALLOW_EXTERNAL_API=false`, `DIGITAL_HUMAN_ASSET_DIR=storage/digital_human_assets`, `DIGITAL_HUMAN_DEFAULT_VOICE_ID=zh-CN-default`, `DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO=9:16`.
+
+Tables: `digital_human_assets`, `digital_human_video_jobs`.
+
+### GET `/api/v1/digital-humans/capabilities`
+
+Returns provider readiness, recommended provider order, disabled actions, default voice/aspect settings, and execution boundaries.
+
+### POST `/api/v1/digital-humans/assets`
+
+Multipart upload for a `portrait`, `material`, `reference_image`, `script`, `voice`, or `broll` asset. Portrait uploads must be images and should include consent metadata. Stored responses include `asset_type`, `status`, `consent_status`, `usage_scope`, `checksum_sha256`, `storage_uri`, and audit metadata.
+
+### GET `/api/v1/digital-humans/assets`
+
+Lists workspace-scoped digital human assets. Optional filters: `asset_type`, `status`, `limit`.
+
+### GET `/api/v1/digital-humans/assets/{asset_id}`
+
+Fetches one digital human asset by id.
+
+### POST `/api/v1/digital-humans/video-jobs`
+
+Creates a script-based digital-human video job plan from a portrait asset, optional material/reference assets, objective, script, channel list, voice id, aspect ratio, and duration. Responses include `job_status`, `provider`, `execution_mode`, `scene_plan`, `approval_status`, `consent_status`, `provider_request`, `outputs`, and boundary metadata. Provider calls remain disabled unless future explicit gates are added.
+
+### GET `/api/v1/digital-humans/video-jobs`
+
+Lists workspace-scoped digital human video jobs. Optional filters: `status`, `provider`, `limit`.
+
+### GET `/api/v1/digital-humans/video-jobs/{job_id}`
+
+Fetches one digital human video job by id.
+
+### POST `/api/v1/digital-humans/video-jobs/{job_id}/refresh`
+
+Recomputes provider readiness, consent blockers, and recoverable job status without executing a provider call by default.
+
+### POST `/api/v1/digital-humans/video-jobs/{job_id}/{action}`
+
+Records a human review decision. Supported actions: `approve`, `reject`, and `cancel`.
 
 ## Phase 28 OpenClaw Worker Adapter Foundation
 
