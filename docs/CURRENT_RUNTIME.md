@@ -1,10 +1,35 @@
 # Current Runtime
 
-Last updated: 2026-05-25
+Last updated: 2026-05-27
 
 This document records the current real runtime defaults for `E:\ai-operations-system`. Values are based on `app/core/config.py`, `.env.example`, and `docker-compose.yml`.
 
 The repository currently has no committed `.env` file. Without local overrides, the application uses the defaults below.
+
+## Production Server ComfyUI/MuseTalk Capture
+
+The current production server has a manually activated guarded ComfyUI/MuseTalk runtime on `E:\ComfyUI` with the AI Ops repository on `D:\ai-operations-system`. The reproducible runbook and scripts are in `docs/COMFYUI_MUSETALK_SERVER_RUNBOOK.md`, `deployment/windows/start_comfyui_aiops.ps1`, `deployment/windows/register_comfyui_aiops_task.ps1`, `deployment/windows/apply_comfyui_musetalk_server_fixes.ps1`, and `deployment/windows/verify_comfyui_musetalk_aiops.ps1`.
+
+The validated path is: AI Ops guarded ComfyUI video job -> `MuseTalkLoadVideo -> MuseTalk -> PreViewVideo` -> generated MP4 with H.264 video and AAC audio -> `POST /api/v1/digital-humans/video-jobs/{job_id}/comfyui-output-ingestion` -> generated digital-human delivery asset. The validation output was `E:\ComfyUI\output\aiops_ops_story_avatar_aiops_ops_story_avatar.mp4`, with ComfyUI video job `71ac53f3-62e1-4f73-a283-7c3c690ed138`, runtime prompt `7aeebb02-b671-413d-8e67-62d6e42d61f5`, digital-human job `8d8f9e14-096e-42c8-8777-3c06cbcb0f03`, and delivery asset `4c7e6f70-ad87-4d4c-b631-39b559189af7`.
+
+Current server overrides include:
+
+```env
+LLM_PROVIDER=local
+LOCAL_LLM_MODEL=llama70b
+EMBEDDING_DIMENSION=1024
+COMFYUI_RUNTIME_PROVIDER=guarded
+COMFYUI_RUNTIME_ENABLED=True
+COMFYUI_RUNTIME_BASE_URL=http://host.docker.internal:8188
+COMFYUI_RUNTIME_ALLOWED_HOSTS=host.docker.internal,127.0.0.1,localhost
+COMFYUI_RUNTIME_ALLOW_NETWORK=True
+COMFYUI_RUNTIME_READ_ONLY_PROBE_ENABLED=True
+COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=True
+COMFYUI_VIDEO_GPU_ENDPOINTS=default|http://host.docker.internal:8188|0
+DIGITAL_HUMAN_PROVIDER=local_musetalk_liveportrait
+DIGITAL_HUMAN_ENABLED=True
+DIGITAL_HUMAN_ALLOW_EXTERNAL_API=False
+```
 
 ## Commercial Operations Runtime
 

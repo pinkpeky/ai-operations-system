@@ -21,6 +21,16 @@ Each profile contains `profile.json`, `env.template`, `ports.json`, `services.js
 - `deployment/scripts/check_dependencies.py`
 - `deployment/scripts/check_ports.py`
 - `deployment/scripts/verify_environment.py`
+- `deployment/windows/start_comfyui_aiops.ps1`
+- `deployment/windows/register_comfyui_aiops_task.ps1`
+- `deployment/windows/apply_comfyui_musetalk_server_fixes.ps1`
+- `deployment/windows/verify_comfyui_musetalk_aiops.ps1`
 
 Generated `.env.generated` files are ignored by git.
+
+## ComfyUI MuseTalk Server
+
+The Windows production-server ComfyUI/MuseTalk runtime is documented in `docs/COMFYUI_MUSETALK_SERVER_RUNBOOK.md`.
+
+The repository now includes scripts for starting `E:\ComfyUI`, registering the `AI Ops ComfyUI E Drive` startup task, applying the MuseTalk Windows/PyTorch compatibility fixes, and verifying the guarded AI Ops runtime handoff.
 

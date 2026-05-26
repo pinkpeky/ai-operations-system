@@ -1,0 +1,102 @@
+diff --git a/__init__.py b/__init__.py
+index 96bd5de..401cd65 100644
+--- a/__init__.py
++++ b/__init__.py
+@@ -7,2 +7,3 @@ NODE_CLASS_MAPPINGS = {
+     "LoadVideo": LoadVideo,
++    "MuseTalkLoadVideo": LoadVideo,
+     "PreViewVideo": PreViewVideo,
+@@ -16,2 +17,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
+     "LoadVideo": "Video Loader",
++    "MuseTalkLoadVideo": "MuseTalk Video Loader",
+     "PreViewVideo": "PreView Video",
+diff --git a/inference.py b/inference.py
+index ab744be..1316dd9 100644
+--- a/inference.py
++++ b/inference.py
+@@ -5,2 +5,3 @@ import glob,copy
+ import shutil
++import subprocess
+ from tqdm import tqdm
+@@ -35,3 +36,3 @@ class MuseTalk_INFER:
+         resnet_path = os.path.join(parent_directory,'models','face-parse-bisent','resnet18-5c106cde.pth')
+-        face_model_pth = os.path.join(parent_directory,"models','face-parse-bisent','79999_iter.pth")
++        face_model_pth = os.path.join(parent_directory, "models", "face-parse-bisent", "79999_iter.pth")
+         self.fp_model = FaceParsing(resnet_path,face_model_pth)
+@@ -127,13 +128,19 @@ class MuseTalk_INFER:
+         res_tmp_path = os.path.join(result_img_save_path,"%08d.png")
+-        cmd_img2video = f"ffmpeg -y -v fatal -r {fps} -f image2 -i {res_tmp_path} -vcodec libx264 -vf format=rgb24,scale=out_color_matrix=bt709,format=yuv420p -crf 18 {output_vid_name}"
+-        print(cmd_img2video)
+-        os.system(cmd_img2video)
+-        '''
+-        cmd_combine_audio = f"ffmpeg -y -v fatal -i {audio_path} -i temp.mp4 {output_vid_name}"
+-        print(cmd_combine_audio)
+-        os.system(cmd_combine_audio)
+-        '''
++        tmp_vid_name = os.path.join(result_img_save_path, f"{output_basename}_silent.mp4")
++        cmd_img2video = [
++            "ffmpeg", "-y", "-v", "fatal", "-r", str(fps), "-f", "image2",
++            "-i", res_tmp_path, "-vcodec", "libx264",
++            "-vf", "format=rgb24,scale=out_color_matrix=bt709,format=yuv420p",
++            "-crf", "18", tmp_vid_name,
++        ]
++        print(" ".join(cmd_img2video))
++        subprocess.run(cmd_img2video, check=True)
++        cmd_combine_audio = [
++            "ffmpeg", "-y", "-v", "fatal", "-i", tmp_vid_name, "-i", audio_path,
++            "-c:v", "copy", "-c:a", "aac", "-shortest", output_vid_name,
++        ]
++        print(" ".join(cmd_combine_audio))
++        subprocess.run(cmd_combine_audio, check=True)
+         del self.fp_model,self.dwpose_model,self.audio_processor,self.vae,self.unet,self.pe
+         torch.cuda.empty_cache()
+-        # os.remove("temp.mp4")
+         shutil.rmtree(result_img_save_path)
+diff --git a/musetalk/models/unet.py b/musetalk/models/unet.py
+index 8968657..f98f673 100755
+--- a/musetalk/models/unet.py
++++ b/musetalk/models/unet.py
+@@ -39,3 +39,3 @@ class UNet():
+         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+-        self.weights = torch.load(model_path) if torch.cuda.is_available() else torch.load(model_path, map_location=self.device)
++        self.weights = torch.load(model_path, weights_only=False) if torch.cuda.is_available() else torch.load(model_path, map_location=self.device, weights_only=False)
+         self.model.load_state_dict(self.weights)
+diff --git a/musetalk/utils/dwpose/rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py b/musetalk/utils/dwpose/rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py
+index 293efad..2dcb305 100644
+--- a/musetalk/utils/dwpose/rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py
++++ b/musetalk/utils/dwpose/rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py
+@@ -60,3 +60,3 @@ model = dict(
+     backbone=dict(
+-        _scope_='mmdet',
++        _scope_='mmpose',
+         type='CSPNeXt',
+diff --git a/musetalk/utils/face_parsing/__init__.py b/musetalk/utils/face_parsing/__init__.py
+index 52b9fb3..f3afd99 100755
+--- a/musetalk/utils/face_parsing/__init__.py
++++ b/musetalk/utils/face_parsing/__init__.py
+@@ -20,5 +20,5 @@ class FaceParsing():
+             net.cuda()
+-            net.load_state_dict(torch.load(model_pth))
++            net.load_state_dict(torch.load(model_pth, weights_only=False))
+         else:
+-            net.load_state_dict(torch.load(model_pth, map_location=torch.device('cpu')))
++            net.load_state_dict(torch.load(model_pth, map_location=torch.device('cpu'), weights_only=False))
+         net.eval()
+diff --git a/musetalk/utils/face_parsing/resnet.py b/musetalk/utils/face_parsing/resnet.py
+index e2e5d87..a306abb 100755
+--- a/musetalk/utils/face_parsing/resnet.py
++++ b/musetalk/utils/face_parsing/resnet.py
+@@ -82,3 +82,3 @@ class Resnet18(nn.Module):
+     def init_weight(self, model_path):
+-        state_dict = torch.load(model_path) #modelzoo.load_url(resnet18_url)
++        state_dict = torch.load(model_path, weights_only=False) #modelzoo.load_url(resnet18_url)
+         self_state_dict = self.state_dict()
+diff --git a/musetalk/whisper/whisper/__init__.py b/musetalk/whisper/whisper/__init__.py
+index b925553..b47a6d3 100644
+--- a/musetalk/whisper/whisper/__init__.py
++++ b/musetalk/whisper/whisper/__init__.py
+@@ -108,3 +108,3 @@ def load_model(name: str, device: Optional[Union[str, torch.device]] = None, dow
+     with (io.BytesIO(checkpoint_file) if in_memory else open(checkpoint_file, "rb")) as fp:
+-        checkpoint = torch.load(fp, map_location=device)
++        checkpoint = torch.load(fp, map_location=device, weights_only=False)
+     del checkpoint_file
