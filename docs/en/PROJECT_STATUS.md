@@ -12,6 +12,8 @@ Phase 67D Digital Human Workflow Readiness from `codex/phase-67d-digital-human-w
 
 Phase 62I Workstation/Customer Client Frontend UX Alignment from `codex/phase-62i-workstation-client-ux` remains the earlier customer-console baseline for `worker_console` and `worker_console_desktop`, including Chinese/English language switching, local runtime/heartbeat visibility, and server-vs-customer-machine boundary guidance.
 
+Phase 62J ComfyUI Runtime Guarded Probe Execution from `codex/phase-62j-comfyui-guarded-probe-executions` remains the guarded recovery probe anchor before the customer-console simplification slices, including explicit operator-triggered probe execution evidence and no default prompt submission.
+
 ## Customer Console Phase Anchors
 
 These anchors keep `worker_console` and `worker_console_desktop` progress searchable across status docs:
