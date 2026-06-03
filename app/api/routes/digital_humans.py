@@ -18,6 +18,7 @@ from app.schemas.digital_human import (
     DigitalHumanComfyUIOutputIngestionRequest,
     DigitalHumanComfyUIWorkflowBindingRequest,
     DigitalHumanComfyUIWorkflowReadinessRequest,
+    DigitalHumanShotExecutionPlanRequest,
     DigitalHumanWorkflowTemplateListResponse,
     DigitalHumanWorkflowTemplateResponse,
     DigitalHumanVideoJobActionRequest,
@@ -145,6 +146,8 @@ async def create_digital_human_video_job(
         voice_profile=request.voice_profile,
         aspect_ratio=request.aspect_ratio,
         duration_seconds=request.duration_seconds,
+        llm_planning_enabled=request.llm_planning_enabled,
+        planning_context=request.planning_context,
         operator_note=request.operator_note,
         metadata=request.metadata,
     )
@@ -230,6 +233,32 @@ async def check_digital_human_comfyui_workflow_readiness(
         gpu_name=payload.gpu_name,
         free_vram_mb=payload.free_vram_mb,
         queue_depth=payload.queue_depth,
+        operator_note=payload.operator_note,
+        metadata=payload.metadata,
+    )
+
+
+@router.post("/video-jobs/{job_id}/shot-execution-plan", response_model=DigitalHumanVideoJobResponse)
+async def prepare_digital_human_shot_execution_plan(
+    job_id: UUID,
+    request: DigitalHumanShotExecutionPlanRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+    context: WorkspaceContext = Depends(get_workspace_context),
+    service: DigitalHumanService = Depends(create_digital_human_service),
+) -> DigitalHumanVideoJobResponse:
+    """Turn the LLM creative plan into per-shot render contracts for ComfyUI."""
+
+    payload = request or DigitalHumanShotExecutionPlanRequest()
+    return await service.prepare_shot_execution_plan(
+        session,
+        workspace_id=context.workspace_id,
+        job_id=job_id,
+        template_id=payload.template_id,
+        resource_profile=payload.resource_profile,
+        width=payload.width,
+        height=payload.height,
+        fps=payload.fps,
+        quality_profile=payload.quality_profile,
         operator_note=payload.operator_note,
         metadata=payload.metadata,
     )

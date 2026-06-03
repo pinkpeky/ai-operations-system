@@ -11,6 +11,7 @@ from typing import Any, Callable
 from worker_client.config import WorkerClientConfig, load_worker_state
 from worker_client.heartbeat import send_heartbeat_once
 from worker_client.logging import log_event
+from worker_client.metric_dispatch_scheduler import WorkerMetricDispatchScheduler
 from worker_client.status import DEFAULT_STATUS_PATH, get_status, update_status
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,9 @@ class WorkerRuntimeManager:
         self._runtime_thread: threading.Thread | None = None
         self._heartbeat_thread: threading.Thread | None = None
         self._heartbeat_stop_event = threading.Event()
+        self._metric_dispatch_scheduler = WorkerMetricDispatchScheduler(config)
+        self._metric_dispatch_scheduler_thread: threading.Thread | None = None
+        self._metric_dispatch_scheduler_stop_event = threading.Event()
         self._server: Any | None = None
         self._runtime_running_flag = False
         self._lock = threading.RLock()
@@ -49,6 +53,12 @@ class WorkerRuntimeManager:
         """返回 heartbeat 是否处于运行状态。"""
 
         return bool(self._heartbeat_thread and self._heartbeat_thread.is_alive())
+
+    @property
+    def metric_dispatch_scheduler_running(self) -> bool:
+        """Return whether the local metric dispatch scheduler loop is running."""
+
+        return bool(self._metric_dispatch_scheduler_thread and self._metric_dispatch_scheduler_thread.is_alive())
 
     def _base_status(self) -> dict[str, Any]:
         """从 config/state 合成本地状态，不暴露 secret。"""
@@ -69,10 +79,16 @@ class WorkerRuntimeManager:
     def _write_runtime_status(self, updates: dict[str, Any]) -> dict[str, Any]:
         """写本地运行状态，统一维护 runtime/heartbeat 字段。"""
 
+        existing_status = get_status(self._status_path)
+        if "heartbeat_running" in updates:
+            heartbeat_running = bool(updates["heartbeat_running"])
+        else:
+            heartbeat_running = self.heartbeat_running or bool(existing_status.get("heartbeat_running"))
         payload = {
             **self._base_status(),
             "runtime_running": self.runtime_running,
-            "heartbeat_running": self.heartbeat_running,
+            "heartbeat_running": heartbeat_running,
+            "metric_dispatch_scheduler_running": self.metric_dispatch_scheduler_running,
             **updates,
         }
         return update_status(payload, self._status_path)
@@ -215,28 +231,151 @@ class WorkerRuntimeManager:
             log_event("worker heartbeat stopped")
             return self._write_runtime_status({"heartbeat_running": False})
 
+    def metric_dispatch_scheduler_state(self) -> dict[str, Any]:
+        """Return the local metric dispatch scheduler state."""
+
+        state = self._metric_dispatch_scheduler.state()
+        state["running"] = self.metric_dispatch_scheduler_running
+        return state
+
+    def configure_metric_dispatch_scheduler(self, scheduler_payload: dict[str, Any]) -> dict[str, Any]:
+        """Persist the server-issued metric dispatch timer payload."""
+
+        state = self._metric_dispatch_scheduler.configure(scheduler_payload)
+        state["running"] = self.metric_dispatch_scheduler_running
+        self._write_runtime_status(self._metric_dispatch_status_updates(state))
+        return state
+
+    async def tick_metric_dispatch_scheduler(self, *, force: bool = False) -> dict[str, Any]:
+        """Execute one local metric dispatch poll tick."""
+
+        state = await self._metric_dispatch_scheduler.tick(force=force)
+        state["running"] = self.metric_dispatch_scheduler_running
+        self._write_runtime_status(self._metric_dispatch_status_updates(state))
+        return state
+
+    def _metric_dispatch_status_updates(self, state: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "metric_dispatch_scheduler_running": self.metric_dispatch_scheduler_running,
+            "metric_dispatch_scheduler_status": state.get("scheduler_status"),
+            "metric_dispatch_scheduler_next_poll_at": state.get("next_poll_at"),
+            "metric_dispatch_scheduler_last_error": state.get("last_error"),
+        }
+
+    @staticmethod
+    def _metric_dispatch_wait_seconds(state: dict[str, Any]) -> int:
+        if state.get("tick_status") == "waiting_for_next_poll":
+            try:
+                return max(10, min(int(state.get("seconds_until_next_poll") or 60), 300))
+            except (TypeError, ValueError):
+                return 60
+        try:
+            return max(10, min(int(state.get("recommended_poll_interval_seconds") or 300), 300))
+        except (TypeError, ValueError):
+            return 60
+
+    def _metric_dispatch_scheduler_loop(self) -> None:
+        """Background loop for customer-machine metric dispatch polling."""
+
+        wait_seconds = 10
+        while not self._metric_dispatch_scheduler_stop_event.is_set():
+            try:
+                state = asyncio.run(self._metric_dispatch_scheduler.tick())
+                state["running"] = True
+                self._write_runtime_status(self._metric_dispatch_status_updates(state))
+                wait_seconds = self._metric_dispatch_wait_seconds(state)
+            except Exception as exc:  # pragma: no cover - defensive loop guard
+                logger.error("Metric dispatch scheduler failed: %s", exc)
+                log_event("metric dispatch scheduler loop failed", level=logging.ERROR, extra={"error": str(exc)})
+                self._write_runtime_status(
+                    {
+                        "metric_dispatch_scheduler_running": True,
+                        "metric_dispatch_scheduler_status": "loop_failed",
+                        "metric_dispatch_scheduler_last_error": str(exc),
+                    }
+                )
+                wait_seconds = 60
+            self._metric_dispatch_scheduler_stop_event.wait(wait_seconds)
+
+    def start_metric_dispatch_scheduler(self) -> dict[str, Any]:
+        """Start the local metric dispatch scheduler loop."""
+
+        with self._lock:
+            state = self._metric_dispatch_scheduler.state()
+            if not state.get("configured"):
+                state = {**state, "running": False, "tick_status": "not_configured"}
+                self._write_runtime_status(self._metric_dispatch_status_updates(state))
+                return state
+            if not state.get("scheduler_enabled"):
+                state = {**state, "running": False, "tick_status": "disabled"}
+                self._write_runtime_status(self._metric_dispatch_status_updates(state))
+                return state
+            if self._metric_dispatch_scheduler_thread and self._metric_dispatch_scheduler_thread.is_alive():
+                state["running"] = True
+                return state
+            self._metric_dispatch_scheduler_stop_event.clear()
+            self._metric_dispatch_scheduler_thread = threading.Thread(
+                target=self._metric_dispatch_scheduler_loop,
+                name="worker-metric-dispatch-scheduler",
+                daemon=True,
+            )
+            self._metric_dispatch_scheduler_thread.start()
+            state["running"] = True
+            log_event("metric dispatch scheduler started")
+            self._write_runtime_status(self._metric_dispatch_status_updates(state))
+            return state
+
+    def stop_metric_dispatch_scheduler(self) -> dict[str, Any]:
+        """Stop the local metric dispatch scheduler loop."""
+
+        with self._lock:
+            self._metric_dispatch_scheduler_stop_event.set()
+            if self._metric_dispatch_scheduler_thread and self._metric_dispatch_scheduler_thread.is_alive():
+                self._metric_dispatch_scheduler_thread.join(timeout=10)
+            state = self._metric_dispatch_scheduler.state()
+            state["running"] = False
+            log_event("metric dispatch scheduler stopped")
+            self._write_runtime_status(self._metric_dispatch_status_updates(state))
+            return state
+
+    def clear_metric_dispatch_scheduler(self) -> dict[str, Any]:
+        """Clear local metric dispatch scheduler state."""
+
+        with self._lock:
+            self._metric_dispatch_scheduler_stop_event.set()
+            if self._metric_dispatch_scheduler_thread and self._metric_dispatch_scheduler_thread.is_alive():
+                self._metric_dispatch_scheduler_thread.join(timeout=10)
+            state = self._metric_dispatch_scheduler.clear()
+            state["running"] = False
+            self._write_runtime_status(self._metric_dispatch_status_updates(state))
+            return state
+
     def runtime_health(self) -> dict[str, Any]:
         """返回本地 runtime 健康信息。"""
 
+        state = self.runtime_state()
         return {
             "success": True,
             "runtime_running": self.runtime_running,
-            "heartbeat_running": self.heartbeat_running,
+            "heartbeat_running": state["heartbeat_running"],
+            "metric_dispatch_scheduler_running": self.metric_dispatch_scheduler_running,
             "host": self.config.runtime_host,
             "port": self.config.runtime_port,
             "localhost_only": self.config.runtime_host in {"127.0.0.1", "localhost", "::1"},
-            "status": self.runtime_state(),
+            "status": state,
         }
 
     def runtime_state(self) -> dict[str, Any]:
         """返回可展示的本地状态。"""
 
         status = get_status(self._status_path)
+        heartbeat_running = self.heartbeat_running or bool(status.get("heartbeat_running"))
         status.update(
             {
                 **self._base_status(),
                 "runtime_running": self.runtime_running,
-                "heartbeat_running": self.heartbeat_running,
+                "heartbeat_running": heartbeat_running,
+                "metric_dispatch_scheduler_running": self.metric_dispatch_scheduler_running,
             }
         )
         status.pop("worker_secret", None)

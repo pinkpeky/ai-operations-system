@@ -156,12 +156,17 @@ main {
 }
 
 .content {
+  min-width: 0;
+  max-width: 100%;
   padding: 24px 28px 40px;
 }
 
 .page-stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .overview-command-center {
@@ -446,6 +451,9 @@ main {
 }
 
 .table-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow: auto;
   border: 1px solid #e1e8ee;
   border-radius: 8px;
@@ -680,6 +688,8 @@ tr:last-child td {
 input,
 textarea,
 select {
+  min-width: 0;
+  max-width: 100%;
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid #cfd9e2;
@@ -821,11 +831,552 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.commercial-server-quiet-cockpit {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(160px, 0.7fr));
+  gap: 8px;
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-quiet-cockpit.hot,
+.commercial-server-quiet-cockpit.blocked {
+  border-color: #efb3b3;
+}
+
+.commercial-server-quiet-cockpit.busy {
+  border-color: #f1d08c;
+}
+
+.commercial-server-quiet-cockpit.healthy {
+  border-color: #bdebd9;
+}
+
+.commercial-server-quiet-main,
+.commercial-server-quiet-pill {
+  min-width: 0;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-server-quiet-main {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.commercial-server-quiet-pill {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  align-items: center;
+  padding: 8px 9px;
+  color: #17212b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.commercial-server-quiet-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.commercial-server-quiet-pill svg {
+  grid-row: 1 / 3;
+  color: #2563eb;
+}
+
+.commercial-server-quiet-main span,
+.commercial-server-quiet-pill span {
+  overflow: hidden;
+  color: #607080;
+  font-size: 11px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.commercial-server-quiet-main strong,
+.commercial-server-quiet-pill strong {
+  overflow: hidden;
+  color: #17212b;
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-quiet-main p {
+  margin: 0;
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-production-index {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-production-index-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.commercial-server-production-index-head span {
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.commercial-server-production-index-head strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-production-index-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.commercial-server-production-index-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  color: #17212b;
+  background: #f8fafb;
+  cursor: pointer;
+  text-align: left;
+}
+
+.commercial-server-production-index-card svg {
+  grid-row: 1 / 4;
+  margin-top: 1px;
+  color: #2563eb;
+}
+
+.commercial-server-production-index-card span,
+.commercial-server-production-index-card strong,
+.commercial-server-production-index-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-production-index-card span {
+  color: #607080;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.commercial-server-production-index-card strong {
+  color: #17212b;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.commercial-server-production-index-card small {
+  color: #607080;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.commercial-server-production-index-card.hot,
+.commercial-server-production-index-card.blocked {
+  border-color: #efb3b3;
+}
+
+.commercial-server-production-index-card.busy {
+  border-color: #f1d08c;
+}
+
+.commercial-server-production-index-card.healthy {
+  border-color: #bdebd9;
+}
+
+.commercial-server-maintenance-drawer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-maintenance-drawer > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.commercial-server-maintenance-drawer > summary span {
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.commercial-server-maintenance-drawer > summary strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-maintenance-drawer[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.commercial-server-maintenance-drawer:not([open]) .commercial-server-maintenance-body {
+  display: none;
+}
+
+.commercial-server-maintenance-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+}
+
+.commercial-server-maintenance-body * {
+  min-width: 0;
+}
+
+.commercial-server-maintenance-body span,
+.commercial-server-maintenance-body strong,
+.commercial-server-maintenance-body p,
+.commercial-server-maintenance-body small,
+.commercial-server-maintenance-body code {
+  overflow-wrap: anywhere;
+}
+
+.commercial-server-create-drawer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-create-drawer > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.commercial-server-create-drawer > summary span {
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.commercial-server-create-drawer > summary strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-create-drawer[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.commercial-server-create-drawer:not([open]) .commercial-server-create-body {
+  display: none;
+}
+
+.commercial-server-create-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+}
+
+.commercial-server-operation-list-drawer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-operation-list-drawer > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.commercial-server-operation-list-drawer > summary span {
+  overflow: hidden;
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-operation-list-drawer > summary strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-operation-list-drawer[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.commercial-server-operation-list-drawer:not([open]) .commercial-server-operation-list-body {
+  display: none;
+}
+
+.commercial-server-operation-list-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+}
+
+.commercial-server-operation-context-drawer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-operation-context-drawer > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.commercial-server-operation-context-drawer > summary span {
+  overflow: hidden;
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-operation-context-drawer > summary strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-operation-context-drawer[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.commercial-server-operation-context-drawer:not([open]) .commercial-server-operation-context-body {
+  display: none;
+}
+
+.commercial-server-operation-context-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+}
+
+.commercial-server-action-audit-drawer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-action-audit-drawer > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.commercial-server-action-audit-drawer > summary span {
+  overflow: hidden;
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-action-audit-drawer > summary strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-action-audit-drawer[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.commercial-server-action-audit-drawer:not([open]) .commercial-server-action-audit-body {
+  display: none;
+}
+
+.commercial-server-action-audit-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+}
+
+.commercial-server-production-upstream-drawer,
+.commercial-server-production-closed-loop-drawer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-server-production-upstream-drawer > summary,
+.commercial-server-production-closed-loop-drawer > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.commercial-server-production-upstream-drawer > summary span,
+.commercial-server-production-closed-loop-drawer > summary span {
+  overflow: hidden;
+  color: #17212b;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-production-upstream-drawer > summary strong,
+.commercial-server-production-closed-loop-drawer > summary strong {
+  overflow: hidden;
+  color: #607080;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commercial-server-production-upstream-drawer[open] > summary,
+.commercial-server-production-closed-loop-drawer[open] > summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.commercial-server-production-upstream-drawer:not([open]) .commercial-server-production-upstream-body,
+.commercial-server-production-closed-loop-drawer:not([open]) .commercial-server-production-closed-loop-body {
+  display: none;
+}
+
+.commercial-server-production-upstream-body,
+.commercial-server-production-closed-loop-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+}
+
+.commercial-server-production-upstream-body *,
+.commercial-server-production-closed-loop-body * {
+  min-width: 0;
+}
+
 .commercial-maintenance-cockpit {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(0, 1fr)) minmax(260px, 1.1fr);
   gap: 10px;
   align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 12px;
   border: 1px solid #dce5eb;
   border-radius: 8px;
@@ -889,6 +1440,941 @@ textarea {
 .commercial-maintenance-next-card {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
+}
+
+.commercial-intervention-pressure-overview {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-intervention-pressure-overview.healthy {
+  border-color: #bdebd9;
+}
+
+.commercial-intervention-pressure-overview.busy {
+  border-color: #f1d08c;
+}
+
+.commercial-intervention-pressure-overview.hot,
+.commercial-intervention-pressure-overview.blocked {
+  border-color: #efb3b3;
+}
+
+.commercial-intervention-pressure-header,
+.commercial-intervention-pressure-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.commercial-intervention-pressure-header h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.commercial-intervention-pressure-header p,
+.commercial-intervention-pressure-footer p,
+.commercial-intervention-pressure-grid p {
+  margin: 0;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-intervention-pressure-score {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 8px;
+  min-width: 126px;
+  padding: 10px 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-intervention-pressure-score svg {
+  grid-row: span 2;
+  color: #2563eb;
+}
+
+.commercial-intervention-pressure-score span,
+.commercial-intervention-pressure-grid span {
+  color: #607080;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.commercial-intervention-pressure-score strong {
+  color: #17212b;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.commercial-intervention-pressure-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-intervention-pressure-grid article {
+  display: grid;
+  gap: 5px;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-intervention-pressure-grid strong {
+  overflow-wrap: anywhere;
+  color: #17212b;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.commercial-intervention-pressure-footer {
+  padding-top: 2px;
+}
+
+.commercial-intervention-ack-history {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-intervention-ack-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.commercial-intervention-ack-history-header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.commercial-intervention-ack-history-header span,
+.commercial-intervention-ack-history-list span {
+  color: #607080;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.commercial-intervention-ack-history-header strong,
+.commercial-intervention-ack-history-list strong {
+  overflow-wrap: anywhere;
+  color: #17212b;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.commercial-intervention-ack-history-header p,
+.commercial-intervention-ack-history-list p {
+  margin: 0;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-intervention-ack-history-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-intervention-ack-history-list article {
+  display: grid;
+  gap: 4px;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-intervention-ack-history-list small {
+  color: #798895;
+  font-size: 11px;
+}
+
+.commercial-intervention-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.commercial-acceptance-summary-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 14px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-plan-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 14px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-acceptance-summary-header,
+.commercial-acceptance-summary-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.commercial-acceptance-summary-header h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.commercial-acceptance-summary-header p,
+.commercial-acceptance-summary-footer p,
+.commercial-acceptance-summary-grid p,
+.commercial-acceptance-blocker-list p {
+  margin: 0;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-acceptance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-delivery-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-delivery-plan-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-delivery-action-packages {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-action-packages > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-audit-blocker-clearance {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-audit-blocker-clearance > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-audit-blocker-clearance-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-audit-blocker-clearance-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-audit-blocker-clearance-list article.production_config,
+.commercial-delivery-audit-blocker-clearance-list article.openclaw_provider {
+  border-color: rgba(220, 38, 38, 0.26);
+  background: #fff7f7;
+}
+
+.commercial-delivery-audit-blocker-clearance-list article.remaining_gate,
+.commercial-delivery-audit-blocker-clearance-list article.operation_blocker {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffbeb;
+}
+
+.commercial-delivery-audit-runbooks {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-audit-runbooks > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-audit-runbook-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-audit-runbook-coverage-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-audit-runbook-list article,
+.commercial-delivery-audit-runbook-coverage-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-audit-runbook-list article.error,
+.commercial-delivery-audit-runbook-coverage-list article.runbook_evidence_blocked {
+  border-color: rgba(220, 38, 38, 0.26);
+  background: #fff7f7;
+}
+
+.commercial-delivery-audit-next-action-plan {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-audit-next-action-plan > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-audit-next-action-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-audit-next-action-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-audit-next-action-list article.server_operator,
+.commercial-delivery-audit-next-action-list article.delivery_operator {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: #fff7f7;
+}
+
+.commercial-delivery-audit-next-action-list article.complete {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: #f0fdf4;
+}
+
+.commercial-delivery-audit-operator-queue {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-audit-operator-queue > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-audit-operator-queue-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-audit-operator-queue-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-audit-operator-queue-list article.external_dependency_required {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: #fff7f7;
+}
+
+.commercial-delivery-audit-operator-queue-list article.complete {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: #f0fdf4;
+}
+
+.commercial-delivery-audit-openclaw-provider-handoff {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-audit-openclaw-provider-handoff > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-audit-openclaw-provider-handoff-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-audit-openclaw-provider-handoff-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-audit-openclaw-provider-handoff-list article.blocking {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: #fff7f7;
+}
+
+.commercial-delivery-audit-openclaw-provider-handoff-list article.configured {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: #f0fdf4;
+}
+
+.commercial-delivery-action-package-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-delivery-remediation-map {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-remediation-map > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-remediation-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-delivery-remediation-work-orders {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-remediation-work-order-coverage {
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-delivery-remediation-work-order-coverage > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.commercial-delivery-remediation-work-order-coverage-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-remediation-work-order-coverage-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-remediation-work-order-coverage-list article.unassigned,
+.commercial-delivery-remediation-work-order-coverage-list article.blocked,
+.commercial-delivery-remediation-work-order-coverage-list article.needs_follow_up {
+  border-color: rgba(220, 38, 38, 0.26);
+  background: #fff7f7;
+}
+
+.commercial-delivery-remediation-work-order-coverage-list article.assigned,
+.commercial-delivery-remediation-work-order-coverage-list article.in_progress {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffbeb;
+}
+
+.commercial-delivery-remediation-work-order-coverage-list article.completed_pending_readiness_refresh,
+.commercial-delivery-remediation-work-order-coverage-list article.complete {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: #f0fdf4;
+}
+
+.commercial-delivery-remediation-work-order-execution-prep {
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-remediation-work-order-execution-prep-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-delivery-remediation-work-order-execution-prep-list article {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-delivery-remediation-work-order-execution-prep-list article.waiting_for_assignment,
+.commercial-delivery-remediation-work-order-execution-prep-list article.blocked_needs_follow_up,
+.commercial-delivery-remediation-work-order-execution-prep-list article.dismissed_needs_review {
+  border-color: rgba(220, 38, 38, 0.26);
+  background: #fff7f7;
+}
+
+.commercial-delivery-remediation-work-order-execution-prep-list article.ready_for_operator_execution_review,
+.commercial-delivery-remediation-work-order-execution-prep-list article.assigned_requires_operator_confirmation {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffbeb;
+}
+
+.commercial-delivery-remediation-work-order-execution-prep-list article.completed_pending_readiness_refresh,
+.commercial-delivery-remediation-work-order-execution-prep-list article.gate_complete_no_execution_required,
+.commercial-delivery-remediation-work-order-execution-prep-list article.complete {
+  border-color: rgba(22, 163, 74, 0.22);
+  background: #f0fdf4;
+}
+
+.commercial-delivery-action-evidence {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-acceptance-completion-strip {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(160px, 1fr) minmax(220px, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.commercial-acceptance-completion-strip > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.commercial-acceptance-completion-strip span,
+.commercial-acceptance-gates span {
+  color: #607080;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.commercial-acceptance-completion-strip strong {
+  color: #17212b;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.commercial-acceptance-completion-strip p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-acceptance-progress {
+  position: relative;
+  min-height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7eef4;
+}
+
+.commercial-acceptance-progress span {
+  display: block;
+  min-height: 12px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #20a67a);
+}
+
+.commercial-acceptance-gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.commercial-acceptance-gates span {
+  padding: 5px 7px;
+  border: 1px solid #dce5eb;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.commercial-acceptance-summary-grid article,
+.commercial-delivery-plan-grid article,
+.commercial-delivery-plan-list article,
+.commercial-delivery-action-package-list article,
+.commercial-delivery-remediation-list article,
+.commercial-release-gate-checklist article,
+.commercial-acceptance-blocker-list article,
+.commercial-acceptance-blocker-list button {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 11px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+  text-align: left;
+}
+
+.commercial-delivery-plan-list article.critical {
+  border-color: #e5a5a5;
+  background: #fff7f7;
+}
+
+.commercial-delivery-action-package-list article.critical,
+.commercial-delivery-action-package-list article.blocked,
+.commercial-delivery-remediation-list article.critical,
+.commercial-delivery-remediation-list article.blocked,
+.commercial-release-gate-checklist article.blocked {
+  border-color: #e5a5a5;
+  background: #fff7f7;
+}
+
+.commercial-delivery-plan-list article.open {
+  border-color: #d9c99b;
+  background: #fffaf0;
+}
+
+.commercial-delivery-action-package-list article.open,
+.commercial-delivery-remediation-list article.open,
+.commercial-release-gate-checklist article.waiting {
+  border-color: #d9c99b;
+  background: #fffaf0;
+}
+
+.commercial-delivery-plan-list article.complete {
+  border-color: #abd8c8;
+  background: #f4fbf8;
+}
+
+.commercial-delivery-action-package-list article.complete,
+.commercial-delivery-remediation-list article.complete,
+.commercial-release-gate-checklist article.ready {
+  border-color: #abd8c8;
+  background: #f4fbf8;
+}
+
+.commercial-acceptance-blocker-list button {
+  cursor: pointer;
+}
+
+.commercial-acceptance-blocker-list button:hover {
+  border-color: #b7c6d4;
+  background: #ffffff;
+}
+
+.commercial-acceptance-summary-grid span,
+.commercial-delivery-plan-grid span,
+.commercial-delivery-plan-list span,
+.commercial-delivery-audit-blocker-clearance span,
+.commercial-delivery-audit-blocker-clearance-list span,
+.commercial-delivery-action-packages span,
+.commercial-delivery-action-package-list span,
+.commercial-delivery-remediation-map span,
+.commercial-delivery-remediation-list span,
+.commercial-delivery-remediation-work-orders span,
+.commercial-delivery-remediation-work-order-coverage span,
+.commercial-delivery-remediation-work-order-coverage-list span,
+.commercial-delivery-remediation-work-order-execution-prep span,
+.commercial-delivery-remediation-work-order-execution-prep-list span,
+.commercial-delivery-action-evidence span,
+.commercial-release-gate-checklist span,
+.commercial-acceptance-blocker-list span {
+  color: #607080;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.commercial-acceptance-summary-grid strong,
+.commercial-delivery-plan-grid strong,
+.commercial-delivery-plan-list strong,
+.commercial-delivery-audit-blocker-clearance strong,
+.commercial-delivery-audit-blocker-clearance-list strong,
+.commercial-delivery-action-packages strong,
+.commercial-delivery-action-package-list strong,
+.commercial-delivery-remediation-map strong,
+.commercial-delivery-remediation-list strong,
+.commercial-delivery-remediation-work-orders strong,
+.commercial-delivery-remediation-work-order-coverage strong,
+.commercial-delivery-remediation-work-order-coverage-list strong,
+.commercial-delivery-remediation-work-order-execution-prep strong,
+.commercial-delivery-remediation-work-order-execution-prep-list strong,
+.commercial-delivery-action-evidence strong,
+.commercial-release-gate-checklist strong,
+.commercial-acceptance-blocker-list strong {
+  overflow-wrap: anywhere;
+  color: #17212b;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.commercial-acceptance-blocker-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-release-gate-checklist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-acceptance-blocker-list small {
+  color: #798895;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.commercial-release-gate-checklist p,
+.commercial-release-gate-checklist small {
+  color: #798895;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.commercial-delivery-plan-grid p,
+.commercial-delivery-plan-list p,
+.commercial-delivery-plan-list small,
+.commercial-delivery-audit-blocker-clearance p,
+.commercial-delivery-audit-blocker-clearance small,
+.commercial-delivery-audit-blocker-clearance-list p,
+.commercial-delivery-audit-blocker-clearance-list small,
+.commercial-delivery-action-packages p,
+.commercial-delivery-action-package-list p,
+.commercial-delivery-action-package-list small,
+.commercial-delivery-remediation-map p,
+.commercial-delivery-remediation-list p,
+.commercial-delivery-remediation-list small,
+.commercial-delivery-remediation-work-orders p,
+.commercial-delivery-remediation-work-orders small,
+.commercial-delivery-remediation-work-order-coverage p,
+.commercial-delivery-remediation-work-order-coverage small,
+.commercial-delivery-remediation-work-order-coverage-list p,
+.commercial-delivery-remediation-work-order-coverage-list small,
+.commercial-delivery-remediation-work-order-execution-prep p,
+.commercial-delivery-remediation-work-order-execution-prep small,
+.commercial-delivery-remediation-work-order-execution-prep-list p,
+.commercial-delivery-remediation-work-order-execution-prep-list small,
+.commercial-delivery-action-evidence p,
+.commercial-delivery-action-evidence small {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-project-stage-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 14px;
+  border: 1px solid #dce5eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.commercial-project-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.commercial-project-stage-header h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.commercial-project-stage-header p,
+.commercial-project-stage-grid p,
+.commercial-project-blocker-list p {
+  margin: 0;
+  color: #607080;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.commercial-project-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-project-stage-grid article,
+.commercial-project-blocker-list article,
+.commercial-project-blocker-list button {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 11px;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  background: #f8fafb;
+  text-align: left;
+}
+
+.commercial-project-blocker-list button {
+  cursor: pointer;
+}
+
+.commercial-project-blocker-list button:hover {
+  border-color: #b7c6d4;
+  background: #ffffff;
+}
+
+.commercial-project-stage-grid span,
+.commercial-project-blocker-list span {
+  color: #607080;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.commercial-project-stage-grid strong,
+.commercial-project-blocker-list strong {
+  overflow-wrap: anywhere;
+  color: #17212b;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.commercial-project-blocker-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.commercial-project-blocker-list small {
+  color: #798895;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .commercial-grid {
@@ -1095,11 +2581,54 @@ textarea {
 .commercial-observation-grid label,
 .commercial-optimization-grid label,
 .commercial-link-grid label {
+  min-width: 0;
+  max-width: 100%;
   display: grid;
   gap: 6px;
   color: #5e6e7d;
   font-size: 13px;
   font-weight: 700;
+}
+
+.commercial-approval-grid input,
+.commercial-approval-grid textarea,
+.commercial-approval-grid select,
+.commercial-dry-run-grid input,
+.commercial-dry-run-grid textarea,
+.commercial-dry-run-grid select,
+.commercial-content-grid input,
+.commercial-content-grid textarea,
+.commercial-content-grid select,
+.commercial-asset-grid input,
+.commercial-asset-grid textarea,
+.commercial-asset-grid select,
+.commercial-deliverable-grid input,
+.commercial-deliverable-grid textarea,
+.commercial-deliverable-grid select,
+.commercial-evidence-grid input,
+.commercial-evidence-grid textarea,
+.commercial-evidence-grid select,
+.commercial-execution-grid input,
+.commercial-execution-grid textarea,
+.commercial-execution-grid select,
+.commercial-execution-run-grid input,
+.commercial-execution-run-grid textarea,
+.commercial-execution-run-grid select,
+.commercial-result-grid input,
+.commercial-result-grid textarea,
+.commercial-result-grid select,
+.commercial-observation-grid input,
+.commercial-observation-grid textarea,
+.commercial-observation-grid select,
+.commercial-optimization-grid input,
+.commercial-optimization-grid textarea,
+.commercial-optimization-grid select,
+.commercial-link-grid input,
+.commercial-link-grid textarea,
+.commercial-link-grid select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .commercial-approval-list {
@@ -1774,8 +3303,28 @@ textarea {
   .json-grid,
   .workflow-observability-metrics,
   .commercial-metrics-grid,
+  .commercial-server-quiet-cockpit,
+  .commercial-server-production-index-grid,
   .commercial-maintenance-cockpit,
   .commercial-maintenance-next-card,
+  .commercial-intervention-pressure-grid,
+  .commercial-intervention-ack-history-list,
+  .commercial-acceptance-completion-strip,
+  .commercial-acceptance-summary-grid,
+  .commercial-release-gate-checklist,
+  .commercial-delivery-plan-grid,
+  .commercial-delivery-plan-list,
+  .commercial-delivery-audit-next-action-list,
+  .commercial-delivery-audit-operator-queue-list,
+  .commercial-delivery-audit-openclaw-provider-handoff-list,
+  .commercial-delivery-action-package-list,
+  .commercial-delivery-remediation-list,
+  .commercial-delivery-remediation-work-order-coverage-list,
+  .commercial-delivery-remediation-work-order-execution-prep-list,
+  .commercial-acceptance-blocker-list,
+  .commercial-release-gate-checklist,
+  .commercial-project-stage-grid,
+  .commercial-project-blocker-list,
   .commercial-grid,
   .commercial-detail-grid,
   .commercial-agent-skill-summary,
@@ -1838,12 +3387,56 @@ textarea {
   }
 
   .commercial-command-center,
+  .commercial-server-production-index-head,
+  .commercial-server-maintenance-drawer > summary,
+  .commercial-server-create-drawer > summary,
+  .commercial-server-operation-list-drawer > summary,
+  .commercial-server-operation-context-drawer > summary,
+  .commercial-server-action-audit-drawer > summary,
+  .commercial-server-production-upstream-drawer > summary,
+  .commercial-server-production-closed-loop-drawer > summary,
+  .commercial-intervention-pressure-header,
+  .commercial-intervention-pressure-footer,
+  .commercial-intervention-ack-history-header,
+  .commercial-acceptance-summary-header,
+  .commercial-acceptance-summary-footer,
+  .commercial-project-stage-header,
   .commercial-flow-grid,
   .rag-command-center,
   .rag-flow-grid,
   .workflow-observability-command-center,
   .workflow-observability-flow-grid {
     grid-template-columns: 1fr;
+  }
+
+  .commercial-intervention-pressure-header,
+  .commercial-intervention-pressure-footer,
+  .commercial-server-production-index-head,
+  .commercial-server-maintenance-drawer > summary,
+  .commercial-server-create-drawer > summary,
+  .commercial-server-operation-list-drawer > summary,
+  .commercial-server-operation-context-drawer > summary,
+  .commercial-server-action-audit-drawer > summary,
+  .commercial-server-production-upstream-drawer > summary,
+  .commercial-server-production-closed-loop-drawer > summary {
+    display: grid;
+    align-items: start;
+  }
+
+  .commercial-intervention-ack-history-header {
+    display: grid;
+    align-items: start;
+  }
+
+  .commercial-acceptance-summary-header,
+  .commercial-acceptance-summary-footer {
+    display: grid;
+    align-items: start;
+  }
+
+  .commercial-project-stage-header {
+    display: grid;
+    align-items: start;
   }
 
   .overview-mode-switch {

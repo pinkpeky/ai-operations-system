@@ -1,0 +1,2926 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Operations System - UI Design Preview</title>
+    <style>
+      :root {
+        --ink: #15171d;
+        --muted: #687080;
+        --line: rgba(31, 34, 43, 0.1);
+        --panel: rgba(255, 255, 255, 0.82);
+        --panel-solid: #ffffff;
+        --wash: #f7f5f2;
+        --purple: #7564f4;
+        --blue: #7db7e8;
+        --mint: #7bd7bd;
+        --amber: #f0c777;
+        --coral: #f08f72;
+        --green: #2db77b;
+        --red: #dc5d5d;
+        --shadow: 0 26px 70px rgba(43, 39, 76, 0.16);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background: #cedff0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 18% 10%, rgba(135, 197, 222, 0.78), transparent 32%),
+          radial-gradient(circle at 82% 2%, rgba(188, 169, 247, 0.8), transparent 34%),
+          linear-gradient(135deg, #c2ddec 0%, #d7cef8 58%, #c9b7ff 100%);
+      }
+
+      body::before,
+      body::after {
+        position: fixed;
+        inset: auto;
+        z-index: 0;
+        width: 88vw;
+        height: 88vw;
+        pointer-events: none;
+        content: "";
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 50%;
+      }
+
+      body::before {
+        top: -34vw;
+        left: -15vw;
+      }
+
+      body::after {
+        right: -28vw;
+        bottom: -46vw;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .stage {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        padding: 48px;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        width: min(1440px, 100%);
+        min-height: min(860px, calc(100vh - 96px));
+        overflow: hidden;
+        border: 12px solid rgba(255, 255, 255, 0.64);
+        border-radius: 24px;
+        background: rgba(250, 248, 247, 0.82);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .sidebar {
+        display: grid;
+        grid-template-rows: auto auto auto minmax(0, 1fr);
+        align-content: start;
+        gap: 16px;
+        padding: 22px 16px;
+        border-right: 1px solid rgba(31, 34, 43, 0.08);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 48px;
+        padding: 0 10px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 10px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--purple), #35b5cf);
+        font-weight: 900;
+      }
+
+      .brand strong,
+      .project-card strong,
+      .nav-group strong {
+        display: block;
+      }
+
+      .brand small {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .nav {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+      }
+
+      .nav-group {
+        display: grid;
+        gap: 8px;
+      }
+
+      .nav-group strong {
+        padding: 0 10px;
+        color: #77717b;
+        font-size: 12px;
+      }
+
+      .nav button {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        color: #3e414b;
+        background: transparent;
+        text-align: left;
+      }
+
+      .nav button.active {
+        color: #fff;
+        background: #111217;
+      }
+
+      .nav button.active b {
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+      }
+
+      .nav button:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.84);
+      }
+
+      .nav em,
+      .pill,
+      .status-dot {
+        font-style: normal;
+      }
+
+      .nav em {
+        color: inherit;
+        font-size: 13px;
+      }
+
+      .nav b {
+        display: inline-grid;
+        min-width: 22px;
+        min-height: 20px;
+        place-items: center;
+        border-radius: 999px;
+        background: rgba(117, 100, 244, 0.14);
+        color: var(--purple);
+        font-size: 11px;
+      }
+
+      .project-card {
+        display: grid;
+        gap: 10px;
+        padding: 13px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.7);
+      }
+
+      .project-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .project-option {
+        display: grid;
+        gap: 4px;
+        width: 100%;
+        min-height: 48px;
+        padding: 9px 10px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 12px;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.58);
+        text-align: left;
+      }
+
+      .project-option.active {
+        min-height: 72px;
+        color: #fff;
+        background: #111217;
+      }
+
+      .project-option small {
+        color: inherit;
+        opacity: 0.68;
+      }
+
+      .project-option:not(.active) small {
+        display: none;
+      }
+
+      .project-option:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      .project-select-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .project-select-grid .project-option {
+        min-height: 132px;
+        align-content: start;
+        gap: 10px;
+        padding: 14px;
+      }
+
+      .project-select-grid .project-option strong {
+        font-size: 16px;
+        line-height: 1.25;
+      }
+
+      .project-select-grid .project-option small,
+      .project-select-grid .project-option:not(.active) small {
+        display: block;
+        line-height: 1.45;
+      }
+
+      .project-select-grid .asset-strip {
+        margin-top: auto;
+      }
+
+      .project-panel-target {
+        scroll-margin-top: 18px;
+      }
+
+      .project-panel-target.is-focus {
+        box-shadow: 0 0 0 3px rgba(117, 100, 244, 0.18);
+      }
+
+      .sidebar-section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 0 4px;
+        color: #77717b;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .sidebar-section-title button {
+        display: inline-grid;
+        width: 26px;
+        height: 26px;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        background: rgba(117, 100, 244, 0.12);
+        color: var(--purple);
+        font-weight: 900;
+      }
+
+      .sidebar-pages {
+        display: grid;
+        gap: 6px;
+      }
+
+      .sidebar-pages button {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        min-height: 36px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 9px;
+        color: #3e414b;
+        background: transparent;
+        text-align: left;
+      }
+
+      .sidebar-pages button.active {
+        color: #fff;
+        background: #111217;
+      }
+
+      .sidebar-pages button:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .sidebar-pages span:first-child {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(117, 100, 244, 0.12);
+        color: var(--purple);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .sidebar > .nav {
+        align-self: start;
+      }
+
+      .sidebar-pages button.active span:first-child {
+        color: #111217;
+        background: #fff;
+      }
+
+      .sidebar-pages em {
+        overflow: hidden;
+        font-style: normal;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .project-switcher {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: start;
+        margin-bottom: 18px;
+        padding: 14px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.76);
+      }
+
+      .project-current {
+        display: grid;
+        gap: 8px;
+      }
+
+      .project-current span,
+      .project-meta span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .project-current strong {
+        font-size: 18px;
+        line-height: 1.2;
+      }
+
+      .project-current p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .project-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .project-meta div {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 4px;
+        min-width: 0;
+        min-height: 34px;
+        align-items: center;
+        padding: 6px 10px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 999px;
+        background: rgba(248, 249, 251, 0.75);
+      }
+
+      .project-meta strong {
+        overflow: hidden;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .project-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .project-card span,
+      .panel-caption,
+      .metric span,
+      .approval p,
+      .artifact-meta,
+      .workflow-card p,
+      .publish-copy p,
+      .data-card p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .project-progress {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e9e9ee;
+      }
+
+      .project-progress i {
+        display: block;
+        width: 68%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--purple), var(--mint));
+      }
+
+      .main {
+        min-width: 0;
+        padding: 22px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 18px;
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: clamp(26px, 2vw, 34px);
+        line-height: 1.1;
+      }
+
+      .title p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 0 14px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .search input {
+        width: 100%;
+        border: 0;
+        outline: 0;
+        background: transparent;
+      }
+
+      .top-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .icon-btn,
+      .primary-btn,
+      .ghost-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+      }
+
+      .icon-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.84);
+      }
+
+      .primary-btn,
+      .ghost-btn {
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 12px;
+        font-weight: 760;
+      }
+
+      .primary-btn {
+        color: #fff;
+        background: #111217;
+      }
+
+      .ghost-btn {
+        color: #2d313b;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .avatar {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 14px;
+        color: #fff;
+        background: linear-gradient(135deg, #334155, #b46f5a);
+        font-weight: 900;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.48fr) minmax(340px, 0.82fr);
+        gap: 18px;
+      }
+
+      .left,
+      .right {
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+
+      .app[data-active-page="overview"] .grid,
+      .app[data-active-page="planning"] .grid,
+      .app[data-active-page="text"] .grid,
+      .app[data-active-page="media"] .grid,
+      .app[data-active-page="outputs"] .grid,
+      .app[data-active-page="projects"] .grid,
+      .app[data-active-page="materials"] .grid,
+      .app[data-active-page="knowledge"] .grid,
+      .app[data-active-page="workflows"] .grid,
+      .app[data-active-page="approvals"] .grid,
+      .app[data-active-page="runtime"] .grid,
+      .app[data-active-page="feedback"] .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .app[data-active-page="overview"] .right,
+      .app[data-active-page="planning"] .right,
+      .app[data-active-page="text"] .right,
+      .app[data-active-page="media"] .right,
+      .app[data-active-page="outputs"] .right,
+      .app[data-active-page="projects"] .right,
+      .app[data-active-page="materials"] .right,
+      .app[data-active-page="knowledge"] .right,
+      .app[data-active-page="workflows"] .right,
+      .app[data-active-page="approvals"] .right,
+      .app[data-active-page="runtime"] .right,
+      .app[data-active-page="feedback"] .right {
+        display: none;
+      }
+
+      .app[data-active-page="overview"] .metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .app[data-active-page="overview"] .pipeline {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+      }
+
+      .hero,
+      .panel,
+      .metric,
+      .workflow-card,
+      .approval,
+      .artifact,
+      .data-card {
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 16px;
+        background: var(--panel);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+        min-height: 216px;
+        padding: 18px;
+      }
+
+      .hero-copy {
+        display: grid;
+        align-content: space-between;
+        gap: 16px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        width: fit-content;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        color: #3c326f;
+        background: rgba(117, 100, 244, 0.12);
+        font-size: 12px;
+        font-weight: 820;
+      }
+
+      .hero h2 {
+        margin: 0;
+        max-width: 760px;
+        font-size: clamp(28px, 3vw, 46px);
+        line-height: 1.02;
+        overflow-wrap: anywhere;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .hero-aside {
+        position: relative;
+        display: grid;
+        align-content: space-between;
+        gap: 12px;
+        min-height: 180px;
+        padding: 16px;
+        overflow: hidden;
+        border-radius: 14px;
+        color: #fff;
+        background:
+          linear-gradient(135deg, rgba(18, 18, 24, 0.9), rgba(34, 35, 53, 0.64)),
+          url("../douyin_contact_sheet.jpg") center / cover;
+      }
+
+      .hero-aside::after {
+        position: absolute;
+        right: -36px;
+        bottom: -44px;
+        width: 128px;
+        height: 128px;
+        content: "";
+        border: 1px solid rgba(255, 255, 255, 0.36);
+        border-radius: 50%;
+      }
+
+      .hero-aside strong {
+        position: relative;
+        z-index: 1;
+        display: block;
+        font-size: 25px;
+        line-height: 1.1;
+      }
+
+      .hero-aside span {
+        position: relative;
+        z-index: 1;
+        display: block;
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        position: relative;
+        min-height: 138px;
+        padding: 16px;
+        overflow: hidden;
+      }
+
+      .metric:nth-child(1) {
+        background: #fff0d6;
+      }
+
+      .metric:nth-child(2) {
+        background: #dce9ff;
+      }
+
+      .metric:nth-child(3) {
+        background: #e9e8ee;
+      }
+
+      .metric:nth-child(4) {
+        background: #dff5ec;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 36px;
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .mini-arrow {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 50%;
+        color: #fff;
+        background: #111217;
+        font-weight: 900;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .panel h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .page-panel[hidden] {
+        display: none !important;
+      }
+
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .step {
+        position: relative;
+        display: grid;
+        gap: 8px;
+        min-height: 118px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.58);
+      }
+
+      .step::before {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 50%;
+        color: #fff;
+        background: var(--purple);
+        content: attr(data-step);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .step.done::before {
+        background: var(--green);
+        content: "✓";
+      }
+
+      .step.waiting::before {
+        color: #6d5b1d;
+        background: var(--amber);
+      }
+
+      .step strong {
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .step span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .work-area {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 14px;
+      }
+
+      .workflow-list,
+      .approval-list,
+      .artifact-list,
+      .feedback-list,
+      .data-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .stage-workspace {
+        display: grid;
+        gap: 14px;
+      }
+
+      .plan-grid,
+      .copy-grid,
+      .material-grid,
+      .review-grid,
+      .publish-grid,
+      .knowledge-grid,
+      .resource-grid,
+      .runtime-grid,
+      .feedback-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .plan-card,
+      .copy-card,
+      .material-card,
+      .review-card,
+      .publish-step-card,
+      .knowledge-card,
+      .resource-card,
+      .runtime-card,
+      .feedback-card {
+        display: grid;
+        align-content: space-between;
+        gap: 10px;
+        min-width: 0;
+        min-height: 136px;
+        padding: 13px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .plan-card strong,
+      .copy-card strong,
+      .material-card strong,
+      .review-card strong,
+      .publish-step-card strong,
+      .knowledge-card strong,
+      .resource-card strong,
+      .runtime-card strong,
+      .feedback-card strong {
+        color: var(--ink);
+        line-height: 1.25;
+      }
+
+      .plan-card p,
+      .copy-card p,
+      .material-card p,
+      .review-card p,
+      .publish-step-card p,
+      .knowledge-card p,
+      .resource-card p,
+      .runtime-card p,
+      .feedback-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .project-create-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .project-form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .form-section {
+        display: grid;
+        gap: 10px;
+        padding: 13px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .form-section h4 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .form-field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .form-field.wide {
+        grid-column: 1 / -1;
+      }
+
+      .form-field span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .form-field input,
+      .form-field select,
+      .form-field textarea {
+        width: 100%;
+        min-height: 40px;
+        padding: 0 11px;
+        border: 1px solid rgba(31, 34, 43, 0.1);
+        border-radius: 12px;
+        outline: none;
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--ink);
+      }
+
+      .form-field textarea {
+        min-height: 84px;
+        padding: 10px 11px;
+        resize: vertical;
+      }
+
+      .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .choice {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 0 10px;
+        border: 1px solid rgba(31, 34, 43, 0.1);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.64);
+        color: #3e414b;
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .choice.active {
+        color: #fff;
+        background: #111217;
+      }
+
+      .project-preview {
+        position: sticky;
+        top: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .preview-card {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .preview-card h4 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .preview-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .preview-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .preview-list li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        list-style: none;
+        color: #3e414b;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .knowledge-card.featured,
+      .resource-card.featured {
+        grid-column: span 2;
+        min-height: 170px;
+        background: #eef7ff;
+      }
+
+      .knowledge-source-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .knowledge-source-list li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 42px;
+        padding: 8px 10px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.62);
+        list-style: none;
+      }
+
+      .knowledge-source-list ul {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .planning-chat {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 260px;
+        gap: 14px;
+        min-height: 560px;
+      }
+
+      .chat-surface {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        min-height: 560px;
+        overflow: hidden;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .chat-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px;
+        border-bottom: 1px solid rgba(31, 34, 43, 0.08);
+      }
+
+      .chat-head strong,
+      .chat-head span {
+        display: block;
+      }
+
+      .chat-head span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .chat-messages {
+        display: grid;
+        align-content: start;
+        gap: 12px;
+        padding: 14px;
+        overflow: auto;
+      }
+
+      .chat-message {
+        display: grid;
+        gap: 6px;
+        max-width: 78%;
+        padding: 12px;
+        border-radius: 14px;
+        background: #ffffff;
+        color: #2f3440;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .chat-message.assistant {
+        justify-self: start;
+        border-top-left-radius: 4px;
+      }
+
+      .chat-message.user {
+        justify-self: end;
+        border-top-right-radius: 4px;
+        color: #fff;
+        background: #111217;
+      }
+
+      .chat-message small {
+        color: inherit;
+        opacity: 0.62;
+        font-size: 11px;
+      }
+
+      .chat-compose {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-top: 1px solid rgba(31, 34, 43, 0.08);
+      }
+
+      .chat-compose textarea {
+        width: 100%;
+        min-height: 86px;
+        padding: 12px;
+        border: 1px solid rgba(31, 34, 43, 0.1);
+        border-radius: 14px;
+        resize: vertical;
+        outline: none;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .chat-compose-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: space-between;
+      }
+
+      .chat-context {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .context-card {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .context-card strong {
+        font-size: 13px;
+      }
+
+      .context-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .copy-card.featured,
+      .review-card.featured {
+        grid-column: span 2;
+        min-height: 170px;
+        background: #fff7e6;
+      }
+
+      .copy-text {
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #2f3440;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .asset-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .review-preview {
+        display: grid;
+        min-height: 150px;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 14px;
+        color: #fff;
+        background:
+          linear-gradient(135deg, rgba(17, 18, 23, 0.18), rgba(17, 18, 23, 0.52)),
+          url("../douyin_contact_sheet.jpg") center / cover;
+        font-size: 24px;
+        font-weight: 900;
+      }
+
+      .publish-checklist {
+        display: grid;
+        gap: 8px;
+      }
+
+      .publish-checklist li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 42px;
+        padding: 8px 10px;
+        border: 1px solid rgba(31, 34, 43, 0.08);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.6);
+        list-style: none;
+      }
+
+      .publish-checklist ul {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .workflow-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+      }
+
+      .workflow-card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .workflow-tags,
+      .artifact-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: rgba(17, 18, 23, 0.08);
+        font-size: 11px;
+        font-weight: 760;
+      }
+
+      .pill.ok {
+        color: #117047;
+        background: rgba(45, 183, 123, 0.16);
+      }
+
+      .pill.warn {
+        color: #8a5d0b;
+        background: rgba(240, 199, 119, 0.22);
+      }
+
+      .pill.bad {
+        color: #a03434;
+        background: rgba(220, 93, 93, 0.14);
+      }
+
+      .approval {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 11px;
+        padding: 12px;
+      }
+
+      .status-dot {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 50%;
+        color: #fff;
+        background: var(--purple);
+        font-weight: 900;
+      }
+
+      .approval strong,
+      .approval p {
+        display: block;
+        margin: 0;
+      }
+
+      .approval-actions {
+        grid-column: 2;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .approval-actions button {
+        min-height: 30px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 10px;
+        background: rgba(17, 18, 23, 0.08);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .artifact-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .artifact {
+        display: grid;
+        gap: 10px;
+        min-height: 188px;
+        padding: 10px;
+      }
+
+      .preview {
+        display: grid;
+        min-height: 110px;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 12px;
+        color: #fff;
+        background:
+          linear-gradient(135deg, rgba(17, 18, 23, 0.15), rgba(17, 18, 23, 0.44)),
+          url("../douyin_contact_sheet.jpg") center / cover;
+        font-weight: 900;
+      }
+
+      .preview.alt {
+        background: linear-gradient(135deg, #222532, #7463f1 58%, #8bd3ce);
+      }
+
+      .preview.audio {
+        background: linear-gradient(135deg, #243447, #2db77b);
+      }
+
+      .artifact strong {
+        line-height: 1.25;
+      }
+
+      .right .panel {
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .month-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 68px;
+        padding: 12px;
+        border-radius: 18px;
+        background: #111217;
+        color: #fff;
+        transform: rotate(-3deg);
+      }
+
+      .month-card.secondary {
+        margin-top: -4px;
+        background: rgba(255, 255, 255, 0.86);
+        color: var(--ink);
+        transform: rotate(-1deg);
+      }
+
+      .month-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--purple);
+      }
+
+      .month-card.secondary .month-icon {
+        color: #111217;
+        background: #edf0f5;
+      }
+
+      .month-card strong {
+        display: block;
+        font-size: 20px;
+      }
+
+      .month-card small {
+        color: currentColor;
+        opacity: 0.66;
+      }
+
+      .focus-chart {
+        display: grid;
+        grid-template-columns: 110px minmax(0, 1fr);
+        gap: 14px;
+        align-items: end;
+      }
+
+      .focus-number {
+        display: grid;
+        align-content: center;
+        min-height: 132px;
+        padding: 14px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.7);
+      }
+
+      .focus-number strong {
+        font-size: 34px;
+        line-height: 1;
+      }
+
+      .bars {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        align-items: end;
+        min-height: 156px;
+      }
+
+      .bar {
+        display: grid;
+        align-items: end;
+        gap: 6px;
+        justify-items: center;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .bar i {
+        display: block;
+        width: 100%;
+        max-width: 38px;
+        min-height: 28px;
+        border-radius: 999px;
+        background: rgba(117, 100, 244, 0.72);
+      }
+
+      .bar:nth-child(4) i {
+        background: var(--purple);
+      }
+
+      .bar:nth-child(5) i {
+        background: repeating-linear-gradient(
+          -55deg,
+          rgba(117, 100, 244, 0.75) 0 4px,
+          rgba(255, 255, 255, 0.7) 4px 8px
+        );
+      }
+
+      .publish-card {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        min-height: 122px;
+        padding: 12px;
+        overflow: hidden;
+        border-radius: 16px;
+        color: #fff;
+        background:
+          linear-gradient(135deg, rgba(16, 17, 24, 0.92), rgba(83, 72, 160, 0.76)),
+          url("../douyin_contact_sheet.jpg") center / cover;
+      }
+
+      .publish-thumb {
+        display: grid;
+        width: 84px;
+        aspect-ratio: 1;
+        place-items: center;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.18);
+        font-size: 28px;
+        font-weight: 900;
+      }
+
+      .publish-copy strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 20px;
+        line-height: 1.15;
+      }
+
+      .publish-copy p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      .data-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+      }
+
+      .data-card strong,
+      .data-card p {
+        display: block;
+        margin: 0;
+      }
+
+      .data-card b {
+        color: var(--green);
+      }
+
+      .table {
+        width: 100%;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 640px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        padding: 11px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .action-toast {
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 8;
+        display: grid;
+        gap: 4px;
+        width: min(340px, calc(100vw - 40px));
+        padding: 13px 14px;
+        border: 1px solid rgba(31, 34, 43, 0.1);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 18px 50px rgba(43, 39, 76, 0.18);
+        backdrop-filter: blur(14px);
+      }
+
+      .action-toast[hidden] {
+        display: none;
+      }
+
+      .action-toast strong {
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .action-toast span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      @media (min-width: 981px) and (max-width: 1180px) {
+        .stage {
+          padding: 18px;
+        }
+
+        .app {
+          grid-template-columns: 240px minmax(0, 1fr);
+          border-width: 8px;
+        }
+
+        .grid,
+        .hero,
+        .work-area {
+          grid-template-columns: 1fr;
+        }
+
+        .right {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .metrics,
+        .artifact-grid,
+        .project-meta,
+        .project-select-grid,
+        .plan-grid,
+        .copy-grid,
+        .material-grid,
+        .review-grid,
+        .publish-grid,
+        .feedback-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pipeline {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .planning-chat {
+          grid-template-columns: 1fr;
+        }
+
+        .project-create-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .project-preview {
+          position: static;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .copy-card.featured,
+        .review-card.featured {
+          grid-column: span 2;
+        }
+
+        .project-switcher {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .project-meta {
+          grid-column: 1 / -1;
+          order: 3;
+        }
+
+        .topbar {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .search {
+          grid-column: 1 / -1;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .stage {
+          padding: 18px;
+        }
+
+        .app,
+        .grid,
+        .hero,
+        .work-area,
+        .project-switcher {
+          grid-template-columns: 1fr;
+        }
+
+        .app {
+          min-height: auto;
+        }
+
+        .sidebar {
+          display: none;
+        }
+
+        .topbar {
+          grid-template-columns: 1fr;
+        }
+
+        .top-actions {
+          justify-content: space-between;
+        }
+
+        .metrics,
+        .pipeline,
+        .artifact-grid,
+        .project-meta {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .project-select-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .plan-grid,
+        .copy-grid,
+        .material-grid,
+        .review-grid,
+        .publish-grid,
+        .knowledge-grid,
+        .resource-grid,
+        .runtime-grid,
+        .feedback-grid,
+        .planning-chat {
+          grid-template-columns: 1fr;
+        }
+
+        .project-create-layout,
+        .form-grid,
+        .project-preview {
+          grid-template-columns: 1fr;
+        }
+
+        .project-actions {
+          justify-content: flex-start;
+        }
+
+        .copy-card.featured,
+        .review-card.featured,
+        .knowledge-card.featured,
+        .resource-card.featured {
+          grid-column: auto;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .stage {
+          padding: 0;
+        }
+
+        .app {
+          border: 0;
+          border-radius: 0;
+        }
+
+        .main {
+          padding: 14px;
+        }
+
+        .metrics,
+        .pipeline,
+        .artifact-grid,
+        .focus-chart,
+        .project-meta,
+        .project-select-grid,
+        .plan-grid,
+        .copy-grid,
+        .material-grid,
+        .review-grid,
+        .publish-grid,
+        .knowledge-grid,
+        .resource-grid,
+        .runtime-grid,
+        .feedback-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .chat-message {
+          max-width: 100%;
+        }
+
+        .form-field.wide {
+          grid-column: auto;
+        }
+
+        .hero h2 {
+          font-size: 30px;
+        }
+
+        .month-card {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="app" data-active-page="overview" role="application" aria-label="AI 运营项目工作台 UI 设计稿">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="brand-mark">AI</div>
+            <div>
+              <strong>AI Ops Workbench</strong>
+              <small>运营项目闭环工作台</small>
+            </div>
+          </div>
+
+          <div class="project-card">
+            <div class="sidebar-section-title">
+              <span>选择项目</span>
+              <button title="新建项目" data-page-link="projects" data-project-panel="create">＋</button>
+            </div>
+            <div class="project-list" aria-label="项目选择">
+              <button
+                class="project-option active"
+                data-project="上客 KTV 数字人短视频运营"
+                data-stage="影音生产"
+                data-platform="抖音"
+                data-owner="李运营"
+                data-risk="待确认工作流"
+                data-knowledge="7 份知识 / 126 chunks"
+                data-knowledge-desc="已收录品牌资料、门店卖点、历史发布截图、套餐规则和禁用表达。生成方案和文案时优先检索这些资料。"
+                data-source-a="品牌资料与禁用词"
+                data-source-b="历史发布链接与数据截图"
+                data-source-c="门店套餐规则"
+              >
+                <strong>上客 KTV 数字人短视频运营</strong>
+                <small>当前阶段：影音生产</small>
+              </button>
+              <button
+                class="project-option"
+                data-project="团购套餐图文种草"
+                data-stage="候选产出"
+                data-platform="小红书"
+                data-owner="周编辑"
+                data-risk="等待终选封面"
+                data-knowledge="5 份知识 / 84 chunks"
+                data-knowledge-desc="已绑定团购套餐说明、图文种草样例、封面规范和历史互动数据，主要用于图文策略和标题生成。"
+                data-source-a="团购套餐说明"
+                data-source-b="小红书图文样例"
+                data-source-c="封面规范与禁用词"
+              >
+                <strong>团购套餐图文种草</strong>
+                <small>当前阶段：候选产出</small>
+              </button>
+              <button
+                class="project-option"
+                data-project="暑期包厢活动发布"
+                data-stage="发布确认"
+                data-platform="视频号"
+                data-owner="陈店长"
+                data-risk="发布时间缺失"
+                data-knowledge="4 份知识 / 63 chunks"
+                data-knowledge-desc="已绑定暑期活动规则、视频号发布规范、门店排期和历史发布截图，用于发布包确认和复盘。"
+                data-source-a="暑期活动规则"
+                data-source-b="视频号发布规范"
+                data-source-c="门店排期与账号要求"
+              >
+                <strong>暑期包厢活动发布</strong>
+                <small>当前阶段：发布确认</small>
+              </button>
+            </div>
+            <div class="project-progress"><i></i></div>
+          </div>
+
+          <nav class="sidebar-pages" aria-label="阶段页签">
+            <div class="sidebar-section-title"><span>当前项目阶段</span></div>
+            <button class="active" data-page-link="overview"><span>1</span><em>总览</em><b>6</b></button>
+            <button data-page-link="planning"><span>2</span><em>方案</em><b>2</b></button>
+            <button data-page-link="text"><span>3</span><em>文案</em><b>8</b></button>
+            <button data-page-link="media"><span>4</span><em>影音</em><b>5</b></button>
+            <button data-page-link="outputs"><span>5</span><em>产出</em><b>9</b></button>
+            <button data-page-link="publish"><span>6</span><em>发布</em><b>3</b></button>
+            <button data-page-link="feedback"><span>7</span><em>数据回流</em><b>2</b></button>
+          </nav>
+
+          <nav class="nav" aria-label="资源导航">
+            <div class="nav-group">
+              <strong>运营资源</strong>
+              <button data-page-link="materials"><span>▦</span><em>素材库</em></button>
+              <button data-page-link="knowledge"><span>◎</span><em>项目知识库</em><b>7</b></button>
+              <button data-page-link="workflows"><span>⌁</span><em>工作流候选</em></button>
+              <button data-page-link="approvals"><span>☰</span><em>审批中心</em><b>12</b></button>
+              <button data-page-link="runtime"><span>⚙</span><em>本机运行时</em></button>
+            </div>
+          </nav>
+        </aside>
+
+        <main class="main">
+          <header class="topbar">
+            <div class="title">
+              <h1>你好，运营同学</h1>
+              <p>从项目、素材、审批、产出、发布到数据回流，一屏看清下一步。</p>
+            </div>
+            <label class="search">
+              <span>⌕</span>
+              <input placeholder="搜索项目、素材、候选作品、发布包或输入指令" />
+            </label>
+            <div class="top-actions">
+              <button class="icon-btn" title="通知">◌</button>
+              <div class="avatar">L</div>
+            </div>
+          </header>
+
+          <section class="project-switcher" aria-label="当前项目选择">
+            <div class="project-current">
+              <span>当前项目上下文</span>
+              <strong id="currentProjectName">上客 KTV 数字人短视频运营</strong>
+              <p>方案、素材、知识库、候选作品和发布包都会归属到这个项目。</p>
+              <div class="project-meta">
+                <div><span>阶段</span><strong id="currentProjectStage">影音生产</strong></div>
+                <div><span>平台</span><strong id="currentProjectPlatform">抖音</strong></div>
+                <div><span>负责人</span><strong id="currentProjectOwner">李运营</strong></div>
+                <div><span>待办</span><strong id="currentProjectRisk">确认工作流</strong></div>
+                <div><span>知识库</span><strong id="currentProjectKnowledge">7 份知识 / 126 chunks</strong></div>
+              </div>
+            </div>
+            <div class="project-actions">
+              <button class="ghost-btn" data-page-link="projects" data-project-panel="switch">切换项目</button>
+              <button class="primary-btn" data-page-link="projects" data-project-panel="create">新建项目</button>
+            </div>
+          </section>
+
+          <section class="grid">
+            <div class="left">
+              <section class="hero page-panel" data-pages="media">
+                <div class="hero-copy">
+                  <div>
+                    <span class="eyebrow">当前主动作：审批工作流选择</span>
+                    <h2>确认数字人视频流后，系统将生成首批候选短视频。</h2>
+                    <p>
+                      系统已根据目标平台、授权素材、显存需求和成功率推荐 3 个可运行工作流。
+                      你只需要用业务语言选择、驳回或要求换一组，不需要阅读 ComfyUI 节点参数。
+                    </p>
+                  </div>
+                  <div class="hero-actions">
+                    <button class="primary-btn" data-page-link="workflows">查看推荐工作流</button>
+                    <button class="ghost-btn" data-page-link="materials">上传补充素材</button>
+                    <button class="ghost-btn" data-page-link="approvals">打开审批队列</button>
+                  </div>
+                </div>
+                <aside class="hero-aside">
+                  <div>
+                    <span>DELIVERY TARGET</span>
+                    <strong>15 秒唱跳数字人短视频</strong>
+                  </div>
+                  <span>绑定抖音发布包 / 等待人工最终确认 / 不绕过审批发布</span>
+                </aside>
+              </section>
+
+              <section class="panel page-panel" data-pages="planning">
+                <div class="panel-head">
+                  <div>
+                    <h3>运营方案对话</h3>
+                    <div class="panel-caption">通过大聊天框和 LLM 一起澄清目标、约束、素材、发布节奏和风险边界。</div>
+                  </div>
+                  <span class="pill ok">知识库已接入</span>
+                </div>
+                <div class="planning-chat">
+                  <div class="chat-surface">
+                    <div class="chat-head">
+                      <div>
+                        <strong>方案 Agent</strong>
+                        <span>基于项目知识库、历史发布数据和素材状态生成可审批方案</span>
+                      </div>
+                      <span class="pill warn">草案 V2</span>
+                    </div>
+                    <div class="chat-messages">
+                      <div class="chat-message assistant">
+                        <small>LLM</small>
+                        我已读取当前项目知识库：品牌禁用词、套餐价格表、历史发布数据和门店素材。建议第一轮以“周末欢唱套餐”为主线，先产出 2 条短视频和 1 张封面图。
+                      </div>
+                      <div class="chat-message user">
+                        <small>你</small>
+                        目标是先做抖音本地生活引流，不要太硬广，数字人可以口播但要保留门店真实场景。
+                      </div>
+                      <div class="chat-message assistant">
+                        <small>LLM</small>
+                        明白。方案草案会拆成：目标人群、内容策略、素材缺口、视频流建议、发布窗口、审批点和数据回收指标。当前还需要你确认数字人授权范围和团购链接展示方式。
+                      </div>
+                    </div>
+                    <div class="chat-compose">
+                      <textarea placeholder="输入你的运营目标、限制、风格偏好，或要求 LLM 修改方案...">把方案改成更适合周五晚高峰发布，并补充风险边界。</textarea>
+                      <div class="chat-compose-actions">
+                        <div class="asset-strip">
+                          <span class="pill">引用知识库</span>
+                          <span class="pill">引用素材</span>
+                          <span class="pill">生成审批版</span>
+                        </div>
+                        <button class="primary-btn">发送给 LLM</button>
+                      </div>
+                    </div>
+                  </div>
+                  <aside class="chat-context">
+                    <article class="context-card">
+                      <span class="pill ok">RAG</span>
+                      <strong>已引用知识</strong>
+                      <p>品牌禁用词、套餐价格表、历史发布截图、门店卖点。</p>
+                    </article>
+                    <article class="context-card">
+                      <span class="pill warn">待确认</span>
+                      <strong>方案缺口</strong>
+                      <p>数字人授权范围、团购链接展示方式、首轮成功指标。</p>
+                    </article>
+                    <article class="context-card">
+                      <span class="pill">输出</span>
+                      <strong>审批版方案</strong>
+                      <p>确认聊天内容后生成可审批方案，再进入文案和影音阶段。</p>
+                      <button class="primary-btn">提交审批</button>
+                    </article>
+                  </aside>
+                </div>
+              </section>
+
+              <section class="metrics page-panel" data-pages="overview" aria-label="关键指标">
+                <article class="metric">
+                  <span>运营项目</span>
+                  <strong>12</strong>
+                  <span>3 个需要人工推进</span>
+                  <i class="mini-arrow">↗</i>
+                </article>
+                <article class="metric">
+                  <span>待审批</span>
+                  <strong>18</strong>
+                  <span>方案、流选择、发布包</span>
+                  <i class="mini-arrow">↗</i>
+                </article>
+                <article class="metric">
+                  <span>候选产出</span>
+                  <strong>46</strong>
+                  <span>图片 / 视频 / 音频</span>
+                  <i class="mini-arrow">↗</i>
+                </article>
+                <article class="metric">
+                  <span>闭环完成率</span>
+                  <strong>68%</strong>
+                  <span>本周目标推进良好</span>
+                  <i class="mini-arrow">↗</i>
+                </article>
+              </section>
+
+              <section class="panel page-panel" data-pages="overview planning">
+                <div class="panel-head">
+                  <div>
+                    <h3>标准闭环进度</h3>
+                    <div class="panel-caption">每个关键节点可追踪、可审批、可中断、可恢复。</div>
+                  </div>
+                  <span class="pill ok">可继续</span>
+                </div>
+                <div class="pipeline">
+                  <div class="step done" data-step="1"><strong>目标输入</strong><span>KTV 本地生活引流，抖音优先。</span></div>
+                  <div class="step done" data-step="2"><strong>方案审批</strong><span>内容策略已通过，素材需求已确认。</span></div>
+                  <div class="step waiting" data-step="3"><strong>流选择</strong><span>等待确认数字人视频生成流。</span></div>
+                  <div class="step" data-step="4"><strong>候选产出</strong><span>生成视频、封面、发布文案候选。</span></div>
+                  <div class="step" data-step="5"><strong>发布确认</strong><span>人工确认发布包后交给本机执行。</span></div>
+                  <div class="step" data-step="6"><strong>数据回流</strong><span>拉取播放、互动、转化和发布证据。</span></div>
+                  <div class="step" data-step="7"><strong>再次分析</strong><span>生成下一轮优化方案和待确认动作。</span></div>
+                </div>
+              </section>
+
+              <section class="panel page-panel project-panel-target" id="projectSwitchPanel" data-pages="projects" data-project-panel-mode="switch">
+                <div class="panel-head">
+                  <div>
+                    <h3>切换项目</h3>
+                    <div class="panel-caption">先选定项目，再进入方案、文案、影音、产出和发布阶段。</div>
+                  </div>
+                  <button class="primary-btn" data-project-panel="create">新建运营项目</button>
+                </div>
+                <div class="project-select-grid">
+                  <button
+                    class="project-option active"
+                    data-project="上客 KTV 数字人短视频运营"
+                    data-stage="影音生产"
+                    data-platform="抖音"
+                    data-owner="李运营"
+                    data-risk="确认工作流"
+                    data-knowledge="7 份知识 / 126 chunks"
+                    data-knowledge-desc="已收录品牌资料、门店卖点、历史发布截图、套餐规则和禁用表达。生成方案和文案时优先检索这些资料。"
+                    data-source-a="品牌资料与禁用词"
+                    data-source-b="历史发布链接与数据截图"
+                    data-source-c="门店套餐规则"
+                  >
+                    <strong>上客 KTV 数字人短视频运营</strong>
+                    <small>当前阶段：影音生产。等待确认数字人视频生成工作流。</small>
+                    <div class="asset-strip"><span class="pill ok">当前项目</span><span class="pill">抖音</span><span class="pill warn">待处理 3</span></div>
+                  </button>
+                  <button
+                    class="project-option"
+                    data-project="团购套餐图文种草"
+                    data-stage="候选产出"
+                    data-platform="小红书"
+                    data-owner="王内容"
+                    data-risk="终选封面"
+                    data-knowledge="5 份知识 / 84 chunks"
+                    data-knowledge-desc="已绑定团购套餐说明、图文种草样例、封面规范和历史互动数据，主要用于图文策略和标题生成。"
+                    data-source-a="团购套餐说明"
+                    data-source-b="小红书图文样例"
+                    data-source-c="封面规范与禁用词"
+                  >
+                    <strong>团购套餐图文种草</strong>
+                    <small>当前阶段：候选产出。正在从 9 张封面候选中选择最终版本。</small>
+                    <div class="asset-strip"><span class="pill">小红书</span><span class="pill ok">素材齐备</span></div>
+                  </button>
+                  <button
+                    class="project-option"
+                    data-project="暑期包厢活动发布"
+                    data-stage="发布确认"
+                    data-platform="视频号"
+                    data-owner="周投放"
+                    data-risk="发布包审批"
+                    data-knowledge="4 份知识 / 63 chunks"
+                    data-knowledge-desc="已绑定暑期活动规则、视频号发布规范、门店排期和历史发布截图，用于发布包确认和复盘。"
+                    data-source-a="暑期活动规则"
+                    data-source-b="视频号发布规范"
+                    data-source-c="门店排期与账号要求"
+                  >
+                    <strong>暑期包厢活动发布</strong>
+                    <small>当前阶段：发布确认。发布包已生成，等待人工确认账号和时间。</small>
+                    <div class="asset-strip"><span class="pill">视频号</span><span class="pill warn">待审批</span></div>
+                  </button>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="text">
+                <div class="panel-head">
+                  <div>
+                    <h3>文案任务工作区</h3>
+                    <div class="panel-caption">标题、口播、海报文案和发布文案分开审批，避免全部混进视频 prompt。</div>
+                  </div>
+                  <button class="primary-btn">生成下一版</button>
+                </div>
+                <div class="copy-grid">
+                  <article class="copy-card featured">
+                    <div>
+                      <span class="pill warn">待审稿</span>
+                      <strong>抖音短视频标题与正文</strong>
+                    </div>
+                    <div class="copy-text">今晚来上客 KTV，把喜欢的歌唱到尽兴。周末欢唱套餐限时开放，点击团购链接提前锁定好包厢。</div>
+                    <div class="asset-strip"><span class="pill">标题</span><span class="pill">正文</span><span class="pill">话题</span></div>
+                  </article>
+                  <article class="copy-card">
+                    <div><span class="pill ok">已通过</span><strong>15 秒口播脚本</strong></div>
+                    <p>开场 3 秒突出门店和套餐，中段展示场景，结尾提醒预约。</p>
+                    <button class="ghost-btn">查看脚本</button>
+                  </article>
+                  <article class="copy-card">
+                    <div><span class="pill bad">需修改</span><strong>评论区引导</strong></div>
+                    <p>需要更自然，减少营销感，补充“几人同行更划算”。</p>
+                    <button class="ghost-btn">写修改意见</button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="work-area page-panel" data-pages="media">
+                <section class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <h3>推荐工作流候选</h3>
+                      <div class="panel-caption">展示业务理由、输入缺口、显存与风险，不暴露原始节点。</div>
+                    </div>
+                  </div>
+                  <div class="workflow-list">
+                    <article class="workflow-card">
+                      <div>
+                        <strong>LivePortrait + MuseTalk 数字人口播流</strong>
+                        <p>适合门店介绍、活动口播、会员权益讲解。</p>
+                        <div class="workflow-tags">
+                          <span class="pill ok">已验证</span><span class="pill">8GB VRAM</span><span class="pill ok">成功率 92%</span>
+                        </div>
+                      </div>
+                      <button class="primary-btn">选择</button>
+                    </article>
+                    <article class="workflow-card">
+                      <div>
+                        <strong>参考动作迁移唱跳短视频流</strong>
+                        <p>适合参考视频复刻、唱跳招揽、强视觉短视频。</p>
+                        <div class="workflow-tags">
+                          <span class="pill warn">需参考视频</span><span class="pill">12GB VRAM</span><span class="pill warn">中等风险</span>
+                        </div>
+                      </div>
+                      <button class="ghost-btn">查看</button>
+                    </article>
+                    <article class="workflow-card">
+                      <div>
+                        <strong>图生视频 + 封面后处理流</strong>
+                        <p>适合低成本活动宣传、团购套餐展示。</p>
+                        <div class="workflow-tags">
+                          <span class="pill ok">已验证</span><span class="pill">6GB VRAM</span><span class="pill">6-9 分钟</span>
+                        </div>
+                      </div>
+                      <button class="ghost-btn">查看</button>
+                    </article>
+                  </div>
+                </section>
+                <section class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <h3>素材与运行准备</h3>
+                      <div class="panel-caption">先确认输入素材、授权和运行资源，再提交候选生成。</div>
+                    </div>
+                  </div>
+                  <div class="material-grid">
+                    <article class="material-card">
+                      <div><span class="pill ok">可用</span><strong>门店场景图</strong></div>
+                      <p>已解析 8 张，3 张推荐用于首帧和封面。</p>
+                    </article>
+                    <article class="material-card">
+                      <div><span class="pill warn">缺口</span><strong>参考动作视频</strong></div>
+                      <p>推荐上传 8-15 秒正面动作参考，便于动作迁移流稳定。</p>
+                    </article>
+                    <article class="material-card">
+                      <div><span class="pill ok">通过</span><strong>GPU 队列</strong></div>
+                      <p>预计等待 6 分钟，当前工作流显存需求满足。</p>
+                    </article>
+                  </div>
+                </section>
+              </section>
+
+              <section class="panel page-panel" data-pages="outputs">
+                <div class="panel-head">
+                  <div>
+                    <h3>候选产出终选台</h3>
+                    <div class="panel-caption">预览、终选、返工意见和版本记录集中处理。</div>
+                  </div>
+                  <button class="primary-btn">确认最终作品</button>
+                </div>
+                <div class="review-grid">
+                  <article class="review-card featured">
+                    <div class="review-preview">VIDEO A</div>
+                    <strong>15s 数字人唱跳候选 A</strong>
+                    <p>动作自然，场景清晰；建议作为第一轮主候选。</p>
+                    <div class="asset-strip"><span class="pill ok">推荐终选</span><span class="pill">v3</span><span class="pill">抖音 9:16</span></div>
+                  </article>
+                  <article class="review-card">
+                    <div class="preview alt">POSTER</div>
+                    <strong>周末欢唱套餐封面</strong>
+                    <p>可作为视频封面，需补充团购价格角标。</p>
+                    <span class="pill warn">需微调</span>
+                  </article>
+                  <article class="review-card">
+                    <div class="preview audio">AUDIO</div>
+                    <strong>30s 口播配音</strong>
+                    <p>语速略快，建议重生成 24 秒版本。</p>
+                    <span class="pill bad">需返工</span>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="overview text">
+                <div class="panel-head">
+                  <div>
+                    <h3>生产任务队列</h3>
+                    <div class="panel-caption">按项目展示业务对象，而不是散落的底层任务记录。</div>
+                  </div>
+                </div>
+                <div class="table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>任务</th>
+                        <th>阶段</th>
+                        <th>负责人动作</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>KTV 数字人首批视频</td>
+                        <td>影音生产</td>
+                        <td>确认工作流</td>
+                        <td><span class="pill warn">待审批</span></td>
+                        <td>今天 15:40</td>
+                      </tr>
+                      <tr>
+                        <td>套餐海报候选</td>
+                        <td>候选产出</td>
+                        <td>选择最终图</td>
+                        <td><span class="pill ok">可操作</span></td>
+                        <td>今天 14:12</td>
+                      </tr>
+                      <tr>
+                        <td>抖音发布包</td>
+                        <td>发布执行</td>
+                        <td>补充发布时间</td>
+                        <td><span class="pill bad">阻塞</span></td>
+                        <td>昨天 21:08</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="publish">
+                <div class="panel-head">
+                  <div>
+                    <h3>发布执行工作区</h3>
+                    <div class="panel-caption">发布前确认账号、内容、风险和本机执行状态；发布后回填链接与数据。</div>
+                  </div>
+                  <button class="primary-btn">确认发布包</button>
+                </div>
+                <div class="publish-grid">
+                  <article class="publish-step-card">
+                    <div><span class="pill ok">已准备</span><strong>发布内容</strong></div>
+                    <p>视频 A、封面图、标题正文、话题标签已绑定到发布包。</p>
+                    <button class="ghost-btn">预览发布包</button>
+                  </article>
+                  <article class="publish-step-card">
+                    <div><span class="pill warn">待确认</span><strong>执行环境</strong></div>
+                    <p>客户机 Worker 在线，OpenClaw 需人工确认账号登录态。</p>
+                    <button class="ghost-btn">检查本机</button>
+                  </article>
+                  <article class="publish-step-card">
+                    <div><span class="pill">下一步</span><strong>结果回填</strong></div>
+                    <p>发布成功后填写作品链接、截图证据和首轮数据观察计划。</p>
+                    <button class="ghost-btn" data-page-link="feedback">进入数据回流</button>
+                  </article>
+                </div>
+                <div class="publish-checklist">
+                  <ul>
+                    <li><span class="status-dot">✓</span><strong>最终视频已选择</strong><span class="pill ok">通过</span></li>
+                    <li><span class="status-dot">2</span><strong>确认抖音账号登录态</strong><span class="pill warn">待人工</span></li>
+                    <li><span class="status-dot">3</span><strong>设置发布时间和数据回收时间</strong><span class="pill warn">待确认</span></li>
+                  </ul>
+                </div>
+              </section>
+
+              <section class="panel page-panel project-panel-target" id="projectCreatePanel" data-pages="projects" data-project-panel-mode="create">
+                <div class="panel-head">
+                  <div>
+                    <h3>创建运营项目</h3>
+                    <div class="panel-caption">用业务语言描述项目，系统会创建项目、绑定知识库，并进入方案对话。</div>
+                  </div>
+                  <span class="pill ok">推荐从这里开始</span>
+                </div>
+                <div class="project-create-layout">
+                  <form class="project-form">
+                    <section class="form-section">
+                      <h4>1. 基础信息</h4>
+                      <div class="form-grid">
+                        <label class="form-field">
+                          <span>项目名称</span>
+                          <input value="上客 KTV 周末欢唱套餐运营" />
+                        </label>
+                        <label class="form-field">
+                          <span>运营周期</span>
+                          <select>
+                            <option>3 周冲刺</option>
+                            <option>1 周试投</option>
+                            <option>月度常规运营</option>
+                          </select>
+                        </label>
+                        <label class="form-field wide">
+                          <span>运营目标</span>
+                          <textarea>通过抖音本地生活短视频提升周末包厢预约和团购点击，先跑通内容生成、发布、数据回流的闭环。</textarea>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section class="form-section">
+                      <h4>2. 平台与内容类型</h4>
+                      <div class="choice-row">
+                        <span class="choice active">抖音</span>
+                        <span class="choice">小红书</span>
+                        <span class="choice">视频号</span>
+                        <span class="choice">公众号</span>
+                      </div>
+                      <div class="choice-row">
+                        <span class="choice active">短视频</span>
+                        <span class="choice active">封面图</span>
+                        <span class="choice">图文种草</span>
+                        <span class="choice">口播脚本</span>
+                      </div>
+                    </section>
+
+                    <section class="form-section">
+                      <h4>3. 人群、风格与限制</h4>
+                      <div class="form-grid">
+                        <label class="form-field">
+                          <span>目标人群</span>
+                          <input value="周末朋友聚会、生日包厢、团购用户" />
+                        </label>
+                        <label class="form-field">
+                          <span>内容风格</span>
+                          <select>
+                            <option>真实门店 + 轻松口播</option>
+                            <option>强视觉唱跳</option>
+                            <option>价格福利直给</option>
+                          </select>
+                        </label>
+                        <label class="form-field wide">
+                          <span>禁止事项 / 品牌限制</span>
+                          <textarea>不夸大优惠，不出现未授权人物，不使用低俗擦边表达，价格必须以套餐规则为准。</textarea>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section class="form-section">
+                      <h4>4. 素材与知识库绑定</h4>
+                      <div class="choice-row">
+                        <span class="choice active">绑定门店素材库</span>
+                        <span class="choice active">绑定品牌禁用词</span>
+                        <span class="choice active">绑定套餐价格表</span>
+                        <span class="choice">导入历史发布数据</span>
+                      </div>
+                    </section>
+                  </form>
+
+                  <aside class="project-preview">
+                    <div class="preview-card">
+                      <h4>创建后生成</h4>
+                      <ul class="preview-list">
+                        <li><span class="status-dot">1</span><span>项目主对象和阶段状态</span></li>
+                        <li><span class="status-dot">2</span><span>项目知识库检索范围</span></li>
+                        <li><span class="status-dot">3</span><span>方案 Agent 对话上下文</span></li>
+                        <li><span class="status-dot">4</span><span>首轮素材缺口清单</span></li>
+                      </ul>
+                    </div>
+                    <div class="preview-card">
+                      <h4>成功指标</h4>
+                      <p>播放完成率、团购链接点击、预约咨询、评论互动、下一轮优化建议确认。</p>
+                      <div class="asset-strip"><span class="pill">可追踪</span><span class="pill ok">需审批</span></div>
+                    </div>
+                    <button class="primary-btn" data-page-link="planning">创建并进入方案对话</button>
+                  </aside>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="materials">
+                <div class="panel-head">
+                  <div>
+                    <h3>素材库</h3>
+                    <div class="panel-caption">所有素材必须归属到项目，并显示解析、授权和可用于工作流的状态。</div>
+                  </div>
+                  <button class="primary-btn">上传素材</button>
+                </div>
+                <div class="resource-grid">
+                  <article class="resource-card">
+                    <div><span class="pill ok">已解析</span><strong>门店场景图 8 张</strong></div>
+                    <p>可用于封面、首帧、背景图；3 张已被推荐到视频流。</p>
+                    <div class="asset-strip"><span class="pill ok">ComfyUI 可用</span><span class="pill">图片</span></div>
+                  </article>
+                  <article class="resource-card">
+                    <div><span class="pill warn">待补充</span><strong>参考动作视频</strong></div>
+                    <p>动作迁移流缺少 8-15 秒正面参考视频，上传后可解锁候选生成。</p>
+                    <button class="ghost-btn">上传参考</button>
+                  </article>
+                  <article class="resource-card">
+                    <div><span class="pill ok">已授权</span><strong>数字人授权素材</strong></div>
+                    <p>包含人物照片、授权截图和使用范围，已绑定当前项目。</p>
+                    <button class="ghost-btn">查看授权</button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="knowledge">
+                <div class="panel-head">
+                  <div>
+                    <h3>项目知识库</h3>
+                    <div class="panel-caption">这里只展示当前项目绑定的知识集合；切换项目后，RAG 检索范围会跟着切换。</div>
+                  </div>
+                  <button class="primary-btn">导入知识</button>
+                </div>
+                <div class="knowledge-grid">
+                  <article class="knowledge-card featured">
+                    <div><span class="pill ok">跟随当前项目</span><strong id="currentKnowledgeName">上客 KTV 数字人短视频运营 · 项目知识库</strong></div>
+                    <p id="currentKnowledgeDesc">已收录品牌资料、门店卖点、历史发布截图、套餐规则和禁用表达。生成方案和文案时优先检索这些资料。</p>
+                    <div class="asset-strip"><span class="pill" id="currentKnowledgeDocs">7 份知识 / 126 chunks</span><span class="pill ok">RAG 可检索</span><span class="pill">项目隔离</span></div>
+                  </article>
+                  <article class="knowledge-card">
+                    <div><span class="pill warn">需校验</span><strong>套餐价格表</strong></div>
+                    <p>检测到价格字段与旧版本冲突，需要人工确认后再用于发布文案。</p>
+                    <button class="ghost-btn">校验字段</button>
+                  </article>
+                  <article class="knowledge-card">
+                    <div><span class="pill">建议</span><strong>新增竞品样例</strong></div>
+                    <p>建议导入 3-5 条同城 KTV 爆款视频链接，用于标题和镜头节奏参考。</p>
+                    <button class="ghost-btn">添加来源</button>
+                  </article>
+                </div>
+                <div class="knowledge-source-list">
+                  <ul>
+                    <li><span class="status-dot">1</span><strong id="currentKnowledgeSourceA">品牌资料与禁用词</strong><span class="pill ok">已索引</span></li>
+                    <li><span class="status-dot">2</span><strong id="currentKnowledgeSourceB">历史发布链接与数据截图</strong><span class="pill ok">已索引</span></li>
+                    <li><span class="status-dot">3</span><strong id="currentKnowledgeSourceC">门店套餐规则</strong><span class="pill warn">待校验</span></li>
+                  </ul>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="workflows">
+                <div class="panel-head">
+                  <div>
+                    <h3>工作流候选库</h3>
+                    <div class="panel-caption">这里选择业务可理解的工作流，不直接编辑 ComfyUI 节点。</div>
+                  </div>
+                  <button class="primary-btn">刷新推荐</button>
+                </div>
+                <div class="workflow-list">
+                  <article class="workflow-card">
+                    <div>
+                      <strong>LivePortrait + MuseTalk 数字人口播流</strong>
+                      <p>输入：人物图、口播音频、背景图。输出：9:16 口播短视频。</p>
+                      <div class="workflow-tags"><span class="pill ok">已验证</span><span class="pill">8GB VRAM</span><span class="pill ok">推荐</span></div>
+                    </div>
+                    <button class="primary-btn">选择</button>
+                  </article>
+                  <article class="workflow-card">
+                    <div>
+                      <strong>参考动作迁移唱跳流</strong>
+                      <p>输入：人物图、参考动作视频、场景图。输出：唱跳短视频候选。</p>
+                      <div class="workflow-tags"><span class="pill warn">缺参考视频</span><span class="pill">12GB VRAM</span></div>
+                    </div>
+                    <button class="ghost-btn">查看缺口</button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="approvals">
+                <div class="panel-head">
+                  <div>
+                    <h3>审批中心</h3>
+                    <div class="panel-caption">所有需要人工判断的动作集中处理，用业务语言通过、驳回或要求修改。</div>
+                  </div>
+                  <span class="pill warn">12 待处理</span>
+                </div>
+                <div class="approval-list">
+                  <article class="approval">
+                    <span class="status-dot">1</span>
+                    <div><strong>运营方案审批</strong><p>确认内容策略、素材需求、风险边界和发布节奏。</p></div>
+                    <div class="approval-actions"><button>通过</button><button>驳回</button><button>要求修改</button></div>
+                  </article>
+                  <article class="approval">
+                    <span class="status-dot">2</span>
+                    <div><strong>工作流选择审批</strong><p>选择数字人视频流，确认输入缺口和运行风险。</p></div>
+                    <div class="approval-actions"><button>选择此流</button><button>换一组</button></div>
+                  </article>
+                  <article class="approval">
+                    <span class="status-dot">3</span>
+                    <div><strong>发布包审批</strong><p>确认视频、封面、标题、正文、话题和发布时间。</p></div>
+                    <div class="approval-actions"><button>预览</button><button>确认</button></div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="runtime">
+                <div class="panel-head">
+                  <div>
+                    <h3>本机运行时</h3>
+                    <div class="panel-caption">客户机负责真实账号登录态、OpenClaw / Playwright 执行和结果回填。</div>
+                  </div>
+                  <button class="primary-btn">刷新运行时</button>
+                </div>
+                <div class="runtime-grid">
+                  <article class="runtime-card">
+                    <div><span class="pill ok">在线</span><strong>Worker Runtime</strong></div>
+                    <p>本机 Worker 已连接服务器，心跳正常。</p>
+                  </article>
+                  <article class="runtime-card">
+                    <div><span class="pill warn">需确认</span><strong>账号登录态</strong></div>
+                    <p>发布前需要人工确认抖音账号处于正确登录状态。</p>
+                  </article>
+                  <article class="runtime-card">
+                    <div><span class="pill">安全边界</span><strong>审批后执行</strong></div>
+                    <p>不会绕过发布包审批，不自动控制真实账号发布。</p>
+                  </article>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="feedback">
+                <div class="panel-head">
+                  <div>
+                    <h3>数据回流与再次分析</h3>
+                    <div class="panel-caption">发布结果先回到当前项目，再由 Agent 复盘指标、解释异常并生成下一轮动作。</div>
+                  </div>
+                  <button class="primary-btn">再次分析</button>
+                </div>
+                <div class="feedback-grid">
+                  <article class="feedback-card">
+                    <div><span class="pill ok">已回流</span><strong>发布证据</strong></div>
+                    <p>作品链接、发布截图、发布时间和账号确认记录已绑定当前项目。</p>
+                    <div class="asset-strip"><span class="pill">抖音</span><span class="pill ok">证据齐备</span></div>
+                  </article>
+                  <article class="feedback-card">
+                    <div><span class="pill warn">待补拉</span><strong>平台指标</strong></div>
+                    <p>播放、完播、互动、团购点击已回填；预约咨询数据等待客户机二次拉取。</p>
+                    <button class="ghost-btn">补拉数据</button>
+                  </article>
+                  <article class="feedback-card">
+                    <div><span class="pill">下一轮</span><strong>策略草案</strong></div>
+                    <p>系统已生成 3 条优化建议，需人工确认后进入新一轮方案对话。</p>
+                    <button class="ghost-btn" data-page-link="planning">进入方案对话</button>
+                  </article>
+                </div>
+                <div class="table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>回流对象</th>
+                        <th>指标</th>
+                        <th>分析结论</th>
+                        <th>下一步</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>15 秒数字人短视频 A</td>
+                        <td>完播率 42% / 互动 186</td>
+                        <td>开场 3 秒有效，后段套餐信息偏长。</td>
+                        <td>生成更短口播版</td>
+                      </tr>
+                      <tr>
+                        <td>团购链接点击</td>
+                        <td>点击率 1.8%</td>
+                        <td>低于目标，正文中链接位置和利益点需要重写。</td>
+                        <td>重写发布文案</td>
+                      </tr>
+                      <tr>
+                        <td>评论反馈</td>
+                        <td>高频词：价格、包厢、周末</td>
+                        <td>用户更关注套餐细节，应补充一版价格解释素材。</td>
+                        <td>补充知识库规则</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="feedback">
+                <div class="panel-head">
+                  <div>
+                    <h3>再次分析输出</h3>
+                    <div class="panel-caption">不是只看报表，而是把回流数据转成可执行的新任务。</div>
+                  </div>
+                  <span class="pill ok">可进入下一轮</span>
+                </div>
+                <div class="feedback-list">
+                  <article class="data-card">
+                    <span class="status-dot">1</span>
+                    <div><strong>保留方向</strong><p>真实门店场景 + 轻口播有效，下一轮继续沿用同一视觉风格。</p></div>
+                    <b>保留</b>
+                  </article>
+                  <article class="data-card">
+                    <span class="status-dot">2</span>
+                    <div><strong>需要改动</strong><p>套餐信息压缩到 5 秒内，正文第一行直接出现周末欢唱权益。</p></div>
+                    <b>改文案</b>
+                  </article>
+                  <article class="data-card">
+                    <span class="status-dot">3</span>
+                    <div><strong>新增任务</strong><p>补充 1 张套餐价格图和 1 条门店包厢短镜头，进入素材库待解析。</p></div>
+                    <b>生成任务</b>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <aside class="right">
+              <section class="page-panel" data-pages="publish">
+                <div class="month-card">
+                  <div class="month-icon">⏱</div>
+                  <div>
+                    <strong>16 小时</strong>
+                    <small>本月节省人工操作</small>
+                  </div>
+                  <small>已记录</small>
+                </div>
+                <div class="month-card secondary">
+                  <div class="month-icon">↺</div>
+                  <div>
+                    <strong>14 小时</strong>
+                    <small>上月节省人工操作</small>
+                  </div>
+                  <small>对比</small>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="publish">
+                <div class="panel-head">
+                  <div>
+                    <h3>工作强度趋势</h3>
+                    <div class="panel-caption">每日需要人工聚焦的审批与确认。</div>
+                  </div>
+                  <span class="pill">周</span>
+                </div>
+                <div class="focus-chart">
+                  <div class="focus-number">
+                    <strong>14h</strong>
+                    <span class="panel-caption">本周人工聚焦时间</span>
+                    <span class="pill ok">-15% 较上周</span>
+                  </div>
+                  <div class="bars" aria-label="工作强度柱状图">
+                    <div class="bar"><i style="height: 42px"></i><span>日</span></div>
+                    <div class="bar"><i style="height: 96px"></i><span>一</span></div>
+                    <div class="bar"><i style="height: 78px"></i><span>二</span></div>
+                    <div class="bar"><i style="height: 122px"></i><span>三</span></div>
+                    <div class="bar"><i style="height: 116px"></i><span>四</span></div>
+                    <div class="bar"><i style="height: 108px"></i><span>五</span></div>
+                    <div class="bar"><i style="height: 46px"></i><span>六</span></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="publish">
+                <div class="panel-head">
+                  <div>
+                    <h3>审批中心</h3>
+                    <div class="panel-caption">所有业务审批都在客户机完成。</div>
+                  </div>
+                  <span class="pill warn">12 待处理</span>
+                </div>
+                <div class="approval-list">
+                  <article class="approval">
+                    <span class="status-dot">1</span>
+                    <div>
+                      <strong>运营方案审批</strong>
+                      <p>确认内容策略、发布频率、风险边界。</p>
+                    </div>
+                    <div class="approval-actions">
+                      <button>通过</button><button>驳回</button><button>要求修改</button>
+                    </div>
+                  </article>
+                  <article class="approval">
+                    <span class="status-dot">2</span>
+                    <div>
+                      <strong>工作流选择审批</strong>
+                      <p>选择数字人视频流，查看输入缺口。</p>
+                    </div>
+                    <div class="approval-actions">
+                      <button>选择此流</button><button>换一组</button>
+                    </div>
+                  </article>
+                  <article class="approval">
+                    <span class="status-dot">3</span>
+                    <div>
+                      <strong>发布包审批</strong>
+                      <p>确认标题、正文、封面、发布时间和账号。</p>
+                    </div>
+                    <div class="approval-actions">
+                      <button>预览</button><button>确认</button>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="publish-card page-panel" data-pages="publish">
+                <div class="publish-thumb">抖</div>
+                <div class="publish-copy">
+                  <strong>发布包待确认</strong>
+                  <p>平台：抖音 / 账号：上客 KTV / 包含视频、封面、标题、话题与风险提示。</p>
+                </div>
+              </section>
+
+              <section class="panel page-panel" data-pages="publish">
+                <div class="panel-head">
+                  <div>
+                    <h3>数据回流与建议</h3>
+                    <div class="panel-caption">平台数据由客户机拉取回填，再进入下一轮优化。</div>
+                  </div>
+                </div>
+                <div class="data-list">
+                  <article class="data-card">
+                    <span class="status-dot">↗</span>
+                    <div><strong>播放完成率提升</strong><p>首 3 秒字幕更清晰，建议保留强 CTA 开场。</p></div>
+                    <b>+12%</b>
+                  </article>
+                  <article class="data-card">
+                    <span class="status-dot">!</span>
+                    <div><strong>转化链路异常</strong><p>团购链接点击低于预期，需检查发布文案位置。</p></div>
+                    <b style="color: var(--red)">处理</b>
+                  </article>
+                  <article class="data-card">
+                    <span class="status-dot">✓</span>
+                    <div><strong>下一轮优化建议</strong><p>生成 2 个更短口播版本，保留同一封面风格。</p></div>
+                    <b>可生成</b>
+                  </article>
+                </div>
+              </section>
+            </aside>
+          </section>
+        </main>
+      </div>
+    </div>
+    <div class="action-toast" id="actionToast" hidden>
+      <strong id="actionToastTitle">操作已选择</strong>
+      <span id="actionToastBody">当前原型会展示该操作对应的处理区域。</span>
+    </div>
+    <script>
+      function setActivePage(page, projectPanel) {
+        const app = document.querySelector(".app");
+        if (app) {
+          app.dataset.activePage = page;
+        }
+
+        document.querySelectorAll("[data-page-link]").forEach((button) => {
+          button.classList.toggle("active", button.dataset.pageLink === page);
+        });
+
+        document.querySelectorAll(".page-panel").forEach((panel) => {
+          const pages = (panel.dataset.pages || "").split(/\s+/);
+          panel.hidden = !pages.includes(page);
+        });
+
+        if (page === "projects") {
+          setProjectPanel(projectPanel || "switch");
+        }
+      }
+
+      function setProjectPanel(panel, shouldScroll = true) {
+        const mode = panel === "create" ? "create" : "switch";
+        const app = document.querySelector(".app");
+        if (app) {
+          app.dataset.projectPanel = mode;
+        }
+
+        let target = null;
+        document.querySelectorAll(".project-panel-target").forEach((item) => {
+          const isTarget = item.dataset.projectPanelMode === mode;
+          item.hidden = !isTarget;
+          item.classList.toggle("is-focus", isTarget);
+          if (isTarget) {
+            target = item;
+          }
+        });
+
+        if (shouldScroll && target) {
+          target.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+      }
+
+      function setActiveProject(button) {
+        const selectedProject = button.dataset.project;
+        document.querySelectorAll(".project-option").forEach((item) => {
+          item.classList.toggle("active", item.dataset.project === selectedProject);
+        });
+
+        const fields = {
+          currentProjectName: button.dataset.project,
+          currentProjectStage: button.dataset.stage,
+          currentProjectPlatform: button.dataset.platform,
+          currentProjectOwner: button.dataset.owner,
+          currentProjectRisk: button.dataset.risk,
+          currentProjectKnowledge: button.dataset.knowledge,
+          currentKnowledgeName: `${button.dataset.project || "当前项目"} · 项目知识库`,
+          currentKnowledgeDesc: button.dataset.knowledgeDesc,
+          currentKnowledgeDocs: button.dataset.knowledge,
+          currentKnowledgeSourceA: button.dataset.sourceA,
+          currentKnowledgeSourceB: button.dataset.sourceB,
+          currentKnowledgeSourceC: button.dataset.sourceC,
+        };
+
+        Object.entries(fields).forEach(([id, value]) => {
+          const target = document.getElementById(id);
+          if (target) {
+            target.textContent = value || "-";
+          }
+        });
+      }
+
+      document.querySelectorAll("[data-page-link]").forEach((button) => {
+        button.addEventListener("click", () => {
+          setActivePage(button.dataset.pageLink || "overview", button.dataset.projectPanel);
+        });
+      });
+
+      document.querySelectorAll("[data-project-panel]:not([data-page-link])").forEach((button) => {
+        button.addEventListener("click", () => setProjectPanel(button.dataset.projectPanel));
+      });
+
+      document.querySelectorAll(".project-option").forEach((button) => {
+        button.addEventListener("click", () => setActiveProject(button));
+      });
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button || button.dataset.page || button.dataset.pageLink || button.dataset.projectPanel || button.classList.contains("project-option")) {
+          return;
+        }
+
+        const label = button.textContent.trim() || "操作";
+        const toast = document.getElementById("actionToast");
+        const title = document.getElementById("actionToastTitle");
+        const body = document.getElementById("actionToastBody");
+        if (!toast || !title || !body) {
+          return;
+        }
+        title.textContent = `已选择：${label}`;
+        body.textContent = "这是当前界面的操作入口；真实系统中会打开对应的审批、上传、预览、确认或运行时处理面板。";
+        toast.hidden = false;
+        window.clearTimeout(window.__aiopsToastTimer);
+        window.__aiopsToastTimer = window.setTimeout(() => {
+          toast.hidden = true;
+        }, 2600);
+      });
+
+      const initialProject = document.querySelector(".project-option.active");
+      if (initialProject) {
+        setActiveProject(initialProject);
+      }
+      setActivePage("overview");
+    </script>
+  </body>
+</html>

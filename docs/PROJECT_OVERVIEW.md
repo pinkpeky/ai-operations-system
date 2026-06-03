@@ -116,13 +116,14 @@ Completed capabilities:
 
 Experimental capabilities:
 
-- Local reranker provider is a placeholder interface. The active reranker is still mock.
+- Local semantic reranker worker is available through `worker.reranker_worker.main:app` and `/api/rerank`; the current production-server `.env` uses `RERANKER_PROVIDER=local` with the D-drive Ollama `bge-m3` model and fail-closed fallback disabled.
+- Local Browser Worker production runtime is available through `worker/main.py` on port 9100 with strict signed requests, `BROWSER_PROVIDER=remote`, and the `AI Ops Browser Worker` Windows startup task. Main Agent selection still requires registering the worker in the target workspace after the API is running.
 - RAG Eval stores trace and manual score, but does not compute automatic metrics yet.
 - Local Ollama providers are supported, but default Docker smoke tests use mock providers unless `.env` enables local providers.
 
 Planned capabilities:
 
-- Real reranker model integration.
+- Cross-encoder reranker model integration.
 - Real BM25 or external search engine.
 - RAG metrics and batch evaluation.
 - Advanced Tool Calling with autonomous planning, function calling, ReAct, and planner loops.
@@ -630,7 +631,7 @@ Supported local models:
 
 - LLM: Ollama `mistral`
 - Embedding: Ollama `bge-m3`
-- Reranker: local provider interface only, no real local reranker model is wired yet.
+- Reranker: local semantic reranker worker on port `8002` using Ollama embeddings; cross-encoder reranker is not wired yet.
 
 Supported file upload types:
 
@@ -716,7 +717,7 @@ Not supported in Phase 11:
 
 ## Current Limitations
 
-- Local reranker is still a placeholder interface.
+- Local reranker worker exists, but production use still requires the configured Ollama embedding model to be downloaded and reachable.
 - Keyword retrieval uses PostgreSQL `ILIKE` and simple keyword scoring.
 - No Elasticsearch, OpenSearch, or real BM25 engine.
 - Memory is a PostgreSQL text-search foundation only; no vector memory, graph memory, autonomous memory planning, or personality memory is implemented.

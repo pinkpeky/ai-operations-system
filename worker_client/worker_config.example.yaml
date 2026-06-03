@@ -28,6 +28,12 @@ capabilities:
 openclaw:
   enabled: true
   provider: mock
+  base_url: ""
+  api_key: null
+  timeout_seconds: 60
+  health_path: /openclaw/health
+  capabilities_path: /openclaw/capabilities
+  action_path: /openclaw/actions
 allowed_actions:
   - navigate
   - click

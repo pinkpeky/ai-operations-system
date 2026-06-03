@@ -1,0 +1,3 @@
+shot_id,seed_image,prompt,duration,seed,title
+demo_host,E:\ComfyUI\input\seed_virtual_host_480x832.jpg,"realistic fictional female KTV host in a luxury business KTV room, subtle breathing motion, gentle hand movement, neon cyan magenta lighting, polished Douyin commercial video style, stable full body, no text, no watermark",3.8,2026052711,"AI KTV host demo"
+demo_singer,E:\ComfyUI\input\seed_virtual_singer_480x832.jpg,"realistic fictional female virtual singer in a luxury KTV room, expressive singing posture, subtle camera movement, premium neon club lighting, smooth short-video animation, stable face and body, no text, no watermark",3.8,2026052712,"AI KTV singer demo"

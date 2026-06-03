@@ -96,14 +96,19 @@ async def heartbeat_loop(config: WorkerClientConfig, *, status: str = "online", 
     """循环发送 heartbeat，支持 Ctrl+C / graceful shutdown。"""
 
     event = stop_event or asyncio.Event()
-    while not event.is_set():
-        try:
-            await send_heartbeat_once(config, status=status)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.error("Worker heartbeat loop iteration failed", extra={"error": str(exc)})
-        try:
-            await asyncio.wait_for(event.wait(), timeout=config.heartbeat_interval_seconds)
-        except asyncio.TimeoutError:
-            continue
+    update_status({"heartbeat_running": True, "current_status": status, "last_error": None})
+    try:
+        while not event.is_set():
+            update_status({"heartbeat_running": True, "current_status": status, "last_error": None})
+            try:
+                await send_heartbeat_once(config, status=status)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("Worker heartbeat loop iteration failed", extra={"error": str(exc)})
+            try:
+                await asyncio.wait_for(event.wait(), timeout=config.heartbeat_interval_seconds)
+            except asyncio.TimeoutError:
+                continue
+    finally:
+        update_status({"heartbeat_running": False})

@@ -1,0 +1,9 @@
+{
+  "profile_key": "production-server",
+  "healthchecks": [
+    { "name": "api-health", "url": "http://localhost:8000/api/v1/health", "required": true },
+    { "name": "browser-worker-health", "url": "http://localhost:9100/health", "required": true },
+    { "name": "comfyui-health", "url": "http://localhost:8188/system_stats", "required": true },
+    { "name": "browser-worker-summary", "url": "http://localhost:8000/api/v1/browser-workers/health/summary", "required": true, "headers": { "X-Workspace-Id": "production-workspace", "X-User-Id": "ops" } }
+  ]
+}

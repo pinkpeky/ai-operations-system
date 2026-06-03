@@ -1,0 +1,17 @@
+{
+  "status": "ready_for_queue_submit",
+  "source_workflow_path": "E:\\ComfyUI_cu130\\ComfyUI\\user\\default\\workflows\\5-数字人：图像语音对口型-唱歌-带货-对话\\Wan2.1_I2V_InfiniteTalk_提示词调度动作控制图生视频数字人(KJ版).json",
+  "source_workflow_original_unchanged": true,
+  "materialized_workflow_path": "D:\\ai-operations-system\\storage\\comfyui_materialized_workflows\\original_douyin_requirement_15s_sing_dance_smoke\\digital_human_sing_dance_i2v\\Wan2.1_I2V_InfiniteTalk__KJ.materialized.json",
+  "api_prompt_path": "D:\\ai-operations-system\\storage\\comfyui_materialized_workflows\\original_douyin_requirement_15s_sing_dance_smoke\\digital_human_sing_dance_i2v\\Wan2.1_I2V_InfiniteTalk__KJ.materialized.api_prompt.json",
+  "api_prompt_node_count": 26,
+  "missing_node_types": [],
+  "unresolved_inputs": [],
+  "scene_image_name": "scene_ai_virtual_host_seed.png",
+  "audio_name": "aiops_original_dance_song_15s.wav",
+  "positive_prompt": "A fictional adult East Asian AI female singer-dancer performs a lively KTV dance-pop stage routine inside the same neon private room. She sings toward the camera with visible mouth movement while dancing to the beat: rhythmic body sway, step-touch footwork, shoulder turns, elegant arm waves, small hip movement, brief hand flourish, confident stage presence, full-body vertical framing, glossy black evening dress moving naturally. Preserve her face identity, beauty, outfit, body proportions, the KTV room layout, sofa, table, wall screens, neon reflections, blue and magenta lighting, and camera perspective. The camera stays mostly stable with a slight music-video push-in; energetic commercial KTV atmosphere, no scene change.",
+  "negative_prompt": "static person, only talking, no dancing, distorted face, asymmetrical eyes, bad hands, extra fingers, extra limbs, broken body, broken legs, foot sliding, body melting, face identity drift, changed room layout, duplicated people, childlike appearance, real person cutout, watermark, subtitles, QR code, severe flicker, low quality, blurry, cropped head, cropped feet, camera jump, disfigured body, plastic skin",
+  "frames": 360,
+  "fps": 24.0,
+  "scale_to_length": 640
+}

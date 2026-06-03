@@ -17,9 +17,9 @@ def test_frontend_env_examples_use_server_root_and_workspace_headers() -> None:
         "worker_console_desktop/.env.example",
     ):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "VITE_AI_SERVER_API=http://localhost:8000" in text
-        assert "VITE_WORKSPACE_ID=demo-workspace" in text
-        assert "VITE_USER_ID=demo-user" in text
+        assert "VITE_AI_SERVER_API=http://127.0.0.1:8000" in text
+        assert "VITE_WORKSPACE_ID=production-workspace" in text
+        assert "VITE_USER_ID=production-operator" in text
 
     for relative in ("worker_console/.env.example", "worker_console_desktop/.env.example"):
         text = (ROOT / relative).read_text(encoding="utf-8")
@@ -39,12 +39,20 @@ def test_backend_cors_allows_development_frontend_origins() -> None:
     assert "CORS_ALLOWED_ORIGINS" in config
     assert "CORS_ALLOWED_ORIGINS" in env_example
     assert "CORS_ALLOWED_ORIGINS" in compose
+    assert "WORKER_CLIENT_OPENCLAW_BASE_URL" in env_example
+    assert "WORKER_CLIENT_OPENCLAW_BASE_URL" in compose
+    assert "WORKER_CLIENT_OPENCLAW_API_KEY" in env_example
+    assert "WORKER_CLIENT_OPENCLAW_API_KEY" in compose
 
     for origin in (
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "http://localhost:5180",
         "http://127.0.0.1:5180",
+        "http://localhost:5181",
+        "http://127.0.0.1:5181",
         "tauri://localhost",
     ):
         assert origin in config

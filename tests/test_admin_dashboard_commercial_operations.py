@@ -37,6 +37,433 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "refreshAgentSkillOrchestration" in text
     assert "controllerAgent" in text
     assert "agentSkills" in text
+    assert "Phase 69K Server Primary Step Dashboard" in text
+    assert "productionActionAuditState" in text
+    assert "productionInterventionQueueState" in text
+    assert "loadProductionActionAudits" in text
+    assert "loadProductionClosedLoopInterventionQueue" in text
+    assert "productionClosedLoopPrimaryStep" in text
+    assert "productionClosedLoopPrimaryStepStaleness" in text
+    assert "productionClosedLoopOperatorChecklist" in text
+    assert "Phase 69N Production Closed-Loop Intervention Queue" in text
+    assert "productionClosedLoopInterventionQueueItems" in text
+    assert "productionClosedLoopInterventionQueueRows" in text
+    assert "productionClosedLoopInterventionQueueCount" in text
+    assert "acknowledgeProductionClosedLoopInterventionQueueItem" in text
+    assert "createProductionClosedLoopInterventionAcknowledgement" in text
+    assert "interventionAssignee" in text
+    assert "interventionNotes" in text
+    assert "ack_status" in text
+    assert "productionClosedLoopInterventionReminderCount" in text
+    assert "ack_sla_status" in text
+    assert "ack_waiting_seconds" in text
+    assert "reminder_recommended" in text
+    assert "recordProductionClosedLoopInterventionReminderDispatch" in text
+    assert "createProductionClosedLoopInterventionReminderDispatch" in text
+    assert "interventionReminderChannel" in text
+    assert "interventionReminderRecipient" in text
+    assert "interventionReminderMessage" in text
+    assert "reminder_dispatch_status" in text
+    assert "reminder_dispatch_channel" in text
+    assert "reminder_dispatch_cooldown" in text
+    assert "reminder_cooldown_status" in text
+    assert "next_reminder_allowed" in text
+    assert "reminder_follow_up_recommended" in text
+    assert "productionClosedLoopInterventionFollowUpCount" in text
+    assert "productionClosedLoopInterventionQueueSummary" in text
+    assert "acknowledgementSlaStatusCounts" in text
+    assert "reminderDispatchStatusCounts" in text
+    assert "reminderCooldownStatusCounts" in text
+    assert "productionClosedLoopInterventionServerFollowUpCount" in text
+    assert "productionClosedLoopInterventionOverdueCount" in text
+    assert "productionClosedLoopInterventionRecommendedAction" in text
+    assert "Phase 70B Server Intervention Pressure Overview" in text
+    assert "productionClosedLoopInterventionPressureScore" in text
+    assert "productionClosedLoopInterventionPressureLevel" in text
+    assert "productionClosedLoopInterventionPressureLabel" in text
+    assert "productionClosedLoopInterventionPressureDrivers" in text
+    assert "productionClosedLoopInterventionPressureRecommendation" in text
+    assert "productionClosedLoopInterventionPressureCards" in text
+    assert "commercial-intervention-pressure-overview" in text
+    assert "commercial-intervention-pressure-grid" in text
+    assert "server_read_only_no_openclaw_no_playwright_no_publish" in text
+    assert "productionInterventionAcknowledgementState" in text
+    assert "loadProductionClosedLoopInterventionAcknowledgements" in text
+    assert "productionClosedLoopInterventionAcknowledgementRecords" in text
+    assert "productionClosedLoopInterventionLatestAcknowledgement" in text
+    assert "recordProductionClosedLoopInterventionAcknowledgementStatus" in text
+    assert "Phase 70C Server Intervention Acknowledgement History" in text
+    assert "Phase 70C Server Intervention Status Controls" in text
+    assert "commercial-intervention-ack-history" in text
+    assert "commercial-intervention-ack-history-list" in text
+    assert "commercial-intervention-status-actions" in text
+    assert "Mark in progress" in text
+    assert "Dismiss intervention" in text
+    assert "in_progress" in text
+    assert "dismissed" in text
+    assert "productionClosedLoopProjectStageCounts" in text
+    assert "productionClosedLoopProjectBlockerRows" in text
+    assert "productionClosedLoopProjectBlockedCount" in text
+    assert "productionClosedLoopProjectStageOverview" in text
+    assert "Phase 70D Server Project Stage Blocking Overview" in text
+    assert "commercial-project-stage-overview" in text
+    assert "commercial-project-stage-grid" in text
+    assert "commercial-project-blocker-list" in text
+    assert "Closed-loop stage and blockers" in text
+    assert "productionAcceptanceSummaryState" in text
+    assert "loadProductionClosedLoopAcceptanceSummary" in text
+    assert "productionClosedLoopAcceptanceSummary" in text
+    assert "productionClosedLoopAcceptanceOperations" in text
+    assert "productionClosedLoopAcceptanceTopBlockers" in text
+    assert "productionClosedLoopAcceptanceStatus" in text
+    assert "productionClosedLoopAcceptanceCards" in text
+    assert "productionClosedLoopCompletionPercent" in text
+    assert "productionClosedLoopCompletionLevel" in text
+    assert "productionClosedLoopCompletionNextFocus" in text
+    assert "productionClosedLoopRemainingGates" in text
+    assert "productionClosedLoopScoreBreakdown" in text
+    assert "productionClosedLoopOpenClawProviderReadiness" in text
+    assert "productionClosedLoopOpenClawProviderStatus" in text
+    assert "productionDeliveryPlanState" in text
+    assert "productionDeliveryAuditBlockerClearancePlanState" in text
+    assert "productionDeliveryActionPackagesState" in text
+    assert "productionDeliveryRemediationMapState" in text
+    assert "productionDeliveryRemediationWorkOrdersState" in text
+    assert "productionDeliveryRemediationWorkOrderCoverageState" in text
+    assert "productionDeliveryRemediationWorkOrderAssignmentState" in text
+    assert "productionDeliveryRemediationWorkOrderExecutionPrepState" in text
+    assert "productionDeliveryRemediationWorkOrderCompletionState" in text
+    assert "productionDeliveryRemediationWorkOrderReadinessRefreshState" in text
+    assert "productionDeliveryRemediationWorkOrderSubmitState" in text
+    assert "productionDeliveryActionEvidenceState" in text
+    assert "loadProductionClosedLoopDeliveryPlan" in text
+    assert "loadProductionClosedLoopDeliveryAuditBlockerClearancePlan" in text
+    assert "loadProductionClosedLoopDeliveryActionPackages" in text
+    assert "loadProductionClosedLoopDeliveryRemediationMap" in text
+    assert "loadProductionClosedLoopDeliveryRemediationWorkOrders" in text
+    assert "loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage" in text
+    assert "loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep" in text
+    assert "loadProductionClosedLoopDeliveryActionEvidenceRecords" in text
+    assert "assignMissingProductionClosedLoopDeliveryRemediationWorkOrders" in text
+    assert "completeProductionClosedLoopDeliveryRemediationWorkOrder" in text
+    assert "refreshProductionClosedLoopDeliveryRemediationWorkOrderReadiness" in text
+    assert "recordProductionClosedLoopDeliveryRemediationInProgress" in text
+    assert "recordProductionClosedLoopDeliveryBlockedEvidence" in text
+    assert "createProductionClosedLoopDeliveryRemediationWorkOrder" in text
+    assert "createProductionClosedLoopDeliveryActionEvidenceRecord" in text
+    assert "productionClosedLoopDeliveryPlan" in text
+    assert "productionClosedLoopDeliveryAuditBlockerClearancePlan" in text
+    assert "productionClosedLoopDeliveryActionPackages" in text
+    assert "productionClosedLoopDeliveryRemediationMap" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrders" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderCoverage" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep" in text
+    assert "productionClosedLoopDeliveryActionEvidence" in text
+    assert "productionClosedLoopVisibleRemediations" in text
+    assert "productionClosedLoopDeliveryRemediationLatestWorkOrder" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderStatus" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderCoverageStatus" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderCoverageVisibleItems" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepStatus" in text
+    assert "productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepVisibleItems" in text
+    assert "productionDeliveryActionEvidenceSubmitState" in text
+    assert "productionClosedLoopImmediateActions" in text
+    assert "productionClosedLoopVisibleActionPackages" in text
+    assert "productionClosedLoopDeliveryActionLatestEvidence" in text
+    assert "productionClosedLoopOpenDeliveryGates" in text
+    assert "productionClosedLoopDeliveryStatus" in text
+    assert "productionClosedLoopDeliveryActionPackageStatus" in text
+    assert "productionClosedLoopDeliveryRemediationStatus" in text
+    assert "productionClosedLoopDeliveryActionEvidenceStatus" in text
+    assert "Phase 70U Production Closed-Loop Delivery Plan" in text
+    assert "Phase 71G Production Delivery Audit Blocker Clearance Plan" in text
+    assert "Phase 71G Blocker Clearance" in text
+    assert "Assign blocker work orders" in text
+    assert "productionClosedLoopDeliveryAuditBlockerAssignmentStatus" in text
+    assert "assignProductionClosedLoopDeliveryAuditBlockerWorkOrders" in text
+    assert "Phase 71I Production Delivery Audit Blocker Runbook Handoff" in text
+    assert "Phase 71I Runbook Handoff" in text
+    assert "productionClosedLoopDeliveryAuditBlockerRunbookStatus" in text
+    assert "productionClosedLoopDeliveryAuditBlockerRunbookEvidenceStatus" in text
+    assert "productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageStatus" in text
+    assert "productionDeliveryAuditNextActionPlanState" in text
+    assert "loadProductionClosedLoopDeliveryAuditNextActionPlan" in text
+    assert "productionClosedLoopDeliveryAuditNextActionPlan" in text
+    assert "productionClosedLoopDeliveryAuditNextActionPlanVisibleActions" in text
+    assert "productionClosedLoopDeliveryAuditNextActionPlanStatus" in text
+    assert "productionDeliveryAuditOperatorQueueState" in text
+    assert "loadProductionClosedLoopDeliveryAuditOperatorQueue" in text
+    assert "productionClosedLoopDeliveryAuditOperatorQueue" in text
+    assert "productionClosedLoopDeliveryAuditOperatorQueueGroups" in text
+    assert "productionClosedLoopDeliveryAuditOperatorQueueStatus" in text
+    assert "productionDeliveryAuditOpenClawProviderHandoffState" in text
+    assert "loadProductionClosedLoopDeliveryAuditOpenClawProviderHandoff" in text
+    assert "productionClosedLoopDeliveryAuditOpenClawProviderHandoff" in text
+    assert "productionClosedLoopDeliveryAuditOpenClawProviderHandoffItems" in text
+    assert "productionClosedLoopDeliveryAuditOpenClawProviderHandoffStatus" in text
+    assert "productionDeliveryAuditOperatorQueueRecordSubmitState" in text
+    assert "recordProductionClosedLoopDeliveryAuditOperatorQueueInProgress" in text
+    assert "admin_dashboard Phase 71Q operator queue control" in text
+    assert "Record runbook evidence" in text
+    assert "admin_dashboard Phase 71J runbook evidence control" in text
+    assert "Refresh runbook readiness" in text
+    assert "productionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState" in text
+    assert "refreshProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadiness" in text
+    assert "Phase 71O Production Delivery Audit Next Action Plan" in text
+    assert "Phase 71P Production Delivery Audit Operator Queue" in text
+    assert "Phase 71R OpenClaw Provider Handoff" in text
+    assert "production_closed_loop_delivery_audit_openclaw_provider_handoff" in text
+    assert "openclaw_provider_handoff_waiting" in text
+    assert "Phase 70W Production Closed-Loop Delivery Action Packages" in text
+    assert "Phase 70Z Production Delivery Remediation Map" in text
+    assert "Phase 71A Production Delivery Remediation Work Orders" in text
+    assert "Phase 71B Production Delivery Remediation Work Order Coverage" in text
+    assert "Phase 71D Production Delivery Remediation Work Order Execution Prep" in text
+    assert "Assign missing work orders" in text
+    assert "Mark in progress" in text
+    assert "Record completion evidence" in text
+    assert "Refresh readiness after completion" in text
+    assert "Record blocked evidence" in text
+    assert "commercial-delivery-plan-panel" in text
+    assert "commercial-delivery-plan-grid" in text
+    assert "commercial-delivery-plan-list" in text
+    assert "commercial-delivery-audit-blocker-clearance" in text
+    assert "commercial-delivery-audit-blocker-clearance-list" in text
+    assert "commercial-delivery-audit-runbooks" in text
+    assert "commercial-delivery-audit-runbook-list" in text
+    assert "commercial-delivery-audit-runbook-coverage-list" in text
+    assert "commercial-delivery-audit-next-action-plan" in text
+    assert "commercial-delivery-audit-next-action-list" in text
+    assert "commercial-delivery-audit-operator-queue" in text
+    assert "commercial-delivery-audit-operator-queue-list" in text
+    assert "commercial-delivery-audit-openclaw-provider-handoff" in text
+    assert "commercial-delivery-audit-openclaw-provider-handoff-list" in text
+    assert "commercial-delivery-action-packages" in text
+    assert "commercial-delivery-action-package-list" in text
+    assert "commercial-delivery-remediation-map" in text
+    assert "commercial-delivery-remediation-list" in text
+    assert "commercial-delivery-remediation-work-orders" in text
+    assert "commercial-delivery-remediation-work-order-coverage" in text
+    assert "commercial-delivery-remediation-work-order-coverage-list" in text
+    assert "commercial-delivery-remediation-work-order-execution-prep" in text
+    assert "commercial-delivery-remediation-work-order-execution-prep-list" in text
+    assert "commercial-delivery-action-evidence" in text
+    assert "production_closed_loop_delivery_plan" in text
+    assert "production_closed_loop_delivery_audit_blocker_clearance_plan" in text
+    assert "production_closed_loop_delivery_audit_blocker_work_order_assignment" in text
+    assert "production_closed_loop_delivery_audit_blocker_runbook_handoff" in text
+    assert "production_closed_loop_delivery_audit_blocker_runbook_evidence" in text
+    assert "production_closed_loop_delivery_audit_blocker_runbook_evidence_coverage" in text
+    assert "production_closed_loop_delivery_audit_blocker_runbook_evidence_readiness_refresh" in text
+    assert "production_closed_loop_delivery_audit_next_action_plan" in text
+    assert "production_closed_loop_delivery_audit_operator_queue" in text
+    assert "production_closed_loop_delivery_audit_operator_queue_record" in text
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/blocker-clearance-plan/assign-work-orders"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-records"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-coverage"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-coverage/readiness-refresh"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/next-action-plan"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/next-action-plan/operator-queue/records"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert (
+        "/commercial-operations/production-closed-loop/delivery-audit/next-action-plan/operator-queue"
+        in CLIENT.read_text(encoding="utf-8")
+    )
+    assert "production_closed_loop_delivery_action_packages" in text
+    assert "production_closed_loop_delivery_remediation_map" in text
+    assert "production_closed_loop_delivery_remediation_work_order" in text
+    assert "production_closed_loop_delivery_remediation_work_order_coverage" in text
+    assert "production_closed_loop_delivery_remediation_work_order_assignment" in text
+    assert "production_closed_loop_delivery_remediation_work_order_execution_prep" in text
+    assert "production_closed_loop_delivery_remediation_work_order_completion" in text
+    assert "production_closed_loop_delivery_remediation_work_order_readiness_refresh" in text
+    assert "production_closed_loop_delivery_action_evidence" in text
+    assert "delivery_plan_only_no_external_execution" in text
+    assert "delivery_action_packages_only_no_external_execution" in text
+    assert "delivery_remediation_map_only_no_external_execution" in text
+    assert "delivery_remediation_work_order_only_no_external_execution" in text
+    assert "delivery_remediation_work_order_coverage_only_no_external_execution" in text
+    assert "delivery_remediation_work_order_execution_prep_only_no_external_execution" in text
+    assert "delivery_remediation_work_order_completion" in text
+    assert "delivery_remediation_work_order_readiness_refresh" in text
+    assert "admin_dashboard Phase 71C assignment control" in text
+    assert "admin_dashboard Phase 71H audit blocker work-order assignment control" in text
+    assert "admin_dashboard Phase 71E remediation work-order completion control" in text
+    assert "admin_dashboard" in text
+    assert "71F" in text
+    assert "delivery_action_evidence_only_no_external_execution" in text
+    assert "admin_dashboard Phase 71A remediation work-order control" in text
+    assert "admin_dashboard Phase 70Y delivery evidence control" in text
+    assert "Phase 70E Workspace Acceptance Summary" in text
+    assert "Phase 70F Objective Completion Score" in text
+    assert "commercial-acceptance-summary-panel" in text
+
+
+def test_phase_73g_server_codex_quiet_cockpit_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73G_SERVER_CODEX_QUIET_COCKPIT.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73G Server Codex Quiet Cockpit",
+        "Phase 73G Server Maintenance Detail Drawer",
+        "commercial-server-quiet-cockpit",
+        "commercial-server-quiet-pill",
+        "commercial-server-maintenance-drawer",
+        "commercial-server-maintenance-body",
+        "commercial-maintenance-cockpit",
+        "commercial-intervention-pressure-overview",
+        "commercial-acceptance-summary-panel",
+        "commercial-delivery-plan-panel",
+        "commercial-project-stage-overview",
+        "Production closed-loop intervention queue",
+    ]:
+        assert token in text
+
+    quiet_index = text.index('aria-label="Phase 73G Server Codex Quiet Cockpit"')
+    drawer_index = text.index('aria-label="Phase 73G Server Maintenance Detail Drawer"', quiet_index)
+    maintenance_index = text.index('className="commercial-maintenance-cockpit"', drawer_index)
+    pressure_index = text.index('className={`commercial-intervention-pressure-overview', maintenance_index)
+    acceptance_index = text.index('className="commercial-acceptance-summary-panel"', pressure_index)
+    delivery_index = text.index('className="commercial-delivery-plan-panel"', acceptance_index)
+    project_index = text.index('className="commercial-project-stage-overview"', delivery_index)
+    intervention_index = text.index('title="Production closed-loop intervention queue"', project_index)
+    assert quiet_index < drawer_index < maintenance_index < pressure_index < acceptance_index < delivery_index < project_index < intervention_index
+
+    for token in [
+        ".commercial-server-quiet-cockpit",
+        ".commercial-server-quiet-pill",
+        ".commercial-server-maintenance-drawer",
+        ".commercial-server-maintenance-drawer > summary",
+        ".commercial-server-maintenance-drawer:not([open]) .commercial-server-maintenance-body",
+        ".commercial-server-maintenance-body",
+        "grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(160px, 0.7fr))",
+        "width: 100%",
+        "min-width: 0",
+        ".commercial-approval-grid input",
+        ".commercial-content-grid select",
+        ".commercial-link-grid select",
+        "max-width: 100%",
+    ]:
+        assert token in styles
+    drawer_rule_index = styles.index(".commercial-server-maintenance-drawer:not([open]) .commercial-server-maintenance-body")
+    drawer_fold_index = styles.index("display: none", drawer_rule_index)
+    body_rule_index = styles.index(".commercial-server-maintenance-body {")
+    assert body_rule_index >= 0
+    assert drawer_rule_index < drawer_fold_index
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73G Server Codex Quiet Cockpit" in doc_text
+        assert "commercial-server-quiet-cockpit" in doc_text
+        assert "commercial-server-maintenance-drawer" in doc_text
+        assert "commercial-maintenance-cockpit" in doc_text
+        assert "commercial-acceptance-summary-panel" in doc_text
+        assert "commercial-delivery-plan-panel" in doc_text
+        assert "Codex-like" in doc_text
+        assert "admin_dashboard" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+    assert "commercial-acceptance-completion-strip" in text
+    assert "commercial-acceptance-progress" in text
+    assert "commercial-acceptance-gates" in text
+    assert "commercial-acceptance-summary-grid" in text
+    assert "commercial-acceptance-blocker-list" in text
+    assert "production_closed_loop_acceptance_summary" in text
+    assert "production_closed_loop_completion_score" in text
+    assert "real_publish_provider_ready" in text
+    assert "recommended_action" in text
+    assert "action_key" in text
+
+
+def test_phase_73h_server_quiet_create_drawer_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73H_SERVER_QUIET_CREATE_DRAWER.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73H Server Quiet Create Operation Drawer",
+        "commercial-server-create-drawer",
+        "commercial-server-create-body",
+        "<Panel title={copy.createTitle}",
+        "createOperation()",
+        "commercial-action-result-drawer",
+    ]:
+        assert token in text
+
+    quiet_index = text.index('aria-label="Phase 73G Server Codex Quiet Cockpit"')
+    maintenance_index = text.index('aria-label="Phase 73G Server Maintenance Detail Drawer"', quiet_index)
+    create_drawer_index = text.index('aria-label="Phase 73H Server Quiet Create Operation Drawer"', maintenance_index)
+    create_body_index = text.index('className="commercial-server-create-body"', create_drawer_index)
+    create_panel_index = text.index("<Panel title={copy.createTitle}", create_body_index)
+    list_panel_index = text.index("<Panel title={copy.listTitle}", create_panel_index)
+    assert quiet_index < maintenance_index < create_drawer_index < create_body_index < create_panel_index < list_panel_index
+
+    for token in [
+        ".commercial-server-create-drawer",
+        ".commercial-server-create-drawer > summary",
+        ".commercial-server-create-drawer:not([open]) .commercial-server-create-body",
+        ".commercial-server-create-body",
+        "grid-template-columns: minmax(0, 1fr)",
+    ]:
+        assert token in styles
+    drawer_rule_index = styles.index(".commercial-server-create-drawer:not([open]) .commercial-server-create-body")
+    drawer_fold_index = styles.index("display: none", drawer_rule_index)
+    body_rule_index = styles.index(".commercial-server-create-body {")
+    assert body_rule_index >= 0
+    assert drawer_rule_index < drawer_fold_index
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73H Server Quiet Create Drawer" in doc_text
+        assert "commercial-server-create-drawer" in doc_text
+        assert "commercial-server-create-body" in doc_text
+        assert "createOperation()" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+    assert "intervention_queue_empty" in text
+    assert "Record reminder dispatch" in text
+    assert "operationsForTable" in text
+    assert "closedLoopStalenessPriority" in text
+    assert "staleClosedLoopCount" in text
+    assert "production_closed_loop_primary_step_key" in text
+    assert "production_closed_loop_staleness_status" in text
+    assert "production_closed_loop_waiting_seconds" in text
+    assert "production_closed_loop_escalation_recommended" in text
+    assert "primary_step_contract" in text
+    assert "primary_step_staleness_contract" in text
+    assert "staleness_status" in text
+    assert "escalation_recommended" in text
+    assert "server_read_only_no_openclaw_no_playwright_no_publish" in text
     assert "client execution" in text
     assert 'phase: "61Z"' in text
     assert "Runtime adapter contract" in text
@@ -46,6 +473,59 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "read_only_probe_enabled" in text
     assert "read_only_probe_attempted" in text
     assert "readiness_status" in text
+
+
+def test_phase_73i_server_operation_context_drawer_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73I_SERVER_OPERATION_CONTEXT_DRAWER.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73I Server Operation Context Drawer",
+        "commercial-server-operation-context-drawer",
+        "commercial-server-operation-context-body",
+        "<Panel title={copy.detailTitle}",
+        "<Panel",
+        "title={copy.agentSkillTitle}",
+        "refreshAgentSkillOrchestration()",
+    ]:
+        assert token in text
+
+    list_panel_index = text.index("<Panel title={copy.listTitle}")
+    context_drawer_index = text.index('aria-label="Phase 73I Server Operation Context Drawer"', list_panel_index)
+    context_body_index = text.index('className="commercial-server-operation-context-body"', context_drawer_index)
+    detail_panel_index = text.index("<Panel title={copy.detailTitle}", context_body_index)
+    agent_panel_index = text.index("title={copy.agentSkillTitle}", detail_panel_index)
+    action_audit_index = text.index('title="Production closed-loop action audit"', agent_panel_index)
+    assert list_panel_index < context_drawer_index < context_body_index < detail_panel_index < agent_panel_index < action_audit_index
+
+    for token in [
+        ".commercial-server-operation-context-drawer",
+        ".commercial-server-operation-context-drawer > summary",
+        ".commercial-server-operation-context-drawer:not([open]) .commercial-server-operation-context-body",
+        ".commercial-server-operation-context-body",
+        "grid-template-columns: minmax(0, 1fr)",
+    ]:
+        assert token in styles
+    drawer_rule_index = styles.index(".commercial-server-operation-context-drawer:not([open]) .commercial-server-operation-context-body")
+    drawer_fold_index = styles.index("display: none", drawer_rule_index)
+    body_rule_index = styles.index(".commercial-server-operation-context-body {")
+    assert body_rule_index >= 0
+    assert drawer_rule_index < drawer_fold_index
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73I Server Operation Context Drawer" in doc_text
+        assert "commercial-server-operation-context-drawer" in doc_text
+        assert "commercial-server-operation-context-body" in doc_text
+        assert "Agent/Skill" in doc_text
+        assert "admin_dashboard" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
     assert "diagnostic_blockers" in text
     assert "recommended_actions" in text
     assert "snapshot_count" in text
@@ -343,6 +823,314 @@ def test_admin_dashboard_exposes_commercial_operations_page() -> None:
     assert "Search mode" in text
 
 
+def test_phase_73j_server_action_audit_drawer_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73J_SERVER_ACTION_AUDIT_DRAWER.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73J Server Action Audit Drawer",
+        "commercial-server-action-audit-drawer",
+        "commercial-server-action-audit-body",
+        'title="Production closed-loop action audit"',
+        "productionClosedLoopActionAudits",
+        "productionClosedLoopOperatorChecklist",
+        "server_read_only_no_openclaw_no_playwright_no_publish",
+    ]:
+        assert token in text
+
+    context_drawer_index = text.index('aria-label="Phase 73I Server Operation Context Drawer"')
+    action_drawer_index = text.index('aria-label="Phase 73J Server Action Audit Drawer"', context_drawer_index)
+    action_body_index = text.index('className="commercial-server-action-audit-body"', action_drawer_index)
+    action_panel_index = text.index('title="Production closed-loop action audit"', action_body_index)
+    primary_grid_index = text.index('label="primary_step"', action_panel_index)
+    checklist_index = text.index("rows={productionClosedLoopOperatorChecklist}", primary_grid_index)
+    comfyui_branch_index = text.index("{isComfyuiPage ? (", checklist_index)
+    assert context_drawer_index < action_drawer_index < action_body_index < action_panel_index < primary_grid_index < checklist_index < comfyui_branch_index
+
+    for token in [
+        ".commercial-server-action-audit-drawer",
+        ".commercial-server-action-audit-drawer > summary",
+        ".commercial-server-action-audit-drawer:not([open]) .commercial-server-action-audit-body",
+        ".commercial-server-action-audit-body",
+        "grid-template-columns: minmax(0, 1fr)",
+    ]:
+        assert token in styles
+    drawer_rule_index = styles.index(".commercial-server-action-audit-drawer:not([open]) .commercial-server-action-audit-body")
+    drawer_fold_index = styles.index("display: none", drawer_rule_index)
+    body_rule_index = styles.index(".commercial-server-action-audit-body {")
+    assert body_rule_index >= 0
+    assert drawer_rule_index < drawer_fold_index
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73J Server Action Audit Drawer" in doc_text
+        assert "commercial-server-action-audit-drawer" in doc_text
+        assert "commercial-server-action-audit-body" in doc_text
+        assert "Production closed-loop action audit" in doc_text
+        assert "operator checklist" in doc_text
+        assert "admin_dashboard" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+
+
+def test_phase_73k_server_production_workstream_drawers_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73K_SERVER_PRODUCTION_WORKSTREAM_DRAWERS.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73K Server Production Upstream Drawer",
+        "Phase 73K Server Production Closed Loop Drawer",
+        "commercial-server-production-upstream-drawer",
+        "commercial-server-production-upstream-body",
+        "commercial-server-production-closed-loop-drawer",
+        "commercial-server-production-closed-loop-body",
+        "Production content and assets",
+        "Production delivery loop",
+        "title={comfyuiSurfaceCopy.entryTitle}",
+        "title={contentCopy.title}",
+        "title={assetCopy.title}",
+        "title={deliverableCopy.title}",
+        "title={executionRunCopy.title}",
+        "title={optimizationCopy.title}",
+        "title={copy.linksTitle}",
+    ]:
+        assert token in text
+
+    action_drawer_index = text.index('aria-label="Phase 73J Server Action Audit Drawer"')
+    upstream_drawer_index = text.index('aria-label="Phase 73K Server Production Upstream Drawer"', action_drawer_index)
+    upstream_body_index = text.index('className="commercial-server-production-upstream-body"', upstream_drawer_index)
+    comfyui_entry_index = text.index("title={comfyuiSurfaceCopy.entryTitle}", upstream_body_index)
+    content_panel_index = text.index("title={contentCopy.title}", comfyui_entry_index)
+    asset_panel_index = text.index("title={assetCopy.title}", content_panel_index)
+    comfyui_branch_index = text.index("{isComfyuiPage ? (", asset_panel_index)
+    closed_loop_drawer_index = text.index('aria-label="Phase 73K Server Production Closed Loop Drawer"', comfyui_branch_index)
+    closed_loop_body_index = text.index('className="commercial-server-production-closed-loop-body"', closed_loop_drawer_index)
+    deliverable_panel_index = text.index("title={deliverableCopy.title}", closed_loop_body_index)
+    execution_run_index = text.index("title={executionRunCopy.title}", deliverable_panel_index)
+    optimization_index = text.index("title={optimizationCopy.title}", execution_run_index)
+    links_index = text.index("title={copy.linksTitle}", optimization_index)
+    assert (
+        action_drawer_index
+        < upstream_drawer_index
+        < upstream_body_index
+        < comfyui_entry_index
+        < content_panel_index
+        < asset_panel_index
+        < comfyui_branch_index
+        < closed_loop_drawer_index
+        < closed_loop_body_index
+        < deliverable_panel_index
+        < execution_run_index
+        < optimization_index
+        < links_index
+    )
+
+    for token in [
+        ".commercial-server-production-upstream-drawer",
+        ".commercial-server-production-closed-loop-drawer",
+        ".commercial-server-production-upstream-drawer > summary",
+        ".commercial-server-production-closed-loop-drawer > summary",
+        ".commercial-server-production-upstream-drawer:not([open]) .commercial-server-production-upstream-body",
+        ".commercial-server-production-closed-loop-drawer:not([open]) .commercial-server-production-closed-loop-body",
+        ".commercial-server-production-upstream-body",
+        ".commercial-server-production-closed-loop-body",
+        "grid-template-columns: minmax(0, 1fr)",
+    ]:
+        assert token in styles
+    upstream_rule_index = styles.index(".commercial-server-production-upstream-drawer:not([open]) .commercial-server-production-upstream-body")
+    upstream_fold_index = styles.index("display: none", upstream_rule_index)
+    closed_rule_index = styles.index(".commercial-server-production-closed-loop-drawer:not([open]) .commercial-server-production-closed-loop-body")
+    closed_fold_index = styles.index("display: none", closed_rule_index)
+    body_rule_index = styles.index(".commercial-server-production-upstream-body,", closed_fold_index)
+    assert upstream_rule_index < upstream_fold_index < body_rule_index
+    assert closed_rule_index < closed_fold_index < body_rule_index
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73K Server Production Workstream Drawers" in doc_text
+        assert "commercial-server-production-upstream-drawer" in doc_text
+        assert "commercial-server-production-closed-loop-drawer" in doc_text
+        assert "content drafts" in doc_text
+        assert "deliverables" in doc_text
+        assert "admin_dashboard" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+
+
+def test_phase_73l_server_operation_list_drawer_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73L_SERVER_OPERATION_LIST_DRAWER.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73L Server Operation List Drawer",
+        "commercial-server-operation-list-drawer",
+        "commercial-server-operation-list-body",
+        "Operation queue",
+        "<Panel title={copy.listTitle}",
+        "operationsForTable",
+        "selectedId={selectedOperation ? valueAt(selectedOperation, [\"id\"]) : null}",
+        "onSelect={(row) => setSelectedOperation(row)}",
+    ]:
+        assert token in text
+
+    create_drawer_index = text.index('aria-label="Phase 73H Server Quiet Create Operation Drawer"')
+    operation_list_drawer_index = text.index('aria-label="Phase 73L Server Operation List Drawer"', create_drawer_index)
+    operation_list_body_index = text.index('className="commercial-server-operation-list-body"', operation_list_drawer_index)
+    operation_list_panel_index = text.index("<Panel title={copy.listTitle}", operation_list_body_index)
+    table_index = text.index("rows={operationsForTable}", operation_list_panel_index)
+    context_drawer_index = text.index('aria-label="Phase 73I Server Operation Context Drawer"', table_index)
+    assert create_drawer_index < operation_list_drawer_index < operation_list_body_index < operation_list_panel_index < table_index < context_drawer_index
+
+    for token in [
+        ".commercial-server-operation-list-drawer",
+        ".commercial-server-operation-list-drawer > summary",
+        ".commercial-server-operation-list-drawer:not([open]) .commercial-server-operation-list-body",
+        ".commercial-server-operation-list-body",
+        "grid-template-columns: minmax(0, 1fr)",
+    ]:
+        assert token in styles
+    drawer_rule_index = styles.index(".commercial-server-operation-list-drawer:not([open]) .commercial-server-operation-list-body")
+    drawer_fold_index = styles.index("display: none", drawer_rule_index)
+    body_rule_index = styles.index("\n.commercial-server-operation-list-body {", drawer_fold_index)
+    assert drawer_rule_index < drawer_fold_index < body_rule_index
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73L Server Operation List Drawer" in doc_text
+        assert "commercial-server-operation-list-drawer" in doc_text
+        assert "commercial-server-operation-list-body" in doc_text
+        assert "Operation queue" in doc_text
+        assert "operationsForTable" in doc_text
+        assert "admin_dashboard" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+
+
+def test_phase_73p_server_production_index_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73P_SERVER_PRODUCTION_INDEX.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73P Server Production Index",
+        "commercialServerProductionIndexCards",
+        "openCommercialServerDrawer",
+        "commercial-server-production-index",
+        "commercial-server-production-index-head",
+        "commercial-server-production-index-grid",
+        "commercial-server-production-index-card",
+        ".commercial-server-maintenance-drawer",
+        ".commercial-server-operation-list-drawer",
+        ".commercial-server-operation-context-drawer",
+        ".commercial-server-action-audit-drawer",
+        ".commercial-server-production-upstream-drawer",
+        ".commercial-server-production-closed-loop-drawer",
+    ]:
+        assert token in text
+
+    quiet_index = text.index('aria-label="Phase 73G Server Codex Quiet Cockpit"')
+    production_index = text.index('aria-label="Phase 73P Server Production Index"', quiet_index)
+    maintenance_index = text.index('aria-label="Phase 73G Server Maintenance Detail Drawer"', production_index)
+    create_index = text.index('aria-label="Phase 73H Server Quiet Create Operation Drawer"', maintenance_index)
+    operation_list_index = text.index('aria-label="Phase 73L Server Operation List Drawer"', create_index)
+    context_index = text.index('aria-label="Phase 73I Server Operation Context Drawer"', operation_list_index)
+    audit_index = text.index('aria-label="Phase 73J Server Action Audit Drawer"', context_index)
+    upstream_index = text.index('aria-label="Phase 73K Server Production Upstream Drawer"', audit_index)
+    closed_loop_index = text.index('aria-label="Phase 73K Server Production Closed Loop Drawer"', upstream_index)
+    assert quiet_index < production_index < maintenance_index < create_index < operation_list_index < context_index < audit_index < upstream_index < closed_loop_index
+
+    for token in [
+        ".commercial-server-production-index",
+        ".commercial-server-production-index-head",
+        ".commercial-server-production-index-grid",
+        ".commercial-server-production-index-card",
+        ".commercial-server-production-index-card.hot",
+        ".commercial-server-production-index-card.busy",
+        ".commercial-server-production-index-card.healthy",
+        ".commercial-server-production-index-card.blocked",
+        "grid-template-columns: repeat(3, minmax(0, 1fr))",
+    ]:
+        assert token in styles
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73P Server Production Index" in doc_text
+        assert "commercial-server-production-index" in doc_text
+        assert "commercialServerProductionIndexCards" in doc_text
+        assert "openCommercialServerDrawer" in doc_text
+        assert "Codex-like" in doc_text
+        assert "admin_dashboard" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+
+
+def test_phase_73r_production_release_gate_checklist_contract() -> None:
+    text = MAIN.read_text(encoding="utf-8")
+    styles = STYLES.read_text(encoding="utf-8")
+    phase_doc = (ROOT / "docs/PHASE_73R_PRODUCTION_RELEASE_GATE_CHECKLIST.md").read_text(encoding="utf-8")
+    phase_index = (ROOT / "docs/PHASE_INDEX.md").read_text(encoding="utf-8")
+    current_next = (ROOT / "docs/CURRENT_NEXT_PHASE.md").read_text(encoding="utf-8")
+    current_runtime = (ROOT / "docs/CURRENT_RUNTIME.md").read_text(encoding="utf-8")
+    project_status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
+    foundation = (ROOT / "docs/COMMERCIAL_OPERATIONS_FOUNDATION.md").read_text(encoding="utf-8")
+
+    for token in [
+        "Phase 73R Production Release Gate Checklist",
+        "productionClosedLoopReleaseGateChecklist",
+        "release_gate_checklist",
+        "commercial-release-gate-checklist",
+        "gate.blocking_reasons",
+        "gate.evidence",
+    ]:
+        assert token in text
+
+    blocker_index = text.index('className="commercial-acceptance-blocker-list"')
+    checklist_index = text.index('aria-label="Phase 73R Production Release Gate Checklist"', blocker_index)
+    footer_index = text.index('className="commercial-acceptance-summary-footer"', checklist_index)
+    assert blocker_index < checklist_index < footer_index
+
+    for token in [
+        ".commercial-release-gate-checklist",
+        ".commercial-release-gate-checklist article",
+        ".commercial-release-gate-checklist article.blocked",
+        ".commercial-release-gate-checklist article.ready",
+        "grid-template-columns: repeat(3, minmax(0, 1fr))",
+        ".commercial-release-gate-checklist p",
+        ".commercial-release-gate-checklist small",
+    ]:
+        assert token in styles
+
+    for doc_text in (phase_doc, phase_index, current_next, current_runtime, project_status, foundation):
+        assert "Phase 73R Production Release Gate Checklist" in doc_text
+        assert "release_gate_checklist" in doc_text
+        assert "production_release_gate_checklist_is_machine_readable" in doc_text
+        assert "real_openclaw_publish_provider" in doc_text
+        assert "customer_machine_publish_result_evidence" in doc_text
+        assert "commercial-release-gate-checklist" in doc_text
+        assert "scripts/check_production_closed_loop.py" in doc_text
+        assert "does not" in doc_text
+        assert "bypass approval" in doc_text
+
+
 def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     text = CLIENT.read_text(encoding="utf-8")
 
@@ -372,6 +1160,22 @@ def test_admin_dashboard_commercial_operations_api_client_paths() -> None:
     assert "/commercial-operations/${encodeURIComponent(operationId)}" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/plan-draft" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/operation-loop" in text
+    assert (
+        "/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/next-action/audit-records"
+        in text
+    )
+    assert "productionClosedLoopActionAudits" in text
+    assert "/commercial-operations/production-closed-loop/intervention-queue" in text
+    assert "productionClosedLoopInterventionQueue" in text
+    assert "/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/intervention-queue/acknowledgements" in text
+    assert "createProductionClosedLoopInterventionAcknowledgement" in text
+    assert "productionClosedLoopInterventionAcknowledgements" in text
+    assert (
+        "/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/intervention-queue/reminder-dispatches"
+        in text
+    )
+    assert "createProductionClosedLoopInterventionReminderDispatch" in text
+    assert "productionClosedLoopInterventionReminderDispatches" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/agent-skill-orchestration/refresh" in text
     assert "/commercial-operations/${encodeURIComponent(operationId)}/approvals" in text
@@ -603,6 +1407,12 @@ def test_admin_dashboard_commercial_operations_styles_are_present() -> None:
         ".commercial-optimization-list",
         ".commercial-optimization-item",
         ".commercial-optimization-actions",
+        ".commercial-delivery-audit-next-action-plan",
+        ".commercial-delivery-audit-next-action-list",
+        ".commercial-delivery-audit-operator-queue",
+        ".commercial-delivery-audit-operator-queue-list",
+        ".commercial-delivery-audit-openclaw-provider-handoff",
+        ".commercial-delivery-audit-openclaw-provider-handoff-list",
         ".commercial-link-grid",
         ".commercial-link-list",
         ".commercial-link-item",

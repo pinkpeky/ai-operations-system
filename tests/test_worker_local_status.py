@@ -23,3 +23,20 @@ def test_worker_local_status_roundtrip_and_redacts_secret(tmp_path) -> None:
     cleared = clear_status(path)
     assert cleared["registered"] is False
     assert not path.exists()
+
+
+def test_worker_local_status_recovers_from_corrupt_json(tmp_path) -> None:
+    """Corrupt local status must not block worker registration or heartbeat."""
+
+    path = tmp_path / "status.json"
+    path.write_text('{"worker_id": "worker-1"} trailing', encoding="utf-8")
+
+    loaded = get_status(path)
+    assert loaded["registered"] is False
+    assert loaded["current_status"] == "stopped"
+    assert loaded["last_error"] == "status file unreadable: JSONDecodeError"
+
+    updated = update_status({"registered": True, "worker_id": "worker-2"}, path)
+    assert updated["registered"] is True
+    assert updated["worker_id"] == "worker-2"
+    assert get_status(path)["worker_id"] == "worker-2"

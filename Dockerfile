@@ -16,11 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY app ./app
 COPY worker ./worker
 COPY worker_client ./worker_client
+COPY deployment ./deployment
 COPY docs/CURRENT_RUNTIME.md ./docs/CURRENT_RUNTIME.md
 COPY alembic.ini .
 COPY alembic ./alembic
 
-EXPOSE 8000 9100
+EXPOSE 8000 9100 8002
 
 # 容器启动时先执行数据库迁移，再启动 FastAPI 应用服务。
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

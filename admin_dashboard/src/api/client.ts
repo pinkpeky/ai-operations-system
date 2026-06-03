@@ -35,15 +35,15 @@ export function readAdminSettings(): AdminSettings {
     aiServerUrl:
       localStorage.getItem(settingsStorageKeys.aiServerUrl) ||
       import.meta.env.VITE_AI_SERVER_API ||
-      "http://localhost:8000",
+      "http://127.0.0.1:8000",
     workspaceId:
       localStorage.getItem(settingsStorageKeys.workspaceId) ||
       import.meta.env.VITE_WORKSPACE_ID ||
-      "demo-workspace",
+      "production-workspace",
     userId:
       localStorage.getItem(settingsStorageKeys.userId) ||
       import.meta.env.VITE_USER_ID ||
-      "demo-user",
+      "production-operator",
     refreshIntervalMs: DEFAULT_REFRESH_INTERVAL_MS,
   };
 }
@@ -315,6 +315,531 @@ export const commercialOperationsApi = {
     requestJson<JsonRecord>(
       `/commercial-operations/${encodeURIComponent(operationId)}/operation-loop`,
       {},
+      settings,
+    ),
+  productionClosedLoopActionAudits: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/next-action/audit-records`,
+      {},
+      settings,
+    ),
+  productionClosedLoopInterventionQueue: (settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/intervention-queue",
+      {},
+      settings,
+    ),
+  productionClosedLoopAcceptanceSummary: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/acceptance-summary${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryPlan: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-plan${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryActionPackages: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-action-packages${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryAuditBlockerClearancePlan: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/blocker-clearance-plan${suffix}`,
+      {},
+      settings,
+    );
+  },
+  assignProductionClosedLoopDeliveryAuditBlockerWorkOrders: (
+    payload: JsonRecord,
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-audit/blocker-clearance-plan/assign-work-orders",
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  productionClosedLoopDeliveryAuditBlockerRunbookPackages: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords: (
+    filters: { packageKey?: string; gateKey?: string; operationId?: string; evidenceStatus?: string; limit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.packageKey) {
+      params.set("package_key", filters.packageKey);
+    }
+    if (filters.gateKey) {
+      params.set("gate_key", filters.gateKey);
+    }
+    if (filters.operationId) {
+      params.set("operation_id", filters.operationId);
+    }
+    if (filters.evidenceStatus) {
+      params.set("evidence_status", filters.evidenceStatus);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-records${suffix}`,
+      {},
+      settings,
+    );
+  },
+  createProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecord: (
+    payload: JsonRecord,
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-records",
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number; evidenceLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    if (filters.evidenceLimit) {
+      params.set("evidence_limit", String(filters.evidenceLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-coverage${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryAuditNextActionPlan: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number; evidenceLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    if (filters.evidenceLimit) {
+      params.set("evidence_limit", String(filters.evidenceLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/next-action-plan${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryAuditOperatorQueue: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number; evidenceLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    if (filters.evidenceLimit) {
+      params.set("evidence_limit", String(filters.evidenceLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/next-action-plan/operator-queue${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryAuditOperatorQueueRecords: (
+    filters: { queueKey?: string; actionKey?: string; owner?: string; operationId?: string; recordStatus?: string; limit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.queueKey) {
+      params.set("queue_key", filters.queueKey);
+    }
+    if (filters.actionKey) {
+      params.set("action_key", filters.actionKey);
+    }
+    if (filters.owner) {
+      params.set("owner", filters.owner);
+    }
+    if (filters.operationId) {
+      params.set("operation_id", filters.operationId);
+    }
+    if (filters.recordStatus) {
+      params.set("record_status", filters.recordStatus);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-audit/next-action-plan/operator-queue/records${suffix}`,
+      {},
+      settings,
+    );
+  },
+  createProductionClosedLoopDeliveryAuditOperatorQueueRecord: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-audit/next-action-plan/operator-queue/records",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  productionClosedLoopDeliveryAuditOpenClawProviderHandoff: (settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-audit/openclaw-provider-handoff",
+      {},
+      settings,
+    ),
+  refreshProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadiness: (
+    payload: JsonRecord,
+    settings?: AdminSettings,
+  ) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-audit/blocker-runbook-packages/evidence-coverage/readiness-refresh",
+      { method: "POST", body: JSON.stringify(payload) },
+      settings,
+    ),
+  productionClosedLoopDeliveryRemediationMap: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-remediation-map${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryRemediationWorkOrders: (
+    filters: { gateKey?: string; operationId?: string; workOrderStatus?: string; limit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.gateKey) {
+      params.set("gate_key", filters.gateKey);
+    }
+    if (filters.operationId) {
+      params.set("operation_id", filters.operationId);
+    }
+    if (filters.workOrderStatus) {
+      params.set("work_order_status", filters.workOrderStatus);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-remediation-map/work-orders${suffix}`,
+      {},
+      settings,
+    );
+  },
+  productionClosedLoopDeliveryRemediationWorkOrderCoverage: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-remediation-map/work-order-coverage${suffix}`,
+      {},
+      settings,
+    );
+  },
+  assignMissingProductionClosedLoopDeliveryRemediationWorkOrders: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-remediation-map/work-order-coverage/assign-missing",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep: (
+    filters: { platform?: string; forceMetricDue?: boolean; limit?: number; scanLimit?: number; workOrderLimit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.platform) {
+      params.set("platform", filters.platform);
+    }
+    if (typeof filters.forceMetricDue === "boolean") {
+      params.set("force_metric_due", String(filters.forceMetricDue));
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    if (filters.scanLimit) {
+      params.set("scan_limit", String(filters.scanLimit));
+    }
+    if (filters.workOrderLimit) {
+      params.set("work_order_limit", String(filters.workOrderLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-remediation-map/work-order-execution-prep${suffix}`,
+      {},
+      settings,
+    );
+  },
+  completeProductionClosedLoopDeliveryRemediationWorkOrder: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-remediation-map/work-order-execution-prep/complete",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  refreshProductionClosedLoopDeliveryRemediationWorkOrderReadiness: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-remediation-map/work-order-completion/readiness-refresh",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  createProductionClosedLoopDeliveryRemediationWorkOrder: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-remediation-map/work-orders",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  productionClosedLoopDeliveryActionEvidenceRecords: (
+    filters: { gateKey?: string; operationId?: string; limit?: number } = {},
+    settings?: AdminSettings,
+  ) => {
+    const params = new URLSearchParams();
+    if (filters.gateKey) {
+      params.set("gate_key", filters.gateKey);
+    }
+    if (filters.operationId) {
+      params.set("operation_id", filters.operationId);
+    }
+    if (filters.limit) {
+      params.set("limit", String(filters.limit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return requestJson<JsonRecord>(
+      `/commercial-operations/production-closed-loop/delivery-action-packages/evidence-records${suffix}`,
+      {},
+      settings,
+    );
+  },
+  createProductionClosedLoopDeliveryActionEvidenceRecord: (payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      "/commercial-operations/production-closed-loop/delivery-action-packages/evidence-records",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  productionClosedLoopInterventionAcknowledgements: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/intervention-queue/acknowledgements`,
+      {},
+      settings,
+    ),
+  createProductionClosedLoopInterventionAcknowledgement: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/intervention-queue/acknowledgements`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      settings,
+    ),
+  productionClosedLoopInterventionReminderDispatches: (operationId: string, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/intervention-queue/reminder-dispatches`,
+      {},
+      settings,
+    ),
+  createProductionClosedLoopInterventionReminderDispatch: (operationId: string, payload: JsonRecord, settings?: AdminSettings) =>
+    requestJson<JsonRecord>(
+      `/commercial-operations/${encodeURIComponent(operationId)}/production-closed-loop/intervention-queue/reminder-dispatches`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
       settings,
     ),
   agentSkillOrchestration: (operationId: string, settings?: AdminSettings) =>

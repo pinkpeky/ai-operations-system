@@ -1,0 +1,86 @@
+{
+  "status": "success",
+  "video_prompt_id": "0b233082-6838-4783-814f-50da3bdd1076",
+  "history_status": {
+    "status_str": "success",
+    "completed": true
+  },
+  "seed_name": "operator_approved_qwen_image_edit_seed.png",
+  "seed_path": "E:/ComfyUI_cu130/ComfyUI/input/operator_approved_qwen_image_edit_seed.png",
+  "video_path": "E:\\ComfyUI_cu130\\ComfyUI\\output\\aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ_00001-audio.mp4",
+  "video_exists": true,
+  "video_size_bytes": 556759,
+  "requested_frames": 144,
+  "fps": 24,
+  "width": 368,
+  "height": 640,
+  "duration_seconds_requested": 6.0,
+  "preflight_report": "D:\\ai-operations-system\\deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_operator_qwen_seed_video_preflight.json",
+  "submit_report": "D:\\ai-operations-system\\deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_operator_qwen_seed_video_submit.json",
+  "history_report": "D:\\ai-operations-system\\deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_operator_qwen_seed_video_history.json",
+  "api_prompt_path": "D:\\ai-operations-system\\storage\\comfyui_materialized_workflows\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ.materialized.api_prompt.json",
+  "materialized_workflow_path": "D:\\ai-operations-system\\storage\\comfyui_materialized_workflows\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ.materialized.json",
+  "output_files": [
+    {
+      "node_id": "131",
+      "key": "gifs",
+      "filename": "Wan2.1_I2V_InfiniteTalk__KJ_00001-audio.mp4",
+      "subfolder": "aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v",
+      "type": "output",
+      "format": "video/h264-mp4",
+      "path": "E:\\ComfyUI_cu130\\ComfyUI\\output\\aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ_00001-audio.mp4",
+      "exists": true,
+      "size_bytes": 556759
+    },
+    {
+      "node_id": "131",
+      "key": "gifs",
+      "filename": "Wan2.1_I2V_InfiniteTalk__KJ_00001.mp4",
+      "subfolder": "aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v",
+      "type": "output",
+      "format": "video/h264-mp4",
+      "path": "E:\\ComfyUI_cu130\\ComfyUI\\output\\aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ_00001.mp4",
+      "exists": true,
+      "size_bytes": 497810
+    },
+    {
+      "node_id": "131",
+      "key": "images",
+      "filename": "Wan2.1_I2V_InfiniteTalk__KJ_00001.png",
+      "subfolder": "aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v",
+      "type": "output",
+      "format": "image/png",
+      "path": "E:\\ComfyUI_cu130\\ComfyUI\\output\\aiops\\original_douyin_requirement_operator_qwen_seed_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ_00001.png",
+      "exists": true,
+      "size_bytes": 371487
+    }
+  ],
+  "submit_success": true,
+  "submit_error": null,
+  "node_errors": {},
+  "quality_note": "Operator-approved Qwen Image Edit keyframe routed into InfiniteTalk video smoke; requires visual review before production use.",
+  "frames": 169,
+  "duration_seconds": 7.041667,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "contact_sheet": "D:\\ai-operations-system\\deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_operator_qwen_seed_video_contact.jpg",
+  "runtime_base_url_used": "http://127.0.0.1:8188",
+  "video_gpu_endpoint_used": "default|http://127.0.0.1:8188|0",
+  "interrupted_blocking_prompt": {
+    "prompt_id": "733a8e41-a941-4712-9736-6dece13cfae5",
+    "reason": "Blocked the correct safetensors prompt while using previously failed GGUF/AniWan model combination."
+  },
+  "quality_review": {
+    "accepted_for_pipeline_smoke": true,
+    "strengths": [
+      "fictional female host from Qwen Image Edit seed",
+      "KTV scene remains stable",
+      "InfiniteTalk video output succeeded"
+    ],
+    "limits": [
+      "not complete full-body because table occludes lower body",
+      "motion is modest",
+      "smoke resolution only"
+    ]
+  }
+}

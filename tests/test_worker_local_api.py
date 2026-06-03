@@ -18,6 +18,13 @@ class FakeManager:
     def __init__(self) -> None:
         self.started = False
         self.heartbeat = False
+        self.metric_scheduler: dict[str, Any] = {
+            "configured": False,
+            "running": False,
+            "scheduler_status": "not_configured",
+            "scheduler_enabled": False,
+            "notification_records": [],
+        }
 
     def runtime_state(self) -> dict[str, Any]:
         return {"runtime_running": self.started, "heartbeat_running": self.heartbeat, "worker_secret": "hidden"}
@@ -45,6 +52,42 @@ class FakeManager:
         self.heartbeat = False
         return self.runtime_state()
 
+    def metric_dispatch_scheduler_state(self) -> dict[str, Any]:
+        return self.metric_scheduler
+
+    def configure_metric_dispatch_scheduler(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self.metric_scheduler = {
+            **self.metric_scheduler,
+            "configured": True,
+            "scheduler_status": payload.get("scheduler_status", "configured"),
+            "scheduler_enabled": bool(payload.get("scheduler_enabled", True)),
+            "client_timer_payload": payload.get("client_timer_payload", payload),
+            "notification_records": payload.get("notification_events", []),
+        }
+        return self.metric_scheduler
+
+    async def tick_metric_dispatch_scheduler(self, *, force: bool = False) -> dict[str, Any]:
+        self.metric_scheduler = {**self.metric_scheduler, "tick_status": "poll_executed", "force": force}
+        return self.metric_scheduler
+
+    def start_metric_dispatch_scheduler(self) -> dict[str, Any]:
+        self.metric_scheduler = {**self.metric_scheduler, "running": True}
+        return self.metric_scheduler
+
+    def stop_metric_dispatch_scheduler(self) -> dict[str, Any]:
+        self.metric_scheduler = {**self.metric_scheduler, "running": False}
+        return self.metric_scheduler
+
+    def clear_metric_dispatch_scheduler(self) -> dict[str, Any]:
+        self.metric_scheduler = {
+            "configured": False,
+            "running": False,
+            "scheduler_status": "not_configured",
+            "scheduler_enabled": False,
+            "notification_records": [],
+        }
+        return self.metric_scheduler
+
 
 @pytest.mark.asyncio
 async def test_worker_local_management_api(tmp_path) -> None:
@@ -65,6 +108,21 @@ async def test_worker_local_management_api(tmp_path) -> None:
         health = await client.get("/local/health")
         started = await client.post("/local/runtime/start")
         heartbeat = await client.post("/local/heartbeat/start")
+        scheduler_payload = {
+            "scheduler_status": "scheduled",
+            "scheduler_enabled": True,
+            "client_timer_payload": {
+                "endpoint": "/api/v1/commercial-operations/metric-analysis-dispatch/customer-poll",
+                "request_body": {"customer_machine_id": "customer-machine-a"},
+            },
+            "notification_events": [{"event_type": "ready"}],
+        }
+        scheduler_configured = await client.post("/local/metric-dispatch-scheduler/configure", json=scheduler_payload)
+        scheduler_started = await client.post("/local/metric-dispatch-scheduler/start")
+        scheduler_tick = await client.post("/local/metric-dispatch-scheduler/tick", json={"force": True})
+        scheduler_state = await client.get("/local/metric-dispatch-scheduler")
+        scheduler_stopped = await client.post("/local/metric-dispatch-scheduler/stop")
+        scheduler_cleared = await client.post("/local/metric-dispatch-scheduler/clear")
         logs = await client.get("/local/logs")
         stopped = await client.post("/local/runtime/stop")
 
@@ -73,5 +131,12 @@ async def test_worker_local_management_api(tmp_path) -> None:
     assert health.json()["success"] is True
     assert started.json()["runtime_running"] is True
     assert heartbeat.json()["heartbeat_running"] is True
+    assert scheduler_configured.json()["configured"] is True
+    assert scheduler_started.json()["running"] is True
+    assert scheduler_tick.json()["tick_status"] == "poll_executed"
+    assert scheduler_tick.json()["force"] is True
+    assert scheduler_state.json()["notification_records"][0]["event_type"] == "ready"
+    assert scheduler_stopped.json()["running"] is False
+    assert scheduler_cleared.json()["configured"] is False
     assert isinstance(logs.json()["lines"], list)
     assert stopped.json()["runtime_running"] is False

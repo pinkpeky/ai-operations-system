@@ -1,0 +1,19 @@
+{
+  "status": "success",
+  "seed_prompt_id": "af58824d-6b33-4e4d-ac76-72208bdbeb7d",
+  "video_prompt_id": "4ed5fe27-4179-4da2-bb3b-ea645329d1d3",
+  "seed_path": "E:/ComfyUI_cu130/ComfyUI/input/scene_ai_virtual_host_seed_v2.png",
+  "video_path": "E:/ComfyUI_cu130/ComfyUI/output/aiops/original_douyin_requirement_seed_v2_video_smoke/digital_human_i2v/Wan2.1_I2V_InfiniteTalk__KJ_00001-audio.mp4",
+  "video_exists": true,
+  "frames": 49,
+  "fps": 24,
+  "width": 368,
+  "height": 640,
+  "duration_seconds": 2.041667,
+  "seed_report": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_ai_host_seed_result.json",
+  "video_preflight": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_seed_v2_video_preflight.json",
+  "video_submit": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_seed_v2_video_submit.json",
+  "video_history": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_seed_v2_video_history.json",
+  "contact_sheet": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_seed_v2_video_contact.jpg",
+  "note": "v2 smoke generated from clean KTV scene + Qwen Image Edit seed; not final commercial render."
+}

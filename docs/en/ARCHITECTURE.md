@@ -229,7 +229,7 @@ Default:
 RERANKER_PROVIDER=mock
 ```
 
-The mock reranker uses deterministic query-token overlap. The local reranker provider is a placeholder interface.
+The mock reranker uses deterministic query-token overlap. The local reranker provider can call the standalone `worker.reranker_worker.main:app` service on `/api/rerank`; the current runtime uses Ollama embeddings as a semantic reranker baseline.
 
 ## Agentic RAG Trace
 

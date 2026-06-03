@@ -1,0 +1,109 @@
+{
+  "name": "ktv_virtual_host_pipeline_v1",
+  "goal": "Generate a fictional AI virtual female host inside a provided KTV scene image, then animate short commercial video shots.",
+  "primary_requirement": "Do not use a real portrait cutout as the default route. The host must be an AI-generated fictional character.",
+  "inputs": {
+    "required": [
+      {
+        "name": "scene_image",
+        "example": "D:\\流程测试\\场景素材\\4.jpg",
+        "purpose": "Venue/room reference that controls background, lighting, and spatial layout."
+      }
+    ],
+    "optional": [
+      {
+        "name": "character_style",
+        "default": "photorealistic elegant fictional KTV hostess, business reception style"
+      },
+      {
+        "name": "voiceover_audio",
+        "purpose": "Used only for talking-head or host outro shots."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "id": "character_reference",
+      "objective": "Create and lock one fictional virtual host identity.",
+      "outputs": [
+        "character_refs/front_half_body.png",
+        "character_refs/full_body_standing.png",
+        "character_refs/holding_microphone.png",
+        "character_refs/identity_prompt.json"
+      ],
+      "quality_gate": [
+        "same face and hairstyle across references",
+        "business KTV reception style",
+        "no real person cutout dependency"
+      ]
+    },
+    {
+      "id": "scene_analysis",
+      "objective": "Prepare the scene for stable character placement.",
+      "outputs": [
+        "scene_analysis/cropped_scene.png",
+        "scene_analysis/placement_mask.png",
+        "scene_analysis/scene_prompt.json"
+      ],
+      "quality_gate": [
+        "host placement does not block key venue details",
+        "scale and perspective are plausible",
+        "vertical 9:16 framing is preserved"
+      ]
+    },
+    {
+      "id": "scene_character_keyframes",
+      "objective": "Generate multiple identity-consistent keyframes of the virtual host inside the venue scene.",
+      "outputs": [
+        "scene_keyframes/host_full_body_01.png",
+        "scene_keyframes/host_half_body_01.png",
+        "scene_keyframes/host_guiding_pose_01.png"
+      ],
+      "quality_gate": [
+        "same virtual host identity",
+        "lighting matches the KTV room",
+        "hands and face are usable",
+        "scene remains recognizable from source material"
+      ]
+    },
+    {
+      "id": "motion_generation",
+      "objective": "Generate short stable video clips from approved keyframes.",
+      "preferred_routes": [
+        "WanAnimate for full-body controlled host motion",
+        "Wan I2V for subtle environment and approved keyframe motion",
+        "MuseTalk or AdvancedLivePortrait for close-up lip-sync shots"
+      ],
+      "outputs": [
+        "video_clips/host_intro.mp4",
+        "video_clips/venue_motion.mp4",
+        "video_clips/host_outro.mp4"
+      ],
+      "quality_gate": [
+        "no major face swap or identity drift",
+        "no body melting",
+        "motion is modest and commercially acceptable"
+      ]
+    },
+    {
+      "id": "assembly_and_review",
+      "objective": "Assemble clips into a reviewable commercial short video.",
+      "outputs": [
+        "final/commercial_ktv_virtual_host_final.mp4",
+        "final/contact_sheet.jpg",
+        "final/quality_report.md"
+      ],
+      "quality_gate": [
+        "15-30 second vertical video target",
+        "clear KTV commercial value",
+        "generated host shot passes manual review before upscale"
+      ]
+    }
+  ],
+  "known_gaps_to_close": [
+    "Install or configure a stronger local identity-control stack for fictional character consistency.",
+    "Convert the local SDXL inpaint proof into a repeatable keyframe generation command.",
+    "Build a WanAnimate route that uses the approved virtual host keyframe instead of relying only on plain Wan I2V.",
+    "Add automated contact-sheet and quality-report generation per run."
+  ]
+}

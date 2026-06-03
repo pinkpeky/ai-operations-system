@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  BellRing,
   Bot,
   Brain,
   ClipboardList,
@@ -5781,6 +5782,58 @@ function CommercialOperationsPage({
   const [optimizationState, setOptimizationState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [linksState, setLinksState] = useState<AsyncState<JsonRecord[]>>(emptyState());
   const [agentSkillState, setAgentSkillState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionActionAuditState, setProductionActionAuditState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionInterventionQueueState, setProductionInterventionQueueState] = useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionAcceptanceSummaryState, setProductionAcceptanceSummaryState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryPlanState, setProductionDeliveryPlanState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerClearancePlanState, setProductionDeliveryAuditBlockerClearancePlanState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerWorkOrderAssignmentState, setProductionDeliveryAuditBlockerWorkOrderAssignmentState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerRunbookPackagesState, setProductionDeliveryAuditBlockerRunbookPackagesState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerRunbookEvidenceState, setProductionDeliveryAuditBlockerRunbookEvidenceState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerRunbookEvidenceSubmitState, setProductionDeliveryAuditBlockerRunbookEvidenceSubmitState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerRunbookEvidenceCoverageState, setProductionDeliveryAuditBlockerRunbookEvidenceCoverageState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditNextActionPlanState, setProductionDeliveryAuditNextActionPlanState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditOperatorQueueState, setProductionDeliveryAuditOperatorQueueState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditOperatorQueueRecordSubmitState, setProductionDeliveryAuditOperatorQueueRecordSubmitState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditOpenClawProviderHandoffState, setProductionDeliveryAuditOpenClawProviderHandoffState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState, setProductionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryActionPackagesState, setProductionDeliveryActionPackagesState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationMapState, setProductionDeliveryRemediationMapState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrdersState, setProductionDeliveryRemediationWorkOrdersState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrderCoverageState, setProductionDeliveryRemediationWorkOrderCoverageState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrderAssignmentState, setProductionDeliveryRemediationWorkOrderAssignmentState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrderExecutionPrepState, setProductionDeliveryRemediationWorkOrderExecutionPrepState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrderCompletionState, setProductionDeliveryRemediationWorkOrderCompletionState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrderReadinessRefreshState, setProductionDeliveryRemediationWorkOrderReadinessRefreshState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryRemediationWorkOrderSubmitState, setProductionDeliveryRemediationWorkOrderSubmitState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryActionEvidenceState, setProductionDeliveryActionEvidenceState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionDeliveryActionEvidenceSubmitState, setProductionDeliveryActionEvidenceSubmitState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
+  const [productionInterventionAcknowledgementState, setProductionInterventionAcknowledgementState] =
+    useState<AsyncState<JsonRecord>>(emptyState());
   const [selectedOperation, setSelectedOperation] = useState<JsonRecord | null>(null);
   const [title, setTitle] = useState(language === "zh-CN" ? "新品增长运营项目" : "Product growth operation");
   const [objective, setObjective] = useState<string>(copy.objectivePlaceholder);
@@ -6037,6 +6090,11 @@ function CommercialOperationsPage({
   const [linkTitle, setLinkTitle] = useState(language === "zh-CN" ? "需求沟通记录" : "Goal intake record");
   const [linkSummary, setLinkSummary] = useState("");
   const [linkSourceName, setLinkSourceName] = useState("admin_dashboard");
+  const [interventionAssignee, setInterventionAssignee] = useState("server-maintainer");
+  const [interventionNotes, setInterventionNotes] = useState("Acknowledged from Admin Dashboard intervention queue.");
+  const [interventionReminderChannel, setInterventionReminderChannel] = useState("internal");
+  const [interventionReminderRecipient, setInterventionReminderRecipient] = useState("server-maintainer");
+  const [interventionReminderMessage, setInterventionReminderMessage] = useState("Production closed-loop intervention reminder requires operator review.");
   const [comfyuiRuntimeAdapterState, setComfyuiRuntimeAdapterState] = useState<AsyncState<JsonRecord>>(emptyState());
 
   const load = useCallback(async () => {
@@ -6061,9 +6119,797 @@ function CommercialOperationsPage({
     }
   }, [settings]);
 
+  const loadProductionClosedLoopInterventionQueue = useCallback(async () => {
+    setProductionInterventionQueueState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopInterventionQueue(settings);
+      setProductionInterventionQueueState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionInterventionQueueState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production closed-loop intervention queue API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopAcceptanceSummary = useCallback(async () => {
+    setProductionAcceptanceSummaryState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopAcceptanceSummary(
+        { platform: "douyin", limit: 25, scanLimit: 50 },
+        settings,
+      );
+      setProductionAcceptanceSummaryState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionAcceptanceSummaryState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production closed-loop acceptance summary API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryPlan = useCallback(async () => {
+    setProductionDeliveryPlanState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryPlan(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50 },
+        settings,
+      );
+      setProductionDeliveryPlanState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryPlanState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production closed-loop delivery plan API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditBlockerClearancePlan = useCallback(async () => {
+    setProductionDeliveryAuditBlockerClearancePlanState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditBlockerClearancePlan(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerClearancePlanState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditBlockerClearancePlanState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker clearance plan API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages = useCallback(async () => {
+    setProductionDeliveryAuditBlockerRunbookPackagesState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditBlockerRunbookPackages(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerRunbookPackagesState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditBlockerRunbookPackagesState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker runbook packages API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords = useCallback(async () => {
+    setProductionDeliveryAuditBlockerRunbookEvidenceState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords(
+        { limit: 20 },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerRunbookEvidenceState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditBlockerRunbookEvidenceState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker runbook evidence API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage = useCallback(async () => {
+    setProductionDeliveryAuditBlockerRunbookEvidenceCoverageState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200, evidenceLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerRunbookEvidenceCoverageState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditBlockerRunbookEvidenceCoverageState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker runbook evidence coverage API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditNextActionPlan = useCallback(async () => {
+    setProductionDeliveryAuditNextActionPlanState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditNextActionPlan(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200, evidenceLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryAuditNextActionPlanState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditNextActionPlanState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit next action plan API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditOperatorQueue = useCallback(async () => {
+    setProductionDeliveryAuditOperatorQueueState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditOperatorQueue(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200, evidenceLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryAuditOperatorQueueState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditOperatorQueueState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit operator queue API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryAuditOpenClawProviderHandoff = useCallback(async () => {
+    setProductionDeliveryAuditOpenClawProviderHandoffState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryAuditOpenClawProviderHandoff(settings);
+      setProductionDeliveryAuditOpenClawProviderHandoffState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryAuditOpenClawProviderHandoffState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit OpenClaw provider handoff API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryActionPackages = useCallback(async () => {
+    setProductionDeliveryActionPackagesState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryActionPackages(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50 },
+        settings,
+      );
+      setProductionDeliveryActionPackagesState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryActionPackagesState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production closed-loop delivery action packages API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryRemediationMap = useCallback(async () => {
+    setProductionDeliveryRemediationMapState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryRemediationMap(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50 },
+        settings,
+      );
+      setProductionDeliveryRemediationMapState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryRemediationMapState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation map API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryRemediationWorkOrders = useCallback(async () => {
+    setProductionDeliveryRemediationWorkOrdersState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryRemediationWorkOrders(
+        { limit: 20 },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrdersState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrdersState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation work orders API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage = useCallback(async () => {
+    setProductionDeliveryRemediationWorkOrderCoverageState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryRemediationWorkOrderCoverage(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrderCoverageState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrderCoverageState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation work-order coverage API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep = useCallback(async () => {
+    setProductionDeliveryRemediationWorkOrderExecutionPrepState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep(
+        { platform: "douyin", forceMetricDue: true, limit: 25, scanLimit: 50, workOrderLimit: 200 },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrderExecutionPrepState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrderExecutionPrepState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation execution prep API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const loadProductionClosedLoopDeliveryActionEvidenceRecords = useCallback(async () => {
+    setProductionDeliveryActionEvidenceState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.productionClosedLoopDeliveryActionEvidenceRecords(
+        { limit: 20 },
+        settings,
+      );
+      setProductionDeliveryActionEvidenceState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+    } catch (error) {
+      setProductionDeliveryActionEvidenceState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery action evidence API unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [settings]);
+
+  const recordProductionClosedLoopDeliveryBlockedEvidence = useCallback(async (actionPackage: JsonRecord) => {
+    const firstStep = toItems(actionPackage.action_steps)[0] as JsonRecord | undefined;
+    const gateKey = valueAt(actionPackage, ["gate_key"], "");
+    if (!gateKey) {
+      setProductionDeliveryActionEvidenceSubmitState({
+        data: null,
+        error: "Delivery gate key is missing",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setProductionDeliveryActionEvidenceSubmitState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.createProductionClosedLoopDeliveryActionEvidenceRecord(
+        {
+          gate_key: gateKey,
+          action_key: valueAt(firstStep, ["action_key"], valueAt(actionPackage, ["recommended_action_key"], "")) || undefined,
+          operation_id: valueAt(firstStep, ["operation_id"], "") || undefined,
+          evidence_status: "blocked",
+          operator_confirmed: false,
+          evidence_summary:
+            toItems(actionPackage.blocking_reasons).map((item) => String(item)).join(" | ") ||
+            `Delivery action package remains blocked: ${gateKey}`,
+          operator_notes: "Recorded from admin_dashboard Phase 70Y delivery evidence control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "70Y",
+            delivery_evidence_control: "record_blocked",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryActionEvidenceSubmitState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryActionEvidenceRecords();
+      await loadProductionClosedLoopDeliveryRemediationMap();
+    } catch (error) {
+      setProductionDeliveryActionEvidenceSubmitState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery action evidence submit failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [loadProductionClosedLoopDeliveryActionEvidenceRecords, loadProductionClosedLoopDeliveryRemediationMap, settings]);
+
+  const recordProductionClosedLoopDeliveryRemediationInProgress = useCallback(async (remediation: JsonRecord) => {
+    const remediationKey = valueAt(remediation, ["remediation_key"], "");
+    const gateKey = valueAt(remediation, ["gate_key"], "");
+    if (!remediationKey && !gateKey) {
+      setProductionDeliveryRemediationWorkOrderSubmitState({
+        data: null,
+        error: "Delivery remediation key is missing",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    const relatedOperationId = toItems(remediation.related_operation_ids).map((item) => String(item)).find(Boolean);
+    setProductionDeliveryRemediationWorkOrderSubmitState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.createProductionClosedLoopDeliveryRemediationWorkOrder(
+        {
+          remediation_key: remediationKey || undefined,
+          gate_key: gateKey || undefined,
+          operation_id: relatedOperationId || undefined,
+          work_order_status: "in_progress",
+          assignee: settings.userId || "server-operator",
+          operator_confirmed: true,
+          work_summary: `Remediation work order opened for ${gateKey || remediationKey}.`,
+          operator_notes: "Recorded from admin_dashboard Phase 71A remediation work-order control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71A",
+            contract: "production_closed_loop_delivery_remediation_work_order",
+            remediation_work_order_control: "mark_in_progress",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrderSubmitState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryRemediationWorkOrders();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep();
+      await loadProductionClosedLoopDeliveryRemediationMap();
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrderSubmitState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation work-order submit failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryRemediationMap,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    loadProductionClosedLoopDeliveryRemediationWorkOrders,
+    settings,
+  ]);
+
+  const assignMissingProductionClosedLoopDeliveryRemediationWorkOrders = useCallback(async () => {
+    setProductionDeliveryRemediationWorkOrderAssignmentState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.assignMissingProductionClosedLoopDeliveryRemediationWorkOrders(
+        {
+          assignee: settings.userId || "server-operator",
+          operator_confirmed: true,
+          platform: "douyin",
+          force_metric_due: true,
+          limit: 25,
+          scan_limit: 50,
+          work_summary: "Assign missing delivery remediation work orders from server dashboard.",
+          operator_notes: "Recorded from admin_dashboard Phase 71C assignment control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71C",
+            contract: "production_closed_loop_delivery_remediation_work_order_assignment",
+            assignment_control: "assign_missing",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrderAssignmentState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryRemediationWorkOrders();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep();
+      await loadProductionClosedLoopDeliveryRemediationMap();
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrderAssignmentState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation assignment failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryRemediationMap,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    loadProductionClosedLoopDeliveryRemediationWorkOrders,
+    settings,
+  ]);
+
+  const assignProductionClosedLoopDeliveryAuditBlockerWorkOrders = useCallback(async () => {
+    setProductionDeliveryAuditBlockerWorkOrderAssignmentState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.assignProductionClosedLoopDeliveryAuditBlockerWorkOrders(
+        {
+          assignee: settings.userId || "server-operator",
+          operator_confirmed: true,
+          platform: "douyin",
+          force_metric_due: true,
+          limit: 25,
+          scan_limit: 50,
+          work_order_limit: 200,
+          include_external_dependencies: true,
+          work_summary: "Assign production delivery audit blocker work orders from server dashboard.",
+          operator_notes: "Recorded from admin_dashboard Phase 71H audit blocker work-order assignment control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71H",
+            contract: "production_closed_loop_delivery_audit_blocker_work_order_assignment",
+            assignment_control: "assign_audit_blockers",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerWorkOrderAssignmentState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryAuditBlockerClearancePlan();
+      await loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages();
+      await loadProductionClosedLoopDeliveryAuditNextActionPlan();
+      await loadProductionClosedLoopDeliveryAuditOperatorQueue();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrders();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep();
+      await loadProductionClosedLoopDeliveryRemediationMap();
+    } catch (error) {
+      setProductionDeliveryAuditBlockerWorkOrderAssignmentState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker work-order assignment failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryAuditBlockerClearancePlan,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages,
+    loadProductionClosedLoopDeliveryAuditNextActionPlan,
+    loadProductionClosedLoopDeliveryAuditOperatorQueue,
+    loadProductionClosedLoopDeliveryRemediationMap,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    loadProductionClosedLoopDeliveryRemediationWorkOrders,
+    settings,
+  ]);
+
+  const recordProductionClosedLoopDeliveryAuditBlockerRunbookBlockedEvidence = useCallback(async (runbookPackage: JsonRecord) => {
+    const packageKey = valueAt(runbookPackage, ["package_key"], "");
+    const gateKey = valueAt(runbookPackage, ["gate_key"], "");
+    if (!packageKey && !gateKey) {
+      setProductionDeliveryAuditBlockerRunbookEvidenceSubmitState({
+        data: null,
+        error: "Runbook package target is missing",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setProductionDeliveryAuditBlockerRunbookEvidenceSubmitState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.createProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecord(
+        {
+          package_key: packageKey || undefined,
+          gate_key: gateKey || undefined,
+          evidence_status: "blocked",
+          operator_confirmed: false,
+          platform: "douyin",
+          force_metric_due: true,
+          evidence_summary:
+            toItems(runbookPackage.manual_steps).slice(0, 2).map((item) => String(item)).join(" | ") ||
+            `Runbook package remains blocked: ${packageKey || gateKey}`,
+          operator_notes: "Recorded from admin_dashboard Phase 71J runbook evidence control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71J",
+            contract: "production_closed_loop_delivery_audit_blocker_runbook_evidence",
+            runbook_evidence_control: "record_blocked",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerRunbookEvidenceSubmitState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords();
+      await loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage();
+      await loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages();
+      await loadProductionClosedLoopDeliveryAuditNextActionPlan();
+      await loadProductionClosedLoopDeliveryAuditOperatorQueue();
+    } catch (error) {
+      setProductionDeliveryAuditBlockerRunbookEvidenceSubmitState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker runbook evidence submit failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages,
+    loadProductionClosedLoopDeliveryAuditNextActionPlan,
+    loadProductionClosedLoopDeliveryAuditOperatorQueue,
+    settings,
+  ]);
+
+  const recordProductionClosedLoopDeliveryAuditOperatorQueueInProgress = useCallback(async (queueItem: JsonRecord) => {
+    const actionKey = valueAt(queueItem, ["action_key"], "");
+    const queueKey = valueAt(queueItem, ["queue_key"], "");
+    const owner = valueAt(queueItem, ["owner"], "");
+    if (!actionKey) {
+      setProductionDeliveryAuditOperatorQueueRecordSubmitState({
+        data: null,
+        error: "Operator queue action key is missing",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setProductionDeliveryAuditOperatorQueueRecordSubmitState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.createProductionClosedLoopDeliveryAuditOperatorQueueRecord(
+        {
+          queue_key: queueKey || undefined,
+          action_key: actionKey,
+          owner: owner || undefined,
+          record_status: "in_progress",
+          operator_confirmed: false,
+          platform: "douyin",
+          force_metric_due: true,
+          evidence_summary: `Operator has taken ownership of ${actionKey}.`,
+          operator_notes: "Recorded from admin_dashboard Phase 71Q operator queue control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71Q",
+            contract: "production_closed_loop_delivery_audit_operator_queue_record",
+            operator_queue_control: "mark_in_progress",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryAuditOperatorQueueRecordSubmitState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryAuditOperatorQueue();
+      await loadProductionClosedLoopDeliveryAuditNextActionPlan();
+    } catch (error) {
+      setProductionDeliveryAuditOperatorQueueRecordSubmitState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit operator queue record submit failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryAuditNextActionPlan,
+    loadProductionClosedLoopDeliveryAuditOperatorQueue,
+    settings,
+  ]);
+
+  const refreshProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadiness = useCallback(async () => {
+    setProductionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.refreshProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadiness(
+        {
+          platform: "douyin",
+          force_metric_due: true,
+          operator_confirmed: true,
+          refresh_notes: "admin_dashboard Phase 71L runbook evidence readiness refresh.",
+          limit: 25,
+          scan_limit: 50,
+          work_order_limit: 200,
+          evidence_limit: 200,
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71L",
+            contract: "production_closed_loop_delivery_audit_blocker_runbook_evidence_readiness_refresh",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage();
+      await loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages();
+      await loadProductionClosedLoopDeliveryAuditBlockerClearancePlan();
+      await loadProductionClosedLoopAcceptanceSummary();
+      await loadProductionClosedLoopDeliveryAuditNextActionPlan();
+      await loadProductionClosedLoopDeliveryAuditOperatorQueue();
+    } catch (error) {
+      setProductionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery audit blocker runbook evidence readiness refresh failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopAcceptanceSummary,
+    loadProductionClosedLoopDeliveryAuditBlockerClearancePlan,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages,
+    loadProductionClosedLoopDeliveryAuditNextActionPlan,
+    loadProductionClosedLoopDeliveryAuditOperatorQueue,
+    settings,
+  ]);
+
+  const completeProductionClosedLoopDeliveryRemediationWorkOrder = useCallback(async (prep: JsonRecord) => {
+    const workOrderId = valueAt(prep, ["latest_work_order_id"], "");
+    const gateKey = valueAt(prep, ["gate_key"], "");
+    if (!workOrderId && !gateKey) {
+      setProductionDeliveryRemediationWorkOrderCompletionState({
+        data: null,
+        error: "Delivery remediation completion target is missing",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setProductionDeliveryRemediationWorkOrderCompletionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.completeProductionClosedLoopDeliveryRemediationWorkOrder(
+        {
+          work_order_id: workOrderId || undefined,
+          gate_key: gateKey || undefined,
+          operator_confirmed: true,
+          completed_by: settings.userId || "server-operator",
+          platform: "douyin",
+          force_metric_due: true,
+          evidence_links: [],
+          completion_summary: `Remediation work-order completion evidence recorded for ${gateKey || workOrderId}.`,
+          operator_notes: "Recorded from admin_dashboard Phase 71E remediation work-order completion control.",
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71E",
+            contract: "production_closed_loop_delivery_remediation_work_order_completion",
+            completion_control: "record_completion_evidence",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrderCompletionState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopDeliveryRemediationWorkOrders();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep();
+      await loadProductionClosedLoopDeliveryRemediationMap();
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrderCompletionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation completion failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryRemediationMap,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    loadProductionClosedLoopDeliveryRemediationWorkOrders,
+    settings,
+  ]);
+
+  const refreshProductionClosedLoopDeliveryRemediationWorkOrderReadiness = useCallback(async (prep: JsonRecord) => {
+    const gateKey = valueAt(prep, ["gate_key"], "");
+    const remediationKey = valueAt(prep, ["remediation_key"], "");
+    if (!gateKey && !remediationKey) {
+      setProductionDeliveryRemediationWorkOrderReadinessRefreshState({
+        data: null,
+        error: "Delivery remediation readiness refresh target is missing",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      return;
+    }
+    setProductionDeliveryRemediationWorkOrderReadinessRefreshState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const response = await commercialOperationsApi.refreshProductionClosedLoopDeliveryRemediationWorkOrderReadiness(
+        {
+          gate_key: gateKey || undefined,
+          remediation_key: remediationKey || undefined,
+          operation_id: valueAt(prep, ["operation_id"], "") || undefined,
+          operator_confirmed: true,
+          platform: "douyin",
+          force_metric_due: true,
+          limit: 25,
+          scan_limit: 50,
+          work_order_limit: 200,
+          refresh_notes: `Readiness refresh requested after completed remediation work order for ${gateKey || remediationKey}.`,
+          metadata: {
+            source: "admin_dashboard",
+            phase: "71F",
+            contract: "production_closed_loop_delivery_remediation_work_order_readiness_refresh",
+            readiness_refresh_control: "refresh_after_completion",
+          },
+        },
+        settings,
+      );
+      setProductionDeliveryRemediationWorkOrderReadinessRefreshState({
+        data: response,
+        error: null,
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+      await loadProductionClosedLoopDeliveryRemediationWorkOrders();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage();
+      await loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep();
+      await loadProductionClosedLoopDeliveryRemediationMap();
+    } catch (error) {
+      setProductionDeliveryRemediationWorkOrderReadinessRefreshState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production delivery remediation readiness refresh failed",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    loadProductionClosedLoopDeliveryRemediationMap,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    loadProductionClosedLoopDeliveryRemediationWorkOrders,
+    settings,
+  ]);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    if (!isComfyuiPage) {
+      void loadProductionClosedLoopInterventionQueue();
+      void loadProductionClosedLoopAcceptanceSummary();
+      void loadProductionClosedLoopDeliveryPlan();
+      void loadProductionClosedLoopDeliveryAuditBlockerClearancePlan();
+      void loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages();
+      void loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords();
+      void loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage();
+      void loadProductionClosedLoopDeliveryAuditNextActionPlan();
+      void loadProductionClosedLoopDeliveryAuditOperatorQueue();
+      void loadProductionClosedLoopDeliveryAuditOpenClawProviderHandoff();
+      void loadProductionClosedLoopDeliveryActionPackages();
+      void loadProductionClosedLoopDeliveryRemediationMap();
+      void loadProductionClosedLoopDeliveryRemediationWorkOrders();
+      void loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage();
+      void loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep();
+      void loadProductionClosedLoopDeliveryActionEvidenceRecords();
+    }
+  }, [
+    isComfyuiPage,
+    load,
+    loadProductionClosedLoopAcceptanceSummary,
+    loadProductionClosedLoopDeliveryAuditBlockerClearancePlan,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords,
+    loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages,
+    loadProductionClosedLoopDeliveryAuditNextActionPlan,
+    loadProductionClosedLoopDeliveryAuditOpenClawProviderHandoff,
+    loadProductionClosedLoopDeliveryAuditOperatorQueue,
+    loadProductionClosedLoopDeliveryActionPackages,
+    loadProductionClosedLoopDeliveryActionEvidenceRecords,
+    loadProductionClosedLoopDeliveryPlan,
+    loadProductionClosedLoopDeliveryRemediationMap,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    loadProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    loadProductionClosedLoopDeliveryRemediationWorkOrders,
+    loadProductionClosedLoopInterventionQueue,
+  ]);
 
   const loadComfyuiRuntimeAdapter = useCallback(async () => {
     setComfyuiRuntimeAdapterState((current) => ({ ...current, loading: true, error: null }));
@@ -6735,6 +7581,158 @@ function CommercialOperationsPage({
 
   const selectedOperationId = selectedOperation ? valueAt(selectedOperation, ["id"], "") : "";
 
+  const loadProductionClosedLoopInterventionAcknowledgements = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setProductionInterventionAcknowledgementState(emptyState());
+        return;
+      }
+      setProductionInterventionAcknowledgementState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.productionClosedLoopInterventionAcknowledgements(
+          operationId,
+          settings,
+        );
+        setProductionInterventionAcknowledgementState({
+          data: response,
+          error: null,
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      } catch (error) {
+        setProductionInterventionAcknowledgementState({
+          data: null,
+          error: error instanceof Error ? error.message : "Production closed-loop intervention acknowledgement history unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
+  const acknowledgeProductionClosedLoopInterventionQueueItem = useCallback(async () => {
+    if (!selectedOperationId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const acknowledgement = await commercialOperationsApi.createProductionClosedLoopInterventionAcknowledgement(
+        selectedOperationId,
+        {
+          acknowledgement_status: interventionAssignee.trim() ? "assigned" : "acknowledged",
+          assignee: interventionAssignee.trim() || undefined,
+          operator_confirmed: true,
+          acknowledgement_notes: interventionNotes.trim() || "Acknowledged from Admin Dashboard intervention queue.",
+          metadata: { source_page: "commercial-operations", phase: "69O" },
+        },
+        settings,
+      );
+      setActionState({ data: acknowledgement, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopInterventionQueue();
+      await loadProductionClosedLoopAcceptanceSummary();
+      await loadProductionClosedLoopInterventionAcknowledgements(selectedOperationId);
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production closed-loop intervention acknowledgement unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    interventionAssignee,
+    interventionNotes,
+    loadProductionClosedLoopAcceptanceSummary,
+    loadProductionClosedLoopInterventionAcknowledgements,
+    loadProductionClosedLoopInterventionQueue,
+    selectedOperationId,
+    settings,
+  ]);
+
+  const recordProductionClosedLoopInterventionAcknowledgementStatus = useCallback(
+    async (acknowledgementStatus: "in_progress" | "dismissed", defaultNotes: string) => {
+      if (!selectedOperationId) {
+        return;
+      }
+      setActionState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const acknowledgement = await commercialOperationsApi.createProductionClosedLoopInterventionAcknowledgement(
+          selectedOperationId,
+          {
+            acknowledgement_status: acknowledgementStatus,
+            assignee: interventionAssignee.trim() || undefined,
+            operator_confirmed: true,
+            acknowledgement_notes: interventionNotes.trim() || defaultNotes,
+            metadata: { source_page: "commercial-operations", phase: "70C" },
+          },
+          settings,
+        );
+        setActionState({ data: acknowledgement, error: null, loading: false, updatedAt: nowLabel() });
+        await loadProductionClosedLoopInterventionQueue();
+        await loadProductionClosedLoopAcceptanceSummary();
+        await loadProductionClosedLoopInterventionAcknowledgements(selectedOperationId);
+      } catch (error) {
+        setActionState({
+          data: null,
+          error: error instanceof Error ? error.message : "Production closed-loop intervention status update unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [
+      interventionAssignee,
+      interventionNotes,
+      loadProductionClosedLoopAcceptanceSummary,
+      loadProductionClosedLoopInterventionAcknowledgements,
+      loadProductionClosedLoopInterventionQueue,
+      selectedOperationId,
+      settings,
+    ],
+  );
+
+  const recordProductionClosedLoopInterventionReminderDispatch = useCallback(async () => {
+    if (!selectedOperationId) {
+      return;
+    }
+    setActionState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const reminderDispatch = await commercialOperationsApi.createProductionClosedLoopInterventionReminderDispatch(
+        selectedOperationId,
+        {
+          reminder_status: interventionReminderRecipient.trim() ? "routed_to_operator" : "ready_for_review",
+          reminder_channel: interventionReminderChannel.trim() || "internal",
+          reminder_recipient: interventionReminderRecipient.trim() || undefined,
+          reminder_message:
+            interventionReminderMessage.trim() || "Production closed-loop intervention reminder requires operator review.",
+          operator_confirmed: true,
+          dispatch_notes: "Reminder dispatch recorded from Admin Dashboard; no message was sent automatically.",
+          metadata: { source_page: "commercial-operations", phase: "69Q" },
+        },
+        settings,
+      );
+      setActionState({ data: reminderDispatch, error: null, loading: false, updatedAt: nowLabel() });
+      await loadProductionClosedLoopInterventionQueue();
+      await loadProductionClosedLoopAcceptanceSummary();
+    } catch (error) {
+      setActionState({
+        data: null,
+        error: error instanceof Error ? error.message : "Production closed-loop intervention reminder dispatch unavailable",
+        loading: false,
+        updatedAt: nowLabel(),
+      });
+    }
+  }, [
+    interventionReminderChannel,
+    interventionReminderMessage,
+    interventionReminderRecipient,
+    loadProductionClosedLoopAcceptanceSummary,
+    loadProductionClosedLoopInterventionQueue,
+    selectedOperationId,
+    settings,
+  ]);
+
   const loadApprovals = useCallback(
     async (operationId: string) => {
       if (!operationId) {
@@ -6793,6 +7791,28 @@ function CommercialOperationsPage({
         setAgentSkillState({
           data: null,
           error: error instanceof Error ? error.message : "Commercial operation Agent/Skill API unavailable",
+          loading: false,
+          updatedAt: nowLabel(),
+        });
+      }
+    },
+    [settings],
+  );
+
+  const loadProductionActionAudits = useCallback(
+    async (operationId: string) => {
+      if (!operationId) {
+        setProductionActionAuditState(emptyState());
+        return;
+      }
+      setProductionActionAuditState((current) => ({ ...current, loading: true, error: null }));
+      try {
+        const response = await commercialOperationsApi.productionClosedLoopActionAudits(operationId, settings);
+        setProductionActionAuditState({ data: response, error: null, loading: false, updatedAt: nowLabel() });
+      } catch (error) {
+        setProductionActionAuditState({
+          data: null,
+          error: error instanceof Error ? error.message : "Production closed-loop action audit API unavailable",
           loading: false,
           updatedAt: nowLabel(),
         });
@@ -7266,6 +8286,8 @@ function CommercialOperationsPage({
       void loadOptimizationDecisions(selectedOperationId);
       void loadLinks(selectedOperationId);
       void loadAgentSkillOrchestration(selectedOperationId);
+      void loadProductionActionAudits(selectedOperationId);
+      void loadProductionClosedLoopInterventionAcknowledgements(selectedOperationId);
       return;
     }
     setApprovalsState(emptyState());
@@ -7291,7 +8313,9 @@ function CommercialOperationsPage({
     setOptimizationState(emptyState());
     setLinksState(emptyState());
     setAgentSkillState(emptyState());
-  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadComfyuiRuntimeDryRuns, loadComfyuiRuntimeActivations, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks, loadAgentSkillOrchestration]);
+    setProductionActionAuditState(emptyState());
+    setProductionInterventionAcknowledgementState(emptyState());
+  }, [selectedOperationId, loadApprovals, loadDryRuns, loadContentDrafts, loadAssetRequests, loadComfyuiHandoffs, loadComfyuiPreflights, loadComfyuiAdapterConfigs, loadComfyuiJobRequests, loadComfyuiExecutionPlans, loadComfyuiConnectionProbes, loadComfyuiAdapterDispatches, loadComfyuiRuntimeGates, loadComfyuiRuntimeDryRuns, loadComfyuiRuntimeActivations, loadDeliverables, loadEvidenceSnapshots, loadExecutionRequests, loadExecutionRuns, loadResults, loadMonitoringObservations, loadOptimizationDecisions, loadLinks, loadAgentSkillOrchestration, loadProductionActionAudits, loadProductionClosedLoopInterventionAcknowledgements]);
 
   const createOperation = async () => {
     setActionState((current) => ({ ...current, loading: true, error: null }));
@@ -9985,11 +11009,543 @@ function CommercialOperationsPage({
   };
 
   const operations = toItems(state.data?.operations);
+  const closedLoopStalenessPriority: Record<string, number> = { stale: 0, watch: 1, fresh: 2, unknown: 3, none: 4 };
+  const operationsForTable = [...operations].sort((left, right) => {
+    const leftStatus = valueAt(left, ["production_closed_loop_staleness_status"], "none");
+    const rightStatus = valueAt(right, ["production_closed_loop_staleness_status"], "none");
+    return (closedLoopStalenessPriority[leftStatus] ?? 5) - (closedLoopStalenessPriority[rightStatus] ?? 5);
+  });
+  const staleClosedLoopCount = operations.filter((operation) =>
+    ["stale", "watch"].includes(valueAt(operation, ["production_closed_loop_staleness_status"], "none")),
+  ).length;
+  const productionClosedLoopInterventionQueue = productionInterventionQueueState.data;
+  const productionClosedLoopInterventionQueueSummary =
+    (productionClosedLoopInterventionQueue?.queue_summary as JsonRecord | undefined) ?? {};
+  const productionClosedLoopInterventionRecommendedAction =
+    (productionClosedLoopInterventionQueue?.recommended_action as JsonRecord | undefined) ??
+    ((productionClosedLoopInterventionQueueSummary?.recommended_action as JsonRecord | undefined) ?? {});
+  const acknowledgementSlaStatusCounts =
+    (productionClosedLoopInterventionQueue?.acknowledgement_sla_status_counts as JsonRecord | undefined) ?? {};
+  const reminderDispatchStatusCounts =
+    (productionClosedLoopInterventionQueue?.reminder_dispatch_status_counts as JsonRecord | undefined) ?? {};
+  const reminderCooldownStatusCounts =
+    (productionClosedLoopInterventionQueue?.reminder_cooldown_status_counts as JsonRecord | undefined) ?? {};
+  const productionClosedLoopInterventionQueueItems = toItems(productionClosedLoopInterventionQueue?.items);
+  const productionClosedLoopInterventionQueueCount = Number(valueAt(productionClosedLoopInterventionQueue, ["queue_count"], "0")) || 0;
+  const productionClosedLoopInterventionReminderCount = productionClosedLoopInterventionQueueItems.filter((item) => {
+    const acknowledgementSla = (item.acknowledgement_sla as JsonRecord | undefined) ?? {};
+    return valueAt(acknowledgementSla, ["reminder_recommended"], "false") === "true";
+  }).length;
+  const productionClosedLoopInterventionFollowUpCount = productionClosedLoopInterventionQueueItems.filter(
+    (item) => valueAt(item, ["reminder_follow_up_recommended"], "false") === "true",
+  ).length;
+  const productionClosedLoopInterventionServerFollowUpCount = valueAt(
+    productionClosedLoopInterventionQueueSummary,
+    ["reminder_follow_up_count"],
+    String(productionClosedLoopInterventionFollowUpCount),
+  );
+  const productionClosedLoopInterventionOverdueCount = valueAt(
+    productionClosedLoopInterventionQueueSummary,
+    ["acknowledgement_overdue_count"],
+    "0",
+  );
+  const productionClosedLoopInterventionOverdueCountNumber =
+    Number(productionClosedLoopInterventionOverdueCount) || 0;
+  const productionClosedLoopInterventionServerFollowUpCountNumber =
+    Number(productionClosedLoopInterventionServerFollowUpCount) || 0;
+  const productionClosedLoopInterventionCooldownCount =
+    Number(valueAt(reminderCooldownStatusCounts, ["cooling_down"], "0")) || 0;
+  const productionClosedLoopInterventionQueueStatus = valueAt(
+    productionClosedLoopInterventionQueue,
+    ["queue_status"],
+    "empty",
+  );
+  const productionClosedLoopInterventionPressureScore = Math.min(
+    100,
+    Math.round(
+      Math.min(productionClosedLoopInterventionQueueCount * 10, 30) +
+        Math.min(productionClosedLoopInterventionOverdueCountNumber * 20, 35) +
+        Math.min(productionClosedLoopInterventionReminderCount * 12, 24) +
+        Math.min(productionClosedLoopInterventionServerFollowUpCountNumber * 18, 30) +
+        Math.min(productionClosedLoopInterventionCooldownCount * 6, 12),
+    ),
+  );
+  const productionClosedLoopInterventionPressureLevel: "healthy" | "busy" | "hot" | "blocked" =
+    productionInterventionQueueState.error
+      ? "blocked"
+      : productionClosedLoopInterventionPressureScore >= 70
+        ? "hot"
+        : productionClosedLoopInterventionPressureScore >= 25 || productionClosedLoopInterventionQueueCount > 0
+          ? "busy"
+          : "healthy";
+  const productionClosedLoopInterventionPressureLabel =
+    productionClosedLoopInterventionPressureLevel === "blocked"
+      ? "Queue unavailable"
+      : productionClosedLoopInterventionPressureLevel === "hot"
+        ? "Intervention hot"
+        : productionClosedLoopInterventionPressureLevel === "busy"
+          ? "Needs follow-up"
+          : "Intervention clear";
+  const productionClosedLoopInterventionPressureDrivers = [
+    `queue:${productionClosedLoopInterventionQueueCount}`,
+    `overdue:${productionClosedLoopInterventionOverdueCountNumber}`,
+    `reminders:${productionClosedLoopInterventionReminderCount}`,
+    `followups:${productionClosedLoopInterventionServerFollowUpCountNumber}`,
+    `cooldown:${productionClosedLoopInterventionCooldownCount}`,
+  ].join(" / ");
+  const productionClosedLoopInterventionPressureRecommendation = `${valueAt(
+    productionClosedLoopInterventionRecommendedAction,
+    ["action_key"],
+    "none",
+  )} / ${valueAt(productionClosedLoopInterventionRecommendedAction, ["reason"], "intervention_queue_empty")}`;
+  const productionClosedLoopInterventionPressureCards = [
+    {
+      id: "queue",
+      label: "Queue",
+      value: String(productionClosedLoopInterventionQueueCount),
+      detail: `${productionClosedLoopInterventionQueueStatus} / stale:${valueAt(
+        productionClosedLoopInterventionQueue,
+        ["stale_count"],
+        "0",
+      )} / watch:${valueAt(productionClosedLoopInterventionQueue, ["watch_count"], "0")}`,
+    },
+    {
+      id: "sla",
+      label: "SLA",
+      value: String(productionClosedLoopInterventionOverdueCountNumber),
+      detail: `overdue/due/unknown/unassigned from acknowledgement_sla_status_counts`,
+    },
+    {
+      id: "reminder",
+      label: "Reminder",
+      value: String(productionClosedLoopInterventionServerFollowUpCountNumber),
+      detail: `recommended:${productionClosedLoopInterventionReminderCount} / cooling_down:${productionClosedLoopInterventionCooldownCount}`,
+    },
+    {
+      id: "next",
+      label: "Recommended action",
+      value: valueAt(productionClosedLoopInterventionRecommendedAction, ["action_key"], "none"),
+      detail: valueAt(productionClosedLoopInterventionRecommendedAction, ["reason"], "intervention_queue_empty"),
+    },
+  ];
+  const productionClosedLoopInterventionAcknowledgements = productionInterventionAcknowledgementState.data;
+  const productionClosedLoopInterventionAcknowledgementRecords = toItems(
+    productionClosedLoopInterventionAcknowledgements?.records,
+  );
+  const productionClosedLoopInterventionLatestAcknowledgement =
+    (productionClosedLoopInterventionAcknowledgements?.latest_record as JsonRecord | null | undefined) ??
+    productionClosedLoopInterventionAcknowledgementRecords[productionClosedLoopInterventionAcknowledgementRecords.length - 1] ??
+    null;
+  const productionClosedLoopInterventionAcknowledgementCount = valueAt(
+    productionClosedLoopInterventionAcknowledgements,
+    ["acknowledgement_count"],
+    String(productionClosedLoopInterventionAcknowledgementRecords.length),
+  );
+  const productionClosedLoopInterventionAcknowledgementRows =
+    productionClosedLoopInterventionAcknowledgementRecords.slice(-6).reverse();
+  const productionClosedLoopInterventionQueueRows = productionClosedLoopInterventionQueueItems.map((item) => {
+    const acknowledgementSla = (item.acknowledgement_sla as JsonRecord | undefined) ?? {};
+    const reminderDispatchCooldown = (item.reminder_dispatch_cooldown as JsonRecord | undefined) ?? {};
+    return {
+      ...item,
+      operation_title: valueAt(item.operation as JsonRecord | undefined, ["title"], valueAt(item, ["operation_title"], "-")),
+      primary_step_key: valueAt(item, ["primary_step_key"], "none"),
+      staleness_status: valueAt(item, ["staleness_status"], "none"),
+      waiting_seconds: valueAt(item, ["waiting_seconds"], "0"),
+      priority_score: valueAt(item, ["priority_score"], "0"),
+      recommended_action_key: valueAt(item, ["recommended_action_key"], "-"),
+      acknowledgement_status: valueAt(item, ["acknowledgement_status"], "-"),
+      acknowledgement_assignee: valueAt(item, ["acknowledgement_assignee"], "-"),
+      ack_sla_status: valueAt(acknowledgementSla, ["status"], "-"),
+      ack_waiting_seconds: valueAt(acknowledgementSla, ["waiting_seconds"], "0"),
+      reminder_recommended: valueAt(acknowledgementSla, ["reminder_recommended"], "false"),
+      reminder_dispatch_status: valueAt(item, ["reminder_dispatch_status"], "-"),
+      reminder_dispatch_channel: valueAt(item, ["reminder_dispatch_channel"], "-"),
+      reminder_cooldown_status: valueAt(reminderDispatchCooldown, ["status"], "-"),
+      next_reminder_allowed: valueAt(reminderDispatchCooldown, ["next_reminder_allowed"], "false"),
+      reminder_follow_up_recommended: valueAt(item, ["reminder_follow_up_recommended"], "false"),
+      reminder_next_allowed_at: valueAt(item, ["reminder_next_allowed_at"], "-"),
+    };
+  });
+  const productionClosedLoopProjectStageCounts = [
+    {
+      id: "planning",
+      label: "Plan review",
+      value: operations.filter((operation) => /draft|planning/i.test(String(operation.status ?? ""))).length,
+      detail: "draft / planning operations",
+    },
+    {
+      id: "active",
+      label: "Active delivery",
+      value: operations.filter((operation) => /ready|active/i.test(String(operation.status ?? ""))).length,
+      detail: "ready / active operations",
+    },
+    {
+      id: "watch",
+      label: "Watch",
+      value: operations.filter((operation) => valueAt(operation, ["production_closed_loop_staleness_status"], "none") === "watch").length,
+      detail: "freshness watch list",
+    },
+    {
+      id: "stale",
+      label: "Stale",
+      value: operations.filter((operation) => valueAt(operation, ["production_closed_loop_staleness_status"], "none") === "stale").length,
+      detail: "blocked or stale actions",
+    },
+    {
+      id: "intervention",
+      label: "Intervention",
+      value: productionClosedLoopInterventionQueueCount,
+      detail: "operator intervention queue",
+    },
+    {
+      id: "escalation",
+      label: "Escalation",
+      value: operations.filter(
+        (operation) => valueAt(operation, ["production_closed_loop_escalation_recommended"], "false") === "true",
+      ).length,
+      detail: "escalation recommended",
+    },
+  ];
+  const productionClosedLoopProjectBlockerRows = operationsForTable
+    .filter((operation) => {
+      const staleness = valueAt(operation, ["production_closed_loop_staleness_status"], "none");
+      const escalation = valueAt(operation, ["production_closed_loop_escalation_recommended"], "false");
+      return ["stale", "watch"].includes(staleness) || escalation === "true";
+    })
+    .slice(0, 5)
+    .map((operation) => ({
+      ...operation,
+      operation_title: valueAt(operation, ["title"], "-"),
+      closed_loop_step: valueAt(operation, ["production_closed_loop_primary_step_key"], "none"),
+      staleness: valueAt(operation, ["production_closed_loop_staleness_status"], "none"),
+      waiting_s: valueAt(operation, ["production_closed_loop_waiting_seconds"], "0"),
+      escalation: valueAt(operation, ["production_closed_loop_escalation_recommended"], "false"),
+    }));
+  const productionClosedLoopProjectBlockedCount = productionClosedLoopProjectBlockerRows.length;
+  const productionClosedLoopProjectStageOverview = `${operations.length} operations / ${productionClosedLoopProjectBlockedCount} highlighted blockers / ${productionClosedLoopInterventionQueueCount} intervention queue`;
+  const productionClosedLoopAcceptanceSummary = productionAcceptanceSummaryState.data;
+  const productionClosedLoopAcceptanceMetadata =
+    (productionClosedLoopAcceptanceSummary?.metadata as JsonRecord | undefined) ?? {};
+  const productionClosedLoopOpenClawProviderReadiness =
+    (productionClosedLoopAcceptanceSummary?.openclaw_provider_readiness as JsonRecord | undefined) ?? {};
+  const productionClosedLoopOpenClawProviderReady = Boolean(
+    productionClosedLoopOpenClawProviderReadiness.ready,
+  );
+  const productionClosedLoopOpenClawProviderStatus = valueAt(
+    productionClosedLoopOpenClawProviderReadiness,
+    ["readiness_status"],
+    "real_publish_provider_not_configured",
+  );
+  const productionClosedLoopAcceptanceOperations = toItems(productionClosedLoopAcceptanceSummary?.operations);
+  const productionClosedLoopAcceptanceTopBlockers = toItems(productionClosedLoopAcceptanceSummary?.top_blockers);
+  const productionClosedLoopReleaseGateChecklist = toItems(productionClosedLoopAcceptanceSummary?.release_gate_checklist);
+  const productionClosedLoopAcceptanceStatus = valueAt(
+    productionClosedLoopAcceptanceSummary,
+    ["acceptance_status"],
+    productionAcceptanceSummaryState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopCompletionPercent =
+    Number(valueAt(productionClosedLoopAcceptanceSummary, ["completion_percent"], "0")) || 0;
+  const productionClosedLoopCompletionLevel = valueAt(
+    productionClosedLoopAcceptanceSummary,
+    ["completion_level"],
+    "not_ready",
+  );
+  const productionClosedLoopCompletionNextFocus = valueAt(
+    productionClosedLoopAcceptanceSummary,
+    ["next_focus"],
+    "create_or_import_operation_project",
+  );
+  const productionClosedLoopRemainingGates = Array.isArray(productionClosedLoopAcceptanceSummary?.remaining_gates)
+    ? (productionClosedLoopAcceptanceSummary.remaining_gates as string[])
+    : [];
+  const productionClosedLoopScoreBreakdown =
+    (productionClosedLoopAcceptanceSummary?.score_breakdown as JsonRecord | undefined) ?? {};
+  const productionClosedLoopAcceptanceOverview = `${valueAt(
+    productionClosedLoopAcceptanceSummary,
+    ["operation_count"],
+    "0",
+  )} operations / accepted:${valueAt(productionClosedLoopAcceptanceSummary, ["accepted_count"], "0")} / blocked:${valueAt(
+    productionClosedLoopAcceptanceSummary,
+    ["blocked_count"],
+    "0",
+  )} / queue:${valueAt(productionClosedLoopAcceptanceSummary, ["intervention_queue_count"], "0")}`;
+  const productionClosedLoopAcceptanceCards = [
+    {
+      id: "status",
+      label: "Acceptance",
+      value: productionClosedLoopAcceptanceStatus,
+      detail: `contract:${valueAt(productionClosedLoopAcceptanceMetadata, ["contract"], "production_closed_loop_acceptance_summary")}`,
+    },
+    {
+      id: "completion",
+      label: "Completion",
+      value: `${productionClosedLoopCompletionPercent}%`,
+      detail: `${productionClosedLoopCompletionLevel} / ${valueAt(
+        productionClosedLoopAcceptanceMetadata,
+        ["completion_score_contract"],
+        "production_closed_loop_completion_score",
+      )}`,
+    },
+    {
+      id: "accepted",
+      label: "Accepted",
+      value: valueAt(productionClosedLoopAcceptanceSummary, ["accepted_count"], "0"),
+      detail: `of ${valueAt(productionClosedLoopAcceptanceSummary, ["operation_count"], "0")} scanned operations`,
+    },
+    {
+      id: "customer-machine",
+      label: "Client-ready",
+      value: valueAt(productionClosedLoopAcceptanceSummary, ["ready_for_customer_machine_execution_count"], "0"),
+      detail: "ready for customer-machine execution handoff",
+    },
+    {
+      id: "openclaw-provider",
+      label: "OpenClaw",
+      value: productionClosedLoopOpenClawProviderStatus,
+      detail: `${productionClosedLoopOpenClawProviderReady ? "ready" : "blocked"} / provider:${valueAt(
+        productionClosedLoopOpenClawProviderReadiness,
+        ["provider"],
+        "unknown",
+      )} / mock:${valueAt(
+        productionClosedLoopOpenClawProviderReadiness,
+        ["mock"],
+        "unknown",
+      )}`,
+    },
+    {
+      id: "metric",
+      label: "Metric-ready",
+      value: valueAt(productionClosedLoopAcceptanceSummary, ["ready_for_metric_feedback_count"], "0"),
+      detail: "ready for metric feedback or analysis",
+    },
+    {
+      id: "next-cycle",
+      label: "Next cycle",
+      value: valueAt(productionClosedLoopAcceptanceSummary, ["ready_for_next_cycle_count"], "0"),
+      detail: "ready for reviewable next-cycle draft",
+    },
+    {
+      id: "blockers",
+      label: "Blockers",
+      value: valueAt(productionClosedLoopAcceptanceSummary, ["blocked_count"], "0"),
+      detail: `queue:${valueAt(productionClosedLoopAcceptanceSummary, ["intervention_queue_count"], "0")}`,
+    },
+  ];
+  const productionClosedLoopDeliveryPlan = productionDeliveryPlanState.data;
+  const productionClosedLoopDeliveryMetadata =
+    (productionClosedLoopDeliveryPlan?.metadata as JsonRecord | undefined) ?? {};
+  const productionClosedLoopDeliveryGates = toItems(productionClosedLoopDeliveryPlan?.gate_plan);
+  const productionClosedLoopImmediateActions = toItems(productionClosedLoopDeliveryPlan?.immediate_actions);
+  const productionClosedLoopOpenDeliveryGates = productionClosedLoopDeliveryGates.filter(
+    (gate) => valueAt(gate, ["gate_status"], "complete") !== "complete",
+  );
+  const productionClosedLoopDeliveryStatus = valueAt(
+    productionClosedLoopDeliveryPlan,
+    ["delivery_status"],
+    productionDeliveryPlanState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryOverview = `${valueAt(
+    productionClosedLoopDeliveryPlan,
+    ["open_gate_count"],
+    "0",
+  )} open gates / critical:${valueAt(productionClosedLoopDeliveryPlan, ["critical_gate_count"], "0")} / handoff:${valueAt(
+    productionClosedLoopDeliveryPlan,
+    ["ready_for_handoff"],
+    "false",
+  )}`;
+  const productionClosedLoopDeliveryAuditBlockerClearancePlan = productionDeliveryAuditBlockerClearancePlanState.data;
+  const productionClosedLoopDeliveryAuditBlockerClearanceItems = toItems(
+    productionClosedLoopDeliveryAuditBlockerClearancePlan?.items,
+  );
+  const productionClosedLoopDeliveryAuditBlockerClearanceVisibleItems =
+    productionClosedLoopDeliveryAuditBlockerClearanceItems.slice(0, 6);
+  const productionClosedLoopDeliveryAuditBlockerAssignableCount = productionClosedLoopDeliveryAuditBlockerClearanceItems.filter(
+    (item) => valueAt(item, ["gate_key"], "") && valueAt(item, ["remediation_key"], "") && !valueAt(item, ["latest_work_order_id"], ""),
+  ).length;
+  const productionClosedLoopDeliveryAuditBlockerAssignmentStatus = valueAt(
+    productionDeliveryAuditBlockerWorkOrderAssignmentState.data,
+    ["assignment_status"],
+    productionDeliveryAuditBlockerWorkOrderAssignmentState.error ? "assignment_failed" : "assignment_idle",
+  );
+  const productionClosedLoopDeliveryAuditBlockerClearanceStatus = valueAt(
+    productionClosedLoopDeliveryAuditBlockerClearancePlan,
+    ["clearance_status"],
+    productionDeliveryAuditBlockerClearancePlanState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryAuditBlockerRunbookPackages = productionDeliveryAuditBlockerRunbookPackagesState.data;
+  const productionClosedLoopDeliveryAuditBlockerRunbookVisiblePackages = toItems(
+    productionClosedLoopDeliveryAuditBlockerRunbookPackages?.packages,
+  ).slice(0, 4);
+  const productionClosedLoopDeliveryAuditBlockerRunbookStatus = valueAt(
+    productionClosedLoopDeliveryAuditBlockerRunbookPackages,
+    ["handoff_status"],
+    productionDeliveryAuditBlockerRunbookPackagesState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryAuditBlockerRunbookEvidence = productionDeliveryAuditBlockerRunbookEvidenceState.data;
+  const productionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords = toItems(
+    productionClosedLoopDeliveryAuditBlockerRunbookEvidence?.records,
+  );
+  const productionClosedLoopDeliveryAuditBlockerRunbookLatestEvidence =
+    (productionClosedLoopDeliveryAuditBlockerRunbookEvidence?.latest_record as JsonRecord | undefined) ??
+    productionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecords[0] ??
+    null;
+  const productionClosedLoopDeliveryAuditBlockerRunbookEvidenceStatus = valueAt(
+    productionClosedLoopDeliveryAuditBlockerRunbookLatestEvidence,
+    ["evidence_status"],
+    productionDeliveryAuditBlockerRunbookEvidenceState.error ? "unavailable" : "no_runbook_evidence_record",
+  );
+  const productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage = productionDeliveryAuditBlockerRunbookEvidenceCoverageState.data;
+  const productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageVisibleItems = toItems(
+    productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage?.items,
+  ).slice(0, 4);
+  const productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageStatus = valueAt(
+    productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage,
+    ["coverage_status"],
+    productionDeliveryAuditBlockerRunbookEvidenceCoverageState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryAuditNextActionPlan = productionDeliveryAuditNextActionPlanState.data;
+  const productionClosedLoopDeliveryAuditNextActionPlanVisibleActions = toItems(
+    productionClosedLoopDeliveryAuditNextActionPlan?.next_actions,
+  ).slice(0, 5);
+  const productionClosedLoopDeliveryAuditNextActionPlanStatus = valueAt(
+    productionClosedLoopDeliveryAuditNextActionPlan,
+    ["audit_status"],
+    productionDeliveryAuditNextActionPlanState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryAuditOperatorQueue = productionDeliveryAuditOperatorQueueState.data;
+  const productionClosedLoopDeliveryAuditOperatorQueueGroups = toItems(
+    productionClosedLoopDeliveryAuditOperatorQueue?.owner_groups,
+  ).slice(0, 4);
+  const productionClosedLoopDeliveryAuditOperatorQueueStatus = valueAt(
+    productionClosedLoopDeliveryAuditOperatorQueue,
+    ["queue_status"],
+    productionDeliveryAuditOperatorQueueState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryAuditOpenClawProviderHandoff = productionDeliveryAuditOpenClawProviderHandoffState.data;
+  const productionClosedLoopDeliveryAuditOpenClawProviderHandoffItems = toItems(
+    productionClosedLoopDeliveryAuditOpenClawProviderHandoff?.config_items,
+  ).slice(0, 4);
+  const productionClosedLoopDeliveryAuditOpenClawProviderHandoffStatus = valueAt(
+    productionClosedLoopDeliveryAuditOpenClawProviderHandoff,
+    ["handoff_status"],
+    productionDeliveryAuditOpenClawProviderHandoffState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryActionPackages = productionDeliveryActionPackagesState.data;
+  const productionClosedLoopDeliveryActionPackageMetadata =
+    (productionClosedLoopDeliveryActionPackages?.metadata as JsonRecord | undefined) ?? {};
+  const productionClosedLoopImmediateActionPackages = toItems(
+    productionClosedLoopDeliveryActionPackages?.immediate_action_packages,
+  );
+  const productionClosedLoopGateActionPackages = toItems(productionClosedLoopDeliveryActionPackages?.gate_packages);
+  const productionClosedLoopVisibleActionPackages = productionClosedLoopImmediateActionPackages.length
+    ? productionClosedLoopImmediateActionPackages
+    : productionClosedLoopGateActionPackages.filter((item) => valueAt(item, ["gate_status"], "complete") !== "complete").slice(0, 4);
+  const productionClosedLoopDeliveryActionPackageStatus = valueAt(
+    productionClosedLoopDeliveryActionPackages,
+    ["action_package_status"],
+    productionDeliveryActionPackagesState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryActionPackageOverview = `${valueAt(
+    productionClosedLoopDeliveryActionPackages,
+    ["package_count"],
+    "0",
+  )} packages / steps:${valueAt(productionClosedLoopDeliveryActionPackages, ["step_count"], "0")} / focus:${valueAt(
+    productionClosedLoopDeliveryActionPackages,
+    ["next_focus"],
+    valueAt(productionClosedLoopDeliveryPlan, ["next_focus"], "-"),
+  )}`;
+  const productionClosedLoopDeliveryRemediationMap = productionDeliveryRemediationMapState.data;
+  const productionClosedLoopDeliveryRemediationMetadata =
+    (productionClosedLoopDeliveryRemediationMap?.metadata as JsonRecord | undefined) ?? {};
+  const productionClosedLoopImmediateRemediations = toItems(
+    productionClosedLoopDeliveryRemediationMap?.immediate_remediations,
+  );
+  const productionClosedLoopRemediationItems = toItems(productionClosedLoopDeliveryRemediationMap?.remediations);
+  const productionClosedLoopVisibleRemediations = productionClosedLoopImmediateRemediations.length
+    ? productionClosedLoopImmediateRemediations
+    : productionClosedLoopRemediationItems.slice(0, 4);
+  const productionClosedLoopDeliveryRemediationStatus = valueAt(
+    productionClosedLoopDeliveryRemediationMap,
+    ["remediation_status"],
+    productionDeliveryRemediationMapState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryRemediationOverview = `${valueAt(
+    productionClosedLoopDeliveryRemediationMap,
+    ["remediation_count"],
+    "0",
+  )} remediations / immediate:${valueAt(
+    productionClosedLoopDeliveryRemediationMap,
+    ["immediate_remediation_count"],
+    "0",
+  )} / focus:${valueAt(
+    productionClosedLoopDeliveryRemediationMap,
+    ["next_focus"],
+    valueAt(productionClosedLoopDeliveryActionPackages, ["next_focus"], "-"),
+  )}`;
+  const productionClosedLoopDeliveryRemediationWorkOrders = productionDeliveryRemediationWorkOrdersState.data;
+  const productionClosedLoopDeliveryRemediationWorkOrderRecords = toItems(
+    productionClosedLoopDeliveryRemediationWorkOrders?.records,
+  );
+  const productionClosedLoopDeliveryRemediationLatestWorkOrder =
+    (productionClosedLoopDeliveryRemediationWorkOrders?.latest_record as JsonRecord | undefined) ??
+    productionClosedLoopDeliveryRemediationWorkOrderRecords[0] ??
+    null;
+  const productionClosedLoopDeliveryRemediationWorkOrderStatus = valueAt(
+    productionClosedLoopDeliveryRemediationLatestWorkOrder,
+    ["work_order_status"],
+    productionDeliveryRemediationWorkOrdersState.error ? "unavailable" : "no_work_order_record",
+  );
+  const productionClosedLoopDeliveryRemediationWorkOrderCoverage =
+    productionDeliveryRemediationWorkOrderCoverageState.data;
+  const productionClosedLoopDeliveryRemediationWorkOrderCoverageItems = toItems(
+    productionClosedLoopDeliveryRemediationWorkOrderCoverage?.items,
+  );
+  const productionClosedLoopDeliveryRemediationWorkOrderCoverageVisibleItems = toItems(
+    productionClosedLoopDeliveryRemediationWorkOrderCoverage?.unassigned_items,
+  ).length
+    ? toItems(productionClosedLoopDeliveryRemediationWorkOrderCoverage?.unassigned_items).slice(0, 3)
+    : productionClosedLoopDeliveryRemediationWorkOrderCoverageItems.slice(0, 3);
+  const productionClosedLoopDeliveryRemediationWorkOrderCoverageStatus = valueAt(
+    productionClosedLoopDeliveryRemediationWorkOrderCoverage,
+    ["coverage_status"],
+    productionDeliveryRemediationWorkOrderCoverageState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep =
+    productionDeliveryRemediationWorkOrderExecutionPrepState.data;
+  const productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItems = toItems(
+    productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep?.items,
+  );
+  const productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepVisibleItems = toItems(
+    productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep?.waiting_assignment_items,
+  ).length
+    ? toItems(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep?.waiting_assignment_items).slice(0, 3)
+    : toItems(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep?.ready_items).length
+      ? toItems(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep?.ready_items).slice(0, 3)
+      : productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItems.slice(0, 3);
+  const productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepStatus = valueAt(
+    productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep,
+    ["prep_status"],
+    productionDeliveryRemediationWorkOrderExecutionPrepState.error ? "unavailable" : "unknown",
+  );
+  const productionClosedLoopDeliveryActionEvidence = productionDeliveryActionEvidenceState.data;
+  const productionClosedLoopDeliveryActionEvidenceRecords = toItems(productionClosedLoopDeliveryActionEvidence?.records);
+  const productionClosedLoopDeliveryActionLatestEvidence =
+    (productionClosedLoopDeliveryActionEvidence?.latest_record as JsonRecord | undefined) ??
+    productionClosedLoopDeliveryActionEvidenceRecords[0] ??
+    null;
+  const productionClosedLoopDeliveryActionEvidenceStatus = valueAt(
+    productionClosedLoopDeliveryActionLatestEvidence,
+    ["evidence_status"],
+    productionDeliveryActionEvidenceState.error ? "unavailable" : "no_evidence_record",
+  );
   const activeCount = operations.filter((operation) => /planning|ready|active/i.test(String(operation.status ?? ""))).length;
   const attentionCount = operations.filter((operation) => {
     const status = String(operation.status ?? "");
     const risk = String(operation.risk_level ?? "");
-    return /high/i.test(risk) || /draft|planning/i.test(status);
+    const closedLoopStatus = valueAt(operation, ["production_closed_loop_staleness_status"], "none");
+    return /high/i.test(risk) || /draft|planning/i.test(status) || ["stale", "watch"].includes(closedLoopStatus);
   }).length;
   const planStepCount = operations.reduce((total, operation) => {
     const outline = operation.plan_outline;
@@ -10007,6 +11563,24 @@ function CommercialOperationsPage({
     agentSkills.find((skill) => valueAt(skill, ["status"], "") !== "complete") ??
     null;
   const agentBoundaries = Array.isArray(agentSkillOrchestration?.boundaries) ? (agentSkillOrchestration.boundaries as string[]) : [];
+  const productionClosedLoopActionAudits = productionActionAuditState.data;
+  const productionClosedLoopPrimaryStep = (productionClosedLoopActionAudits?.primary_step as JsonRecord | null | undefined) ?? null;
+  const productionClosedLoopOperatorChecklist = Array.isArray(productionClosedLoopActionAudits?.operator_checklist)
+    ? (productionClosedLoopActionAudits.operator_checklist as JsonRecord[])
+    : [];
+  const productionClosedLoopLatestAudit = (productionClosedLoopActionAudits?.latest_record as JsonRecord | null | undefined) ?? null;
+  const productionClosedLoopPrimaryStepStaleness =
+    (productionClosedLoopActionAudits?.primary_step_staleness as JsonRecord | null | undefined) ?? null;
+  const productionClosedLoopPrimaryStepLabel = valueAt(
+    productionClosedLoopPrimaryStep,
+    ["label", "step_key"],
+    "No pending production action",
+  );
+  const productionClosedLoopPrimaryStepDetail = valueAt(
+    productionClosedLoopPrimaryStep,
+    ["detail", "blocking_reason"],
+    "No current action-audit primary step.",
+  );
   const approvals = approvalsState.data || [];
   const approvedApprovals = approvals.filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
   const dryRuns = dryRunsState.data || [];
@@ -10145,6 +11719,89 @@ function CommercialOperationsPage({
     comfyuiRuntimeActivations.length +
     comfyuiRuntimeVideoJobs.length +
     comfyuiRuntimeGuardedProbeExecutions.length;
+  const openCommercialServerDrawer = (drawerSelector: string) => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const drawer = document.querySelector(drawerSelector) as HTMLDetailsElement | null;
+    if (!drawer) {
+      return;
+    }
+    drawer.open = true;
+    window.requestAnimationFrame(() => {
+      drawer.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+  const commercialServerProductionIndexCards: Array<{
+    key: string;
+    label: string;
+    value: string;
+    detail: string;
+    state: "healthy" | "busy" | "hot" | "blocked";
+    drawerSelector: string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      key: "maintenance",
+      label: "Maintenance",
+      value: `${productionClosedLoopInterventionPressureLabel} / ${productionClosedLoopInterventionPressureScore}%`,
+      detail: `queue:${productionClosedLoopInterventionQueueCount} / overdue:${productionClosedLoopInterventionOverdueCount}`,
+      state: productionClosedLoopInterventionPressureLevel,
+      drawerSelector: ".commercial-server-maintenance-drawer",
+      icon: <Gauge size={14} />,
+    },
+    {
+      key: "operations",
+      label: "Operations",
+      value: String(operationsForTable.length),
+      detail: `stale/watch:${staleClosedLoopCount} / selected:${
+        selectedOperation ? valueAt(selectedOperation, ["title"], "-") : "none"
+      }`,
+      state: staleClosedLoopCount > 0 ? "hot" : operationsForTable.length > 0 ? "healthy" : "blocked",
+      drawerSelector: ".commercial-server-operation-list-drawer",
+      icon: <Database size={14} />,
+    },
+    {
+      key: "context",
+      label: "Selected",
+      value: selectedOperation ? valueAt(selectedOperation, ["status"], "none") : "none",
+      detail: selectedOperation ? valueAt(selectedOperation, ["title"], copy.detailTitle) : copy.selectedHint,
+      state: selectedOperation ? "healthy" : "blocked",
+      drawerSelector: ".commercial-server-operation-context-drawer",
+      icon: <Target size={14} />,
+    },
+    {
+      key: "audit",
+      label: "Audit",
+      value: productionClosedLoopPrimaryStepLabel,
+      detail: `audits:${valueAt(productionClosedLoopActionAudits, ["audit_count"], "0")} / latest:${valueAt(
+        productionClosedLoopLatestAudit,
+        ["action_key"],
+        "-",
+      )}`,
+      state: selectedOperationId ? "busy" : "blocked",
+      drawerSelector: ".commercial-server-action-audit-drawer",
+      icon: <ClipboardList size={14} />,
+    },
+    {
+      key: "upstream",
+      label: "Upstream",
+      value: "Content / assets / ComfyUI",
+      detail: `drafts:${contentDrafts.length} / assets:${assetRequests.length} / handoffs:${comfyuiHandoffs.length}`,
+      state: contentDrafts.length > 0 || assetRequests.length > 0 || comfyuiHandoffs.length > 0 ? "busy" : "healthy",
+      drawerSelector: ".commercial-server-production-upstream-drawer",
+      icon: <Package size={14} />,
+    },
+    {
+      key: "closed-loop",
+      label: "Closed loop",
+      value: `${productionClosedLoopCompletionPercent}%`,
+      detail: `deliverables:${deliverables.length} / runs:${executionRuns.length} / results:${results.length}`,
+      state: productionClosedLoopCompletionPercent >= 80 ? "healthy" : productionClosedLoopCompletionPercent > 0 ? "busy" : "blocked",
+      drawerSelector: ".commercial-server-production-closed-loop-drawer",
+      icon: <Activity size={14} />,
+    },
+  ];
 
   useEffect(() => {
     const approved = (approvalsState.data || []).filter((approval) => valueAt(approval, ["approval_status"], "") === "approved");
@@ -10548,10 +12205,75 @@ function CommercialOperationsPage({
       <div className="metrics-grid commercial-metrics-grid">
         <DataCard title={copy.total} value={String(operations.length)} detail={settings.workspaceId} icon={<Megaphone size={20} />} />
         <DataCard title={copy.active} value={String(activeCount)} detail="planning / ready / active" icon={<Sparkles size={20} />} />
-        <DataCard title={copy.attention} value={String(attentionCount)} detail="draft / planning / high" icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
+        <DataCard title={copy.attention} value={String(attentionCount)} detail={`draft / planning / high / stale:${staleClosedLoopCount} / queue:${productionClosedLoopInterventionQueueCount} / reminders:${productionClosedLoopInterventionReminderCount} / overdue:${productionClosedLoopInterventionOverdueCount} / followups:${productionClosedLoopInterventionServerFollowUpCount}`} icon={<AlertTriangle size={20} />} warning={attentionCount > 0} />
         <DataCard title={copy.steps} value={String(isComfyuiPage ? comfyuiRecordCount : planStepCount)} detail={isComfyuiPage ? comfyuiStepDetail : commercialStepDetail} icon={<BarChart3 size={20} />} />
       </div>
 
+      {!isComfyuiPage ? (
+        <section className={`commercial-server-quiet-cockpit ${productionClosedLoopInterventionPressureLevel}`} aria-label="Phase 73G Server Codex Quiet Cockpit">
+          <div className="commercial-server-quiet-main">
+            <span>Production closed-loop</span>
+            <strong>{productionClosedLoopCompletionPercent}% · {productionClosedLoopCompletionLevel}</strong>
+            <p>{productionClosedLoopCompletionNextFocus}</p>
+          </div>
+          <button className="commercial-server-quiet-pill" onClick={() => void loadProductionClosedLoopAcceptanceSummary()} disabled={productionAcceptanceSummaryState.loading}>
+            <Gauge size={14} />
+            <span>pressure</span>
+            <strong>{productionClosedLoopInterventionPressureLabel} · {productionClosedLoopInterventionPressureScore}%</strong>
+          </button>
+          <button className="commercial-server-quiet-pill" onClick={() => void loadProductionClosedLoopInterventionQueue()} disabled={productionInterventionQueueState.loading}>
+            <AlertTriangle size={14} />
+            <span>queue</span>
+            <strong>{productionClosedLoopInterventionQueueCount} watch / {productionClosedLoopInterventionOverdueCount} overdue</strong>
+          </button>
+          <button
+            className="commercial-server-quiet-pill"
+            onClick={() => {
+              if (selectedOperationId) {
+                void loadProductionActionAudits(selectedOperationId);
+              }
+            }}
+            disabled={!selectedOperationId || productionActionAuditState.loading}
+          >
+            <ClipboardList size={14} />
+            <span>next step</span>
+            <strong>{productionClosedLoopPrimaryStepLabel}</strong>
+          </button>
+        </section>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <section className="commercial-server-production-index" aria-label="Phase 73P Server Production Index">
+          <div className="commercial-server-production-index-head">
+            <span>Server production index</span>
+            <strong>{selectedOperation ? valueAt(selectedOperation, ["title"], copy.detailTitle) : `${operationsForTable.length} operations`}</strong>
+          </div>
+          <div className="commercial-server-production-index-grid">
+            {commercialServerProductionIndexCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                className={`commercial-server-production-index-card ${card.state}`}
+                aria-label={`Open ${card.label}`}
+                onClick={() => openCommercialServerDrawer(card.drawerSelector)}
+              >
+                {card.icon}
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+                <small>{card.detail}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <details className="commercial-server-maintenance-drawer" aria-label="Phase 73G Server Maintenance Detail Drawer">
+          <summary>
+            <span>Server maintenance details</span>
+            <strong>Acceptance, delivery, intervention queue, and blocker diagnostics</strong>
+          </summary>
+          <div className="commercial-server-maintenance-body">
       {!isComfyuiPage ? (
         <section className="commercial-maintenance-cockpit" aria-label={maintenanceCopy.title}>
           <div className="commercial-maintenance-heading">
@@ -10594,78 +12316,1051 @@ function CommercialOperationsPage({
               {copy.agentSkillRefresh}
             </button>
           </article>
+          <article className="commercial-maintenance-card commercial-maintenance-next-card" aria-label="Phase 69K Server Primary Step Dashboard">
+            <ClipboardList size={16} />
+            <div>
+              <span>Production closed-loop primary step</span>
+              <strong>{productionClosedLoopPrimaryStepLabel}</strong>
+              <p>
+                {productionClosedLoopPrimaryStepDetail} / staleness:{" "}
+                {valueAt(productionClosedLoopPrimaryStepStaleness, ["status"], "none")}
+              </p>
+            </div>
+            <button
+              className="ghost-button"
+              onClick={() => {
+                if (selectedOperationId) {
+                  void loadProductionActionAudits(selectedOperationId);
+                }
+              }}
+              disabled={!selectedOperationId || productionActionAuditState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh audit
+            </button>
+          </article>
+          <article className="commercial-maintenance-card commercial-maintenance-next-card" aria-label="Phase 69N Production Closed-Loop Intervention Queue">
+            <AlertTriangle size={16} />
+            <div>
+              <span>Production closed-loop intervention queue</span>
+              <strong>{productionClosedLoopInterventionQueueCount} stale/watch operations</strong>
+              <p>
+                stale: {valueAt(productionClosedLoopInterventionQueue, ["stale_count"], "0")} / watch:{" "}
+                {valueAt(productionClosedLoopInterventionQueue, ["watch_count"], "0")} / overdue:{" "}
+                {valueAt(acknowledgementSlaStatusCounts, ["overdue"], "0")} / followups:{" "}
+                {productionClosedLoopInterventionServerFollowUpCount}
+              </p>
+              <p>
+                dispatch none: {valueAt(reminderDispatchStatusCounts, ["none"], "0")} / cooldown:{" "}
+                {valueAt(reminderCooldownStatusCounts, ["cooling_down"], "0")}
+              </p>
+              <p>
+                next: {valueAt(productionClosedLoopInterventionRecommendedAction, ["action_key"], "none")} /{" "}
+                {valueAt(productionClosedLoopInterventionRecommendedAction, ["reason"], "intervention_queue_empty")}
+              </p>
+            </div>
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopInterventionQueue()}
+              disabled={productionInterventionQueueState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh queue
+            </button>
+          </article>
         </section>
       ) : null}
 
       {!isComfyuiPage ? (
-        <div className="commercial-grid">
-          <Panel title={copy.createTitle} description={copy.createDescription}>
-            <div className="commercial-form-grid">
-              <label>
-                {copy.titleLabel}
-                <input value={title} onChange={(event) => setTitle(event.target.value)} />
-              </label>
-              <label>
-                {copy.audienceLabel}
-                <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} />
-              </label>
-              <label className="commercial-wide-label">
-                {copy.objectiveLabel}
-                <textarea value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={copy.objectivePlaceholder} />
-              </label>
-              <label>
-                {copy.channelsLabel}
-                <input value={channelsDraft} onChange={(event) => setChannelsDraft(event.target.value)} />
-              </label>
-              <label>
-                {copy.metricsLabel}
-                <input value={metricsDraft} onChange={(event) => setMetricsDraft(event.target.value)} />
-              </label>
-              <label>
-                {copy.collectionLabel}
-                <input value={knowledgeCollection} onChange={(event) => setKnowledgeCollection(event.target.value)} />
-              </label>
-              <label>
-                {copy.priorityLabel}
-                <select value={priority} onChange={(event) => setPriority(event.target.value as "low" | "normal" | "high")}>
-                  <option value="low">low</option>
-                  <option value="normal">normal</option>
-                  <option value="high">high</option>
-                </select>
-              </label>
-              <label>
-                {copy.riskLabel}
-                <select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value as "low" | "medium" | "high")}>
-                  <option value="low">low</option>
-                  <option value="medium">medium</option>
-                  <option value="high">high</option>
-                </select>
-              </label>
-              <label>
-                {copy.budgetLabel}
-                <input value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} placeholder="optional" />
-              </label>
-              <label>
-                {copy.currencyLabel}
-                <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
-              </label>
-              <label className="commercial-wide-label">
-                {copy.constraintsLabel}
-                <textarea value={constraintsDraft} onChange={(event) => setConstraintsDraft(event.target.value)} />
-              </label>
+        <section
+          className={`commercial-intervention-pressure-overview ${productionClosedLoopInterventionPressureLevel}`}
+          aria-label="Phase 70B Server Intervention Pressure Overview"
+        >
+          <div className="commercial-intervention-pressure-header">
+            <div>
+              <p className="section-eyebrow">Production closed-loop intervention pressure</p>
+              <h3>{productionClosedLoopInterventionPressureLabel}</h3>
+              <p>{productionClosedLoopInterventionPressureDrivers}</p>
             </div>
-            <button className="primary-button" onClick={() => void createOperation()} disabled={!title.trim() || !objective.trim() || actionState.loading}>
-              <Target size={15} />
-              {copy.createAction}
+            <div className="commercial-intervention-pressure-score">
+              <Gauge size={18} />
+              <span>pressure</span>
+              <strong>{productionClosedLoopInterventionPressureScore}%</strong>
+            </div>
+          </div>
+          <div className="commercial-intervention-pressure-grid">
+            {productionClosedLoopInterventionPressureCards.map((card) => (
+              <article key={card.id}>
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+                <p>{card.detail}</p>
+              </article>
+            ))}
+          </div>
+          <div className="commercial-intervention-pressure-footer">
+            <p>{productionClosedLoopInterventionPressureRecommendation}</p>
+            <p>server_read_only_no_openclaw_no_playwright_no_publish</p>
+          </div>
+        </section>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <section className="commercial-acceptance-summary-panel" aria-label="Phase 70E Workspace Acceptance Summary">
+          <div className="commercial-acceptance-summary-header">
+            <div>
+              <p className="section-eyebrow">Workspace production acceptance</p>
+              <h3>Server acceptance summary</h3>
+              <p>{productionClosedLoopAcceptanceOverview}</p>
+            </div>
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopAcceptanceSummary()}
+              disabled={productionAcceptanceSummaryState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh acceptance
             </button>
-            <details className="commercial-action-result-drawer">
-              <summary>{copy.actionResult}</summary>
-              <LoadNotice state={actionState} />
-              {actionState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {actionState.updatedAt}</div> : null}
-              <JsonPreview value={actionState.data || { status: "no action yet" }} />
-            </details>
-          </Panel>
-        </div>
+          </div>
+          <LoadNotice state={productionAcceptanceSummaryState} />
+          {productionAcceptanceSummaryState.updatedAt ? (
+            <div className="last-updated">{textFor(language, "lastUpdated")}: {productionAcceptanceSummaryState.updatedAt}</div>
+          ) : null}
+          <div className="commercial-acceptance-completion-strip" aria-label="Phase 70F Objective Completion Score">
+            <div>
+              <span>Objective completion</span>
+              <strong>{productionClosedLoopCompletionPercent}%</strong>
+              <p>
+                {productionClosedLoopCompletionLevel} / next: {productionClosedLoopCompletionNextFocus}
+              </p>
+            </div>
+            <div className="commercial-acceptance-progress" aria-label="production closed-loop completion progress">
+              <span style={{ width: `${Math.max(0, Math.min(100, productionClosedLoopCompletionPercent))}%` }} />
+            </div>
+            <div className="commercial-acceptance-gates">
+              {productionClosedLoopRemainingGates.length ? (
+                productionClosedLoopRemainingGates.slice(0, 4).map((gate) => <span key={gate}>{gate}</span>)
+              ) : (
+                <span>all_scored_gates_clear</span>
+              )}
+            </div>
+            <p>
+              score: operation_presence={valueAt(productionClosedLoopScoreBreakdown, ["operation_presence"], "0")} / accepted=
+              {valueAt(productionClosedLoopScoreBreakdown, ["accepted_readiness"], "0")} / client=
+              {valueAt(productionClosedLoopScoreBreakdown, ["customer_machine_execution_ready"], "0")} / metric=
+              {valueAt(productionClosedLoopScoreBreakdown, ["metric_feedback_ready"], "0")} / next=
+              {valueAt(productionClosedLoopScoreBreakdown, ["next_cycle_ready"], "0")} / blocker=
+              {valueAt(productionClosedLoopScoreBreakdown, ["blocker_clear"], "0")} / queue=
+              {valueAt(productionClosedLoopScoreBreakdown, ["intervention_queue_clear"], "0")} / openclaw=
+              {valueAt(productionClosedLoopScoreBreakdown, ["real_publish_provider_ready"], "0")}
+            </p>
+          </div>
+          <div className="commercial-acceptance-summary-grid">
+            {productionClosedLoopAcceptanceCards.map((card) => (
+              <article key={card.id}>
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+                <p>{card.detail}</p>
+              </article>
+            ))}
+          </div>
+          <div className="commercial-acceptance-blocker-list">
+            {productionClosedLoopAcceptanceTopBlockers.length ? (
+              productionClosedLoopAcceptanceTopBlockers.slice(0, 5).map((operation) => (
+                <button
+                  key={rowId(operation, ["operation_id", "title"])}
+                  onClick={() => {
+                    const operationId = valueAt(operation, ["operation_id"], "");
+                    setSelectedOperation(operations.find((item) => valueAt(item, ["id"], "") === operationId) ?? operation);
+                  }}
+                >
+                  <span>{valueAt(operation, ["title"], "-")}</span>
+                  <strong>{valueAt(operation, ["readiness_status"], "-")}</strong>
+                  <small>
+                    {valueAt(operation, ["current_stage_key"], "none")} / {valueAt(operation, ["staleness_status"], "none")} / waiting{" "}
+                    {valueAt(operation, ["waiting_seconds"], "0")}s
+                  </small>
+                </button>
+              ))
+            ) : (
+              <article>
+                <span>{productionClosedLoopAcceptanceStatus}</span>
+                <strong>No server acceptance blockers</strong>
+                <p>{productionClosedLoopAcceptanceOperations.length} accepted summary rows returned.</p>
+              </article>
+            )}
+          </div>
+          <div className="commercial-release-gate-checklist" aria-label="Phase 73R Production Release Gate Checklist">
+            {productionClosedLoopReleaseGateChecklist.length ? (
+              productionClosedLoopReleaseGateChecklist.map((gate) => (
+                <article className={valueAt(gate, ["status"], "blocked")} key={rowId(gate, ["gate_key", "title"])}>
+                  <span>{valueAt(gate, ["owner"], "-")} / {valueAt(gate, ["status"], "-")}</span>
+                  <strong>{valueAt(gate, ["title", "gate_key"], "-")}</strong>
+                  <p>{toItems(gate.blocking_reasons).map((item) => String(item)).join(" | ") || valueAt(gate, ["next_action"], "-")}</p>
+                  <small>{toItems(gate.evidence).map((item) => String(item)).join(" | ") || valueAt(gate, ["gate_key"], "-")}</small>
+                </article>
+              ))
+            ) : (
+              <article className="blocked">
+                <span>release_gate_checklist</span>
+                <strong>No release gate checklist returned</strong>
+                <p>Refresh the acceptance summary after the Phase 73R backend contract is available.</p>
+              </article>
+            )}
+          </div>
+          <div className="commercial-acceptance-summary-footer">
+            <p>{valueAt(productionClosedLoopAcceptanceMetadata, ["phase"], "70E")} / production_closed_loop_acceptance_summary</p>
+            <p>server_read_only_no_openclaw_no_playwright_no_publish</p>
+          </div>
+        </section>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <section className="commercial-delivery-plan-panel" aria-label="Phase 70U Production Closed-Loop Delivery Plan">
+          <div className="commercial-acceptance-summary-header">
+            <div>
+              <p className="section-eyebrow">Production delivery plan</p>
+              <h3>Remaining gate action plan</h3>
+              <p>{productionClosedLoopDeliveryOverview}</p>
+            </div>
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryPlan()}
+              disabled={productionDeliveryPlanState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh plan
+            </button>
+          </div>
+          <LoadNotice state={productionDeliveryPlanState} />
+          {productionDeliveryPlanState.updatedAt ? (
+            <div className="last-updated">{textFor(language, "lastUpdated")}: {productionDeliveryPlanState.updatedAt}</div>
+          ) : null}
+          <div className="commercial-delivery-plan-grid">
+            <article>
+              <span>Delivery status</span>
+              <strong>{productionClosedLoopDeliveryStatus}</strong>
+              <p>{valueAt(productionClosedLoopDeliveryMetadata, ["contract"], "production_closed_loop_delivery_plan")}</p>
+            </article>
+            <article>
+              <span>Open gates</span>
+              <strong>{valueAt(productionClosedLoopDeliveryPlan, ["open_gate_count"], "0")}</strong>
+              <p>critical:{valueAt(productionClosedLoopDeliveryPlan, ["critical_gate_count"], "0")}</p>
+            </article>
+            <article>
+              <span>Next focus</span>
+              <strong>{valueAt(productionClosedLoopDeliveryPlan, ["next_focus"], productionClosedLoopCompletionNextFocus)}</strong>
+              <p>completion:{valueAt(productionClosedLoopDeliveryPlan, ["completion_percent"], String(productionClosedLoopCompletionPercent))}%</p>
+            </article>
+            <article>
+              <span>Handoff</span>
+              <strong>{valueAt(productionClosedLoopDeliveryPlan, ["ready_for_handoff"], "false")}</strong>
+              <p>human approval and real provider gates stay enforced</p>
+            </article>
+          </div>
+          <div className="commercial-delivery-plan-list">
+            {(productionClosedLoopImmediateActions.length
+              ? productionClosedLoopImmediateActions
+              : productionClosedLoopOpenDeliveryGates.slice(0, 4)
+            ).map((gate) => (
+              <article className={valueAt(gate, ["gate_status"], "open")} key={rowId(gate, ["gate_key", "title"])}>
+                <span>{valueAt(gate, ["owner"], "-")} / {valueAt(gate, ["gate_status"], "-")}</span>
+                <strong>{valueAt(gate, ["title", "gate_key"], "-")}</strong>
+                <p>{toItems(gate.operator_next_actions).map((item) => String(item)).join(" | ") || valueAt(gate, ["gate_key"], "-")}</p>
+                <small>{toItems(gate.blocking_reasons).map((item) => String(item)).join(" | ") || valueAt(gate, ["source"], "-")}</small>
+              </article>
+            ))}
+            {!productionClosedLoopImmediateActions.length && !productionClosedLoopOpenDeliveryGates.length ? (
+              <article className="complete">
+                <span>closed_loop_ready</span>
+                <strong>All delivery gates clear</strong>
+                <p>Maintain the next cycle schedule and provider smoke checks.</p>
+              </article>
+            ) : null}
+          </div>
+          <div className="commercial-delivery-audit-blocker-clearance" aria-label="Phase 71G Production Delivery Audit Blocker Clearance Plan">
+            <div>
+              <span>Phase 71G Blocker Clearance</span>
+              <strong>{productionClosedLoopDeliveryAuditBlockerClearanceStatus}</strong>
+              <p>
+                {valueAt(productionClosedLoopDeliveryAuditBlockerClearancePlan, ["blocker_count"], "0")} blocker(s) / external:
+                {valueAt(productionClosedLoopDeliveryAuditBlockerClearancePlan, ["external_dependency_count"], "0")} / UI:
+                {valueAt(productionClosedLoopDeliveryAuditBlockerClearancePlan, ["ui_clearable_count"], "0")}
+              </p>
+            </div>
+            <LoadNotice state={productionDeliveryAuditBlockerClearancePlanState} />
+            <LoadNotice state={productionDeliveryAuditBlockerWorkOrderAssignmentState} />
+            <p>
+              {productionClosedLoopDeliveryAuditBlockerAssignmentStatus} / assignable:
+              {productionClosedLoopDeliveryAuditBlockerAssignableCount}
+            </p>
+            <button
+              className="ghost-button"
+              onClick={() => void assignProductionClosedLoopDeliveryAuditBlockerWorkOrders()}
+              disabled={
+                productionDeliveryAuditBlockerWorkOrderAssignmentState.loading ||
+                productionDeliveryAuditBlockerClearancePlanState.loading ||
+                productionClosedLoopDeliveryAuditBlockerAssignableCount === 0
+              }
+            >
+              <GitBranch size={14} />
+              Assign blocker work orders
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryAuditBlockerClearancePlan()}
+              disabled={productionDeliveryAuditBlockerClearancePlanState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh blockers
+            </button>
+            <div className="commercial-delivery-audit-blocker-clearance-list">
+              {productionClosedLoopDeliveryAuditBlockerClearanceVisibleItems.length ? (
+                productionClosedLoopDeliveryAuditBlockerClearanceVisibleItems.map((item) => (
+                  <article className={valueAt(item, ["source"], "blocker")} key={rowId(item, ["blocker_key", "title"])}>
+                    <span>{valueAt(item, ["source"], "-")} / {valueAt(item, ["target_console"], "-")}</span>
+                    <strong>{valueAt(item, ["title"], "-")}</strong>
+                    <p>{valueAt(item, ["recommended_action"], "-")}</p>
+                    <small>
+                      {valueAt(item, ["current_state"], "-")} / work-order:{valueAt(item, ["latest_work_order_status"], "none")} / external:
+                      {valueAt(item, ["external_dependency_required"], "false")}
+                    </small>
+                  </article>
+                ))
+              ) : (
+                <article className="complete">
+                  <span>clearance_clear</span>
+                  <strong>No production audit blockers</strong>
+                  <p>production_closed_loop_delivery_audit_blocker_clearance_plan</p>
+                </article>
+              )}
+            </div>
+          </div>
+          <div className="commercial-delivery-audit-runbooks" aria-label="Phase 71I Production Delivery Audit Blocker Runbook Handoff">
+            <div>
+              <span>Phase 71I Runbook Handoff</span>
+              <strong>{productionClosedLoopDeliveryAuditBlockerRunbookStatus}</strong>
+              <p>
+                {valueAt(productionClosedLoopDeliveryAuditBlockerRunbookPackages, ["package_count"], "0")} package(s) / external:
+                {valueAt(productionClosedLoopDeliveryAuditBlockerRunbookPackages, ["external_dependency_package_count"], "0")}
+              </p>
+            </div>
+            <LoadNotice state={productionDeliveryAuditBlockerRunbookPackagesState} />
+            <LoadNotice state={productionDeliveryAuditBlockerRunbookEvidenceState} />
+            <LoadNotice state={productionDeliveryAuditBlockerRunbookEvidenceSubmitState} />
+            <LoadNotice state={productionDeliveryAuditBlockerRunbookEvidenceCoverageState} />
+            <LoadNotice state={productionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState} />
+            <p>
+              evidence:{productionClosedLoopDeliveryAuditBlockerRunbookEvidenceStatus} / records:
+              {valueAt(productionClosedLoopDeliveryAuditBlockerRunbookEvidence, ["record_count"], "0")}
+            </p>
+            <p>
+              coverage:{productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageStatus} / missing:
+              {valueAt(productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage, ["missing_evidence_count"], "0")} / blocked:
+              {valueAt(productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverage, ["blocked_count"], "0")}
+            </p>
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryAuditBlockerRunbookPackages()}
+              disabled={productionDeliveryAuditBlockerRunbookPackagesState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh runbooks
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() => void refreshProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadiness()}
+              disabled={productionDeliveryAuditBlockerRunbookEvidenceReadinessRefreshState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh runbook readiness
+            </button>
+            <div className="commercial-delivery-audit-runbook-list">
+              {productionClosedLoopDeliveryAuditBlockerRunbookVisiblePackages.length ? (
+                productionClosedLoopDeliveryAuditBlockerRunbookVisiblePackages.map((item) => (
+                  <article className={valueAt(item, ["severity"], "runbook")} key={rowId(item, ["package_key", "title"])}>
+                    <span>{valueAt(item, ["target_console"], "-")} / {valueAt(item, ["current_state"], "-")}</span>
+                    <strong>{valueAt(item, ["title"], "-")}</strong>
+                    <p>{toItems(item.manual_steps).slice(0, 2).map((step) => String(step)).join(" | ") || valueAt(item, ["package_key"], "-")}</p>
+                    <small>{toItems(item.verification_commands).join(" | ") || "production audit required"}</small>
+                    <button
+                      className="ghost-button"
+                      onClick={() => void recordProductionClosedLoopDeliveryAuditBlockerRunbookBlockedEvidence(item)}
+                      disabled={productionDeliveryAuditBlockerRunbookEvidenceSubmitState.loading}
+                    >
+                      <FileText size={14} />
+                      Record runbook evidence
+                    </button>
+                  </article>
+                ))
+              ) : (
+                <article className="complete">
+                  <span>runbook_clear</span>
+                  <strong>No blocker runbook pending</strong>
+                  <p>production_closed_loop_delivery_audit_blocker_runbook_handoff</p>
+                </article>
+              )}
+            </div>
+            <div className="commercial-delivery-audit-runbook-coverage-list">
+              {productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageVisibleItems.length ? (
+                productionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageVisibleItems.map((item) => (
+                  <article className={valueAt(item, ["coverage_status"], "coverage")} key={rowId(item, ["package_key", "gate_key"])}>
+                    <span>{valueAt(item, ["coverage_status"], "-")} / {valueAt(item, ["latest_evidence_status"], "none")}</span>
+                    <strong>{valueAt(item, ["title"], "-")}</strong>
+                    <p>{valueAt(item, ["next_action"], "-")}</p>
+                    <small>records:{valueAt(item, ["evidence_record_count"], "0")} / work-order:{valueAt(item, ["latest_work_order_status"], "none")}</small>
+                  </article>
+                ))
+              ) : (
+                <article className="complete">
+                  <span>runbook_evidence_coverage_clear</span>
+                  <strong>No runbook evidence gap</strong>
+                  <p>production_closed_loop_delivery_audit_blocker_runbook_evidence_coverage</p>
+                </article>
+              )}
+            </div>
+          </div>
+          <div className="commercial-delivery-audit-next-action-plan" aria-label="Phase 71O Production Delivery Audit Next Action Plan">
+            <div>
+              <span>Phase 71O Audit Next Actions</span>
+              <strong>{productionClosedLoopDeliveryAuditNextActionPlanStatus}</strong>
+              <p>
+                actions:{valueAt(productionClosedLoopDeliveryAuditNextActionPlan, ["next_action_count"], "0")} / blockers:
+                {valueAt(productionClosedLoopDeliveryAuditNextActionPlan, ["blocker_count"], "0")} / runbook-ready:
+                {valueAt(productionClosedLoopDeliveryAuditNextActionPlan, ["runbook_evidence_coverage_ready"], "false")}
+              </p>
+            </div>
+            <LoadNotice state={productionDeliveryAuditNextActionPlanState} />
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryAuditNextActionPlan()}
+              disabled={productionDeliveryAuditNextActionPlanState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh audit actions
+            </button>
+            <div className="commercial-delivery-audit-next-action-list">
+              {productionClosedLoopDeliveryAuditNextActionPlanVisibleActions.length ? (
+                productionClosedLoopDeliveryAuditNextActionPlanVisibleActions.map((action) => (
+                  <article className={valueAt(action, ["owner"], "operator")} key={rowId(action, ["action_key", "title"])}>
+                    <span>{valueAt(action, ["owner"], "-")} / priority:{valueAt(action, ["priority"], "0")}</span>
+                    <strong>{valueAt(action, ["title"], "-")}</strong>
+                    <p>{valueAt(action, ["target"], "-")}</p>
+                    <small>
+                      {valueAt(action, ["required_endpoint"], "-")} / external:
+                      {valueAt(action, ["external_dependency_required"], "false")}
+                    </small>
+                  </article>
+                ))
+              ) : (
+                <article className="complete">
+                  <span>audit_action_plan_clear</span>
+                  <strong>No production delivery audit action pending</strong>
+                  <p>production_closed_loop_delivery_audit_next_action_plan</p>
+                </article>
+              )}
+            </div>
+          </div>
+          <div className="commercial-delivery-audit-operator-queue" aria-label="Phase 71P Production Delivery Audit Operator Queue">
+            <div>
+              <span>Phase 71P Operator Queue</span>
+              <strong>{productionClosedLoopDeliveryAuditOperatorQueueStatus}</strong>
+              <p>
+                owners:{valueAt(productionClosedLoopDeliveryAuditOperatorQueue, ["owner_count"], "0")} / actions:
+                {valueAt(productionClosedLoopDeliveryAuditOperatorQueue, ["action_count"], "0")} / UI:
+                {valueAt(productionClosedLoopDeliveryAuditOperatorQueue, ["ui_resolvable_count"], "0")} / external:
+                {valueAt(productionClosedLoopDeliveryAuditOperatorQueue, ["external_dependency_count"], "0")}
+              </p>
+            </div>
+            <LoadNotice state={productionDeliveryAuditOperatorQueueState} />
+            <LoadNotice state={productionDeliveryAuditOperatorQueueRecordSubmitState} />
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryAuditOperatorQueue()}
+              disabled={productionDeliveryAuditOperatorQueueState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh queue
+            </button>
+            <div className="commercial-delivery-audit-operator-queue-list">
+              {productionClosedLoopDeliveryAuditOperatorQueueGroups.length ? (
+                productionClosedLoopDeliveryAuditOperatorQueueGroups.map((group) => {
+                  const firstItem = toItems(group.items)[0] as JsonRecord | undefined;
+                  return (
+                    <article className={valueAt(group, ["queue_status"], "operator_action_required")} key={rowId(group, ["owner", "owner_label"])}>
+                      <span>{valueAt(group, ["owner_label"], valueAt(group, ["owner"], "-"))} / priority:{valueAt(group, ["top_priority"], "0")}</span>
+                      <strong>{valueAt(firstItem, ["primary_label"], "Review queue")}</strong>
+                      <p>{valueAt(firstItem, ["operator_next_step"], "production_closed_loop_delivery_audit_operator_queue")}</p>
+                      <small>
+                        {valueAt(group, ["action_count"], "0")} action(s) / UI:{valueAt(group, ["ui_resolvable_count"], "0")} / external:
+                        {valueAt(group, ["external_dependency_count"], "0")} / latest:
+                        {valueAt(firstItem, ["latest_record_status"], "no_queue_record")}
+                      </small>
+                      <button
+                        className="ghost-button"
+                        onClick={() => void recordProductionClosedLoopDeliveryAuditOperatorQueueInProgress(firstItem ?? {})}
+                        disabled={productionDeliveryAuditOperatorQueueRecordSubmitState.loading || !firstItem}
+                      >
+                        Mark in progress
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <article className="complete">
+                  <span>operator_queue_clear</span>
+                  <strong>No operator queue item pending</strong>
+                  <p>production_closed_loop_delivery_audit_operator_queue</p>
+                </article>
+              )}
+            </div>
+          </div>
+          <div className="commercial-delivery-audit-openclaw-provider-handoff" aria-label="Phase 71R Production Delivery Audit OpenClaw Provider Handoff">
+            <div>
+              <span>Phase 71R OpenClaw Provider Handoff</span>
+              <strong>{productionClosedLoopDeliveryAuditOpenClawProviderHandoffStatus}</strong>
+              <p>
+                provider:{valueAt(productionClosedLoopDeliveryAuditOpenClawProviderHandoff, ["provider"], "-")} / mock:
+                {valueAt(productionClosedLoopDeliveryAuditOpenClawProviderHandoff, ["mock"], "true")} / missing:
+                {valueAt(productionClosedLoopDeliveryAuditOpenClawProviderHandoff, ["missing_config_count"], "0")}
+              </p>
+            </div>
+            <LoadNotice state={productionDeliveryAuditOpenClawProviderHandoffState} />
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryAuditOpenClawProviderHandoff()}
+              disabled={productionDeliveryAuditOpenClawProviderHandoffState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh handoff
+            </button>
+            <small>
+              readiness:{valueAt(productionClosedLoopDeliveryAuditOpenClawProviderHandoff, ["readiness_status"], "-")} / worker:
+              {valueAt(productionClosedLoopDeliveryAuditOpenClawProviderHandoff, ["worker_name"], "-")} / secret-redacted:
+              {valueAt(productionClosedLoopDeliveryAuditOpenClawProviderHandoff, ["metadata", "secret_values_redacted"], "true")}
+            </small>
+            <div className="commercial-delivery-audit-openclaw-provider-handoff-list">
+              {productionClosedLoopDeliveryAuditOpenClawProviderHandoffItems.length ? (
+                productionClosedLoopDeliveryAuditOpenClawProviderHandoffItems.map((item) => (
+                  <article
+                    className={valueAt(item, ["blocking"], "true") === "true" ? "blocking" : "configured"}
+                    key={rowId(item, ["config_key"])}
+                  >
+                    <span>{valueAt(item, ["config_key"], "-")} / {valueAt(item, ["current_state"], "-")}</span>
+                    <strong>{valueAt(item, ["required_state"], "-")}</strong>
+                    <p>{valueAt(item, ["operator_action"], "-")}</p>
+                    <small>{valueAt(item, ["evidence_requirement"], "-")}</small>
+                  </article>
+                ))
+              ) : (
+                <article className="blocking">
+                  <span>openclaw_provider_handoff_waiting</span>
+                  <strong>Provider handoff unavailable</strong>
+                  <p>production_closed_loop_delivery_audit_openclaw_provider_handoff</p>
+                </article>
+              )}
+            </div>
+          </div>
+          <div className="commercial-delivery-action-packages" aria-label="Phase 70W Production Closed-Loop Delivery Action Packages">
+            <div>
+              <span>Phase 70W Action Packages</span>
+              <strong>{productionClosedLoopDeliveryActionPackageStatus}</strong>
+              <p>{productionClosedLoopDeliveryActionPackageOverview}</p>
+            </div>
+            <LoadNotice state={productionDeliveryActionPackagesState} />
+            <button
+              className="ghost-button"
+              onClick={() => void loadProductionClosedLoopDeliveryActionPackages()}
+              disabled={productionDeliveryActionPackagesState.loading}
+            >
+              <RefreshCcw size={14} />
+              Refresh packages
+            </button>
+            <div className="commercial-delivery-action-package-list">
+              {productionClosedLoopVisibleActionPackages.length ? (
+                productionClosedLoopVisibleActionPackages.map((actionPackage) => {
+                  const firstStep = toItems(actionPackage.action_steps)[0] as JsonRecord | undefined;
+                  return (
+                    <article
+                      className={valueAt(actionPackage, ["gate_status"], "open")}
+                      key={rowId(actionPackage, ["gate_key", "title"])}
+                    >
+                      <span>{valueAt(actionPackage, ["target_console"], "-")} / {valueAt(actionPackage, ["action_status"], "-")}</span>
+                      <strong>{valueAt(actionPackage, ["title", "gate_key"], "-")}</strong>
+                      <p>{valueAt(firstStep, ["method"], "GET")} {valueAt(firstStep, ["endpoint"], valueAt(actionPackage, ["gate_key"], "-"))}</p>
+                      <small>
+                        {valueAt(actionPackage, ["action_count"], "0")} step(s) / {toItems(actionPackage.blocking_reasons).map((item) => String(item)).join(" | ") || "manual confirmation required"}
+                      </small>
+                      <button
+                        className="ghost-button"
+                        onClick={() => void recordProductionClosedLoopDeliveryBlockedEvidence(actionPackage)}
+                        disabled={productionDeliveryActionEvidenceSubmitState.loading}
+                      >
+                        Record blocked evidence
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <article className="complete">
+                  <span>all_delivery_actions_clear</span>
+                  <strong>No action package pending</strong>
+                  <p>production_closed_loop_delivery_action_packages</p>
+                </article>
+              )}
+            </div>
+            <div className="commercial-delivery-remediation-map" aria-label="Phase 70Z Production Delivery Remediation Map">
+              <div>
+                <span>Phase 70Z Remediation Map</span>
+                <strong>{productionClosedLoopDeliveryRemediationStatus}</strong>
+                <p>{productionClosedLoopDeliveryRemediationOverview}</p>
+              </div>
+              <LoadNotice state={productionDeliveryRemediationMapState} />
+              <button
+                className="ghost-button"
+                onClick={() => void loadProductionClosedLoopDeliveryRemediationMap()}
+                disabled={productionDeliveryRemediationMapState.loading}
+              >
+                <RefreshCcw size={14} />
+                Refresh map
+              </button>
+              <div className="commercial-delivery-remediation-list">
+                {productionClosedLoopVisibleRemediations.length ? (
+                  productionClosedLoopVisibleRemediations.map((remediation) => (
+                    <article
+                      className={valueAt(remediation, ["gate_status"], "open")}
+                      key={rowId(remediation, ["remediation_key", "gate_key"])}
+                    >
+                      <span>
+                        {valueAt(remediation, ["target_console"], "-")} / {valueAt(remediation, ["current_evidence_status"], "no_evidence_record")}
+                      </span>
+                      <strong>{valueAt(remediation, ["title", "gate_key"], "-")}</strong>
+                      <p>{valueAt(remediation, ["primary_method"], "GET")} {valueAt(remediation, ["primary_endpoint"], "-")}</p>
+                      <small>
+                        {valueAt(remediation, ["completion_gate"], "-")} / {toItems(remediation.expected_evidence).slice(0, 3).map((item) => String(item)).join(" | ") || "operator evidence required"}
+                      </small>
+                      <button
+                        className="ghost-button"
+                        onClick={() => void recordProductionClosedLoopDeliveryRemediationInProgress(remediation)}
+                        disabled={productionDeliveryRemediationWorkOrderSubmitState.loading}
+                      >
+                        Mark in progress
+                      </button>
+                    </article>
+                  ))
+                ) : (
+                  <article className="complete">
+                    <span>all_remediations_clear</span>
+                    <strong>No remediation pending</strong>
+                    <p>production_closed_loop_delivery_remediation_map</p>
+                  </article>
+                )}
+              </div>
+              <div className="commercial-delivery-remediation-work-orders" aria-label="Phase 71A Production Delivery Remediation Work Orders">
+                <span>Phase 71A Work Orders</span>
+                <strong>{productionClosedLoopDeliveryRemediationWorkOrderStatus}</strong>
+                <p>
+                  {valueAt(productionClosedLoopDeliveryRemediationWorkOrders, ["work_order_count"], "0")} record(s) / latest gate:
+                  {valueAt(productionClosedLoopDeliveryRemediationLatestWorkOrder, ["gate_key"], "none")}
+                </p>
+                <small>
+                  {valueAt(productionClosedLoopDeliveryRemediationLatestWorkOrder, ["work_summary"], "delivery_remediation_work_order_only_no_external_execution")}
+                </small>
+                <LoadNotice state={productionDeliveryRemediationWorkOrdersState} />
+                <LoadNotice state={productionDeliveryRemediationWorkOrderSubmitState} />
+              </div>
+              <div className="commercial-delivery-remediation-work-order-coverage" aria-label="Phase 71B Production Delivery Remediation Work Order Coverage">
+                <div>
+                  <span>Phase 71B Work Order Coverage</span>
+                  <strong>{productionClosedLoopDeliveryRemediationWorkOrderCoverageStatus}</strong>
+                  <p>
+                    {valueAt(productionClosedLoopDeliveryRemediationWorkOrderCoverage, ["coverage_percent"], "0")}% covered /{" "}
+                    {valueAt(productionClosedLoopDeliveryRemediationWorkOrderCoverage, ["unassigned_count"], "0")} unassigned /{" "}
+                    {valueAt(productionClosedLoopDeliveryRemediationWorkOrderCoverage, ["in_progress_count"], "0")} active
+                  </p>
+                  <small>{valueAt(productionClosedLoopDeliveryRemediationWorkOrderCoverage, ["next_focus"], "production_closed_loop_delivery_remediation_work_order_coverage")}</small>
+                  <button
+                    className="ghost-button"
+                    onClick={() => void assignMissingProductionClosedLoopDeliveryRemediationWorkOrders()}
+                    disabled={
+                      productionDeliveryRemediationWorkOrderAssignmentState.loading ||
+                      Number(valueAt(productionClosedLoopDeliveryRemediationWorkOrderCoverage, ["unassigned_count"], "0")) <= 0
+                    }
+                  >
+                    Assign missing work orders
+                  </button>
+                </div>
+                <LoadNotice state={productionDeliveryRemediationWorkOrderCoverageState} />
+                <LoadNotice state={productionDeliveryRemediationWorkOrderAssignmentState} />
+                <div className="commercial-delivery-remediation-work-order-coverage-list">
+                  {productionClosedLoopDeliveryRemediationWorkOrderCoverageVisibleItems.length ? (
+                    productionClosedLoopDeliveryRemediationWorkOrderCoverageVisibleItems.map((item) => (
+                      <article className={valueAt(item, ["coverage_status"], "unassigned")} key={rowId(item, ["remediation_key", "gate_key"])}>
+                        <span>{valueAt(item, ["coverage_status"], "-")} / {valueAt(item, ["latest_work_order_assignee"], "unassigned")}</span>
+                        <strong>{valueAt(item, ["title", "gate_key"], "-")}</strong>
+                        <p>{valueAt(item, ["next_action"], "-")}</p>
+                      </article>
+                    ))
+                  ) : (
+                    <article className="complete">
+                      <span>coverage_clear</span>
+                      <strong>No uncovered remediation</strong>
+                      <p>delivery_remediation_work_order_coverage_only_no_external_execution</p>
+                    </article>
+                  )}
+                </div>
+              </div>
+              <div
+                className="commercial-delivery-remediation-work-order-execution-prep"
+                aria-label="Phase 71D Production Delivery Remediation Work Order Execution Prep"
+              >
+                <span>Phase 71D Execution Prep</span>
+                <strong>{productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepStatus}</strong>
+                <p>
+                  {valueAt(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep, ["ready_count"], "0")} ready /{" "}
+                  {valueAt(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep, ["waiting_assignment_count"], "0")} waiting /{" "}
+                  {valueAt(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep, ["customer_machine_count"], "0")} customer-machine
+                </p>
+                <small>{valueAt(productionClosedLoopDeliveryRemediationWorkOrderExecutionPrep, ["next_focus"], "production_closed_loop_delivery_remediation_work_order_execution_prep")}</small>
+                <LoadNotice state={productionDeliveryRemediationWorkOrderExecutionPrepState} />
+                <LoadNotice state={productionDeliveryRemediationWorkOrderCompletionState} />
+                <LoadNotice state={productionDeliveryRemediationWorkOrderReadinessRefreshState} />
+                <div className="commercial-delivery-remediation-work-order-execution-prep-list">
+                  {productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepVisibleItems.length ? (
+                    productionClosedLoopDeliveryRemediationWorkOrderExecutionPrepVisibleItems.map((item) => (
+                      <article className={valueAt(item, ["prep_status"], "waiting_for_assignment")} key={rowId(item, ["prep_key", "gate_key"])}>
+                        <span>{valueAt(item, ["prep_status"], "-")} / {valueAt(item, ["target_console"], "-")}</span>
+                        <strong>{valueAt(item, ["title", "gate_key"], "-")}</strong>
+                        <p>{valueAt(item, ["target_method"], "GET")} {valueAt(item, ["target_endpoint"], "-")}</p>
+                        <small>{toItems(item.evidence_requirements).slice(0, 2).map((entry) => String(entry)).join(" | ") || "evidence requirements pending"}</small>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void completeProductionClosedLoopDeliveryRemediationWorkOrder(item)}
+                          disabled={
+                            productionDeliveryRemediationWorkOrderCompletionState.loading ||
+                            valueAt(item, ["prep_status"], "") !== "ready_for_operator_execution_review"
+                          }
+                        >
+                          Record completion evidence
+                        </button>
+                        <button
+                          className="ghost-button"
+                          onClick={() => void refreshProductionClosedLoopDeliveryRemediationWorkOrderReadiness(item)}
+                          disabled={
+                            productionDeliveryRemediationWorkOrderReadinessRefreshState.loading ||
+                            valueAt(item, ["prep_status"], "") !== "completed_pending_readiness_refresh"
+                          }
+                        >
+                          Refresh readiness after completion
+                        </button>
+                      </article>
+                    ))
+                  ) : (
+                    <article className="complete">
+                      <span>execution_prep_clear</span>
+                      <strong>No execution prep required</strong>
+                      <p>delivery_remediation_work_order_execution_prep_only_no_external_execution</p>
+                    </article>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="commercial-delivery-action-evidence" aria-label="Phase 70X Production Delivery Action Evidence">
+              <span>Phase 70X Evidence Records</span>
+              <strong>{productionClosedLoopDeliveryActionEvidenceStatus}</strong>
+              <p>
+                {valueAt(productionClosedLoopDeliveryActionEvidence, ["record_count"], "0")} record(s) / latest gate:
+                {valueAt(productionClosedLoopDeliveryActionLatestEvidence, ["gate_key"], "none")}
+              </p>
+              <small>
+                {valueAt(productionClosedLoopDeliveryActionLatestEvidence, ["evidence_summary"], "production_closed_loop_delivery_action_evidence")}
+              </small>
+              <LoadNotice state={productionDeliveryActionEvidenceState} />
+              <LoadNotice state={productionDeliveryActionEvidenceSubmitState} />
+            </div>
+          </div>
+          <div className="commercial-acceptance-summary-footer">
+            <p>{valueAt(productionClosedLoopDeliveryMetadata, ["phase"], "70U")} / production_closed_loop_delivery_plan / delivery_plan_only_no_external_execution</p>
+            <p>{valueAt(productionClosedLoopDeliveryActionPackageMetadata, ["phase"], "70W")} / delivery_action_packages_only_no_external_execution / 70X / delivery_action_evidence_only_no_external_execution</p>
+            <p>{valueAt(productionClosedLoopDeliveryRemediationMetadata, ["phase"], "70Z")} / production_closed_loop_delivery_remediation_map / delivery_remediation_map_only_no_external_execution / 71A / delivery_remediation_work_order_only_no_external_execution / 71D / delivery_remediation_work_order_execution_prep_only_no_external_execution</p>
+          </div>
+        </section>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <section className="commercial-project-stage-overview" aria-label="Phase 70D Server Project Stage Blocking Overview">
+          <div className="commercial-project-stage-header">
+            <div>
+              <p className="section-eyebrow">Production project stage overview</p>
+              <h3>Closed-loop stage and blockers</h3>
+              <p>{productionClosedLoopProjectStageOverview}</p>
+            </div>
+            <button className="ghost-button" onClick={() => void load()} disabled={state.loading}>
+              <RefreshCcw size={14} />
+              Refresh operations
+            </button>
+          </div>
+          <div className="commercial-project-stage-grid">
+            {productionClosedLoopProjectStageCounts.map((stage) => (
+              <article key={stage.id}>
+                <span>{stage.label}</span>
+                <strong>{stage.value}</strong>
+                <p>{stage.detail}</p>
+              </article>
+            ))}
+          </div>
+          <div className="commercial-project-blocker-list">
+            {productionClosedLoopProjectBlockerRows.length ? (
+              productionClosedLoopProjectBlockerRows.map((operation) => (
+                <button key={rowId(operation, ["id", "operation_title"])} onClick={() => setSelectedOperation(operation)}>
+                  <span>{valueAt(operation, ["operation_title"], "-")}</span>
+                  <strong>{valueAt(operation, ["closed_loop_step"], "none")}</strong>
+                  <small>
+                    {valueAt(operation, ["staleness"], "none")} / waiting {valueAt(operation, ["waiting_s"], "0")}s / escalation{" "}
+                    {valueAt(operation, ["escalation"], "false")}
+                  </small>
+                </button>
+              ))
+            ) : (
+              <article>
+                <span>clear</span>
+                <strong>No stale/watch blockers</strong>
+                <p>Operation list has no current closed-loop blocker rows.</p>
+              </article>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <Panel title="Production closed-loop intervention queue" action={<RefreshButton onClick={loadProductionClosedLoopInterventionQueue} />}>
+          <LoadNotice state={productionInterventionQueueState} />
+          {productionInterventionQueueState.updatedAt ? (
+            <div className="last-updated">{textFor(language, "lastUpdated")}: {productionInterventionQueueState.updatedAt}</div>
+          ) : null}
+          <section className="commercial-intervention-ack-history" aria-label="Phase 70C Server Intervention Acknowledgement History">
+            <div className="commercial-intervention-ack-history-header">
+              <div>
+                <span>Server intervention acknowledgement history</span>
+                <strong>
+                  {valueAt(productionClosedLoopInterventionLatestAcknowledgement, ["acknowledgement_status"], "none")}
+                </strong>
+                <p>
+                  count: {productionClosedLoopInterventionAcknowledgementCount} / assignee:{" "}
+                  {valueAt(productionClosedLoopInterventionLatestAcknowledgement, ["assignee"], "-")} / latest:{" "}
+                  {valueAt(productionClosedLoopInterventionLatestAcknowledgement, ["created_at"], "-")}
+                </p>
+              </div>
+              <button
+                className="ghost-button"
+                onClick={() => {
+                  if (selectedOperationId) {
+                    void loadProductionClosedLoopInterventionAcknowledgements(selectedOperationId);
+                  }
+                }}
+                disabled={!selectedOperationId || productionInterventionAcknowledgementState.loading}
+              >
+                <History size={14} />
+                Refresh acknowledgement history
+              </button>
+            </div>
+            <LoadNotice state={productionInterventionAcknowledgementState} />
+            <div className="commercial-intervention-ack-history-list">
+              {productionClosedLoopInterventionAcknowledgementRows.length ? (
+                productionClosedLoopInterventionAcknowledgementRows.map((record) => (
+                  <article key={rowId(record, ["acknowledgement_id", "created_at"])}>
+                    <span>{valueAt(record, ["acknowledgement_status"], "-")}</span>
+                    <strong>{valueAt(record, ["assignee"], "-")}</strong>
+                    <p>{valueAt(record, ["acknowledgement_notes"], "No notes")}</p>
+                    <small>{valueAt(record, ["created_at"], "-")}</small>
+                  </article>
+                ))
+              ) : (
+                <article>
+                  <span>empty</span>
+                  <strong>No acknowledgement history</strong>
+                  <p>Select an operation or record an acknowledgement to populate this list.</p>
+                </article>
+              )}
+            </div>
+          </section>
+          <Table
+            rows={productionClosedLoopInterventionQueueRows}
+            emptyLabel="No stale/watch production closed-loop operations."
+            onSelect={(row) => {
+              const operation = row.operation as JsonRecord | undefined;
+              if (operation) {
+                setSelectedOperation(operation);
+              }
+            }}
+            columns={[
+              { key: "operation_title", label: "operation" },
+              { key: "staleness_status", label: "staleness" },
+              { key: "primary_step_key", label: "primary_step" },
+              { key: "waiting_seconds", label: "waiting_s" },
+              { key: "priority_score", label: "priority_score" },
+              { key: "recommended_action_key", label: "recommended_action" },
+              { key: "acknowledgement_status", label: "ack_status" },
+              { key: "acknowledgement_assignee", label: "assignee" },
+              { key: "ack_sla_status", label: "ack_sla" },
+              { key: "ack_waiting_seconds", label: "ack_waiting_s" },
+              { key: "reminder_recommended", label: "reminder" },
+              { key: "reminder_dispatch_status", label: "reminder_dispatch" },
+              { key: "reminder_dispatch_channel", label: "reminder_channel" },
+              { key: "reminder_cooldown_status", label: "cooldown" },
+              { key: "next_reminder_allowed", label: "next_allowed" },
+            ]}
+          />
+          <div className="commercial-form-grid">
+            <label>
+              intervention_assignee
+              <input value={interventionAssignee} onChange={(event) => setInterventionAssignee(event.target.value)} />
+            </label>
+            <label className="commercial-wide-label">
+              intervention_notes
+              <textarea value={interventionNotes} onChange={(event) => setInterventionNotes(event.target.value)} />
+            </label>
+          </div>
+          <button
+            className="primary-button"
+            onClick={() => void acknowledgeProductionClosedLoopInterventionQueueItem()}
+            disabled={!selectedOperationId || actionState.loading}
+          >
+            <ShieldCheck size={15} />
+            Acknowledge queue item
+          </button>
+          <div className="commercial-intervention-status-actions" aria-label="Phase 70C Server Intervention Status Controls">
+            <button
+              className="ghost-button"
+              onClick={() =>
+                void recordProductionClosedLoopInterventionAcknowledgementStatus(
+                  "in_progress",
+                  "Marked in progress from Admin Dashboard intervention queue.",
+                )
+              }
+              disabled={!selectedOperationId || actionState.loading}
+            >
+              <PlayCircle size={15} />
+              Mark in progress
+            </button>
+            <button
+              className="ghost-button"
+              onClick={() =>
+                void recordProductionClosedLoopInterventionAcknowledgementStatus(
+                  "dismissed",
+                  "Dismissed from Admin Dashboard intervention queue after operator review.",
+                )
+              }
+              disabled={!selectedOperationId || actionState.loading}
+            >
+              <ShieldCheck size={15} />
+              Dismiss intervention
+            </button>
+          </div>
+          <div className="commercial-form-grid">
+            <label>
+              intervention_reminder_channel
+              <input value={interventionReminderChannel} onChange={(event) => setInterventionReminderChannel(event.target.value)} />
+            </label>
+            <label>
+              intervention_reminder_recipient
+              <input value={interventionReminderRecipient} onChange={(event) => setInterventionReminderRecipient(event.target.value)} />
+            </label>
+            <label className="commercial-wide-label">
+              intervention_reminder_message
+              <textarea value={interventionReminderMessage} onChange={(event) => setInterventionReminderMessage(event.target.value)} />
+            </label>
+          </div>
+          <button
+            className="ghost-button"
+            onClick={() => void recordProductionClosedLoopInterventionReminderDispatch()}
+            disabled={!selectedOperationId || actionState.loading}
+          >
+            <BellRing size={15} />
+            Record reminder dispatch
+          </button>
+        </Panel>
+      ) : null}
+          </div>
+        </details>
+      ) : null}
+
+      {!isComfyuiPage ? (
+        <details className="commercial-server-create-drawer" aria-label="Phase 73H Server Quiet Create Operation Drawer">
+          <summary>
+            <span>{copy.createTitle}</span>
+            <strong>{copy.createDescription}</strong>
+          </summary>
+          <div className="commercial-server-create-body">
+            <div className="commercial-grid">
+              <Panel title={copy.createTitle} description={copy.createDescription}>
+                <div className="commercial-form-grid">
+                  <label>
+                    {copy.titleLabel}
+                    <input value={title} onChange={(event) => setTitle(event.target.value)} />
+                  </label>
+                  <label>
+                    {copy.audienceLabel}
+                    <input value={targetAudience} onChange={(event) => setTargetAudience(event.target.value)} />
+                  </label>
+                  <label className="commercial-wide-label">
+                    {copy.objectiveLabel}
+                    <textarea value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={copy.objectivePlaceholder} />
+                  </label>
+                  <label>
+                    {copy.channelsLabel}
+                    <input value={channelsDraft} onChange={(event) => setChannelsDraft(event.target.value)} />
+                  </label>
+                  <label>
+                    {copy.metricsLabel}
+                    <input value={metricsDraft} onChange={(event) => setMetricsDraft(event.target.value)} />
+                  </label>
+                  <label>
+                    {copy.collectionLabel}
+                    <input value={knowledgeCollection} onChange={(event) => setKnowledgeCollection(event.target.value)} />
+                  </label>
+                  <label>
+                    {copy.priorityLabel}
+                    <select value={priority} onChange={(event) => setPriority(event.target.value as "low" | "normal" | "high")}>
+                      <option value="low">low</option>
+                      <option value="normal">normal</option>
+                      <option value="high">high</option>
+                    </select>
+                  </label>
+                  <label>
+                    {copy.riskLabel}
+                    <select value={riskLevel} onChange={(event) => setRiskLevel(event.target.value as "low" | "medium" | "high")}>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                    </select>
+                  </label>
+                  <label>
+                    {copy.budgetLabel}
+                    <input value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} placeholder="optional" />
+                  </label>
+                  <label>
+                    {copy.currencyLabel}
+                    <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
+                  </label>
+                  <label className="commercial-wide-label">
+                    {copy.constraintsLabel}
+                    <textarea value={constraintsDraft} onChange={(event) => setConstraintsDraft(event.target.value)} />
+                  </label>
+                </div>
+                <button className="primary-button" onClick={() => void createOperation()} disabled={!title.trim() || !objective.trim() || actionState.loading}>
+                  <Target size={15} />
+                  {copy.createAction}
+                </button>
+                <details className="commercial-action-result-drawer">
+                  <summary>{copy.actionResult}</summary>
+                  <LoadNotice state={actionState} />
+                  {actionState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {actionState.updatedAt}</div> : null}
+                  <JsonPreview value={actionState.data || { status: "no action yet" }} />
+                </details>
+              </Panel>
+            </div>
+          </div>
+        </details>
       ) : (
         <Panel title={comfyuiSurfaceCopy.actionResultTitle} description={actionState.updatedAt ? `${textFor(language, "lastUpdated")}: ${actionState.updatedAt}` : undefined}>
           <LoadNotice state={actionState} />
@@ -10673,11 +13368,20 @@ function CommercialOperationsPage({
         </Panel>
       )}
 
+      <details className="commercial-server-operation-list-drawer" aria-label="Phase 73L Server Operation List Drawer">
+        <summary>
+          <span>Operation queue</span>
+          <strong>
+            {operationsForTable.length} operations / selected:{" "}
+            {selectedOperation ? valueAt(selectedOperation, ["title"], copy.detailTitle) : copy.detailTitle}
+          </strong>
+        </summary>
+        <div className="commercial-server-operation-list-body">
       <Panel title={copy.listTitle} action={<RefreshButton onClick={load} />}>
         <LoadNotice state={state} />
         {state.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {state.updatedAt}</div> : null}
         <Table
-          rows={operations}
+          rows={operationsForTable}
           emptyLabel={copy.noOperations}
           selectedId={selectedOperation ? valueAt(selectedOperation, ["id"]) : null}
           onSelect={(row) => setSelectedOperation(row)}
@@ -10687,104 +13391,198 @@ function CommercialOperationsPage({
             { key: "priority", label: copy.priorityColumn },
             { key: "risk_level", label: copy.riskColumn },
             { key: "knowledge_collection", label: copy.collectionLabel },
+            { key: "production_closed_loop_primary_step_key", label: "closed_loop_step" },
+            { key: "production_closed_loop_staleness_status", label: "staleness" },
+            { key: "production_closed_loop_waiting_seconds", label: "waiting_s" },
             { key: "updated_at", label: copy.updatedColumn },
           ]}
         />
       </Panel>
-
-      <Panel title={copy.detailTitle} description={copy.detailDescription}>
-        {selectedOperation ? (
-          <div className="commercial-detail-grid">
-            <Field label={copy.titleLabel} value={valueAt(selectedOperation, ["title"])} />
-            <Field label={copy.statusColumn} value={<StatusPill value={valueAt(selectedOperation, ["status"])} />} />
-            <Field label={copy.priorityColumn} value={<StatusPill value={valueAt(selectedOperation, ["priority"])} />} />
-            <Field label={copy.riskColumn} value={<StatusPill value={valueAt(selectedOperation, ["risk_level"])} />} />
-            <Field label={copy.collectionLabel} value={valueAt(selectedOperation, ["knowledge_collection"])} />
-            <Field label={copy.metricsLabel} value={shortJson(selectedOperation.success_metrics)} />
-            <Field label={copy.channelsLabel} value={shortJson(selectedOperation.channels)} />
-            <Field label={copy.constraintsLabel} value={shortJson(selectedOperation.constraints)} />
-            <Field label={copy.objectiveLabel} value={valueAt(selectedOperation, ["objective"])} />
-          </div>
-        ) : (
-          <div className="empty-table">{copy.selectedHint}</div>
-        )}
-        <div className="commercial-action-row">
-          <button className="primary-button" onClick={() => void regeneratePlan()} disabled={!selectedOperation || actionState.loading}>
-            <Sparkles size={15} />
-            {copy.planAction}
-          </button>
-          <button className="ghost-button" onClick={() => void updateSelectedStatus("ready")} disabled={!selectedOperation || actionState.loading}>
-            <ShieldCheck size={15} />
-            {copy.markReady}
-          </button>
-          <button className="ghost-button" onClick={() => void updateSelectedStatus("active")} disabled={!selectedOperation || actionState.loading}>
-            <PlayCircle size={15} />
-            {copy.activate}
-          </button>
-          <button className="ghost-button" onClick={() => void updateSelectedStatus("paused")} disabled={!selectedOperation || actionState.loading}>
-            <AlertTriangle size={15} />
-            {copy.pause}
-          </button>
         </div>
-        <h3>{copy.planTitle}</h3>
-        <Table
-          rows={planRows}
-          emptyLabel={copy.noPlan}
-          columns={[
-            { key: "step_key", label: "step_key" },
-            { key: "title", label: copy.titleLabel },
-            { key: "owner", label: "owner" },
-            { key: "status", label: copy.statusColumn },
-            { key: "checks", label: "checks" },
-          ]}
-        />
-      </Panel>
+      </details>
 
-      <Panel
-        title={copy.agentSkillTitle}
-        description={copy.agentSkillDescription}
-        action={<RefreshButton onClick={() => void refreshAgentSkillOrchestration()} />}
-      >
-        <LoadNotice state={agentSkillState} />
-        {agentSkillState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {agentSkillState.updatedAt}</div> : null}
-        {selectedOperation ? (
-          <>
-            <div className="commercial-agent-skill-summary">
-              <Field label="controller" value={valueAt(controllerAgent, ["display_name", "agent_name"], "Commercial Operation Agent")} />
-              <Field label={copy.agentSkillStatus} value={<StatusPill value={valueAt(agentSkillOrchestration, ["orchestration_status"], "waiting")} />} />
-              <Field label={copy.agentSkillNext} value={valueAt(currentAgentSkill, ["display_name", "skill_key"], "-")} />
-              <Field label="completion" value={`${Math.round(Number(valueAt(agentSkillOrchestration, ["completion_ratio"], "0")) * 100)}%`} />
-              <Field label="next_action" value={valueAt(agentSkillOrchestration, ["next_action"], "-")} />
-              <Field label={copy.agentSkillBoundary} value={agentBoundaries[0] || "-"} />
+      <details className="commercial-server-operation-context-drawer" aria-label="Phase 73I Server Operation Context Drawer">
+        <summary>
+          <span>{selectedOperation ? valueAt(selectedOperation, ["title"], copy.detailTitle) : copy.detailTitle}</span>
+          <strong>
+            {selectedOperation
+              ? `${valueAt(selectedOperation, ["status"], "-")} / ${valueAt(selectedOperation, ["production_closed_loop_primary_step_key"], "none")} / ${valueAt(
+                  agentSkillOrchestration,
+                  ["orchestration_status"],
+                  "waiting",
+                )}`
+              : copy.selectedHint}
+          </strong>
+        </summary>
+        <div className="commercial-server-operation-context-body">
+          <Panel title={copy.detailTitle} description={copy.detailDescription}>
+            {selectedOperation ? (
+              <div className="commercial-detail-grid">
+                <Field label={copy.titleLabel} value={valueAt(selectedOperation, ["title"])} />
+                <Field label={copy.statusColumn} value={<StatusPill value={valueAt(selectedOperation, ["status"])} />} />
+                <Field label={copy.priorityColumn} value={<StatusPill value={valueAt(selectedOperation, ["priority"])} />} />
+                <Field label={copy.riskColumn} value={<StatusPill value={valueAt(selectedOperation, ["risk_level"])} />} />
+                <Field label={copy.collectionLabel} value={valueAt(selectedOperation, ["knowledge_collection"])} />
+                <Field label={copy.metricsLabel} value={shortJson(selectedOperation.success_metrics)} />
+                <Field label={copy.channelsLabel} value={shortJson(selectedOperation.channels)} />
+                <Field label={copy.constraintsLabel} value={shortJson(selectedOperation.constraints)} />
+                <Field label="closed_loop_step" value={valueAt(selectedOperation, ["production_closed_loop_primary_step_key"], "none")} />
+                <Field label="staleness" value={<StatusPill value={valueAt(selectedOperation, ["production_closed_loop_staleness_status"], "none")} />} />
+                <Field label="waiting_s" value={valueAt(selectedOperation, ["production_closed_loop_waiting_seconds"], "0")} />
+                <Field label="escalation" value={<StatusPill value={valueAt(selectedOperation, ["production_closed_loop_escalation_recommended"], "false")} />} />
+                <Field label={copy.objectiveLabel} value={valueAt(selectedOperation, ["objective"])} />
+              </div>
+            ) : (
+              <div className="empty-table">{copy.selectedHint}</div>
+            )}
+            <div className="commercial-action-row">
+              <button className="primary-button" onClick={() => void regeneratePlan()} disabled={!selectedOperation || actionState.loading}>
+                <Sparkles size={15} />
+                {copy.planAction}
+              </button>
+              <button className="ghost-button" onClick={() => void updateSelectedStatus("ready")} disabled={!selectedOperation || actionState.loading}>
+                <ShieldCheck size={15} />
+                {copy.markReady}
+              </button>
+              <button className="ghost-button" onClick={() => void updateSelectedStatus("active")} disabled={!selectedOperation || actionState.loading}>
+                <PlayCircle size={15} />
+                {copy.activate}
+              </button>
+              <button className="ghost-button" onClick={() => void updateSelectedStatus("paused")} disabled={!selectedOperation || actionState.loading}>
+                <AlertTriangle size={15} />
+                {copy.pause}
+              </button>
             </div>
+            <h3>{copy.planTitle}</h3>
             <Table
-              rows={agentSkills}
-              emptyLabel={copy.agentSkillEmpty}
+              rows={planRows}
+              emptyLabel={copy.noPlan}
               columns={[
-                { key: "display_name", label: "skill" },
-                { key: "owner_agent", label: "agent" },
-                { key: "tool_name", label: "tool" },
+                { key: "step_key", label: "step_key" },
+                { key: "title", label: copy.titleLabel },
+                { key: "owner", label: "owner" },
                 { key: "status", label: copy.statusColumn },
-                { key: "next_action", label: "next_action" },
-                { key: "boundary", label: copy.agentSkillBoundary },
+                { key: "checks", label: "checks" },
               ]}
             />
-            <Table
-              rows={agentSkillDecisions}
-              emptyLabel={copy.agentSkillEmpty}
-              columns={[
-                { key: "decision_key", label: "decision" },
-                { key: "agent_name", label: "agent" },
-                { key: "decision_type", label: "type" },
-                { key: "status", label: copy.statusColumn },
-                { key: "next_action", label: "next_action" },
-              ]}
-            />
-          </>
-        ) : (
-          <div className="empty-table">{copy.agentSkillEmpty}</div>
-        )}
-      </Panel>
+          </Panel>
+
+          <Panel
+            title={copy.agentSkillTitle}
+            description={copy.agentSkillDescription}
+            action={<RefreshButton onClick={() => void refreshAgentSkillOrchestration()} />}
+          >
+            <LoadNotice state={agentSkillState} />
+            {agentSkillState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {agentSkillState.updatedAt}</div> : null}
+            {selectedOperation ? (
+              <>
+                <div className="commercial-agent-skill-summary">
+                  <Field label="controller" value={valueAt(controllerAgent, ["display_name", "agent_name"], "Commercial Operation Agent")} />
+                  <Field label={copy.agentSkillStatus} value={<StatusPill value={valueAt(agentSkillOrchestration, ["orchestration_status"], "waiting")} />} />
+                  <Field label={copy.agentSkillNext} value={valueAt(currentAgentSkill, ["display_name", "skill_key"], "-")} />
+                  <Field label="completion" value={`${Math.round(Number(valueAt(agentSkillOrchestration, ["completion_ratio"], "0")) * 100)}%`} />
+                  <Field label="next_action" value={valueAt(agentSkillOrchestration, ["next_action"], "-")} />
+                  <Field label={copy.agentSkillBoundary} value={agentBoundaries[0] || "-"} />
+                </div>
+                <Table
+                  rows={agentSkills}
+                  emptyLabel={copy.agentSkillEmpty}
+                  columns={[
+                    { key: "display_name", label: "skill" },
+                    { key: "owner_agent", label: "agent" },
+                    { key: "tool_name", label: "tool" },
+                    { key: "status", label: copy.statusColumn },
+                    { key: "next_action", label: "next_action" },
+                    { key: "boundary", label: copy.agentSkillBoundary },
+                  ]}
+                />
+                <Table
+                  rows={agentSkillDecisions}
+                  emptyLabel={copy.agentSkillEmpty}
+                  columns={[
+                    { key: "decision_key", label: "decision" },
+                    { key: "agent_name", label: "agent" },
+                    { key: "decision_type", label: "type" },
+                    { key: "status", label: copy.statusColumn },
+                    { key: "next_action", label: "next_action" },
+                  ]}
+                />
+              </>
+            ) : (
+              <div className="empty-table">{copy.agentSkillEmpty}</div>
+            )}
+          </Panel>
+        </div>
+      </details>
+
+      {!isComfyuiPage ? (
+        <details className="commercial-server-action-audit-drawer" aria-label="Phase 73J Server Action Audit Drawer">
+          <summary>
+            <span>Production closed-loop action audit</span>
+            <strong>
+              {selectedOperation
+                ? `${productionClosedLoopPrimaryStepLabel} / audits:${valueAt(productionClosedLoopActionAudits, ["audit_count"], "0")} / latest:${valueAt(
+                    productionClosedLoopLatestAudit,
+                    ["action_key"],
+                    "-",
+                  )}`
+                : copy.selectedHint}
+            </strong>
+          </summary>
+          <div className="commercial-server-action-audit-body">
+            <Panel
+              title="Production closed-loop action audit"
+              description="Phase 69K Server Primary Step Dashboard: read-only server visibility for the customer-machine confirm / bind / validate / refresh path. The server dashboard does not run OpenClaw, run Playwright, publish, or control accounts."
+              action={
+                <RefreshButton
+                  onClick={() => {
+                    if (selectedOperationId) {
+                      void loadProductionActionAudits(selectedOperationId);
+                    }
+                  }}
+                />
+              }
+            >
+              <LoadNotice state={productionActionAuditState} />
+              {productionActionAuditState.updatedAt ? <div className="last-updated">{textFor(language, "lastUpdated")}: {productionActionAuditState.updatedAt}</div> : null}
+              {selectedOperation ? (
+                <>
+                  <div className="commercial-detail-grid">
+                    <Field label="primary_step" value={<StatusPill value={valueAt(productionClosedLoopPrimaryStep, ["step_key"], "none")} />} />
+                    <Field label="primary_status" value={<StatusPill value={valueAt(productionClosedLoopPrimaryStep, ["status"], "none")} />} />
+                    <Field label="primary_detail" value={productionClosedLoopPrimaryStepDetail} />
+                    <Field label="staleness_status" value={<StatusPill value={valueAt(productionClosedLoopPrimaryStepStaleness, ["status"], "none")} />} />
+                    <Field label="waiting_seconds" value={valueAt(productionClosedLoopPrimaryStepStaleness, ["waiting_seconds"], "0")} />
+                    <Field label="escalation_recommended" value={<StatusPill value={valueAt(productionClosedLoopPrimaryStepStaleness, ["escalation_recommended"], "false")} />} />
+                    <Field label="escalation_reason" value={valueAt(productionClosedLoopPrimaryStepStaleness, ["escalation_reason"], "-")} />
+                    <Field label="audit_count" value={valueAt(productionClosedLoopActionAudits, ["audit_count"], "0")} />
+                    <Field label="latest_action_key" value={valueAt(productionClosedLoopLatestAudit, ["action_key"], "-")} />
+                    <Field label="latest_binding" value={<StatusPill value={valueAt(productionClosedLoopLatestAudit, ["result_binding_status"], "none")} />} />
+                    <Field label="latest_validation" value={<StatusPill value={valueAt(productionClosedLoopLatestAudit, ["result_record_validation_status"], "none")} />} />
+                    <Field label="latest_refresh" value={<StatusPill value={valueAt(productionClosedLoopLatestAudit, ["readiness_refresh_status"], "none")} />} />
+                    <Field label="primary_step_contract" value={valueAt(productionClosedLoopActionAudits?.metadata as JsonRecord | undefined, ["primary_step_contract"], "-")} />
+                    <Field label="primary_step_staleness_contract" value={valueAt(productionClosedLoopActionAudits?.metadata as JsonRecord | undefined, ["primary_step_staleness_contract"], "-")} />
+                    <Field label="boundary" value="server_read_only_no_openclaw_no_playwright_no_publish" />
+                  </div>
+                  <Table
+                    rows={productionClosedLoopOperatorChecklist}
+                    emptyLabel="No production action-audit checklist yet."
+                    columns={[
+                      { key: "step_key", label: "step" },
+                      { key: "label", label: "label" },
+                      { key: "status", label: "status" },
+                      { key: "detail", label: "detail" },
+                      { key: "blocking_reason", label: "blocking" },
+                    ]}
+                  />
+                </>
+              ) : (
+                <div className="empty-table">{copy.selectedHint}</div>
+              )}
+            </Panel>
+          </div>
+        </details>
+      ) : null}
 
       {isComfyuiPage ? (
         <Panel
@@ -11272,24 +14070,27 @@ function CommercialOperationsPage({
       ) : null}
 
       {!isComfyuiPage ? (
-        <Panel title={comfyuiSurfaceCopy.entryTitle} description={comfyuiSurfaceCopy.entryDescription}>
-          <div className="commercial-detail-grid">
-            <Field label={comfyuiCopy.title} value={String(comfyuiHandoffs.length)} />
-            <Field label={comfyuiPreflightCopy.title} value={String(comfyuiPreflights.length)} />
-            <Field label={comfyuiJobCopy.title} value={String(comfyuiJobRequests.length)} />
-            <Field label={comfyuiRuntimeGateCopy.title} value={String(comfyuiRuntimeGates.length)} />
-            <Field label={comfyuiRuntimeDryRunCopy.title} value={String(comfyuiRuntimeDryRuns.length)} />
-            <Field label={comfyuiRuntimeActivationCopy.title} value={String(comfyuiRuntimeActivations.length)} />
-          </div>
-          <button className="primary-button" onClick={() => onNavigate?.("comfyui-operations")}>
-            <Sparkles size={15} />
-            {comfyuiSurfaceCopy.openAction}
-          </button>
-        </Panel>
-      ) : null}
+        <details className="commercial-server-production-upstream-drawer" aria-label="Phase 73K Server Production Upstream Drawer">
+          <summary>
+            <span>Production content and assets</span>
+            <strong>{contentDrafts.length} drafts / {assetRequests.length} assets / {comfyuiJobRequests.length} ComfyUI jobs</strong>
+          </summary>
+          <div className="commercial-server-production-upstream-body">
+      <Panel title={comfyuiSurfaceCopy.entryTitle} description={comfyuiSurfaceCopy.entryDescription}>
+        <div className="commercial-detail-grid">
+          <Field label={comfyuiCopy.title} value={String(comfyuiHandoffs.length)} />
+          <Field label={comfyuiPreflightCopy.title} value={String(comfyuiPreflights.length)} />
+          <Field label={comfyuiJobCopy.title} value={String(comfyuiJobRequests.length)} />
+          <Field label={comfyuiRuntimeGateCopy.title} value={String(comfyuiRuntimeGates.length)} />
+          <Field label={comfyuiRuntimeDryRunCopy.title} value={String(comfyuiRuntimeDryRuns.length)} />
+          <Field label={comfyuiRuntimeActivationCopy.title} value={String(comfyuiRuntimeActivations.length)} />
+        </div>
+        <button className="primary-button" onClick={() => onNavigate?.("comfyui-operations")}>
+          <Sparkles size={15} />
+          {comfyuiSurfaceCopy.openAction}
+        </button>
+      </Panel>
 
-      {!isComfyuiPage ? (
-        <>
       <Panel title={contentCopy.title} description={contentCopy.description}>
         {selectedOperation ? (
           <>
@@ -11659,7 +14460,8 @@ function CommercialOperationsPage({
         )}
       </Panel>
 
-        </>
+          </div>
+        </details>
       ) : null}
 
       {isComfyuiPage ? (
@@ -13265,7 +16067,12 @@ function CommercialOperationsPage({
       ) : null}
 
       {!isComfyuiPage ? (
-        <>
+        <details className="commercial-server-production-closed-loop-drawer" aria-label="Phase 73K Server Production Closed Loop Drawer">
+          <summary>
+            <span>Production delivery loop</span>
+            <strong>{deliverables.length} deliverables / {executionRuns.length} runs / {monitoringObservations.length} observations</strong>
+          </summary>
+          <div className="commercial-server-production-closed-loop-body">
       <Panel title={deliverableCopy.title} description={deliverableCopy.description}>
         {selectedOperation ? (
           <>
@@ -14676,7 +17483,8 @@ function CommercialOperationsPage({
           <div className="empty-table">{copy.linksSelectedHint}</div>
         )}
       </Panel>
-        </>
+          </div>
+        </details>
       ) : null}
     </div>
   );

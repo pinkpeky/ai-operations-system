@@ -1,6 +1,6 @@
 param(
-    [string]$ComfyRoot = "E:\ComfyUI",
-    [string]$TaskName = "AI Ops ComfyUI E Drive",
+    [string]$ComfyRoot = "E:\ComfyUI_cu130\ComfyUI",
+    [string]$TaskName = "AI Ops ComfyUI CU130",
     [string]$TaskUser = "SYSTEM",
     [switch]$UseRepositoryScript
 )
@@ -46,7 +46,7 @@ Register-ScheduledTask `
     -Trigger $trigger `
     -Settings $settings `
     -Principal $principal `
-    -Description "Start E:\ComfyUI for AI Operations System after server reboot." `
+    -Description "Start E:\ComfyUI_cu130\ComfyUI for AI Operations System after server reboot." `
     -Force | Out-Null
 
 Get-ScheduledTask -TaskName $TaskName | Select-Object TaskName, State, TaskPath

@@ -1,0 +1,28 @@
+{
+  "status": "success",
+  "video_prompt_id": "25884770-639e-4bcc-a72f-aa740d93b6b1",
+  "seed_name": "scene_ai_virtual_host_seed.png",
+  "seed_path": "E:/ComfyUI_cu130/ComfyUI/input/scene_ai_virtual_host_seed.png",
+  "video_path": "E:\\ComfyUI_cu130\\ComfyUI\\output\\aiops\\original_douyin_requirement_fullbody_6s_video_smoke\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ_00001-audio.mp4",
+  "video_exists": true,
+  "video_size_bytes": 575994,
+  "requested_frames": 144,
+  "frames": 169,
+  "fps": 24,
+  "width": 368,
+  "height": 640,
+  "duration_seconds": 7.041667,
+  "preflight_report": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_fullbody_6s_video_preflight.json",
+  "submit_report": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_fullbody_6s_video_submit.json",
+  "history_report": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_fullbody_6s_video_history.json",
+  "contact_sheet": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_fullbody_6s_video_contact.jpg",
+  "model_overrides": {
+    "122": {
+      "model": "Wan\\Wan2.1-I2V_14B_480p_fp8_e4m3fn_scaled_KJ.safetensors"
+    },
+    "120": {
+      "model": "Wan\\Wan2_1-InfiniteTalk-Single_fp8_e4m3fn_scaled_KJ.safetensors"
+    }
+  },
+  "quality_note": "6-second low-resolution smoke using best currently verified full-body female seed; not final render."
+}

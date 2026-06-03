@@ -1,0 +1,34 @@
+{
+  "version": "2026-05-27",
+  "modes": [
+    {
+      "mode": "scene_only_virtual_human",
+      "input": "One clean KTV scene image without a person.",
+      "goal": "Generate a same-scene video with a newly created virtual host/model.",
+      "pipeline": [
+        "scene_image",
+        "image_fusion_or_inpainting_add_virtual_person",
+        "wan_i2v_motion",
+        "ffmpeg_subtitle_voice_music_assembly"
+      ],
+      "current_server_status": "Video generation and assembly are ready. Local photoreal person insertion needs an SDXL/Flux/inpainting stack or an external image tool before Wan I2V.",
+      "recommended_motion": "slow push-in, breathing, slight turn, microphone hand held still",
+      "risk": "Wan I2V alone is not reliable for adding a new person to an empty room in batch production."
+    },
+    {
+      "mode": "person_in_scene_digital_human",
+      "input": "One KTV scene image that already contains a person.",
+      "goal": "Animate the person as a digital human while preserving identity, clothes, and room.",
+      "pipeline": [
+        "person_scene_image",
+        "identity_and_scene_preservation_prompt",
+        "wan_i2v_or_wananimate_motion",
+        "optional_musetalk_or_liveportrait_lipsync",
+        "ffmpeg_subtitle_voice_music_assembly"
+      ],
+      "current_server_status": "Ready on current server for subtle motion and video assembly; MuseTalk/LivePortrait are available for talking-head shots.",
+      "recommended_motion": "subtle expression, breathing, small head turn, stable microphone posture",
+      "risk": "Large body motion, dancing, or complex hand movement can cause identity drift."
+    }
+  ]
+}

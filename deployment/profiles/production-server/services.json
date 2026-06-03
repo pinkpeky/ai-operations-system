@@ -1,0 +1,14 @@
+{
+  "profile_key": "production-server",
+  "startup_order": ["postgres", "redis", "qdrant", "local-llm", "local-reranker", "comfyui", "browser-worker", "api"],
+  "services": [
+    { "name": "postgres", "command": "docker compose up -d postgres", "required": true },
+    { "name": "redis", "command": "docker compose up -d redis", "required": true },
+    { "name": "qdrant", "command": "docker compose up -d qdrant", "required": true },
+    { "name": "local-llm", "command": "start the approved local LLM service on port 11434", "required": true },
+    { "name": "local-reranker", "command": "uvicorn worker.reranker_worker.main:app --host 0.0.0.0 --port 8002", "required": true },
+    { "name": "comfyui", "command": "deployment/windows/start_comfyui_aiops.ps1", "required": true },
+    { "name": "browser-worker", "command": "deployment/windows/start_worker_console.ps1 or approved worker runtime service", "required": true },
+    { "name": "api", "command": "docker compose up -d api", "required": true }
+  ]
+}

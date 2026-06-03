@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, JSON, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, IdTimestampMixin
@@ -33,10 +33,18 @@ from app.models.enums import (
     CommercialOperationLinkType,
     CommercialOperationMonitoringObservationStatus,
     CommercialOperationOptimizationDecisionStatus,
+    CommercialOperationOutputCandidateStatus,
+    CommercialOperationFinalSelectionStatus,
+    CommercialOperationPlanStatus,
+    CommercialOperationPlatformMetricSnapshotStatus,
     CommercialOperationPriority,
+    CommercialOperationProductionTaskStatus,
+    CommercialOperationProjectMaterialStatus,
+    CommercialOperationPublishPackageStatus,
     CommercialOperationResultStatus,
     CommercialOperationRiskLevel,
     CommercialOperationStatus,
+    CommercialOperationWorkflowSelectionStatus,
 )
 
 
@@ -92,6 +100,420 @@ class CommercialOperation(IdTimestampMixin, Base):
         nullable=False,
         comment="Operation metadata",
     )
+
+
+class CommercialOperationPlan(IdTimestampMixin, Base):
+    """First-class operation plan for a commercial operation project."""
+
+    __tablename__ = "commercial_operation_plans"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    plan_version: Mapped[int] = mapped_column(default=1, nullable=False, comment="Plan version")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Plan title")
+    plan_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationPlanStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / rejected / archived",
+    )
+    objective_summary: Mapped[str] = mapped_column(Text, nullable=False, comment="Operation objective summary")
+    audience_strategy: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Target audience strategy")
+    channel_strategy: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="Channel strategy")
+    content_strategy: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Content strategy")
+    production_scope: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Planned copy/image/media production scope",
+    )
+    material_requirements: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Required project materials",
+    )
+    kpis: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False, comment="KPI definitions")
+    publish_schedule: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Planned publishing windows",
+    )
+    risk_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Risk and compliance notes")
+    source_goal: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Original operator goal snapshot")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    plan_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Operation plan metadata",
+    )
+
+
+class CommercialOperationProjectMaterial(IdTimestampMixin, Base):
+    """Project-scoped material registered from a customer machine or server operator."""
+
+    __tablename__ = "commercial_operation_project_materials"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    production_task_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_production_tasks.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Optional linked production task ID",
+    )
+    material_type: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+        comment="reference_video / scene_image / product_image / portrait / audio / brand_doc / script_doc / link / other",
+    )
+    material_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationProjectMaterialStatus.AVAILABLE.value,
+        index=True,
+        nullable=False,
+        comment="available / ready_for_review / approved / rejected / archived",
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False, comment="Material name")
+    source_uri: Mapped[str] = mapped_column(Text, nullable=False, comment="Local path, output URI, or external URL")
+    file_name: Mapped[str | None] = mapped_column(String(512), nullable=True, comment="Original file name")
+    mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="MIME type")
+    size_bytes: Mapped[int | None] = mapped_column(nullable=True, comment="File size in bytes")
+    checksum: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Content checksum")
+    authorization_status: Mapped[str] = mapped_column(
+        String(64),
+        default="unverified",
+        index=True,
+        nullable=False,
+        comment="unverified / authorized / restricted / rejected",
+    )
+    usage_scope: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Allowed usage scope")
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Material tags")
+    linked_task_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Linked production task IDs")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Operator notes")
+    uploaded_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Uploader user ID")
+    reviewed_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Reviewer user ID")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Reviewed at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    material_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Project material metadata",
+    )
+
+
+class CommercialOperationProductionTask(IdTimestampMixin, Base):
+    """Copy, image, or media production task derived from an approved plan."""
+
+    __tablename__ = "commercial_operation_production_tasks"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    operation_plan_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_plans.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="Source operation plan ID",
+    )
+    task_type: Mapped[str] = mapped_column(String(32), index=True, nullable=False, comment="copy / image / media")
+    media_subtype: Mapped[str | None] = mapped_column(
+        String(64),
+        index=True,
+        nullable=True,
+        comment="video / audio / audio_video / digital_human / postprocess",
+    )
+    channel: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Target channel")
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="Production task title")
+    task_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationProductionTaskStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+        comment="draft / ready_for_review / approved / in_progress / blocked / completed / rejected / archived",
+    )
+    brief: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Task brief")
+    source_material_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False, comment="Project material IDs")
+    output_requirements: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+        comment="Expected output requirements",
+    )
+    target_specs: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False, comment="Format and platform specs")
+    workflow_selection_required: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+        comment="Whether customer-machine workflow selection is required",
+    )
+    assigned_agent: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Recommended agent")
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Reviewer notes")
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Creator user ID")
+    updated_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Last updater user ID")
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Approver user ID")
+    completed_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Completer user ID")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Approved at")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Started at")
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Completed at")
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Rejected at")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, comment="Archived at")
+    task_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Production task metadata",
+    )
+
+
+class CommercialOperationWorkflowSelection(IdTimestampMixin, Base):
+    """Human-confirmed workflow selection bound to a production task."""
+
+    __tablename__ = "commercial_operation_workflow_selections"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False, comment="Workspace ID")
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Commercial operation ID",
+    )
+    production_task_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_production_tasks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+        comment="Production task ID",
+    )
+    workflow_source: Mapped[str] = mapped_column(String(64), default="comfyui", index=True, nullable=False)
+    workflow_name: Mapped[str] = mapped_column(String(255), nullable=False, comment="Workflow name")
+    workflow_kind: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True, comment="Workflow kind")
+    output_type: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+        comment="image / video / audio / audio_video / copy / postprocess / other",
+    )
+    selection_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationWorkflowSelectionStatus.RECOMMENDED.value,
+        index=True,
+        nullable=False,
+        comment="recommended / ready_for_review / approved / rejected / archived",
+    )
+    candidate_summary: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Operator-facing candidate summary")
+    input_requirements: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    expected_outputs: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    recommendation_reason: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Why the agent recommended it")
+    estimated_duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True, comment="Estimated duration")
+    estimated_vram_mb: Mapped[int | None] = mapped_column(nullable=True, comment="Estimated VRAM")
+    risk_notes: Mapped[str | None] = mapped_column(Text, nullable=True, comment="Risk notes")
+    validation_status: Mapped[str] = mapped_column(String(64), default="not_checked", index=True, nullable=False)
+    selected_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    selection_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSON,
+        default=dict,
+        nullable=False,
+        comment="Workflow selection metadata",
+    )
+
+
+class CommercialOperationOutputCandidate(IdTimestampMixin, Base):
+    """Generated candidate output that must be previewed before final selection."""
+
+    __tablename__ = "commercial_operation_output_candidates"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    production_task_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_production_tasks.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    workflow_selection_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_workflow_selections.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    output_artifact_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("output_artifacts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    candidate_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    candidate_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationOutputCandidateStatus.GENERATED.value,
+        index=True,
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    preview_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    thumbnail_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    generation_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    quality_checks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    selected_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    selected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    candidate_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class CommercialOperationFinalSelection(IdTimestampMixin, Base):
+    """Human final selection from an output candidate."""
+
+    __tablename__ = "commercial_operation_final_selections"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    operation_id: Mapped[UUID] = mapped_column(ForeignKey("commercial_operations.id", ondelete="CASCADE"), index=True)
+    production_task_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_production_tasks.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    output_candidate_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commercial_operation_output_candidates.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=False,
+    )
+    final_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    selection_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationFinalSelectionStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+    )
+    selection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    platform_targets: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    selected_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    selection_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class CommercialOperationPublishPackage(IdTimestampMixin, Base):
+    """Platform-specific package approved before customer-machine publishing."""
+
+    __tablename__ = "commercial_operation_publish_packages"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    operation_id: Mapped[UUID] = mapped_column(ForeignKey("commercial_operations.id", ondelete="CASCADE"), index=True)
+    final_selection_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_final_selections.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    platform: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    account_ref: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    package_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationPublishPackageStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+    )
+    hashtags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    cover_candidate_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_output_candidates.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    publish_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    risk_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    prepared_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    prepared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    package_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class CommercialOperationPlatformMetricSnapshot(IdTimestampMixin, Base):
+    """Daily or manual platform metric snapshot for a published package."""
+
+    __tablename__ = "commercial_operation_platform_metric_snapshots"
+
+    workspace_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    operation_id: Mapped[UUID] = mapped_column(ForeignKey("commercial_operations.id", ondelete="CASCADE"), index=True)
+    publish_package_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commercial_operation_publish_packages.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    platform: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    platform_content_id: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    source_type: Mapped[str] = mapped_column(String(64), default="manual", index=True, nullable=False)
+    snapshot_status: Mapped[str] = mapped_column(
+        String(32),
+        default=CommercialOperationPlatformMetricSnapshotStatus.DRAFT.value,
+        index=True,
+        nullable=False,
+    )
+    collected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    metric_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    collected_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    snapshot_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
 
 
 class CommercialOperationLink(IdTimestampMixin, Base):

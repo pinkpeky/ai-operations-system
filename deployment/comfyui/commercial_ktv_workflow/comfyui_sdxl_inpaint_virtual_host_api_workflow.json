@@ -1,0 +1,117 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "scene_4_480x832.jpg"
+    }
+  },
+  "2": {
+    "class_type": "LoadImageMask",
+    "inputs": {
+      "image": "scene_virtual_host_mask.png",
+      "channel": "red"
+    }
+  },
+  "3": {
+    "class_type": "DiffusersLoader",
+    "inputs": {
+      "model_path": "sdxl_inpaint_1_0_files"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "photorealistic fictional AI female KTV host standing naturally inside the exact same luxury private KTV room, full body, elegant black fitted dress, holding a microphone, business reception style, confident gentle smile, matching blue and magenta club lighting, realistic shadows on the floor, correct perspective and scale, commercial photography, high detail face, natural hands, preserve the original room layout",
+      "clip": [
+        "3",
+        1
+      ]
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "low quality, blurry, flicker, jitter, distorted face, bad hands, extra fingers, extra limbs, duplicate person, warped room, changed layout, text, logo, watermark, cartoon, anime, plastic skin, overexposed, oversaturated",
+      "clip": [
+        "3",
+        1
+      ]
+    }
+  },
+  "6": {
+    "class_type": "InpaintModelConditioning",
+    "inputs": {
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ],
+      "pixels": [
+        "1",
+        0
+      ],
+      "mask": [
+        "2",
+        0
+      ],
+      "noise_mask": true
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "6",
+        1
+      ],
+      "latent_image": [
+        "6",
+        2
+      ],
+      "seed": 2026052742,
+      "steps": 32,
+      "cfg": 7.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "3",
+        2
+      ]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ],
+      "filename_prefix": "aiops_virtual_host_sdxl_inpaint"
+    }
+  }
+}

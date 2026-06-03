@@ -15,8 +15,13 @@ from worker.main import create_app, get_runtime
 async def test_browser_worker_client_talks_to_real_worker_app(fake_playwright, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     """Client should use the Phase 20 worker protocol without mock runtime routes."""
 
-    runtime = PlaywrightBrowserWorkerRuntime(settings=WorkerSettings(WORKER_SCREENSHOT_DIR=str(tmp_path)))
-    app = create_app()
+    settings = WorkerSettings(
+        WORKER_SCREENSHOT_DIR=str(tmp_path),
+        browser_worker_auth_enabled=False,
+        browser_worker_auth_strict=False,
+    )
+    runtime = PlaywrightBrowserWorkerRuntime(settings=settings)
+    app = create_app(settings=settings)
     app.dependency_overrides[get_runtime] = lambda: runtime
 
     transport = httpx.ASGITransport(app=app)

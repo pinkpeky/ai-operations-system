@@ -32,7 +32,15 @@ from app.models.commercial_operation import (
     CommercialOperationLink,
     CommercialOperationMonitoringObservation,
     CommercialOperationOptimizationDecision,
+    CommercialOperationOutputCandidate,
+    CommercialOperationFinalSelection,
+    CommercialOperationPlan,
+    CommercialOperationPlatformMetricSnapshot,
+    CommercialOperationProductionTask,
+    CommercialOperationProjectMaterial,
+    CommercialOperationPublishPackage,
     CommercialOperationResult,
+    CommercialOperationWorkflowSelection,
 )
 from app.schemas.rag import SearchMode
 
@@ -40,6 +48,41 @@ from app.schemas.rag import SearchMode
 CommercialOperationStatusLiteral = Literal["draft", "planning", "ready", "active", "paused", "completed", "archived"]
 CommercialOperationPriorityLiteral = Literal["low", "normal", "high"]
 CommercialOperationRiskLiteral = Literal["low", "medium", "high"]
+CommercialOperationPlanStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
+CommercialOperationProjectMaterialStatusLiteral = Literal["available", "ready_for_review", "approved", "rejected", "archived"]
+CommercialOperationProductionTaskStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "in_progress",
+    "blocked",
+    "completed",
+    "rejected",
+    "archived",
+]
+CommercialOperationProductionTaskTypeLiteral = Literal["copy", "image", "media"]
+CommercialOperationMediaSubtypeLiteral = Literal["video", "audio", "audio_video", "digital_human", "postprocess"]
+CommercialOperationWorkflowSelectionStatusLiteral = Literal["recommended", "ready_for_review", "approved", "rejected", "archived"]
+CommercialOperationOutputCandidateStatusLiteral = Literal["generated", "ready_for_review", "selected", "rejected", "archived"]
+CommercialOperationFinalSelectionStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
+CommercialOperationPublishPackageStatusLiteral = Literal[
+    "draft",
+    "ready_for_review",
+    "approved",
+    "prepared",
+    "published",
+    "rejected",
+    "failed",
+    "archived",
+]
+CommercialOperationPlatformMetricSnapshotStatusLiteral = Literal[
+    "draft",
+    "collected",
+    "ready_for_review",
+    "approved",
+    "rejected",
+    "archived",
+]
 CommercialOperationApprovalStatusLiteral = Literal["pending", "approved", "rejected", "cancelled"]
 CommercialOperationContentDraftStatusLiteral = Literal["draft", "ready_for_review", "approved", "rejected", "archived"]
 CommercialOperationContentFormatLiteral = Literal["copy", "email", "post", "script", "landing_page", "ad"]
@@ -292,11 +335,34 @@ class CommercialOperationResponse(BaseModel):
     constraints: list[str]
     plan_outline: list[dict[str, Any]]
     metadata: dict[str, Any]
+    production_closed_loop_action_audit_summary: dict[str, Any] = Field(default_factory=dict)
+    production_closed_loop_primary_step: dict[str, Any] | None = None
+    production_closed_loop_primary_step_staleness: dict[str, Any] = Field(default_factory=dict)
+    production_closed_loop_primary_step_key: str | None = None
+    production_closed_loop_staleness_status: str = "none"
+    production_closed_loop_escalation_recommended: bool = False
+    production_closed_loop_waiting_seconds: int = 0
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def from_model(cls, operation: CommercialOperation) -> "CommercialOperationResponse":
+    def from_model(
+        cls,
+        operation: CommercialOperation,
+        *,
+        production_closed_loop_action_audit_summary: dict[str, Any] | None = None,
+    ) -> "CommercialOperationResponse":
+        closed_loop_summary = dict(production_closed_loop_action_audit_summary or {})
+        primary_step = (
+            dict(closed_loop_summary["primary_step"])
+            if isinstance(closed_loop_summary.get("primary_step"), dict)
+            else None
+        )
+        staleness = (
+            dict(closed_loop_summary["primary_step_staleness"])
+            if isinstance(closed_loop_summary.get("primary_step_staleness"), dict)
+            else {}
+        )
         return cls(
             id=operation.id,
             workspace_id=operation.workspace_id,
@@ -317,6 +383,13 @@ class CommercialOperationResponse(BaseModel):
             constraints=operation.constraints,
             plan_outline=operation.plan_outline,
             metadata=operation.operation_metadata,
+            production_closed_loop_action_audit_summary=closed_loop_summary,
+            production_closed_loop_primary_step=primary_step,
+            production_closed_loop_primary_step_staleness=staleness,
+            production_closed_loop_primary_step_key=str(primary_step.get("step_key")) if primary_step else None,
+            production_closed_loop_staleness_status=str(staleness.get("status") or "none"),
+            production_closed_loop_escalation_recommended=bool(staleness.get("escalation_recommended")),
+            production_closed_loop_waiting_seconds=int(staleness.get("waiting_seconds") or 0),
             created_at=operation.created_at,
             updated_at=operation.updated_at,
         )
@@ -326,6 +399,2907 @@ class CommercialOperationListResponse(BaseModel):
     """Commercial operation list response."""
 
     items: list[CommercialOperationResponse]
+
+
+class CommercialOperationProductionClosedLoopInterventionQueueItemResponse(BaseModel):
+    """One stale/watch production closed-loop operation that needs operator intervention."""
+
+    operation_id: UUID
+    workspace_id: str
+    operation_title: str
+    operation_status: str
+    operation_priority: str
+    operation_risk_level: str
+    operation: CommercialOperationResponse
+    action_audit_summary: dict[str, Any] = Field(default_factory=dict)
+    primary_step: dict[str, Any] | None = None
+    primary_step_key: str | None = None
+    primary_step_label: str | None = None
+    staleness_status: str = "none"
+    waiting_seconds: int = 0
+    escalation_recommended: bool = False
+    priority_score: int = 0
+    recommended_action_key: str | None = None
+    latest_intervention_acknowledgement: dict[str, Any] = Field(default_factory=dict)
+    acknowledgement_status: str | None = None
+    acknowledgement_assignee: str | None = None
+    acknowledgement_sla: dict[str, Any] = Field(default_factory=dict)
+    latest_intervention_reminder_dispatch: dict[str, Any] = Field(default_factory=dict)
+    reminder_dispatch_status: str | None = None
+    reminder_dispatch_channel: str | None = None
+    reminder_dispatch_cooldown: dict[str, Any] = Field(default_factory=dict)
+    reminder_follow_up_recommended: bool = False
+    reminder_next_allowed_at: datetime | None = None
+    reason: str | None = None
+
+
+class CommercialOperationProductionClosedLoopInterventionQueueResponse(BaseModel):
+    """Workspace-level stale/watch production closed-loop intervention queue."""
+
+    workspace_id: str
+    queue_status: str
+    statuses: list[str] = Field(default_factory=list)
+    queue_count: int = 0
+    stale_count: int = 0
+    watch_count: int = 0
+    acknowledgement_sla_status_counts: dict[str, int] = Field(default_factory=dict)
+    reminder_dispatch_status_counts: dict[str, int] = Field(default_factory=dict)
+    reminder_cooldown_status_counts: dict[str, int] = Field(default_factory=dict)
+    acknowledgement_overdue_count: int = 0
+    reminder_follow_up_count: int = 0
+    queue_summary: dict[str, Any] = Field(default_factory=dict)
+    recommended_action: dict[str, Any] = Field(default_factory=dict)
+    scanned_operation_count: int = 0
+    scan_limit: int = 500
+    limit: int = 50
+    items: list[CommercialOperationProductionClosedLoopInterventionQueueItemResponse] = Field(default_factory=list)
+    generated_at: datetime
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopInterventionAcknowledgementStatus = Literal[
+    "acknowledged",
+    "assigned",
+    "in_progress",
+    "dismissed",
+]
+
+
+class CommercialOperationProductionClosedLoopInterventionAcknowledgementRequest(BaseModel):
+    """Record operator ownership for a stale/watch queue item without executing it."""
+
+    acknowledgement_status: CommercialOperationProductionClosedLoopInterventionAcknowledgementStatus = "acknowledged"
+    assignee: str | None = Field(default=None, max_length=120)
+    operator_confirmed: bool = False
+    acknowledgement_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopInterventionAcknowledgementResponse(BaseModel):
+    """One operator acknowledgement for a production closed-loop intervention queue item."""
+
+    operation_id: UUID
+    workspace_id: str
+    acknowledgement_id: UUID
+    acknowledgement_status: str
+    assignee: str | None = None
+    primary_step_key: str | None = None
+    staleness_status: str
+    waiting_seconds: int = 0
+    priority_score: int = 0
+    recommended_action_key: str | None = None
+    queue_item_snapshot: dict[str, Any] = Field(default_factory=dict)
+    operator_confirmed: bool = False
+    acknowledgement_notes: str | None = None
+    created_by: str | None = None
+    created_at: datetime
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopInterventionAcknowledgementListResponse(BaseModel):
+    """Intervention queue acknowledgement history for one operation."""
+
+    operation_id: UUID
+    workspace_id: str
+    acknowledgement_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopInterventionAcknowledgementResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopInterventionAcknowledgementResponse] = Field(default_factory=list)
+    generated_at: datetime
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopInterventionReminderDispatchStatus = Literal[
+    "drafted",
+    "ready_for_review",
+    "routed_to_operator",
+    "sent_manually",
+    "dismissed",
+]
+
+
+class CommercialOperationProductionClosedLoopInterventionReminderDispatchRequest(BaseModel):
+    """Record a safe reminder dispatch plan/result without sending platform messages automatically."""
+
+    reminder_status: CommercialOperationProductionClosedLoopInterventionReminderDispatchStatus = "ready_for_review"
+    reminder_channel: str = Field(default="internal", min_length=1, max_length=120)
+    reminder_recipient: str | None = Field(default=None, max_length=200)
+    reminder_message: str | None = Field(default=None, max_length=2000)
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    dispatch_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopInterventionReminderDispatchResponse(BaseModel):
+    """One operator-safe reminder dispatch record for an intervention queue item."""
+
+    operation_id: UUID
+    workspace_id: str
+    reminder_dispatch_id: UUID
+    reminder_status: str
+    reminder_channel: str
+    reminder_recipient: str | None = None
+    reminder_message: str | None = None
+    primary_step_key: str | None = None
+    staleness_status: str
+    acknowledgement_status: str | None = None
+    acknowledgement_assignee: str | None = None
+    acknowledgement_sla: dict[str, Any] = Field(default_factory=dict)
+    reminder_dispatch_cooldown_before: dict[str, Any] = Field(default_factory=dict)
+    queue_item_snapshot: dict[str, Any] = Field(default_factory=dict)
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    dispatch_notes: str | None = None
+    created_by: str | None = None
+    created_at: datetime
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopInterventionReminderDispatchListResponse(BaseModel):
+    """Reminder dispatch history for one operation's intervention queue item."""
+
+    operation_id: UUID
+    workspace_id: str
+    reminder_dispatch_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopInterventionReminderDispatchResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopInterventionReminderDispatchResponse] = Field(default_factory=list)
+    generated_at: datetime
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProjectDecisionRequest(BaseModel):
+    """Generic decision request for operation-project governance records."""
+
+    reviewer_notes: str | None = None
+    failure_reason: str | None = None
+
+
+class CommercialOperationPlanCreateRequest(BaseModel):
+    """Create a first-class operation plan."""
+
+    plan_version: int = Field(default=1, ge=1)
+    title: str = Field(min_length=1, max_length=255)
+    objective_summary: str = Field(min_length=1)
+    audience_strategy: str | None = None
+    channel_strategy: list[dict[str, Any]] = Field(default_factory=list)
+    content_strategy: dict[str, Any] = Field(default_factory=dict)
+    production_scope: list[dict[str, Any]] = Field(default_factory=list)
+    material_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    kpis: list[dict[str, Any]] = Field(default_factory=list)
+    publish_schedule: list[dict[str, Any]] = Field(default_factory=list)
+    risk_notes: str | None = None
+    source_goal: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPlanResponse(BaseModel):
+    """Operation plan response."""
+
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    plan_version: int
+    title: str
+    plan_status: str
+    objective_summary: str
+    audience_strategy: str | None
+    channel_strategy: list[dict[str, Any]]
+    content_strategy: dict[str, Any]
+    production_scope: list[dict[str, Any]]
+    material_requirements: list[dict[str, Any]]
+    kpis: list[dict[str, Any]]
+    publish_schedule: list[dict[str, Any]]
+    risk_notes: str | None
+    source_goal: str | None
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, plan: CommercialOperationPlan) -> "CommercialOperationPlanResponse":
+        return cls(
+            id=plan.id,
+            workspace_id=plan.workspace_id,
+            operation_id=plan.operation_id,
+            plan_version=plan.plan_version,
+            title=plan.title,
+            plan_status=plan.plan_status,
+            objective_summary=plan.objective_summary,
+            audience_strategy=plan.audience_strategy,
+            channel_strategy=plan.channel_strategy,
+            content_strategy=plan.content_strategy,
+            production_scope=plan.production_scope,
+            material_requirements=plan.material_requirements,
+            kpis=plan.kpis,
+            publish_schedule=plan.publish_schedule,
+            risk_notes=plan.risk_notes,
+            source_goal=plan.source_goal,
+            reviewer_notes=plan.reviewer_notes,
+            created_by=plan.created_by,
+            updated_by=plan.updated_by,
+            approved_by=plan.approved_by,
+            approved_at=plan.approved_at,
+            rejected_at=plan.rejected_at,
+            archived_at=plan.archived_at,
+            metadata=plan.plan_metadata,
+            created_at=plan.created_at,
+            updated_at=plan.updated_at,
+        )
+
+
+class CommercialOperationPlanListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationPlanResponse]
+
+
+class CommercialOperationProjectMaterialCreateRequest(BaseModel):
+    """Register a project material imported from customer machine or server."""
+
+    production_task_id: UUID | None = None
+    material_type: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=255)
+    source_uri: str = Field(min_length=1)
+    file_name: str | None = Field(default=None, max_length=512)
+    mime_type: str | None = Field(default=None, max_length=255)
+    size_bytes: int | None = Field(default=None, ge=0)
+    checksum: str | None = Field(default=None, max_length=128)
+    authorization_status: str = Field(default="unverified", max_length=64)
+    usage_scope: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    linked_task_ids: list[str] = Field(default_factory=list)
+    notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProjectMaterialResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    production_task_id: UUID | None
+    material_type: str
+    material_status: str
+    name: str
+    source_uri: str
+    file_name: str | None
+    mime_type: str | None
+    size_bytes: int | None
+    checksum: str | None
+    authorization_status: str
+    usage_scope: str | None
+    tags: list[str]
+    linked_task_ids: list[str]
+    notes: str | None
+    uploaded_by: str | None
+    reviewed_by: str | None
+    reviewed_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, material: CommercialOperationProjectMaterial) -> "CommercialOperationProjectMaterialResponse":
+        return cls(
+            id=material.id,
+            workspace_id=material.workspace_id,
+            operation_id=material.operation_id,
+            production_task_id=material.production_task_id,
+            material_type=material.material_type,
+            material_status=material.material_status,
+            name=material.name,
+            source_uri=material.source_uri,
+            file_name=material.file_name,
+            mime_type=material.mime_type,
+            size_bytes=material.size_bytes,
+            checksum=material.checksum,
+            authorization_status=material.authorization_status,
+            usage_scope=material.usage_scope,
+            tags=material.tags,
+            linked_task_ids=material.linked_task_ids,
+            notes=material.notes,
+            uploaded_by=material.uploaded_by,
+            reviewed_by=material.reviewed_by,
+            reviewed_at=material.reviewed_at,
+            archived_at=material.archived_at,
+            metadata=material.material_metadata,
+            created_at=material.created_at,
+            updated_at=material.updated_at,
+        )
+
+
+class CommercialOperationProjectMaterialListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationProjectMaterialResponse]
+
+
+class CommercialOperationProductionTaskCreateRequest(BaseModel):
+    """Create a production task derived from an operation plan."""
+
+    operation_plan_id: UUID | None = None
+    task_type: CommercialOperationProductionTaskTypeLiteral
+    media_subtype: CommercialOperationMediaSubtypeLiteral | None = None
+    channel: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=255)
+    brief: str | None = None
+    source_material_ids: list[str] = Field(default_factory=list)
+    output_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    target_specs: dict[str, Any] = Field(default_factory=dict)
+    workflow_selection_required: bool = True
+    assigned_agent: str | None = Field(default=None, max_length=128)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionTaskResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    operation_plan_id: UUID | None
+    task_type: str
+    media_subtype: str | None
+    channel: str
+    title: str
+    task_status: str
+    brief: str | None
+    source_material_ids: list[str]
+    output_requirements: list[dict[str, Any]]
+    target_specs: dict[str, Any]
+    workflow_selection_required: bool
+    assigned_agent: str | None
+    reviewer_notes: str | None
+    created_by: str | None
+    updated_by: str | None
+    approved_by: str | None
+    completed_by: str | None
+    approved_at: datetime | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, task: CommercialOperationProductionTask) -> "CommercialOperationProductionTaskResponse":
+        return cls(
+            id=task.id,
+            workspace_id=task.workspace_id,
+            operation_id=task.operation_id,
+            operation_plan_id=task.operation_plan_id,
+            task_type=task.task_type,
+            media_subtype=task.media_subtype,
+            channel=task.channel,
+            title=task.title,
+            task_status=task.task_status,
+            brief=task.brief,
+            source_material_ids=task.source_material_ids,
+            output_requirements=task.output_requirements,
+            target_specs=task.target_specs,
+            workflow_selection_required=task.workflow_selection_required,
+            assigned_agent=task.assigned_agent,
+            reviewer_notes=task.reviewer_notes,
+            created_by=task.created_by,
+            updated_by=task.updated_by,
+            approved_by=task.approved_by,
+            completed_by=task.completed_by,
+            approved_at=task.approved_at,
+            started_at=task.started_at,
+            completed_at=task.completed_at,
+            rejected_at=task.rejected_at,
+            archived_at=task.archived_at,
+            metadata=task.task_metadata,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        )
+
+
+class CommercialOperationProductionTaskListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationProductionTaskResponse]
+
+
+CommercialOperationNextCycleDraftStatusLiteral = Literal["created", "reused"]
+
+
+class CommercialOperationNextCycleDraftRequest(BaseModel):
+    """Prepare a reviewable next operation cycle from an approved optimization decision."""
+
+    operator_confirmed: bool = False
+    source_decision_id: UUID | None = None
+    create_tasks: bool = True
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationNextCycleDraftResponse(BaseModel):
+    """Reviewable next-cycle plan and production-task draft package."""
+
+    operation_id: UUID
+    workspace_id: str
+    draft_status: CommercialOperationNextCycleDraftStatusLiteral
+    source_decision_id: UUID
+    operation_plan: CommercialOperationPlanResponse
+    production_tasks: list[CommercialOperationProductionTaskResponse] = Field(default_factory=list)
+    readiness_status_before: str | None = None
+    next_action_key_before: str | None = None
+    operator_next_actions: list[str] = Field(default_factory=list)
+    server_next_actions: list[str] = Field(default_factory=list)
+    client_next_actions: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    generated_at: datetime
+
+
+class CommercialOperationWorkflowSelectionCreateRequest(BaseModel):
+    production_task_id: UUID
+    workflow_source: str = Field(default="comfyui", min_length=1, max_length=64)
+    workflow_name: str = Field(min_length=1, max_length=255)
+    workflow_kind: str | None = Field(default=None, max_length=128)
+    output_type: str = Field(min_length=1, max_length=64)
+    candidate_summary: str | None = None
+    input_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    expected_outputs: list[dict[str, Any]] = Field(default_factory=list)
+    recommendation_reason: str | None = None
+    estimated_duration_seconds: float | None = Field(default=None, ge=0)
+    estimated_vram_mb: int | None = Field(default=None, ge=0)
+    risk_notes: str | None = None
+    validation_status: str = Field(default="not_checked", max_length=64)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationWorkflowSelectionResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    production_task_id: UUID
+    workflow_source: str
+    workflow_name: str
+    workflow_kind: str | None
+    output_type: str
+    selection_status: str
+    candidate_summary: str | None
+    input_requirements: list[dict[str, Any]]
+    expected_outputs: list[dict[str, Any]]
+    recommendation_reason: str | None
+    estimated_duration_seconds: float | None
+    estimated_vram_mb: int | None
+    risk_notes: str | None
+    validation_status: str
+    selected_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    reviewer_notes: str | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, selection: CommercialOperationWorkflowSelection) -> "CommercialOperationWorkflowSelectionResponse":
+        return cls(
+            id=selection.id,
+            workspace_id=selection.workspace_id,
+            operation_id=selection.operation_id,
+            production_task_id=selection.production_task_id,
+            workflow_source=selection.workflow_source,
+            workflow_name=selection.workflow_name,
+            workflow_kind=selection.workflow_kind,
+            output_type=selection.output_type,
+            selection_status=selection.selection_status,
+            candidate_summary=selection.candidate_summary,
+            input_requirements=selection.input_requirements,
+            expected_outputs=selection.expected_outputs,
+            recommendation_reason=selection.recommendation_reason,
+            estimated_duration_seconds=selection.estimated_duration_seconds,
+            estimated_vram_mb=selection.estimated_vram_mb,
+            risk_notes=selection.risk_notes,
+            validation_status=selection.validation_status,
+            selected_by=selection.selected_by,
+            approved_by=selection.approved_by,
+            approved_at=selection.approved_at,
+            rejected_at=selection.rejected_at,
+            archived_at=selection.archived_at,
+            reviewer_notes=selection.reviewer_notes,
+            metadata=selection.selection_metadata,
+            created_at=selection.created_at,
+            updated_at=selection.updated_at,
+        )
+
+
+class CommercialOperationWorkflowSelectionListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationWorkflowSelectionResponse]
+
+
+class CommercialOperationWorkflowCandidateResponse(BaseModel):
+    """Library-backed workflow candidate that can be turned into a selection."""
+
+    candidate_id: str
+    rank: int
+    score: float
+    workflow_source: str = "comfyui_cu130_rag"
+    workflow_name: str
+    workflow_kind: str | None = None
+    output_type: str
+    category: str | None = None
+    capabilities: list[str]
+    candidate_summary: str | None = None
+    input_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    expected_outputs: list[dict[str, Any]] = Field(default_factory=list)
+    recommendation_reason: str | None = None
+    estimated_duration_seconds: float | None = Field(default=None, ge=0)
+    estimated_vram_mb: int | None = Field(default=None, ge=0)
+    risk_notes: str | None = None
+    validation_status: str
+    runtime_readiness: str
+    workflow_path: str | None = None
+    workflow_path_exists: bool = False
+    requires_prompt_validation: bool = True
+    model_refs_found_count: int = 0
+    model_refs_missing: list[str] = Field(default_factory=list)
+    missing_executable_node_types: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationWorkflowCandidateListResponse(BaseModel):
+    """Workflow candidate list for one production task."""
+
+    operation_id: UUID
+    production_task_id: UUID
+    query: str
+    required_capabilities: list[str]
+    preferred_terms: list[str]
+    items: list[CommercialOperationWorkflowCandidateResponse]
+    library_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationOutputCandidateCreateRequest(BaseModel):
+    production_task_id: UUID | None = None
+    workflow_selection_id: UUID | None = None
+    output_artifact_id: UUID | None = None
+    candidate_type: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=255)
+    preview_uri: str | None = None
+    source_uri: str | None = None
+    thumbnail_uri: str | None = None
+    mime_type: str | None = Field(default=None, max_length=255)
+    duration_seconds: float | None = Field(default=None, ge=0)
+    generation_summary: str | None = None
+    quality_checks: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationOutputCandidateResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    production_task_id: UUID | None
+    workflow_selection_id: UUID | None
+    output_artifact_id: UUID | None
+    candidate_type: str
+    candidate_status: str
+    title: str
+    preview_uri: str | None
+    source_uri: str | None
+    thumbnail_uri: str | None
+    mime_type: str | None
+    duration_seconds: float | None
+    generation_summary: str | None
+    quality_checks: list[str]
+    reviewer_notes: str | None
+    created_by: str | None
+    selected_by: str | None
+    selected_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, candidate: CommercialOperationOutputCandidate) -> "CommercialOperationOutputCandidateResponse":
+        return cls(
+            id=candidate.id,
+            workspace_id=candidate.workspace_id,
+            operation_id=candidate.operation_id,
+            production_task_id=candidate.production_task_id,
+            workflow_selection_id=candidate.workflow_selection_id,
+            output_artifact_id=candidate.output_artifact_id,
+            candidate_type=candidate.candidate_type,
+            candidate_status=candidate.candidate_status,
+            title=candidate.title,
+            preview_uri=candidate.preview_uri,
+            source_uri=candidate.source_uri,
+            thumbnail_uri=candidate.thumbnail_uri,
+            mime_type=candidate.mime_type,
+            duration_seconds=candidate.duration_seconds,
+            generation_summary=candidate.generation_summary,
+            quality_checks=candidate.quality_checks,
+            reviewer_notes=candidate.reviewer_notes,
+            created_by=candidate.created_by,
+            selected_by=candidate.selected_by,
+            selected_at=candidate.selected_at,
+            rejected_at=candidate.rejected_at,
+            archived_at=candidate.archived_at,
+            metadata=candidate.candidate_metadata,
+            created_at=candidate.created_at,
+            updated_at=candidate.updated_at,
+        )
+
+
+class CommercialOperationOutputCandidateListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationOutputCandidateResponse]
+
+
+class CommercialOperationFinalSelectionCreateRequest(BaseModel):
+    production_task_id: UUID | None = None
+    output_candidate_id: UUID
+    final_type: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=255)
+    selection_reason: str | None = None
+    platform_targets: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationFinalSelectionResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    production_task_id: UUID | None
+    output_candidate_id: UUID
+    final_type: str
+    title: str
+    selection_status: str
+    selection_reason: str | None
+    platform_targets: list[str]
+    selected_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    reviewer_notes: str | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, selection: CommercialOperationFinalSelection) -> "CommercialOperationFinalSelectionResponse":
+        return cls(
+            id=selection.id,
+            workspace_id=selection.workspace_id,
+            operation_id=selection.operation_id,
+            production_task_id=selection.production_task_id,
+            output_candidate_id=selection.output_candidate_id,
+            final_type=selection.final_type,
+            title=selection.title,
+            selection_status=selection.selection_status,
+            selection_reason=selection.selection_reason,
+            platform_targets=selection.platform_targets,
+            selected_by=selection.selected_by,
+            approved_by=selection.approved_by,
+            approved_at=selection.approved_at,
+            rejected_at=selection.rejected_at,
+            archived_at=selection.archived_at,
+            reviewer_notes=selection.reviewer_notes,
+            metadata=selection.selection_metadata,
+            created_at=selection.created_at,
+            updated_at=selection.updated_at,
+        )
+
+
+class CommercialOperationFinalSelectionListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationFinalSelectionResponse]
+
+
+class CommercialOperationOutputPrepPackageResponse(BaseModel):
+    """Read-only output preparation package for one production task."""
+
+    operation_id: UUID
+    production_task_id: UUID
+    readiness_status: str
+    blocking_reasons: list[str] = Field(default_factory=list)
+    task_status: str
+    workflow_selection_required: bool
+    approved_workflow_selection_id: UUID | None = None
+    task_summary: dict[str, Any] = Field(default_factory=dict)
+    candidate_blueprint: dict[str, Any] = Field(default_factory=dict)
+    required_inputs: list[dict[str, Any]] = Field(default_factory=list)
+    expected_outputs: list[dict[str, Any]] = Field(default_factory=list)
+    review_gates: list[str] = Field(default_factory=list)
+    available_output_candidates: list[CommercialOperationOutputCandidateResponse] = Field(default_factory=list)
+    existing_final_selections: list[CommercialOperationFinalSelectionResponse] = Field(default_factory=list)
+    output_storage_policy: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPublishPackageCreateRequest(BaseModel):
+    final_selection_id: UUID | None = None
+    platform: str = Field(min_length=1, max_length=128)
+    account_ref: str | None = Field(default=None, max_length=255)
+    title: str = Field(min_length=1, max_length=255)
+    body: str = Field(min_length=1)
+    hashtags: list[str] = Field(default_factory=list)
+    cover_candidate_id: UUID | None = None
+    scheduled_at: datetime | None = None
+    publish_payload: dict[str, Any] = Field(default_factory=dict)
+    risk_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPublishPackageResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    final_selection_id: UUID | None
+    platform: str
+    account_ref: str | None
+    title: str
+    body: str
+    package_status: str
+    hashtags: list[str]
+    cover_candidate_id: UUID | None
+    scheduled_at: datetime | None
+    publish_payload: dict[str, Any]
+    risk_notes: str | None
+    reviewer_notes: str | None
+    created_by: str | None
+    approved_by: str | None
+    prepared_by: str | None
+    approved_at: datetime | None
+    prepared_at: datetime | None
+    published_at: datetime | None
+    rejected_at: datetime | None
+    failed_at: datetime | None
+    archived_at: datetime | None
+    failure_reason: str | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(cls, package: CommercialOperationPublishPackage) -> "CommercialOperationPublishPackageResponse":
+        return cls(
+            id=package.id,
+            workspace_id=package.workspace_id,
+            operation_id=package.operation_id,
+            final_selection_id=package.final_selection_id,
+            platform=package.platform,
+            account_ref=package.account_ref,
+            title=package.title,
+            body=package.body,
+            package_status=package.package_status,
+            hashtags=package.hashtags,
+            cover_candidate_id=package.cover_candidate_id,
+            scheduled_at=package.scheduled_at,
+            publish_payload=package.publish_payload,
+            risk_notes=package.risk_notes,
+            reviewer_notes=package.reviewer_notes,
+            created_by=package.created_by,
+            approved_by=package.approved_by,
+            prepared_by=package.prepared_by,
+            approved_at=package.approved_at,
+            prepared_at=package.prepared_at,
+            published_at=package.published_at,
+            rejected_at=package.rejected_at,
+            failed_at=package.failed_at,
+            archived_at=package.archived_at,
+            failure_reason=package.failure_reason,
+            metadata=package.package_metadata,
+            created_at=package.created_at,
+            updated_at=package.updated_at,
+        )
+
+
+class CommercialOperationPublishPackageListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationPublishPackageResponse]
+
+
+class CommercialOperationPublishPrepPackageResponse(BaseModel):
+    """Read-only publish preparation package for one approved final selection."""
+
+    operation_id: UUID
+    final_selection_id: UUID
+    readiness_status: str
+    blocking_reasons: list[str] = Field(default_factory=list)
+    final_selection_status: str
+    platform_targets: list[str] = Field(default_factory=list)
+    final_selection: CommercialOperationFinalSelectionResponse
+    selected_output_candidate: CommercialOperationOutputCandidateResponse | None = None
+    package_blueprints: list[dict[str, Any]] = Field(default_factory=list)
+    copy_guidance: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    existing_publish_packages: list[CommercialOperationPublishPackageResponse] = Field(default_factory=list)
+    platform_policy: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPlatformMetricSnapshotCreateRequest(BaseModel):
+    publish_package_id: UUID | None = None
+    platform: str = Field(min_length=1, max_length=128)
+    platform_content_id: str | None = Field(default=None, max_length=255)
+    source_type: str = Field(default="manual", max_length=64)
+    collected_at: datetime | None = None
+    metric_date: datetime | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    summary: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPlatformMetricSnapshotResponse(BaseModel):
+    id: UUID
+    workspace_id: str
+    operation_id: UUID
+    publish_package_id: UUID | None
+    platform: str
+    platform_content_id: str | None
+    source_type: str
+    snapshot_status: str
+    collected_at: datetime | None
+    metric_date: datetime | None
+    metrics: dict[str, Any]
+    summary: str | None
+    reviewer_notes: str | None
+    collected_by: str | None
+    approved_by: str | None
+    approved_at: datetime | None
+    rejected_at: datetime | None
+    archived_at: datetime | None
+    metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls,
+        snapshot: CommercialOperationPlatformMetricSnapshot,
+    ) -> "CommercialOperationPlatformMetricSnapshotResponse":
+        return cls(
+            id=snapshot.id,
+            workspace_id=snapshot.workspace_id,
+            operation_id=snapshot.operation_id,
+            publish_package_id=snapshot.publish_package_id,
+            platform=snapshot.platform,
+            platform_content_id=snapshot.platform_content_id,
+            source_type=snapshot.source_type,
+            snapshot_status=snapshot.snapshot_status,
+            collected_at=snapshot.collected_at,
+            metric_date=snapshot.metric_date,
+            metrics=snapshot.metrics,
+            summary=snapshot.summary,
+            reviewer_notes=snapshot.reviewer_notes,
+            collected_by=snapshot.collected_by,
+            approved_by=snapshot.approved_by,
+            approved_at=snapshot.approved_at,
+            rejected_at=snapshot.rejected_at,
+            archived_at=snapshot.archived_at,
+            metadata=snapshot.snapshot_metadata,
+            created_at=snapshot.created_at,
+            updated_at=snapshot.updated_at,
+        )
+
+
+class CommercialOperationPlatformMetricSnapshotListResponse(BaseModel):
+    operation_id: UUID
+    items: list[CommercialOperationPlatformMetricSnapshotResponse]
+
+
+class CommercialOperationPublishExecutionHandoffResponse(BaseModel):
+    """Read-only guarded customer-machine execution handoff for one publish package."""
+
+    operation_id: UUID
+    publish_package_id: UUID
+    readiness_status: str
+    blocking_reasons: list[str] = Field(default_factory=list)
+    package_status: str
+    platform: str
+    execution_target: str | None = None
+    publish_package: CommercialOperationPublishPackageResponse
+    final_selection: CommercialOperationFinalSelectionResponse | None = None
+    selected_output_candidate: CommercialOperationOutputCandidateResponse | None = None
+    execution_status: dict[str, Any] = Field(default_factory=dict)
+    client_execution_payload: dict[str, Any] = Field(default_factory=dict)
+    execution_runbook: list[dict[str, Any]] = Field(default_factory=list)
+    account_confirmation: dict[str, Any] = Field(default_factory=dict)
+    dry_run_plan: dict[str, Any] = Field(default_factory=dict)
+    expected_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    metric_pullback_plan: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    existing_metric_snapshots: list[CommercialOperationPlatformMetricSnapshotResponse] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPublishExecutionResultCreateRequest(BaseModel):
+    """Capture customer-machine publish execution result evidence for one publish package."""
+
+    publish_succeeded: bool = True
+    platform_content_id: str | None = Field(default=None, max_length=255)
+    published_url: str | None = Field(default=None, max_length=2048)
+    execution_summary: str | None = None
+    operator_notes: str | None = None
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    dry_run_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    execution_log: list[dict[str, Any]] = Field(default_factory=list)
+    observed_metrics: dict[str, Any] = Field(default_factory=dict)
+    metric_snapshot_summary: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_success_has_platform_reference(self) -> "CommercialOperationPublishExecutionResultCreateRequest":
+        if self.publish_succeeded and not (self.platform_content_id or self.published_url):
+            raise ValueError("platform_content_id or published_url is required when publish_succeeded is true")
+        return self
+
+
+class CommercialOperationPublishExecutionResultResponse(BaseModel):
+    """Captured customer-machine publish execution result for one publish package."""
+
+    operation_id: UUID
+    publish_package_id: UUID
+    result_status: str
+    publish_succeeded: bool
+    platform: str
+    platform_content_id: str | None = None
+    published_url: str | None = None
+    publish_package: CommercialOperationPublishPackageResponse
+    created_metric_snapshot: CommercialOperationPlatformMetricSnapshotResponse | None = None
+    execution_result: dict[str, Any] = Field(default_factory=dict)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    dry_run_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    execution_log: list[dict[str, Any]] = Field(default_factory=list)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationPublishExecutionStatusLiteral = Literal[
+    "queued",
+    "running",
+    "needs_operator",
+    "succeeded",
+    "failed",
+    "cancelled",
+]
+
+
+class CommercialOperationPublishExecutionStatusUpdateRequest(BaseModel):
+    """Update customer-machine publish execution progress before final result capture."""
+
+    execution_status: CommercialOperationPublishExecutionStatusLiteral
+    operator_confirmed: bool = False
+    customer_machine_id: str = Field(default="customer-machine-default", min_length=1, max_length=128)
+    attempt_id: UUID | None = None
+    progress: int | None = Field(default=None, ge=0, le=100)
+    failure_reason: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    retry_after_seconds: int | None = Field(default=None, ge=30, le=86400)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    execution_log: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationPublishExecutionStatusResponse(BaseModel):
+    """Customer-machine publish execution progress status for one publish package."""
+
+    operation_id: UUID
+    publish_package_id: UUID
+    attempt_id: UUID
+    execution_status: str
+    package_status: str
+    customer_machine_id: str
+    progress: int | None = None
+    failure_reason: str | None = None
+    publish_package: CommercialOperationPublishPackageResponse
+    latest_attempt: dict[str, Any] = Field(default_factory=dict)
+    execution_history: list[dict[str, Any]] = Field(default_factory=list)
+    retry_policy: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricAnalysisScheduleRequest(BaseModel):
+    """Configure the project-level daily metric analysis schedule."""
+
+    enabled: bool = True
+    local_time: str = Field(default="21:00", pattern=r"^\d{2}:\d{2}$")
+    timezone: str = Field(default="Asia/Shanghai", min_length=1, max_length=128)
+    lookback_hours: int = Field(default=24, ge=1, le=168)
+    platform_scope: list[str] = Field(default_factory=list)
+    metric_requirements: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_daily_local_time(self) -> "CommercialOperationMetricAnalysisScheduleRequest":
+        hour_text, minute_text = self.local_time.split(":", 1)
+        hour = int(hour_text)
+        minute = int(minute_text)
+        if hour > 23 or minute > 59:
+            raise ValueError("local_time must be HH:MM in 24-hour time")
+        return self
+
+
+class CommercialOperationMetricAnalysisScheduleResponse(BaseModel):
+    """Project-level daily metric analysis schedule and due-state contract."""
+
+    operation_id: UUID
+    schedule_status: str
+    enabled: bool
+    cadence: str = "daily"
+    local_time: str
+    timezone: str
+    next_run_at: datetime | None = None
+    last_run_at: datetime | None = None
+    lookback_hours: int
+    platform_scope: list[str] = Field(default_factory=list)
+    metric_requirements: list[str] = Field(default_factory=list)
+    published_package_count: int = 0
+    latest_metric_snapshot: CommercialOperationPlatformMetricSnapshotResponse | None = None
+    analysis_contract: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricAnalysisCollectedMetricRequest(BaseModel):
+    """Metrics collected by a platform connector or customer-machine pullback for a scheduled analysis run."""
+
+    publish_package_id: UUID | None = None
+    platform: str | None = Field(default=None, max_length=128)
+    platform_content_id: str | None = Field(default=None, max_length=255)
+    source_type: str = Field(default="customer_machine_metric_pullback", max_length=64)
+    collected_at: datetime | None = None
+    metric_date: datetime | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    summary: str | None = None
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricAnalysisRunRequest(BaseModel):
+    """Run or force-run the configured daily metric analysis contract for one project."""
+
+    force: bool = False
+    collected_metrics: list[CommercialOperationMetricAnalysisCollectedMetricRequest] = Field(default_factory=list)
+    operator_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricAnalysisRunResponse(BaseModel):
+    """A scheduled metric analysis run package for the project closed loop."""
+
+    operation_id: UUID
+    run_status: str
+    forced: bool = False
+    due: bool = False
+    schedule_status_before: str
+    schedule_status_after: str
+    schedule: CommercialOperationMetricAnalysisScheduleResponse
+    eligible_publish_packages: list[CommercialOperationPublishPackageResponse] = Field(default_factory=list)
+    created_metric_snapshots: list[CommercialOperationPlatformMetricSnapshotResponse] = Field(default_factory=list)
+    usable_metric_snapshots: list[CommercialOperationPlatformMetricSnapshotResponse] = Field(default_factory=list)
+    analysis_package: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackHandoffResponse(BaseModel):
+    """Customer-machine handoff package for scheduled platform metric pullback."""
+
+    operation_id: UUID
+    handoff_status: str
+    due: bool = False
+    forced: bool = False
+    schedule: CommercialOperationMetricAnalysisScheduleResponse
+    published_packages: list[CommercialOperationPublishPackageResponse] = Field(default_factory=list)
+    pullback_tasks: list[dict[str, Any]] = Field(default_factory=list)
+    target_metric_keys: list[str] = Field(default_factory=list)
+    evidence_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    client_adapter_plan: dict[str, Any] = Field(default_factory=dict)
+    analysis_run_request_template: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackResultRequest(BaseModel):
+    """Submit customer-machine or connector-collected metric pullback results."""
+
+    force: bool = False
+    adapter_mode: str = Field(default="customer_machine_manual_evidence", min_length=1, max_length=64)
+    adapter_run_id: str | None = Field(default=None, max_length=128)
+    collected_metrics: list[CommercialOperationMetricAnalysisCollectedMetricRequest] = Field(default_factory=list)
+    operator_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackResultResponse(BaseModel):
+    """Validated customer-machine metric pullback submission and linked analysis run."""
+
+    operation_id: UUID
+    submission_status: str
+    forced: bool = False
+    adapter_mode: str
+    adapter_run_id: str | None = None
+    handoff: CommercialOperationMetricPullbackHandoffResponse
+    submitted_metric_count: int = 0
+    accepted_metric_count: int = 0
+    rejected_metric_count: int = 0
+    accepted_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    rejected_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    metric_analysis_run: CommercialOperationMetricAnalysisRunResponse | None = None
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackAdapterProfileResponse(BaseModel):
+    """Platform-specific customer-machine metric pullback adapter profile."""
+
+    operation_id: UUID
+    adapter_profile_id: str
+    platform: str
+    profile_status: str
+    due: bool = False
+    forced: bool = False
+    handoff: CommercialOperationMetricPullbackHandoffResponse
+    supported_input_modes: list[str] = Field(default_factory=list)
+    target_metric_keys: list[str] = Field(default_factory=list)
+    field_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    normalization_rules: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    runbook: list[dict[str, Any]] = Field(default_factory=list)
+    browser_assist_plan: dict[str, Any] = Field(default_factory=dict)
+    export_import_contract: dict[str, Any] = Field(default_factory=dict)
+    submission_template: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackExportImportPreviewRequest(BaseModel):
+    """Preview customer-machine metric export rows before submitting them to 68M."""
+
+    platform: str = Field(default="douyin", min_length=1, max_length=64)
+    force: bool = False
+    export_format: Literal["csv", "json", "manual_rows", "xlsx_rows"] = "csv"
+    raw_text: str | None = Field(default=None, max_length=500_000)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    operator_confirmed: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackExportImportPreviewResponse(BaseModel):
+    """Normalized metric export import preview for customer-machine submission."""
+
+    operation_id: UUID
+    platform: str
+    preview_status: str
+    forced: bool = False
+    operator_confirmed: bool = False
+    adapter_profile: CommercialOperationMetricPullbackAdapterProfileResponse
+    parsed_row_count: int = 0
+    accepted_metric_count: int = 0
+    rejected_row_count: int = 0
+    accepted_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    rejected_rows: list[dict[str, Any]] = Field(default_factory=list)
+    submission_payload: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackBrowserAssistSessionRequest(BaseModel):
+    """Create a guarded customer-machine browser assist metric pullback session plan."""
+
+    platform: str = Field(default="douyin", min_length=1, max_length=64)
+    force: bool = False
+    operator_confirmed: bool = False
+    target_publish_package_id: UUID | None = None
+    open_target_url: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricPullbackBrowserAssistSessionResponse(BaseModel):
+    """Guarded customer-machine browser assist session plan for metric pullback."""
+
+    operation_id: UUID
+    platform: str
+    browser_assist_session_id: str
+    session_status: str
+    forced: bool = False
+    operator_confirmed: bool = False
+    adapter_profile: CommercialOperationMetricPullbackAdapterProfileResponse
+    target_task_count: int = 0
+    target_tasks: list[dict[str, Any]] = Field(default_factory=list)
+    navigation_targets: list[dict[str, Any]] = Field(default_factory=list)
+    extraction_fields: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_plan: list[dict[str, Any]] = Field(default_factory=list)
+    allowed_domain_suffixes: list[str] = Field(default_factory=list)
+    forbidden_actions: list[str] = Field(default_factory=list)
+    operator_checklist: list[dict[str, Any]] = Field(default_factory=list)
+    submission_template: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricAnalysisDispatchQueueResponse(BaseModel):
+    """Workspace-level dispatch queue for scheduled metric analysis pullback."""
+
+    workspace_id: str
+    dispatch_status: str
+    forced: bool = False
+    platform: str | None = None
+    scanned_operation_count: int = 0
+    due_count: int = 0
+    ready_dispatch_count: int = 0
+    blocked_count: int = 0
+    idle_count: int = 0
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    scheduler_poll_contract: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchClaimRequest(BaseModel):
+    """Claim one ready metric dispatch item for customer-machine execution."""
+
+    platform: str | None = Field(default=None, max_length=64)
+    force: bool = False
+    collection_mode: str | None = Field(default=None, max_length=96)
+    customer_machine_id: str = Field(default="customer-machine-default", min_length=1, max_length=128)
+    operator_confirmed: bool = False
+    lease_seconds: int = Field(default=1800, ge=60, le=21600)
+    target_operation_id: UUID | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchClaimStatusRequest(BaseModel):
+    """Update a customer-machine metric dispatch claim status."""
+
+    claim_status: Literal["claimed", "running", "completed", "failed", "released"] = "running"
+    progress: int | None = Field(default=None, ge=0, le=100)
+    lease_seconds: int = Field(default=1800, ge=60, le=21600)
+    operator_notes: str | None = None
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchClaimResponse(BaseModel):
+    """Persisted customer-machine claim for one metric dispatch queue item."""
+
+    workspace_id: str
+    claim_id: UUID | None = None
+    claim_status: str
+    operation_id: UUID | None = None
+    platform: str | None = None
+    collection_mode: str | None = None
+    customer_machine_id: str | None = None
+    forced: bool = False
+    operator_confirmed: bool = False
+    lease_expires_at: datetime | None = None
+    dispatch_item: dict[str, Any] | None = None
+    claim_record: dict[str, Any] = Field(default_factory=dict)
+    dispatch_queue: CommercialOperationMetricAnalysisDispatchQueueResponse | None = None
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchClaimListResponse(BaseModel):
+    """Workspace customer-machine metric dispatch claim list."""
+
+    workspace_id: str
+    claim_status: str | None = None
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    active_count: int = 0
+    expired_count: int = 0
+    completed_count: int = 0
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchCustomerPollRequest(BaseModel):
+    """Customer-machine poll request for metric dispatch recovery and optional claim."""
+
+    platform: str | None = Field(default=None, max_length=64)
+    force: bool = False
+    collection_mode: str | None = Field(default=None, max_length=96)
+    customer_machine_id: str = Field(default="customer-machine-default", min_length=1, max_length=128)
+    auto_claim: bool = False
+    operator_confirmed: bool = False
+    lease_seconds: int = Field(default=1800, ge=60, le=21600)
+    target_operation_id: UUID | None = None
+    limit: int = Field(default=20, ge=1, le=100)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchCustomerPollResponse(BaseModel):
+    """Customer-machine poll response with queue, claim, and recovery guidance."""
+
+    workspace_id: str
+    poll_status: str
+    customer_machine_id: str
+    auto_claimed: bool = False
+    poll_interval_seconds: int = 300
+    dispatch_queue: CommercialOperationMetricAnalysisDispatchQueueResponse
+    claim_result: CommercialOperationMetricDispatchClaimResponse | None = None
+    claim_list: CommercialOperationMetricDispatchClaimListResponse
+    assigned_claims: list[dict[str, Any]] = Field(default_factory=list)
+    expired_claims: list[dict[str, Any]] = Field(default_factory=list)
+    redispatch_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchPollSchedulerRequest(BaseModel):
+    """Customer-machine poll scheduler plan request."""
+
+    platform: str | None = Field(default=None, max_length=64)
+    force: bool = False
+    collection_mode: str | None = Field(default=None, max_length=96)
+    customer_machine_id: str = Field(default="customer-machine-default", min_length=1, max_length=128)
+    scheduler_enabled: bool = True
+    auto_claim: bool = False
+    operator_confirmed: bool = False
+    requested_poll_interval_seconds: int | None = Field(default=None, ge=30, le=21600)
+    lease_seconds: int = Field(default=1800, ge=60, le=21600)
+    target_operation_id: UUID | None = None
+    limit: int = Field(default=20, ge=1, le=100)
+    run_poll_now: bool = True
+    notification_channels: list[str] = Field(default_factory=lambda: ["customer_console"])
+    notify_on: list[str] = Field(
+        default_factory=lambda: [
+            "ready_to_claim",
+            "active_claim_in_progress",
+            "auto_claimed",
+            "recovery_required",
+            "claim_blocked",
+        ]
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMetricDispatchPollSchedulerResponse(BaseModel):
+    """Customer-machine poll scheduler and notification bridge response."""
+
+    workspace_id: str
+    scheduler_status: str
+    scheduler_enabled: bool = True
+    customer_machine_id: str
+    platform: str | None = None
+    auto_claim: bool = False
+    operator_confirmed: bool = False
+    recommended_poll_interval_seconds: int = 300
+    next_poll_at: datetime | None = None
+    poll_result: CommercialOperationMetricDispatchCustomerPollResponse | None = None
+    notification_events: list[dict[str, Any]] = Field(default_factory=list)
+    scheduler_policy: dict[str, Any] = Field(default_factory=dict)
+    client_timer_payload: dict[str, Any] = Field(default_factory=dict)
+    review_gates: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopStageResponse(BaseModel):
+    """One production closed-loop readiness stage."""
+
+    stage_key: str
+    title: str
+    status: str
+    required: bool = True
+    count: int = 0
+    complete_count: int = 0
+    blocking_reasons: list[str] = Field(default_factory=list)
+    next_action: str
+    primary_record: dict[str, Any] | None = None
+    evidence: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopReadinessResponse(BaseModel):
+    """Production E2E readiness view across project, output, publish, and metric feedback."""
+
+    operation_id: UUID
+    workspace_id: str
+    readiness_status: str
+    completion_ratio: float
+    current_stage_key: str | None = None
+    next_action: str
+    ready_for_customer_machine_execution: bool = False
+    ready_for_metric_feedback: bool = False
+    ready_for_next_cycle: bool = False
+    operation_loop_status: str
+    operation_loop_current_stage_key: str | None = None
+    stages: list[CommercialOperationProductionClosedLoopStageResponse] = Field(default_factory=list)
+    counts: dict[str, int] = Field(default_factory=dict)
+    latest_records: dict[str, dict[str, Any] | None] = Field(default_factory=dict)
+    metric_schedule: CommercialOperationMetricAnalysisScheduleResponse
+    metric_dispatch: CommercialOperationMetricAnalysisDispatchQueueResponse | None = None
+    metric_claims: CommercialOperationMetricDispatchClaimListResponse | None = None
+    acceptance_gates: list[str] = Field(default_factory=list)
+    operator_next_actions: list[str] = Field(default_factory=list)
+    server_next_actions: list[str] = Field(default_factory=list)
+    client_next_actions: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopAcceptanceOperationResponse(BaseModel):
+    """One operation row in the workspace production acceptance summary."""
+
+    operation_id: UUID
+    title: str
+    status: str
+    readiness_status: str
+    completion_ratio: float
+    current_stage_key: str | None = None
+    next_action: str
+    ready_for_customer_machine_execution: bool = False
+    ready_for_metric_feedback: bool = False
+    ready_for_next_cycle: bool = False
+    staleness_status: str = "none"
+    waiting_seconds: int = 0
+    escalation_recommended: bool = False
+    blocking_reasons: list[str] = Field(default_factory=list)
+    operator_next_actions: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopAcceptanceSummaryResponse(BaseModel):
+    """Workspace-level production closed-loop acceptance summary."""
+
+    workspace_id: str
+    acceptance_status: str
+    operation_count: int = 0
+    accepted_count: int = 0
+    ready_for_customer_machine_execution_count: int = 0
+    ready_for_metric_feedback_count: int = 0
+    ready_for_next_cycle_count: int = 0
+    blocked_count: int = 0
+    intervention_queue_count: int = 0
+    completion_percent: int = 0
+    completion_level: str = "not_ready"
+    score_breakdown: dict[str, int] = Field(default_factory=dict)
+    remaining_gates: list[str] = Field(default_factory=list)
+    next_focus: str = "create_or_import_operation_project"
+    readiness_status_counts: dict[str, int] = Field(default_factory=dict)
+    current_stage_counts: dict[str, int] = Field(default_factory=dict)
+    staleness_status_counts: dict[str, int] = Field(default_factory=dict)
+    operations: list[CommercialOperationProductionClosedLoopAcceptanceOperationResponse] = Field(default_factory=list)
+    top_blockers: list[CommercialOperationProductionClosedLoopAcceptanceOperationResponse] = Field(default_factory=list)
+    openclaw_provider_readiness: dict[str, Any] = Field(default_factory=dict)
+    release_ready: bool = False
+    release_gate_ready_count: int = 0
+    release_gate_total_count: int = 0
+    release_gate_status_counts: dict[str, int] = Field(default_factory=dict)
+    release_gate_checklist: list[dict[str, Any]] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryPlanGateResponse(BaseModel):
+    """One actionable gate in the production closed-loop delivery plan."""
+
+    gate_key: str
+    gate_status: str
+    title: str
+    owner: str
+    priority: int = 0
+    completion_impact: int = 0
+    required: bool = True
+    source: str = "acceptance_summary"
+    blocking_reasons: list[str] = Field(default_factory=list)
+    operator_next_actions: list[str] = Field(default_factory=list)
+    server_next_actions: list[str] = Field(default_factory=list)
+    client_next_actions: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    related_operation_ids: list[UUID] = Field(default_factory=list)
+    action_method: str | None = None
+    action_endpoint: str | None = None
+    external_execution_allowed: bool = False
+
+
+class CommercialOperationProductionClosedLoopDeliveryPlanResponse(BaseModel):
+    """Workspace-level delivery plan derived from production closed-loop acceptance."""
+
+    workspace_id: str
+    delivery_status: str
+    acceptance_status: str
+    completion_percent: int = 0
+    completion_level: str = "not_ready"
+    next_focus: str
+    ready_for_handoff: bool = False
+    gate_count: int = 0
+    open_gate_count: int = 0
+    critical_gate_count: int = 0
+    gate_plan: list[CommercialOperationProductionClosedLoopDeliveryPlanGateResponse] = Field(default_factory=list)
+    immediate_actions: list[CommercialOperationProductionClosedLoopDeliveryPlanGateResponse] = Field(default_factory=list)
+    score_breakdown: dict[str, int] = Field(default_factory=dict)
+    openclaw_provider_readiness: dict[str, Any] = Field(default_factory=dict)
+    acceptance_summary: dict[str, Any] = Field(default_factory=dict)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryActionStepResponse(BaseModel):
+    """One manual action step derived from a production delivery gate."""
+
+    action_key: str
+    gate_key: str
+    operation_id: UUID | None = None
+    target_console: str
+    action_status: str
+    title: str
+    owner: str
+    method: str | None = None
+    endpoint: str | None = None
+    requires_operator_confirmation: bool = True
+    external_execution_allowed: bool = False
+    server_side_external_execution: bool = False
+    blocked_by: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    operator_next_actions: list[str] = Field(default_factory=list)
+    server_next_actions: list[str] = Field(default_factory=list)
+    client_next_actions: list[str] = Field(default_factory=list)
+    payload_template: dict[str, Any] = Field(default_factory=dict)
+    guardrails: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryActionPackageResponse(BaseModel):
+    """One delivery gate packaged for server or customer-machine action surfaces."""
+
+    gate_key: str
+    gate_status: str
+    title: str
+    owner: str
+    priority: int = 0
+    target_console: str
+    action_status: str
+    action_count: int = 0
+    related_operation_ids: list[UUID] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_action_key: str | None = None
+    action_steps: list[CommercialOperationProductionClosedLoopDeliveryActionStepResponse] = Field(default_factory=list)
+    external_execution_allowed: bool = False
+
+
+class CommercialOperationProductionClosedLoopDeliveryActionPackageListResponse(BaseModel):
+    """Workspace-level action packages for open production delivery gates."""
+
+    workspace_id: str
+    action_package_status: str
+    delivery_status: str
+    acceptance_status: str
+    completion_percent: int = 0
+    next_focus: str
+    package_count: int = 0
+    step_count: int = 0
+    immediate_package_count: int = 0
+    gate_packages: list[CommercialOperationProductionClosedLoopDeliveryActionPackageResponse] = Field(default_factory=list)
+    immediate_action_packages: list[CommercialOperationProductionClosedLoopDeliveryActionPackageResponse] = Field(default_factory=list)
+    delivery_plan: dict[str, Any] = Field(default_factory=dict)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationResponse(BaseModel):
+    """One remediation mapping for a blocked production delivery gate."""
+
+    remediation_key: str
+    gate_key: str
+    gate_status: str
+    title: str
+    owner: str
+    priority: int = 0
+    target_console: str
+    action_status: str
+    related_operation_ids: list[UUID] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_sequence: list[str] = Field(default_factory=list)
+    primary_method: str | None = None
+    primary_endpoint: str | None = None
+    secondary_endpoints: list[dict[str, Any]] = Field(default_factory=list)
+    expected_evidence: list[str] = Field(default_factory=list)
+    existing_records_needed: list[str] = Field(default_factory=list)
+    completion_gate: str
+    current_evidence_status: str = "no_evidence_record"
+    latest_evidence_record_id: UUID | None = None
+    latest_evidence_summary: str | None = None
+    source_action_key: str | None = None
+    requires_operator_confirmation: bool = True
+    can_be_started_from_server: bool = False
+    can_be_started_from_customer_machine: bool = False
+    automation_allowed: bool = False
+    external_execution_allowed: bool = False
+    runbook_references: list[str] = Field(default_factory=list)
+    handoff_notes: list[str] = Field(default_factory=list)
+    guardrails: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationMapResponse(BaseModel):
+    """Workspace-level remediation map for blocked production delivery gates."""
+
+    workspace_id: str
+    remediation_status: str
+    delivery_status: str
+    acceptance_status: str
+    completion_percent: int = 0
+    next_focus: str
+    remediation_count: int = 0
+    immediate_remediation_count: int = 0
+    remediations: list[CommercialOperationProductionClosedLoopDeliveryRemediationResponse] = Field(default_factory=list)
+    immediate_remediations: list[CommercialOperationProductionClosedLoopDeliveryRemediationResponse] = Field(default_factory=list)
+    action_packages: dict[str, Any] = Field(default_factory=dict)
+    evidence_records: dict[str, Any] = Field(default_factory=dict)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderStatus = Literal[
+    "assigned",
+    "in_progress",
+    "blocked",
+    "completed",
+    "needs_follow_up",
+    "dismissed",
+]
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRequest(BaseModel):
+    """Operator work-order status for one delivery remediation mapping."""
+
+    remediation_key: str | None = None
+    gate_key: str | None = None
+    operation_id: UUID | None = None
+    work_order_status: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderStatus = "in_progress"
+    assignee: str | None = Field(default=None, max_length=255)
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    work_summary: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse(BaseModel):
+    """Persisted work-order status for one delivery remediation mapping."""
+
+    work_order_id: UUID
+    workspace_id: str
+    operation_id: UUID
+    remediation_key: str
+    gate_key: str
+    work_order_status: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderStatus
+    assignee: str | None = None
+    operator_confirmed: bool = False
+    target_console: str
+    primary_endpoint: str | None = None
+    completion_gate: str
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    work_summary: str | None = None
+    operator_notes: str | None = None
+    contract_snapshot: dict[str, Any] = Field(default_factory=dict)
+    boundary_checks: list[str] = Field(default_factory=list)
+    created_by: str | None = None
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderListResponse(BaseModel):
+    """Workspace-level delivery remediation work-order records."""
+
+    workspace_id: str
+    work_order_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageItemResponse(BaseModel):
+    """Coverage status for one remediation item and its latest work order."""
+
+    remediation_key: str
+    gate_key: str
+    gate_status: str
+    title: str
+    owner: str
+    priority: int
+    target_console: str
+    coverage_status: str
+    work_order_required: bool = True
+    work_order_count: int = 0
+    latest_work_order_id: UUID | None = None
+    latest_work_order_status: str | None = None
+    latest_work_order_assignee: str | None = None
+    latest_work_order_operator_confirmed: bool = False
+    latest_work_order_created_at: datetime | None = None
+    latest_readiness_refresh_id: UUID | None = None
+    latest_readiness_refresh_status: str | None = None
+    latest_readiness_refresh_next_action: str | None = None
+    current_evidence_status: str
+    completion_gate: str
+    next_action: str
+    blocking_reasons: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageResponse(BaseModel):
+    """Workspace-level coverage of remediation items by operator work orders."""
+
+    workspace_id: str
+    coverage_status: str
+    remediation_status: str
+    completion_percent: int = 0
+    coverage_percent: int = 0
+    remediation_count: int = 0
+    work_ordered_count: int = 0
+    unassigned_count: int = 0
+    in_progress_count: int = 0
+    completed_count: int = 0
+    readiness_refreshed_count: int = 0
+    blocked_count: int = 0
+    next_focus: str
+    items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageItemResponse] = Field(default_factory=list)
+    unassigned_items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageItemResponse] = Field(default_factory=list)
+    in_progress_items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageItemResponse] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderAssignmentRequest(BaseModel):
+    """Assign work orders for currently unassigned delivery remediation items."""
+
+    assignee: str = Field(..., min_length=1, max_length=255)
+    operator_confirmed: bool = False
+    platform: str | None = None
+    force_metric_due: bool = False
+    limit: int = Field(default=25, ge=1, le=50)
+    scan_limit: int = Field(default=50, ge=1, le=100)
+    work_summary: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderAssignmentResponse(BaseModel):
+    """Result of assigning missing delivery remediation work orders."""
+
+    workspace_id: str
+    assignment_status: str
+    requested_count: int = 0
+    created_count: int = 0
+    skipped_count: int = 0
+    assignee: str
+    records: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse] = Field(default_factory=list)
+    coverage_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItemResponse(BaseModel):
+    """Execution-prep package for one delivery remediation work order."""
+
+    prep_key: str
+    remediation_key: str
+    gate_key: str
+    gate_status: str
+    title: str
+    owner: str
+    priority: int = 0
+    operation_id: UUID | None = None
+    prep_status: str
+    coverage_status: str
+    work_order_required: bool = True
+    work_order_count: int = 0
+    latest_work_order_id: UUID | None = None
+    latest_work_order_status: str | None = None
+    latest_work_order_assignee: str | None = None
+    latest_work_order_operator_confirmed: bool = False
+    latest_work_order: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse | None = None
+    latest_readiness_refresh_id: UUID | None = None
+    latest_readiness_refresh_status: str | None = None
+    latest_readiness_refresh_next_action: str | None = None
+    target_console: str
+    target_method: str
+    target_endpoint: str | None = None
+    completion_gate: str
+    source_action_key: str | None = None
+    current_evidence_status: str
+    requires_customer_machine: bool = False
+    requires_server_operator: bool = False
+    operator_approval_required: bool = True
+    operator_confirmed: bool = False
+    external_execution_allowed: bool = False
+    server_side_external_execution: bool = False
+    evidence_requirements: list[str] = Field(default_factory=list)
+    prerequisites: list[str] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    execution_payload_template: dict[str, Any] = Field(default_factory=dict)
+    runbook_references: list[str] = Field(default_factory=list)
+    guardrails: list[str] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    next_action: str
+    boundary_checks: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepResponse(BaseModel):
+    """Workspace-level execution-prep packages for delivery remediation work orders."""
+
+    workspace_id: str
+    prep_status: str
+    coverage_status: str
+    remediation_status: str
+    completion_percent: int = 0
+    coverage_percent: int = 0
+    remediation_count: int = 0
+    prep_count: int = 0
+    ready_count: int = 0
+    waiting_assignment_count: int = 0
+    blocked_count: int = 0
+    completed_count: int = 0
+    readiness_refreshed_count: int = 0
+    customer_machine_count: int = 0
+    server_operator_count: int = 0
+    next_focus: str
+    items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItemResponse] = Field(default_factory=list)
+    ready_items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItemResponse] = Field(default_factory=list)
+    waiting_assignment_items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItemResponse] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCompletionRequest(BaseModel):
+    """Complete a delivery remediation work order after approved manual execution evidence is available."""
+
+    work_order_id: UUID | None = None
+    remediation_key: str | None = None
+    gate_key: str | None = None
+    operation_id: UUID | None = None
+    completed_by: str | None = Field(default=None, max_length=255)
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    completion_summary: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    platform: str | None = None
+    force_metric_due: bool = False
+    limit: int = Field(default=25, ge=1, le=50)
+    scan_limit: int = Field(default=50, ge=1, le=100)
+    work_order_limit: int = Field(default=200, ge=1, le=500)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCompletionResponse(BaseModel):
+    """Result of completing a delivery remediation work order from execution prep."""
+
+    workspace_id: str
+    completion_status: str
+    completed_record: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse
+    coverage_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageResponse
+    execution_prep_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepResponse
+    readiness_refresh_required: bool = True
+    readiness_refresh_next_action: str
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderReadinessRefreshRequest(BaseModel):
+    """Refresh production readiness after completed delivery remediation work orders."""
+
+    operation_id: UUID | None = None
+    remediation_key: str | None = Field(default=None, max_length=255)
+    gate_key: str | None = Field(default=None, max_length=255)
+    platform: str | None = Field(default=None, max_length=80)
+    force_metric_due: bool = False
+    operator_confirmed: bool = False
+    refresh_notes: str | None = Field(default=None, max_length=2000)
+    limit: int = Field(default=25, ge=1, le=50)
+    scan_limit: int = Field(default=50, ge=1, le=100)
+    work_order_limit: int = Field(default=200, ge=1, le=500)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderReadinessRefreshRecordResponse(BaseModel):
+    """Audited readiness refresh record for completed delivery remediation work orders."""
+
+    refresh_id: UUID
+    workspace_id: str
+    operation_id: UUID
+    remediation_key: str | None = None
+    gate_key: str | None = None
+    completed_work_order_ids: list[UUID] = Field(default_factory=list)
+    remediation_keys: list[str] = Field(default_factory=list)
+    gate_keys: list[str] = Field(default_factory=list)
+    refresh_status: str
+    readiness_status: str
+    current_stage_key: str | None = None
+    current_stage_status: str | None = None
+    next_action_key: str
+    operator_confirmed: bool = False
+    refresh_notes: str | None = None
+    refreshed_by: str | None = None
+    refreshed_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderReadinessRefreshResponse(BaseModel):
+    """Readiness and next-action snapshot after remediation work-order completion."""
+
+    workspace_id: str
+    operation_id: UUID
+    refresh_id: UUID
+    refresh_status: str
+    coverage_status: str
+    execution_prep_status: str
+    readiness_status: str
+    current_stage_key: str | None = None
+    current_stage_status: str | None = None
+    next_action_key: str
+    completed_work_order_count: int = 0
+    readiness_refreshed_count: int = 0
+    completed_items: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepItemResponse] = Field(default_factory=list)
+    coverage_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageResponse
+    execution_prep_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepResponse
+    readiness: dict[str, Any] = Field(default_factory=dict)
+    next_action: dict[str, Any] = Field(default_factory=dict)
+    refresh_record: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderReadinessRefreshRecordResponse
+    readiness_refresh_required: bool = False
+    operator_confirmed: bool = False
+    refresh_notes: str | None = None
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearanceItemResponse(BaseModel):
+    """One production audit blocker mapped to clearance ownership and work-order state."""
+
+    blocker_key: str
+    source: str
+    severity: str
+    title: str
+    message: str
+    operation_id: UUID | None = None
+    operation_title: str | None = None
+    gate_key: str | None = None
+    remediation_key: str | None = None
+    target_console: str
+    target_endpoint: str | None = None
+    owner: str
+    priority: int = 0
+    current_state: str
+    coverage_status: str | None = None
+    prep_status: str | None = None
+    latest_work_order_id: UUID | None = None
+    latest_work_order_status: str | None = None
+    latest_readiness_refresh_status: str | None = None
+    recommended_action: str
+    expected: str | None = None
+    actual: str | None = None
+    can_be_resolved_by_ui: bool = False
+    external_dependency_required: bool = False
+    operator_approval_required: bool = True
+    runbook_references: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearancePlanResponse(BaseModel):
+    """Production audit blocker clearance plan joined with remediation work-order state."""
+
+    workspace_id: str
+    clearance_status: str
+    production_config_ready: bool = False
+    acceptance_summary_ready: bool = False
+    blocker_count: int = 0
+    external_dependency_count: int = 0
+    ui_clearable_count: int = 0
+    work_ordered_count: int = 0
+    ready_for_execution_count: int = 0
+    readiness_refreshed_count: int = 0
+    next_focus: str
+    items: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearanceItemResponse] = Field(default_factory=list)
+    production_config_findings: list[dict[str, Any]] = Field(default_factory=list)
+    acceptance_summary: dict[str, Any] = Field(default_factory=dict)
+    remediation_map: CommercialOperationProductionClosedLoopDeliveryRemediationMapResponse
+    work_order_coverage: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageResponse
+    execution_prep: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerWorkOrderAssignmentRequest(BaseModel):
+    """Assign remediation work orders for production audit blockers mapped to delivery gates."""
+
+    assignee: str = Field(..., min_length=1, max_length=255)
+    operator_confirmed: bool = False
+    platform: str | None = Field(default=None, max_length=80)
+    force_metric_due: bool = False
+    limit: int = Field(default=25, ge=1, le=50)
+    scan_limit: int = Field(default=50, ge=1, le=100)
+    work_order_limit: int = Field(default=200, ge=1, le=500)
+    include_external_dependencies: bool = True
+    work_summary: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerWorkOrderAssignmentSkippedItemResponse(BaseModel):
+    """One audit blocker that was not converted into a remediation work order."""
+
+    blocker_key: str | None = None
+    source: str | None = None
+    gate_key: str | None = None
+    remediation_key: str | None = None
+    reason: str
+    external_dependency_required: bool = False
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerWorkOrderAssignmentResponse(BaseModel):
+    """Result of assigning delivery audit blocker clearance work orders."""
+
+    workspace_id: str
+    assignment_status: str
+    blocker_count: int = 0
+    assignable_blocker_count: int = 0
+    requested_gate_count: int = 0
+    created_count: int = 0
+    skipped_count: int = 0
+    assignee: str
+    include_external_dependencies: bool = True
+    assigned_gate_keys: list[str] = Field(default_factory=list)
+    failed_gate_keys: list[str] = Field(default_factory=list)
+    skipped_items: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerWorkOrderAssignmentSkippedItemResponse] = Field(default_factory=list)
+    records: list[CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderRecordResponse] = Field(default_factory=list)
+    clearance_plan_before: CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearancePlanResponse
+    clearance_plan_after: CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearancePlanResponse
+    coverage_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderCoverageResponse
+    execution_prep_after: CommercialOperationProductionClosedLoopDeliveryRemediationWorkOrderExecutionPrepResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookPackageResponse(BaseModel):
+    """Operator runbook handoff package for one production audit blocker group."""
+
+    package_key: str
+    title: str
+    blocker_keys: list[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
+    severity: str
+    gate_key: str | None = None
+    remediation_key: str | None = None
+    target_console: str
+    target_endpoint: str | None = None
+    owner: str
+    priority: int = 0
+    external_dependency_required: bool = False
+    can_be_resolved_by_ui: bool = False
+    operator_approval_required: bool = True
+    current_state: str
+    coverage_status: str | None = None
+    prep_status: str | None = None
+    latest_work_order_id: UUID | None = None
+    latest_work_order_status: str | None = None
+    recommended_actions: list[str] = Field(default_factory=list)
+    required_inputs: list[str] = Field(default_factory=list)
+    manual_steps: list[str] = Field(default_factory=list)
+    verification_commands: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    runbook_references: list[str] = Field(default_factory=list)
+    handoff_notes: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookPackageListResponse(BaseModel):
+    """Workspace-level production delivery audit blocker runbook handoff packages."""
+
+    workspace_id: str
+    handoff_status: str
+    package_count: int = 0
+    external_dependency_package_count: int = 0
+    work_ordered_package_count: int = 0
+    next_focus: str
+    packages: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookPackageResponse] = Field(default_factory=list)
+    clearance_plan: CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearancePlanResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRequest(BaseModel):
+    """Operator evidence for a production delivery audit blocker runbook package."""
+
+    package_key: str | None = Field(default=None, max_length=500)
+    gate_key: str | None = Field(default=None, max_length=255)
+    operation_id: UUID | None = None
+    evidence_status: Literal["submitted", "blocked", "resolved", "needs_follow_up", "dismissed"] = "submitted"
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    platform: str | None = Field(default=None, max_length=80)
+    force_metric_due: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecordResponse(BaseModel):
+    """Persisted operator evidence for one production delivery audit blocker runbook package."""
+
+    evidence_record_id: UUID
+    workspace_id: str
+    operation_id: UUID
+    package_key: str
+    gate_key: str | None = None
+    remediation_key: str | None = None
+    evidence_status: Literal["submitted", "blocked", "resolved", "needs_follow_up", "dismissed"]
+    operator_confirmed: bool = False
+    target_console: str
+    current_state: str
+    latest_work_order_id: UUID | None = None
+    latest_work_order_status: str | None = None
+    external_dependency_required: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = None
+    operator_notes: str | None = None
+    verification_commands: list[str] = Field(default_factory=list)
+    required_inputs: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    runbook_references: list[str] = Field(default_factory=list)
+    contract_snapshot: dict[str, Any] = Field(default_factory=dict)
+    boundary_checks: list[str] = Field(default_factory=list)
+    created_by: str | None = None
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceListResponse(BaseModel):
+    """Workspace-level delivery audit blocker runbook evidence records."""
+
+    workspace_id: str
+    record_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecordResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceRecordResponse] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageItemResponse(BaseModel):
+    """Evidence coverage status for one production audit blocker runbook package."""
+
+    package_key: str
+    title: str | None = None
+    gate_key: str | None = None
+    remediation_key: str | None = None
+    target_console: str | None = None
+    owner: str | None = None
+    priority: int = 0
+    external_dependency_required: bool = False
+    latest_work_order_id: UUID | None = None
+    latest_work_order_status: str | None = None
+    evidence_record_count: int = 0
+    latest_evidence_record_id: UUID | None = None
+    latest_evidence_status: str | None = None
+    latest_evidence_summary: str | None = None
+    latest_evidence_created_at: datetime | None = None
+    latest_evidence_operator_confirmed: bool = False
+    coverage_status: str
+    next_action: str
+    verification_commands: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageResponse(BaseModel):
+    """Workspace-level coverage of blocker runbook packages by operator evidence."""
+
+    workspace_id: str
+    coverage_status: str
+    coverage_percent: int = 0
+    package_count: int = 0
+    evidenced_count: int = 0
+    missing_evidence_count: int = 0
+    resolved_count: int = 0
+    blocked_count: int = 0
+    needs_follow_up_count: int = 0
+    dismissed_count: int = 0
+    next_focus: str
+    items: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageItemResponse] = Field(default_factory=list)
+    missing_items: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageItemResponse] = Field(default_factory=list)
+    blocked_items: list[CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageItemResponse] = Field(default_factory=list)
+    runbook_packages: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookPackageListResponse
+    evidence_records: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceListResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadinessRefreshRequest(BaseModel):
+    """Refresh production readiness after all blocker runbook evidence is resolved."""
+
+    operation_id: UUID | None = None
+    platform: str | None = Field(default=None, max_length=80)
+    force_metric_due: bool = False
+    operator_confirmed: bool = False
+    refresh_notes: str | None = Field(default=None, max_length=2000)
+    limit: int = Field(default=25, ge=1, le=50)
+    scan_limit: int = Field(default=50, ge=1, le=100)
+    work_order_limit: int = Field(default=200, ge=1, le=500)
+    evidence_limit: int = Field(default=200, ge=1, le=500)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadinessRefreshRecordResponse(BaseModel):
+    """Audited readiness refresh record for resolved blocker runbook evidence."""
+
+    refresh_id: UUID
+    workspace_id: str
+    operation_id: UUID
+    refresh_status: str
+    coverage_status: str
+    coverage_percent: int = 0
+    package_count: int = 0
+    resolved_count: int = 0
+    missing_evidence_count: int = 0
+    blocked_count: int = 0
+    needs_follow_up_count: int = 0
+    dismissed_count: int = 0
+    readiness_status: str
+    current_stage_key: str | None = None
+    current_stage_status: str | None = None
+    next_action_key: str
+    operator_confirmed: bool = False
+    refresh_notes: str | None = None
+    refreshed_by: str | None = None
+    refreshed_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadinessRefreshResponse(BaseModel):
+    """Readiness snapshot after resolved audit blocker runbook evidence."""
+
+    workspace_id: str
+    operation_id: UUID
+    refresh_id: UUID
+    refresh_status: str
+    coverage_status: str
+    coverage_percent: int = 0
+    package_count: int = 0
+    resolved_count: int = 0
+    next_focus: str
+    coverage_before: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageResponse
+    coverage_after: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageResponse
+    acceptance_summary_after: CommercialOperationProductionClosedLoopAcceptanceSummaryResponse
+    clearance_plan_after: CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearancePlanResponse
+    runbook_packages_after: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookPackageListResponse
+    readiness: dict[str, Any] = Field(default_factory=dict)
+    next_action: dict[str, Any] = Field(default_factory=dict)
+    refresh_record: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceReadinessRefreshRecordResponse
+    operator_confirmed: bool = False
+    refresh_notes: str | None = None
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditNextActionPlanActionResponse(BaseModel):
+    """Owner-routed next action derived from production delivery audit blockers."""
+
+    action_key: str
+    title: str
+    owner: str
+    priority: int = 0
+    source_blockers: list[str] = Field(default_factory=list)
+    target: str
+    target_console: str | None = None
+    required_endpoint: str | None = None
+    verification_commands: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    external_dependency_required: bool = False
+    can_be_resolved_by_ui: bool = False
+    operator_approval_required: bool = True
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditNextActionPlanResponse(BaseModel):
+    """Read-only production delivery audit blocker action plan."""
+
+    workspace_id: str
+    audit_status: str
+    acceptance_status: str
+    completion_percent: int = 0
+    next_focus: str
+    blocker_count: int = 0
+    next_action_count: int = 0
+    runbook_evidence_coverage_ready: bool = False
+    runbook_evidence_readiness_refresh_required: bool = False
+    blocking_reasons: list[str] = Field(default_factory=list)
+    next_actions: list[CommercialOperationProductionClosedLoopDeliveryAuditNextActionPlanActionResponse] = Field(default_factory=list)
+    first_action: CommercialOperationProductionClosedLoopDeliveryAuditNextActionPlanActionResponse | None = None
+    acceptance_summary: CommercialOperationProductionClosedLoopAcceptanceSummaryResponse
+    clearance_plan: CommercialOperationProductionClosedLoopDeliveryAuditBlockerClearancePlanResponse
+    runbook_evidence_coverage: CommercialOperationProductionClosedLoopDeliveryAuditBlockerRunbookEvidenceCoverageResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueItemResponse(BaseModel):
+    """Operator-workbench item derived from a delivery audit next action."""
+
+    queue_key: str
+    action_key: str
+    title: str
+    owner: str
+    priority: int = 0
+    resolution_mode: str
+    resolution_status: str
+    primary_console: str
+    primary_label: str
+    ui_anchor: str | None = None
+    endpoint_method: str | None = None
+    endpoint_path: str | None = None
+    operator_next_step: str
+    source_blockers: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    verification_commands: list[str] = Field(default_factory=list)
+    external_dependency_required: bool = False
+    can_be_resolved_by_ui: bool = False
+    operator_approval_required: bool = True
+    blocked_by_external_dependency: bool = False
+    record_count: int = 0
+    latest_record_id: UUID | None = None
+    latest_record_status: str | None = None
+    latest_record_summary: str | None = None
+    latest_record_created_at: datetime | None = None
+    latest_record_operator_confirmed: bool = False
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueGroupResponse(BaseModel):
+    """Owner bucket for production delivery audit operator queue items."""
+
+    owner: str
+    owner_label: str
+    queue_status: str
+    top_priority: int = 0
+    action_count: int = 0
+    ui_resolvable_count: int = 0
+    external_dependency_count: int = 0
+    items: list[CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueItemResponse] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueResponse(BaseModel):
+    """Read-only operator queue for production delivery audit action closure."""
+
+    workspace_id: str
+    queue_status: str
+    audit_status: str
+    acceptance_status: str
+    completion_percent: int = 0
+    owner_count: int = 0
+    action_count: int = 0
+    ui_resolvable_count: int = 0
+    external_dependency_count: int = 0
+    next_owner: str | None = None
+    first_item: CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueItemResponse | None = None
+    owner_groups: list[CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueGroupResponse] = Field(default_factory=list)
+    source_plan: CommercialOperationProductionClosedLoopDeliveryAuditNextActionPlanResponse
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordStatus = Literal[
+    "queued",
+    "in_progress",
+    "blocked",
+    "resolved",
+    "needs_follow_up",
+    "dismissed",
+]
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordRequest(BaseModel):
+    """Operator status/evidence record for one production delivery audit queue item."""
+
+    queue_key: str | None = Field(default=None, max_length=700)
+    action_key: str = Field(max_length=500)
+    owner: str | None = Field(default=None, max_length=120)
+    operation_id: UUID | None = None
+    record_status: CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordStatus = "in_progress"
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = Field(default=None, max_length=2000)
+    operator_notes: str | None = Field(default=None, max_length=2000)
+    platform: str | None = Field(default=None, max_length=80)
+    force_metric_due: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordResponse(BaseModel):
+    """Persisted operator status/evidence record for one production delivery audit queue item."""
+
+    record_id: UUID
+    workspace_id: str
+    operation_id: UUID
+    queue_key: str
+    action_key: str
+    owner: str
+    record_status: CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordStatus
+    operator_confirmed: bool = False
+    resolution_mode: str
+    resolution_status: str
+    primary_console: str
+    primary_label: str
+    endpoint_method: str | None = None
+    endpoint_path: str | None = None
+    blocked_by_external_dependency: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = None
+    operator_notes: str | None = None
+    verification_commands: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    contract_snapshot: dict[str, Any] = Field(default_factory=dict)
+    boundary_checks: list[str] = Field(default_factory=list)
+    created_by: str | None = None
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordListResponse(BaseModel):
+    """Workspace-level production delivery audit operator queue records."""
+
+    workspace_id: str
+    record_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopDeliveryAuditOperatorQueueRecordResponse] = Field(default_factory=list)
+    status_counts: dict[str, int] = Field(default_factory=dict)
+    operator_confirmed_count: int = 0
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOpenClawProviderHandoffConfigItemResponse(BaseModel):
+    """One sanitized OpenClaw provider configuration requirement."""
+
+    config_key: str
+    required_state: str
+    current_state: str
+    configured: bool = False
+    secret: bool = False
+    blocking: bool = True
+    operator_action: str
+    evidence_requirement: str
+    verification_command: str | None = None
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryAuditOpenClawProviderHandoffResponse(BaseModel):
+    """Operator handoff for configuring and verifying the real OpenClaw publish provider."""
+
+    workspace_id: str
+    handoff_status: str
+    readiness_status: str
+    ready: bool = False
+    provider: str
+    mock: bool = True
+    worker_id: UUID | None = None
+    worker_name: str | None = None
+    required_config_count: int = 0
+    missing_config_count: int = 0
+    verification_count: int = 0
+    next_focus: str
+    config_items: list[CommercialOperationProductionClosedLoopDeliveryAuditOpenClawProviderHandoffConfigItemResponse] = Field(default_factory=list)
+    verification_commands: list[str] = Field(default_factory=list)
+    manual_steps: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    restart_boundaries: list[str] = Field(default_factory=list)
+    provider_readiness: dict[str, Any] = Field(default_factory=dict)
+    production_config_findings: list[dict[str, Any]] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopDeliveryActionEvidenceStatus = Literal[
+    "submitted",
+    "blocked",
+    "resolved",
+    "needs_follow_up",
+    "dismissed",
+]
+
+
+class CommercialOperationProductionClosedLoopDeliveryActionEvidenceRequest(BaseModel):
+    """Operator evidence for a manual production delivery action package."""
+
+    gate_key: str
+    action_key: str | None = None
+    operation_id: UUID | None = None
+    evidence_status: CommercialOperationProductionClosedLoopDeliveryActionEvidenceStatus = "submitted"
+    operator_confirmed: bool = False
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = None
+    operator_notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopDeliveryActionEvidenceRecordResponse(BaseModel):
+    """Persisted operator evidence for one production delivery action package."""
+
+    evidence_record_id: UUID
+    workspace_id: str
+    operation_id: UUID
+    gate_key: str
+    action_key: str
+    evidence_status: CommercialOperationProductionClosedLoopDeliveryActionEvidenceStatus
+    operator_confirmed: bool = False
+    target_console: str
+    action_status: str
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = None
+    operator_notes: str | None = None
+    contract_snapshot: dict[str, Any] = Field(default_factory=dict)
+    boundary_checks: list[str] = Field(default_factory=list)
+    created_by: str | None = None
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+
+
+class CommercialOperationProductionClosedLoopDeliveryActionEvidenceListResponse(BaseModel):
+    """Workspace-level delivery action package evidence records."""
+
+    workspace_id: str
+    record_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopDeliveryActionEvidenceRecordResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopDeliveryActionEvidenceRecordResponse] = Field(default_factory=list)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionResponse(BaseModel):
+    """One controlled next action for the production closed loop."""
+
+    action_key: str
+    stage_key: str
+    title: str
+    description: str
+    action_type: str
+    enabled: bool = False
+    requires_operator_approval: bool = True
+    method: str | None = None
+    endpoint: str | None = None
+    target_record_id: UUID | None = None
+    payload_template: dict[str, Any] = Field(default_factory=dict)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    review_gates: list[str] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    expected_result: dict[str, Any] = Field(default_factory=dict)
+    boundary: str
+
+
+class CommercialOperationProductionClosedLoopNextActionResponse(BaseModel):
+    """Controlled next-action contract derived from the production closed-loop readiness state."""
+
+    operation_id: UUID
+    workspace_id: str
+    readiness_status: str
+    current_stage_key: str | None = None
+    selected_action_key: str
+    selected_action: CommercialOperationProductionClosedLoopActionResponse
+    action_queue: list[CommercialOperationProductionClosedLoopActionResponse] = Field(default_factory=list)
+    operator_checklist: list[str] = Field(default_factory=list)
+    server_handoff: dict[str, Any] = Field(default_factory=dict)
+    client_handoff: dict[str, Any] = Field(default_factory=dict)
+    acceptance_gates: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopActionAuditStatus = Literal[
+    "reviewed",
+    "confirmed",
+    "submitted",
+    "evidence_returned",
+    "blocked",
+    "cancelled",
+    "failed",
+]
+
+
+class CommercialOperationProductionClosedLoopActionAuditCreateRequest(BaseModel):
+    """Record one controlled-action review/confirmation/evidence event without executing it."""
+
+    action_key: str = Field(min_length=1, max_length=160)
+    stage_key: str | None = Field(default=None, max_length=160)
+    action_status: CommercialOperationProductionClosedLoopActionAuditStatus = "confirmed"
+    operator_confirmed: bool = False
+    target_method: str | None = Field(default=None, max_length=16)
+    target_endpoint: str | None = Field(default=None, max_length=600)
+    target_record_id: UUID | None = None
+    submitted_payload: dict[str, Any] = Field(default_factory=dict)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = Field(default=None, max_length=2000)
+    execution_summary: str | None = Field(default=None, max_length=2000)
+    boundary_checks: list[str] = Field(default_factory=list)
+    client_machine_id: str | None = Field(default=None, max_length=160)
+    reviewer_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionAuditRecordResponse(BaseModel):
+    """One persisted controlled-action audit event."""
+
+    audit_id: UUID
+    operation_id: UUID
+    workspace_id: str
+    action_key: str
+    stage_key: str | None = None
+    action_status: str
+    validation_status: str
+    blocking_reasons: list[str] = Field(default_factory=list)
+    operator_confirmed: bool = False
+    target_method: str | None = None
+    target_endpoint: str | None = None
+    target_record_id: UUID | None = None
+    submitted_payload: dict[str, Any] = Field(default_factory=dict)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = None
+    execution_summary: str | None = None
+    boundary_checks: list[str] = Field(default_factory=list)
+    client_machine_id: str | None = None
+    reviewer_notes: str | None = None
+    contract_snapshot: dict[str, Any] = Field(default_factory=dict)
+    result_binding_status: str | None = None
+    result_record_type: str | None = None
+    result_record_id: UUID | None = None
+    result_status: str | None = None
+    result_endpoint: str | None = None
+    result_binding: dict[str, Any] = Field(default_factory=dict)
+    result_bindings: list[dict[str, Any]] = Field(default_factory=list)
+    readiness_refresh_status: str | None = None
+    readiness_refresh: dict[str, Any] = Field(default_factory=dict)
+    readiness_refreshes: list[dict[str, Any]] = Field(default_factory=list)
+    result_record_validation_status: str | None = None
+    result_record_validation: dict[str, Any] = Field(default_factory=dict)
+    result_record_validations: list[dict[str, Any]] = Field(default_factory=list)
+    created_by: str | None = None
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionAuditListResponse(BaseModel):
+    """List of controlled-action audit events for one operation."""
+
+    operation_id: UUID
+    workspace_id: str
+    audit_count: int = 0
+    latest_record: CommercialOperationProductionClosedLoopActionAuditRecordResponse | None = None
+    records: list[CommercialOperationProductionClosedLoopActionAuditRecordResponse] = Field(default_factory=list)
+    counts_by_status: dict[str, int] = Field(default_factory=dict)
+    evidence_coverage: dict[str, int | float] = Field(default_factory=dict)
+    next_actions: list[str] = Field(default_factory=list)
+    operator_checklist: list[dict[str, Any]] = Field(default_factory=list)
+    primary_step: dict[str, Any] | None = None
+    primary_step_staleness: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+CommercialOperationProductionClosedLoopActionResultBindingStatus = Literal[
+    "result_recorded",
+    "result_failed",
+    "evidence_verified",
+    "binding_cancelled",
+]
+
+
+class CommercialOperationProductionClosedLoopActionResultBindingRequest(BaseModel):
+    """Bind a controlled-action audit record to its returned business result without executing it."""
+
+    binding_status: CommercialOperationProductionClosedLoopActionResultBindingStatus = "result_recorded"
+    result_record_type: str = Field(min_length=1, max_length=120)
+    result_record_id: UUID | None = None
+    result_status: str | None = Field(default=None, max_length=120)
+    result_endpoint: str | None = Field(default=None, max_length=600)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = Field(default=None, max_length=2000)
+    operator_confirmed: bool = False
+    binding_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionResultBindingResponse(BaseModel):
+    """Returned result binding for one controlled-action audit event."""
+
+    operation_id: UUID
+    workspace_id: str
+    audit_id: UUID
+    binding_id: UUID
+    binding_status: str
+    result_record_type: str
+    result_record_id: UUID | None = None
+    result_status: str | None = None
+    result_endpoint: str | None = None
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    evidence_summary: str | None = None
+    operator_confirmed: bool = False
+    binding_notes: str | None = None
+    bound_by: str | None = None
+    bound_at: datetime
+    audit_record: CommercialOperationProductionClosedLoopActionAuditRecordResponse
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionReadinessRefreshRequest(BaseModel):
+    """Refresh readiness after a controlled-action result binding without executing the next action."""
+
+    platform: str | None = Field(default=None, max_length=80)
+    force_metric_due: bool = False
+    operator_confirmed: bool = False
+    refresh_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionReadinessRefreshResponse(BaseModel):
+    """Readiness and next-action snapshot produced after a result binding."""
+
+    operation_id: UUID
+    workspace_id: str
+    audit_id: UUID
+    refresh_id: UUID
+    binding_id: UUID | None = None
+    refresh_status: str
+    underlying_refresh_status: str | None = None
+    record_validation_gate_status: str | None = None
+    record_validation_required: bool = Field(
+        default=False,
+        description="True when readiness progress is still waiting for a verified bound result record.",
+    )
+    record_validation_passed: bool = False
+    record_validation_blocking_reasons: list[str] = Field(default_factory=list)
+    result_record_validation_status: str | None = None
+    result_record_validation: dict[str, Any] = Field(default_factory=dict)
+    audit_stage_key: str | None = None
+    previous_action_key: str | None = None
+    current_stage_key: str | None = None
+    current_stage_status: str | None = None
+    stage_completed_after_binding: bool = False
+    next_action_key: str
+    operator_confirmed: bool = False
+    refresh_notes: str | None = None
+    readiness: CommercialOperationProductionClosedLoopReadinessResponse
+    next_action: CommercialOperationProductionClosedLoopNextActionResponse
+    audit_record: CommercialOperationProductionClosedLoopActionAuditRecordResponse
+    result_binding: dict[str, Any] = Field(default_factory=dict)
+    operator_next_actions: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
+    refreshed_by: str | None = None
+    refreshed_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionResultRecordValidationRequest(BaseModel):
+    """Validate that a bound controlled-action result references a real project record."""
+
+    operator_confirmed: bool = False
+    validation_notes: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationProductionClosedLoopActionResultRecordValidationResponse(BaseModel):
+    """Result record reference validation for one controlled-action result binding."""
+
+    operation_id: UUID
+    workspace_id: str
+    audit_id: UUID
+    validation_id: UUID
+    binding_id: UUID | None = None
+    validation_status: str
+    result_record_type: str
+    result_record_id: UUID | None = None
+    record_exists: bool = False
+    workspace_matches: bool = False
+    operation_matches: bool = False
+    status_matches: bool = False
+    status_field: str | None = None
+    record_status: str | None = None
+    expected_statuses: list[str] = Field(default_factory=list)
+    record_summary: dict[str, Any] = Field(default_factory=dict)
+    supported_record_types: list[str] = Field(default_factory=list)
+    operator_confirmed: bool = False
+    validation_notes: str | None = None
+    validated_by: str | None = None
+    validated_at: datetime
+    audit_record: CommercialOperationProductionClosedLoopActionAuditRecordResponse
+    result_binding: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class CommercialOperationPlanPreviewResponse(BaseModel):
@@ -754,6 +3728,33 @@ class CommercialOperationAssetRequestListResponse(BaseModel):
 
     operation_id: UUID
     items: list[CommercialOperationAssetRequestResponse]
+
+
+class CommercialOperationDigitalHumanDeliveryLinkRequest(BaseModel):
+    """Link a generated digital-human delivery asset into the commercial loop."""
+
+    digital_human_video_job_id: UUID
+    delivery_asset_id: UUID | None = None
+    content_draft_id: UUID | None = None
+    step_key: str = Field(default="content_production", min_length=1, max_length=128)
+    channel: str | None = Field(default=None, min_length=1, max_length=128)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    purpose: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationDigitalHumanDeliveryLinkResponse(BaseModel):
+    """Commercial loop link created from a generated digital-human video."""
+
+    operation_id: UUID
+    workspace_id: str
+    link_status: Literal["created", "reused"]
+    digital_human_video_job_id: UUID
+    delivery_asset_id: UUID
+    deliverable_ready: bool
+    asset_request: CommercialOperationAssetRequestResponse
+    next_actions: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
 
 
 class CommercialOperationComfyUIHandoffCreateRequest(BaseModel):
@@ -3156,6 +6157,57 @@ class CommercialOperationAgentDecisionResponse(BaseModel):
     evidence: list[str] = Field(default_factory=list)
 
 
+class CommercialOperationSpecialistTrackResponse(BaseModel):
+    """One specialist track available below the global commercial-operation Agent."""
+
+    track_key: str
+    display_name: str
+    owner_agent: str
+    stage_key: str | None = None
+    status: str
+    priority: int = Field(ge=0)
+    trigger_signals: list[str] = Field(default_factory=list)
+    required_inputs: list[str] = Field(default_factory=list)
+    expected_outputs: list[str] = Field(default_factory=list)
+    boundary: str
+    execution_boundary: str | None = None
+    available_actions: list[str] = Field(default_factory=list)
+    quality_gates: list[str] = Field(default_factory=list)
+    blocked_by: list[str] = Field(default_factory=list)
+    production_intervention_recommended_action: dict[str, Any] = Field(default_factory=dict)
+    production_delivery_recommended_gate: dict[str, Any] = Field(default_factory=dict)
+    next_action: str
+
+
+class CommercialOperationRoutingDecisionResponse(BaseModel):
+    """Global commercial-operation Agent routing decision."""
+
+    decision_key: str
+    controller_agent: str
+    decision_mode: str = "deterministic_stage_and_signal_router"
+    confidence: float = Field(default=0.0, ge=0, le=1)
+    current_stage: str | None
+    recommended_track: str
+    selected_track_status: str | None = None
+    selected_skill_key: str | None = None
+    selected_agents: list[str] = Field(default_factory=list)
+    required_knowledge_collections: list[str] = Field(default_factory=list)
+    required_inputs: list[str] = Field(default_factory=list)
+    blocked_by: list[str] = Field(default_factory=list)
+    reason_codes: list[str] = Field(default_factory=list)
+    quality_gates: list[str] = Field(default_factory=list)
+    next_executable_contract: dict[str, Any] = Field(default_factory=dict)
+    production_intervention_required: bool = False
+    production_intervention_recommended_action: dict[str, Any] = Field(default_factory=dict)
+    production_intervention_queue_summary: dict[str, Any] = Field(default_factory=dict)
+    production_delivery_plan_required: bool = False
+    production_delivery_recommended_gate: dict[str, Any] = Field(default_factory=dict)
+    production_delivery_plan_summary: dict[str, Any] = Field(default_factory=dict)
+    rationale: str
+    next_action: str
+    evidence: list[str] = Field(default_factory=list)
+
+
 class CommercialOperationAgentSkillOrchestrationResponse(BaseModel):
     """Agent/Skill orchestration view for server and customer-machine consoles."""
 
@@ -3167,6 +6219,116 @@ class CommercialOperationAgentSkillOrchestrationResponse(BaseModel):
     next_action: str
     completion_ratio: float = Field(ge=0, le=1)
     skills: list[CommercialOperationAgentSkillResponse]
+    routing_decision: CommercialOperationRoutingDecisionResponse
+    specialist_tracks: list[CommercialOperationSpecialistTrackResponse] = Field(default_factory=list)
+    production_intervention_queue: dict[str, Any] = Field(default_factory=dict)
+    production_delivery_plan: dict[str, Any] = Field(default_factory=dict)
     decisions: list[CommercialOperationAgentDecisionResponse]
     boundaries: list[str]
+    generated_at: datetime
+
+
+CommercialOperationMainAgentAdvanceStatusLiteral = Literal[
+    "created",
+    "updated",
+    "reused",
+    "dry_run",
+    "blocked",
+    "noop",
+]
+
+
+class CommercialOperationMainAgentAdvanceRequest(BaseModel):
+    """Advance one safe, reviewable step in the commercial operation loop."""
+
+    dry_run: bool = False
+    operator_note: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationMainAgentAdvanceResponse(BaseModel):
+    """Main Agent closed-loop advancement result."""
+
+    operation_id: UUID
+    workspace_id: str
+    advance_status: CommercialOperationMainAgentAdvanceStatusLiteral
+    dry_run: bool
+    advanced_track: str
+    before_stage_key: str | None
+    after_stage_key: str | None
+    routing_decision: CommercialOperationRoutingDecisionResponse
+    created_records: list[dict[str, Any]] = Field(default_factory=list)
+    updated_records: list[dict[str, Any]] = Field(default_factory=list)
+    reused_records: list[dict[str, Any]] = Field(default_factory=list)
+    blocked_by: list[str] = Field(default_factory=list)
+    operator_next_actions: list[str] = Field(default_factory=list)
+    server_next_actions: list[str] = Field(default_factory=list)
+    client_next_actions: list[str] = Field(default_factory=list)
+    execution_boundary: str
+    operation_loop: dict[str, Any] = Field(default_factory=dict)
+    boundaries: list[str] = Field(default_factory=list)
+    generated_at: datetime
+
+
+CommercialOperationVideoAgentRouteLiteral = Literal[
+    "auto",
+    "digital_human_video",
+    "commercial_content",
+    "asset_brief",
+]
+
+
+class CommercialOperationVideoAgentOrchestrationRequest(BaseModel):
+    """Route a commercial operation into the video-specialist agent chain."""
+
+    route_hint: CommercialOperationVideoAgentRouteLiteral = "auto"
+    objective: str | None = Field(default=None, min_length=1, max_length=8000)
+    script: str | None = Field(default=None, min_length=1, max_length=20000)
+    channel: str = Field(default="short_video", min_length=1, max_length=128)
+    style: str = Field(default="realistic commercial operator vlog", min_length=1, max_length=255)
+    provider: str | None = Field(default=None, max_length=64)
+    source_video_uri: str | None = Field(default=None, min_length=1, max_length=2000)
+    scene_image_uri: str | None = Field(default=None, min_length=1, max_length=2000)
+    reference_video_uri: str | None = Field(default=None, min_length=1, max_length=2000)
+    avatar_asset_id: UUID | None = None
+    material_asset_ids: list[UUID] = Field(default_factory=list)
+    reference_asset_ids: list[UUID] = Field(default_factory=list)
+    target_channels: list[str] = Field(default_factory=list)
+    voice_profile: dict[str, Any] = Field(default_factory=dict)
+    aspect_ratio: str = Field(default="9:16", max_length=32)
+    duration_seconds: float | None = Field(default=None, ge=1.0, le=3600.0)
+    needs_ai_virtual_person: bool = True
+    allow_real_person_cutout: bool = False
+    allow_comfyui_prompt_submission: bool = False
+    query: str | None = Field(default=None, min_length=1)
+    knowledge_collection: str | None = Field(default=None, min_length=1, max_length=128)
+    source_id: str | None = Field(default=None, min_length=1, max_length=255)
+    search_mode: SearchMode | None = None
+    dense_top_k: int | None = Field(default=None, ge=1, le=100)
+    keyword_top_k: int | None = Field(default=None, ge=1, le=100)
+    final_top_k: int | None = Field(default=None, ge=1, le=50)
+    create_digital_human_job: bool = True
+    llm_planning_enabled: bool = True
+    prepare_shot_execution_plan: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommercialOperationVideoAgentOrchestrationResponse(BaseModel):
+    """Commercial main-agent routing result for a digital-human video flow."""
+
+    operation_id: UUID
+    workspace_id: str
+    controller_agent: dict[str, Any]
+    route_decision: dict[str, Any]
+    rag_context: dict[str, Any]
+    sub_agents: list[dict[str, Any]]
+    digital_human_request: dict[str, Any]
+    digital_human_job: dict[str, Any] | None = None
+    video_agent_plan: dict[str, Any] = Field(default_factory=dict)
+    video_analysis_result: dict[str, Any] | None = None
+    workflow_selection: dict[str, Any] = Field(default_factory=dict)
+    execution_package: dict[str, Any] = Field(default_factory=dict)
+    runtime_evidence: dict[str, Any] = Field(default_factory=dict)
+    next_actions: list[str] = Field(default_factory=list)
+    boundaries: list[str] = Field(default_factory=list)
     generated_at: datetime

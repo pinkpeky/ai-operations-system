@@ -5,12 +5,21 @@
 
 import logging
 from functools import lru_cache
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+class ProductionConfigError(RuntimeError):
+    """Raised when explicit production configuration validation fails."""
+
+    def __init__(self, findings: list[dict[str, str]]) -> None:
+        self.findings = findings
+        keys = ", ".join(item.get("key", "unknown") for item in findings if item.get("severity") == "error")
+        super().__init__(f"Production configuration is invalid: {keys or 'see findings'}")
 
 
 class Settings(BaseSettings):
@@ -23,11 +32,20 @@ class Settings(BaseSettings):
 
     app_name: str = Field(default="AI Operations System", alias="APP_NAME")
     app_env: str = Field(default="development", alias="APP_ENV")
+    production_config_strict: bool = Field(default=False, alias="PRODUCTION_CONFIG_STRICT")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
     cors_allowed_origins: str = Field(
-        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5180,http://127.0.0.1:5180,tauri://localhost",
+        default=(
+            "http://localhost:5173,http://127.0.0.1:5173,"
+            "http://localhost:5174,http://127.0.0.1:5174,"
+            "http://localhost:5180,http://127.0.0.1:5180,"
+            "http://localhost:5181,http://127.0.0.1:5181,"
+            "http://localhost:5182,http://127.0.0.1:5182,"
+            "http://localhost:5184,http://127.0.0.1:5184,"
+            "tauri://localhost"
+        ),
         alias="CORS_ALLOWED_ORIGINS",
     )
 
@@ -83,6 +101,14 @@ class Settings(BaseSettings):
         alias="LOCAL_LLM_BASE_URL",
     )
     local_llm_model: str = Field(default="mistral", alias="LOCAL_LLM_MODEL")
+    local_llm_num_ctx: int = Field(default=4096, ge=512, le=131072, alias="LOCAL_LLM_NUM_CTX")
+    local_llm_num_batch: int = Field(default=512, ge=1, le=4096, alias="LOCAL_LLM_NUM_BATCH")
+    llm_gpu_strategy_enabled: bool = Field(default=True, alias="LLM_GPU_STRATEGY_ENABLED")
+    llm_gpu_total_devices: int = Field(default=2, ge=0, le=16, alias="LLM_GPU_TOTAL_DEVICES")
+    llm_gpu_default_devices: str = Field(default="0,1", alias="LLM_GPU_DEFAULT_DEVICES")
+    llm_gpu_single_devices: str = Field(default="0", alias="LLM_GPU_SINGLE_DEVICES")
+    llm_gpu_max_concurrent_without_comfyui: int = Field(default=2, ge=1, le=32, alias="LLM_GPU_MAX_CONCURRENT_WITHOUT_COMFYUI")
+    llm_gpu_max_concurrent_with_comfyui: int = Field(default=1, ge=1, le=32, alias="LLM_GPU_MAX_CONCURRENT_WITH_COMFYUI")
     server_llm_base_url: str = Field(
         default="http://host.docker.internal:8001/v1",
         alias="SERVER_LLM_BASE_URL",
@@ -99,10 +125,11 @@ class Settings(BaseSettings):
     qdrant_collection_name: str = Field(default="ai_knowledge_base", alias="QDRANT_COLLECTION_NAME")
     reranker_provider: str = Field(default="mock", alias="RERANKER_PROVIDER")
     local_reranker_base_url: str = Field(
-        default="http://host.docker.internal:11434",
+        default="http://host.docker.internal:8002",
         alias="LOCAL_RERANKER_BASE_URL",
     )
-    local_reranker_model: str = Field(default="local-reranker-model", alias="LOCAL_RERANKER_MODEL")
+    local_reranker_model: str = Field(default="bge-m3-embedding-reranker", alias="LOCAL_RERANKER_MODEL")
+    local_reranker_allow_fallback: bool = Field(default=True, alias="LOCAL_RERANKER_ALLOW_FALLBACK")
     rerank_top_n: int = Field(default=5, ge=1, le=50, alias="RERANK_TOP_N")
     default_search_mode: str = Field(default="hybrid", alias="DEFAULT_SEARCH_MODE")
     dense_top_k: int = Field(default=20, ge=1, le=100, alias="DENSE_TOP_K")
@@ -154,6 +181,7 @@ class Settings(BaseSettings):
     )
     browser_worker_auth_enabled: bool = Field(default=True, alias="BROWSER_WORKER_AUTH_ENABLED")
     browser_worker_auth_strict: bool = Field(default=False, alias="BROWSER_WORKER_AUTH_STRICT")
+    browser_worker_shared_secret: str = Field(default="", alias="BROWSER_WORKER_SHARED_SECRET")
     browser_allowed_domains: str = Field(default="example.com,localhost,127.0.0.1", alias="BROWSER_ALLOWED_DOMAINS")
     browser_blocked_domains: str = Field(default="", alias="BROWSER_BLOCKED_DOMAINS")
     browser_allow_external_domains: bool = Field(default=False, alias="BROWSER_ALLOW_EXTERNAL_DOMAINS")
@@ -196,6 +224,10 @@ class Settings(BaseSettings):
     openclaw_provider: str = Field(default="mock", alias="OPENCLAW_PROVIDER")
     openclaw_enabled: bool = Field(default=True, alias="OPENCLAW_ENABLED")
     openclaw_action_timeout_seconds: float = Field(default=60.0, ge=1.0, le=600.0, alias="OPENCLAW_ACTION_TIMEOUT_SECONDS")
+    worker_client_openclaw_enabled: bool = Field(default=True, alias="WORKER_CLIENT_OPENCLAW_ENABLED")
+    worker_client_openclaw_provider: str = Field(default="mock", alias="WORKER_CLIENT_OPENCLAW_PROVIDER")
+    worker_client_openclaw_base_url: str = Field(default="", alias="WORKER_CLIENT_OPENCLAW_BASE_URL")
+    worker_client_openclaw_api_key: str = Field(default="", alias="WORKER_CLIENT_OPENCLAW_API_KEY")
     comfyui_runtime_provider: str = Field(default="disabled", alias="COMFYUI_RUNTIME_PROVIDER")
     comfyui_runtime_enabled: bool = Field(default=False, alias="COMFYUI_RUNTIME_ENABLED")
     comfyui_runtime_base_url: str = Field(default="http://127.0.0.1:8188", alias="COMFYUI_RUNTIME_BASE_URL")
@@ -236,6 +268,434 @@ class Settings(BaseSettings):
     digital_human_output_dir: str = Field(default="storage/digital_human_outputs", alias="DIGITAL_HUMAN_OUTPUT_DIR")
     digital_human_default_voice_id: str = Field(default="zh-CN-default", alias="DIGITAL_HUMAN_DEFAULT_VOICE_ID")
     digital_human_default_aspect_ratio: str = Field(default="9:16", alias="DIGITAL_HUMAN_DEFAULT_ASPECT_RATIO")
+    operation_planning_multimodal_enabled: bool = Field(
+        default=True,
+        alias="OPERATION_PLANNING_MULTIMODAL_ENABLED",
+    )
+    operation_planning_llm_model: str = Field(default="", alias="OPERATION_PLANNING_LLM_MODEL")
+    operation_planning_vlm_provider: str = Field(default="comfyui_cu130", alias="OPERATION_PLANNING_VLM_PROVIDER")
+    operation_planning_vlm_model: str = Field(
+        default="qwen_2.5_vl_7b_fp8_scaled",
+        alias="OPERATION_PLANNING_VLM_MODEL",
+    )
+    operation_planning_video_analysis_enabled: bool = Field(
+        default=True,
+        alias="OPERATION_PLANNING_VIDEO_ANALYSIS_ENABLED",
+    )
+    operation_planning_image_generation_provider: str = Field(
+        default="comfyui_cu130",
+        alias="OPERATION_PLANNING_IMAGE_GENERATION_PROVIDER",
+    )
+    operation_planning_image_generation_model: str = Field(
+        default="Qwen-Image-Edit-2511-Q6_K",
+        alias="OPERATION_PLANNING_IMAGE_GENERATION_MODEL",
+    )
+    operation_planning_data_analysis_model: str = Field(
+        default="",
+        alias="OPERATION_PLANNING_DATA_ANALYSIS_MODEL",
+    )
+    operation_planning_use_video_agent_workflows: bool = Field(
+        default=True,
+        alias="OPERATION_PLANNING_USE_VIDEO_AGENT_WORKFLOWS",
+    )
+    codex_global_controller_enabled: bool = Field(default=True, alias="CODEX_GLOBAL_CONTROLLER_ENABLED")
+    codex_global_controller_provider: str = Field(default="codex", alias="CODEX_GLOBAL_CONTROLLER_PROVIDER")
+    codex_global_controller_mode: str = Field(default="supervise_and_route", alias="CODEX_GLOBAL_CONTROLLER_MODE")
+    codex_global_controller_model: str = Field(default="gpt-5-codex", alias="CODEX_GLOBAL_CONTROLLER_MODEL")
+    codex_global_controller_scope: str = Field(
+        default="planning,knowledge,video_analysis,image_generation,production,approval,publish,feedback",
+        alias="CODEX_GLOBAL_CONTROLLER_SCOPE",
+    )
+    codex_global_controller_requires_human_approval: bool = Field(
+        default=True,
+        alias="CODEX_GLOBAL_CONTROLLER_REQUIRES_HUMAN_APPROVAL",
+    )
+
+    @property
+    def is_production_env(self) -> bool:
+        """Return true for runtime environments that should use production guardrails."""
+
+        return self.app_env.strip().lower() in {"production", "prod"}
+
+    def production_config_findings(self, *, require_production: bool = False) -> list[dict[str, str]]:
+        """Return sanitized production configuration findings.
+
+        The findings never include secret values. Errors are blocking for a formal
+        production server; warnings identify runtime gaps that need operational
+        confirmation or a follow-up capability check.
+        """
+
+        findings: list[dict[str, str]] = []
+
+        def add(severity: str, key: str, message: str, expected: str, actual: str) -> None:
+            findings.append(
+                {
+                    "severity": severity,
+                    "key": key,
+                    "message": message,
+                    "expected": expected,
+                    "actual": actual,
+                }
+            )
+
+        if not self.is_production_env:
+            if require_production:
+                add(
+                    "error",
+                    "APP_ENV",
+                    "Production server checks require APP_ENV=production.",
+                    "production",
+                    self._safe_actual(self.app_env),
+                )
+            return findings
+
+        if not self.production_config_strict:
+            add(
+                "warning",
+                "PRODUCTION_CONFIG_STRICT",
+                "Startup will not fail when production findings exist.",
+                "true after all blocking findings are fixed",
+                "false",
+            )
+
+        for key, value in (
+            ("POSTGRES_PASSWORD", self.postgres_password),
+            ("REDIS_PASSWORD", self.redis_password),
+            ("QDRANT_API_KEY", self.qdrant_api_key),
+        ):
+            state = self._secret_state(value)
+            if state != "<set>":
+                add("error", key, "Secret value is missing or still uses a placeholder.", "non-placeholder secret", state)
+
+        self._check_provider(findings, "LLM_PROVIDER", self.llm_provider, {"local", "server"})
+        if self.llm_provider.strip().lower() == "local":
+            self._check_required_text(findings, "LOCAL_LLM_BASE_URL", self.local_llm_base_url, "local LLM base URL")
+            self._check_required_text(findings, "LOCAL_LLM_MODEL", self.local_llm_model, "local LLM model name")
+        if self.llm_provider.strip().lower() == "server":
+            self._check_required_text(findings, "SERVER_LLM_BASE_URL", self.server_llm_base_url, "server LLM base URL")
+            self._check_required_text(findings, "SERVER_LLM_MODEL", self.server_llm_model, "server LLM model name")
+
+        self._check_provider(findings, "EMBEDDING_PROVIDER", self.embedding_provider, {"local"})
+        if self.embedding_provider.strip().lower() == "local":
+            self._check_required_text(findings, "LOCAL_EMBEDDING_BASE_URL", self.local_embedding_base_url, "local embedding base URL")
+            self._check_required_text(findings, "LOCAL_EMBEDDING_MODEL", self.local_embedding_model, "local embedding model name")
+
+        self._check_provider(findings, "RERANKER_PROVIDER", self.reranker_provider, {"local"})
+        if self.reranker_provider.strip().lower() == "local":
+            self._check_required_text(findings, "LOCAL_RERANKER_BASE_URL", self.local_reranker_base_url, "local reranker base URL")
+            self._check_required_text(findings, "LOCAL_RERANKER_MODEL", self.local_reranker_model, "local reranker model name")
+            if self.local_reranker_allow_fallback:
+                add(
+                    "error",
+                    "LOCAL_RERANKER_ALLOW_FALLBACK",
+                    "Production local reranker must fail closed instead of silently falling back to mock scores.",
+                    "false",
+                    "true",
+                )
+            if self.local_reranker_model.strip().lower() == "local-reranker-model":
+                add(
+                    "warning",
+                    "LOCAL_RERANKER_MODEL",
+                    "Default reranker model name is still in use; confirm a real reranker service is deployed.",
+                    "real reranker model name",
+                    self.local_reranker_model,
+                )
+
+        browser_provider = self.browser_provider.strip().lower()
+        if browser_provider not in {"remote", "playwright_local"}:
+            add(
+                "error",
+                "BROWSER_PROVIDER",
+                "Browser automation provider is not a formal execution provider.",
+                "remote or playwright_local",
+                self._safe_actual(self.browser_provider),
+            )
+        if browser_provider == "playwright":
+            add(
+                "error",
+                "BROWSER_PROVIDER",
+                "The playwright provider is a placeholder; use playwright_local or remote.",
+                "remote or playwright_local",
+                "playwright",
+            )
+
+        if self.browser_worker_auth_enabled and not self.browser_worker_auth_strict:
+            add(
+                "error",
+                "BROWSER_WORKER_AUTH_STRICT",
+                "Worker authentication is enabled but not strict.",
+                "true",
+                "false",
+            )
+        if browser_provider == "remote" and self.browser_worker_auth_strict:
+            state = self._secret_state(self.browser_worker_shared_secret)
+            if state != "<set>":
+                add(
+                    "error",
+                    "BROWSER_WORKER_SHARED_SECRET",
+                    "Remote browser provider with strict worker signing requires a server-side shared secret for restart-safe request signing.",
+                    "non-placeholder secret",
+                    state,
+                )
+
+        browser_domains = self.browser_allowed_domain_set
+        if self.browser_allow_external_domains:
+            add(
+                "warning",
+                "BROWSER_ALLOW_EXTERNAL_DOMAINS",
+                "External browser targets are globally allowed; production should prefer an explicit allowlist.",
+                "false with explicit BROWSER_ALLOWED_DOMAINS",
+                "true",
+            )
+        elif not browser_domains:
+            add("error", "BROWSER_ALLOWED_DOMAINS", "Browser external-domain policy has no allowlist.", "explicit domain allowlist", "<empty>")
+        elif "example.com" in browser_domains:
+            add(
+                "error",
+                "BROWSER_ALLOWED_DOMAINS",
+                "The default example.com placeholder remains in the browser domain allowlist.",
+                "real social/media/customer domains only",
+                self._safe_actual(self.browser_allowed_domains),
+            )
+
+        origins = self.cors_allowed_origin_list
+        if not origins:
+            add("error", "CORS_ALLOWED_ORIGINS", "No CORS origins are configured.", "explicit client origins", "<empty>")
+        if "*" in origins:
+            add("error", "CORS_ALLOWED_ORIGINS", "Wildcard CORS is not allowed for production.", "explicit client origins", "*")
+        local_origins = [origin for origin in origins if "localhost" in origin or "127.0.0.1" in origin or origin.startswith("tauri://")]
+        if local_origins:
+            add(
+                "warning",
+                "CORS_ALLOWED_ORIGINS",
+                "Localhost/Tauri origins are configured in production; confirm this server only serves trusted local clients.",
+                "explicit deployed client origins",
+                ",".join(local_origins),
+            )
+
+        if self.openclaw_enabled and self.openclaw_provider.strip().lower() in {"", "mock", "disabled"}:
+            add(
+                "error",
+                "OPENCLAW_PROVIDER",
+                "OpenClaw is enabled but still labeled as mock/disabled.",
+                "worker runtime provider label",
+                self._safe_actual(self.openclaw_provider),
+            )
+        if self.openclaw_enabled:
+            worker_provider = self.worker_client_openclaw_provider.strip().lower()
+            if not self.worker_client_openclaw_enabled:
+                add(
+                    "error",
+                    "WORKER_CLIENT_OPENCLAW_ENABLED",
+                    "Server OpenClaw is enabled but the customer-machine OpenClaw provider is disabled.",
+                    "true",
+                    "false",
+                )
+            if worker_provider in {"", "mock", "disabled"}:
+                add(
+                    "error",
+                    "WORKER_CLIENT_OPENCLAW_PROVIDER",
+                    "Customer-machine OpenClaw provider is still mock/disabled.",
+                    "openclaw_http or another real provider",
+                    self._safe_actual(self.worker_client_openclaw_provider),
+                )
+            if worker_provider in {"openclaw_http", "http", "openclaw"}:
+                if not self.worker_client_openclaw_base_url.strip():
+                    add(
+                        "error",
+                        "WORKER_CLIENT_OPENCLAW_BASE_URL",
+                        "Real customer-machine OpenClaw HTTP provider requires an adapter base URL.",
+                        "real OpenClaw adapter base URL",
+                        "<empty>",
+                    )
+                if self._secret_state(self.worker_client_openclaw_api_key) != "<set>":
+                    add(
+                        "error",
+                        "WORKER_CLIENT_OPENCLAW_API_KEY",
+                        "Real customer-machine OpenClaw HTTP provider must not expose an unauthenticated control endpoint.",
+                        "non-placeholder adapter API key",
+                        self._secret_state(self.worker_client_openclaw_api_key),
+                    )
+
+        self._check_comfyui_runtime(findings)
+
+        if self.digital_human_enabled:
+            provider = self.digital_human_provider.strip().lower()
+            if provider in {"", "mock", "disabled"}:
+                add(
+                    "error",
+                    "DIGITAL_HUMAN_PROVIDER",
+                    "Digital human execution is enabled but provider is not formal.",
+                    "local_musetalk_liveportrait or another real provider",
+                    self._safe_actual(self.digital_human_provider),
+                )
+            if self.digital_human_allow_external_api:
+                add(
+                    "warning",
+                    "DIGITAL_HUMAN_ALLOW_EXTERNAL_API",
+                    "External digital-human APIs are allowed; confirm vendor security and cost controls.",
+                    "false unless explicitly approved",
+                    "true",
+                )
+
+        return findings
+
+    def raise_for_production_config(self) -> None:
+        """Raise when strict production validation has blocking findings."""
+
+        findings = self.production_config_findings()
+        errors = [item for item in findings if item.get("severity") == "error"]
+        if errors:
+            raise ProductionConfigError(errors)
+
+    def _check_comfyui_runtime(self, findings: list[dict[str, str]]) -> None:
+        if not self.comfyui_runtime_enabled:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": "COMFYUI_RUNTIME_ENABLED",
+                    "message": "ComfyUI runtime is disabled; production generation cannot submit workflows.",
+                    "expected": "true",
+                    "actual": "false",
+                }
+            )
+            return
+
+        provider = self.comfyui_runtime_provider.strip().lower()
+        if provider in {"", "disabled", "mock"}:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": "COMFYUI_RUNTIME_PROVIDER",
+                    "message": "ComfyUI runtime provider is not formal.",
+                    "expected": "guarded",
+                    "actual": self._safe_actual(self.comfyui_runtime_provider),
+                }
+            )
+        elif provider != "guarded":
+            findings.append(
+                {
+                    "severity": "warning",
+                    "key": "COMFYUI_RUNTIME_PROVIDER",
+                    "message": "ComfyUI provider is not the guarded runtime; confirm network and path protections.",
+                    "expected": "guarded",
+                    "actual": self._safe_actual(self.comfyui_runtime_provider),
+                }
+            )
+
+        self._check_required_text(findings, "COMFYUI_RUNTIME_BASE_URL", self.comfyui_runtime_base_url, "ComfyUI base URL")
+        if not self.comfyui_runtime_allow_network:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": "COMFYUI_RUNTIME_ALLOW_NETWORK",
+                    "message": "ComfyUI network access is disabled while runtime generation is enabled.",
+                    "expected": "true",
+                    "actual": "false",
+                }
+            )
+        if not self.comfyui_runtime_prompt_submission_enabled:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": "COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED",
+                    "message": "ComfyUI prompt submission is disabled; workflows cannot produce generation output.",
+                    "expected": "true",
+                    "actual": "false",
+                }
+            )
+        if not self.comfyui_runtime_allowed_host_set:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": "COMFYUI_RUNTIME_ALLOWED_HOSTS",
+                    "message": "ComfyUI runtime host allowlist is empty.",
+                    "expected": "ComfyUI host allowlist",
+                    "actual": "<empty>",
+                }
+            )
+        else:
+            host = (urlparse(self.comfyui_runtime_base_url).hostname or "").lower()
+            if host and host not in self.comfyui_runtime_allowed_host_set:
+                findings.append(
+                    {
+                        "severity": "error",
+                        "key": "COMFYUI_RUNTIME_ALLOWED_HOSTS",
+                        "message": "ComfyUI base URL host is not in the runtime allowlist.",
+                        "expected": host,
+                        "actual": self._safe_actual(self.comfyui_runtime_allowed_hosts),
+                    }
+                )
+
+        required_execution_paths = {"/prompt", "/history", "/queue"}
+        missing_paths = sorted(required_execution_paths - self.comfyui_runtime_allowed_execution_path_set)
+        if missing_paths:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": "COMFYUI_RUNTIME_ALLOWED_EXECUTION_PATHS",
+                    "message": "ComfyUI execution path allowlist is missing required workflow paths.",
+                    "expected": ",".join(sorted(required_execution_paths)),
+                    "actual": ",".join(missing_paths),
+                }
+            )
+
+    @classmethod
+    def _check_provider(cls, findings: list[dict[str, str]], key: str, value: str, allowed: set[str]) -> None:
+        provider = value.strip().lower()
+        if provider not in allowed:
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": key,
+                    "message": "Provider is not allowed for formal production configuration.",
+                    "expected": " or ".join(sorted(allowed)),
+                    "actual": cls._safe_actual(value),
+                }
+            )
+
+    @classmethod
+    def _check_required_text(cls, findings: list[dict[str, str]], key: str, value: str, expected: str) -> None:
+        if not value.strip():
+            findings.append(
+                {
+                    "severity": "error",
+                    "key": key,
+                    "message": "Required production setting is empty.",
+                    "expected": expected,
+                    "actual": "<empty>",
+                }
+            )
+
+    @staticmethod
+    def _safe_actual(value: str) -> str:
+        return value.strip() if value and value.strip() else "<empty>"
+
+    @staticmethod
+    def _secret_state(value: str) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            return "<empty>"
+        lowered = cleaned.lower()
+        placeholders = {
+            "change_me",
+            "changeme",
+            "change-me",
+            "replace_me",
+            "replace-me",
+            "replace_with_secret",
+            "replace_with_secret_outside_git",
+            "replace_with_real_secret",
+            "replace_with_real_secret_outside_git",
+            "password",
+            "secret",
+            "default",
+        }
+        if lowered in placeholders or lowered.startswith("replace_") or "placeholder" in lowered:
+            return "<placeholder>"
+        if len(cleaned) < 16:
+            return "<too-short>"
+        return "<set>"
 
     @property
     def browser_allowed_domain_set(self) -> set[str]:
@@ -335,8 +795,13 @@ def get_settings() -> Settings:
     try:
         # 配置对象缓存后可被全局复用，避免重复解析环境变量。
         settings = Settings()
+        if settings.production_config_strict:
+            settings.raise_for_production_config()
         logger.info("Settings loaded", extra={"app_env": settings.app_env})
         return settings
+    except ProductionConfigError:
+        logger.exception("Production configuration validation failed")
+        raise
     except ValidationError as exc:
         logger.exception("Configuration validation failed")
         raise RuntimeError("Application configuration is invalid") from exc

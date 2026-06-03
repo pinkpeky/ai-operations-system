@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
 import pytest
 
 from worker_client.config import WorkerClientConfig, WorkerClientState, save_worker_state
-from worker_client.heartbeat import send_heartbeat_once
+from worker_client.heartbeat import WorkerHeartbeatResult, heartbeat_loop, send_heartbeat_once
 
 
 @pytest.mark.asyncio
@@ -54,4 +55,40 @@ async def test_worker_client_heartbeat_sends_secret_and_signature(tmp_path) -> N
 
     assert result.success is True
     assert result.auth_status == "verified"
+
+
+@pytest.mark.asyncio
+async def test_worker_client_heartbeat_loop_marks_running_status(monkeypatch) -> None:
+    updates: list[dict[str, object]] = []
+    stop_event = asyncio.Event()
+    config = WorkerClientConfig(
+        server_url="http://ai-server.test",
+        worker_name="worker",
+        worker_type="playwright",
+        workspace_id="workspace-a",
+        heartbeat_interval_seconds=1,
+    )
+
+    async def fake_send_heartbeat_once(config, *, status="online"):  # type: ignore[no-untyped-def]
+        stop_event.set()
+        return WorkerHeartbeatResult(
+            success=True,
+            status_code=200,
+            worker_id="worker-123",
+            auth_status="verified",
+            response={"id": "worker-123"},
+        )
+
+    def fake_update_status(payload):  # type: ignore[no-untyped-def]
+        updates.append(dict(payload))
+        return payload
+
+    monkeypatch.setattr("worker_client.heartbeat.send_heartbeat_once", fake_send_heartbeat_once)
+    monkeypatch.setattr("worker_client.heartbeat.update_status", fake_update_status)
+
+    await heartbeat_loop(config, stop_event=stop_event)
+
+    assert updates[0]["heartbeat_running"] is True
+    assert [payload.get("heartbeat_running") for payload in updates].count(True) >= 2
+    assert updates[-1]["heartbeat_running"] is False
 

@@ -54,9 +54,14 @@ export type BrowserRuntimeReplay = {
   created_at: string;
 };
 
-const API_BASE = (import.meta.env.VITE_AI_SERVER_API ?? "http://localhost:8000/api/v1").replace(/\/$/, "");
-const WORKSPACE_ID = import.meta.env.VITE_WORKSPACE_ID ?? "demo-workspace";
-const USER_ID = import.meta.env.VITE_USER_ID ?? "demo-user";
+function normalizeApiBase(rawBase: string): string {
+  const trimmed = rawBase.replace(/\/$/, "");
+  return trimmed.endsWith("/api/v1") ? trimmed : `${trimmed}/api/v1`;
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_AI_SERVER_API ?? "http://127.0.0.1:8000");
+const WORKSPACE_ID = import.meta.env.VITE_WORKSPACE_ID ?? "production-workspace";
+const USER_ID = import.meta.env.VITE_USER_ID ?? "production-operator";
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

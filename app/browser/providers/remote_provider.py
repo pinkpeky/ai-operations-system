@@ -248,7 +248,7 @@ class RemoteBrowserProvider:
             action_timeout_seconds=self.settings.browser_action_timeout_seconds,
             retry_backoff_seconds=self.settings.browser_action_retry_backoff_seconds,
             worker_id=str(worker.id),
-            worker_secret=BrowserWorkerAuthService.get_cached_secret(worker.id),
+            worker_secret=BrowserWorkerAuthService.get_cached_secret(worker.id) or self.settings.browser_worker_shared_secret,
         )
 
     def _safe_name(self, value: str) -> str:

@@ -62,6 +62,93 @@ class CommercialOperationRiskLevel(StrEnum):
     HIGH = "high"
 
 
+class CommercialOperationPlanStatus(StrEnum):
+    """First-class operation plan lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationProjectMaterialStatus(StrEnum):
+    """Project material lifecycle status."""
+
+    AVAILABLE = "available"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationProductionTaskStatus(StrEnum):
+    """Project production task lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
+    COMPLETED = "completed"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationWorkflowSelectionStatus(StrEnum):
+    """Workflow selection lifecycle status."""
+
+    RECOMMENDED = "recommended"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationOutputCandidateStatus(StrEnum):
+    """Candidate output lifecycle status."""
+
+    GENERATED = "generated"
+    READY_FOR_REVIEW = "ready_for_review"
+    SELECTED = "selected"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationFinalSelectionStatus(StrEnum):
+    """Final output selection lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationPublishPackageStatus(StrEnum):
+    """Publish package lifecycle status."""
+
+    DRAFT = "draft"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    PREPARED = "prepared"
+    PUBLISHED = "published"
+    REJECTED = "rejected"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
+class CommercialOperationPlatformMetricSnapshotStatus(StrEnum):
+    """Platform metric snapshot lifecycle status."""
+
+    DRAFT = "draft"
+    COLLECTED = "collected"
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
 class CommercialOperationLinkType(StrEnum):
     """商业运营项目证据与交接关联类型。"""
 

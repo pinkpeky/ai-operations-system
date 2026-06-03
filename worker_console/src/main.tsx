@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   Activity,
@@ -62,16 +62,27 @@ import {
 } from "./api/knowledgeBaseClient";
 import {
   commercialOperationClient,
+  CommercialOperation,
   CommercialOperationApproval,
   CommercialOperationAgentSkillOrchestration,
   CommercialOperationContentDraft,
   CommercialOperationExecutionRequest,
   CommercialOperationExecutionRun,
+  CommercialOperationFinalSelection,
   CommercialOperationLoopStage,
   CommercialOperationLoopSummary,
   CommercialOperationMonitoringObservation,
   CommercialOperationOptimizationDecision,
+  CommercialOperationOutputCandidate,
+  CommercialOperationPlan,
+  CommercialOperationPlanCreatePayload,
+  CommercialOperationPlatformMetricSnapshot,
+  CommercialOperationProductionTask,
+  CommercialOperationProjectMaterial,
+  CommercialOperationPublishPackage,
   CommercialOperationResult,
+  CommercialOperationWorkflowCandidate,
+  CommercialOperationWorkflowSelection,
 } from "./api/commercialOperationClient";
 import { digitalHumanClient, DigitalHumanVideoJob } from "./api/digitalHumanClient";
 import "./styles.css";
@@ -103,6 +114,2513 @@ type ControlAction =
 type ClientLanguage = "zh-CN" | "en-US";
 
 type OperatorPage = "operations" | "knowledge";
+
+type StrictTemplatePage =
+  | "overview"
+  | "planning"
+  | "text"
+  | "media"
+  | "flows"
+  | "outputs"
+  | "publish"
+  | "feedback"
+  | "knowledge"
+  | "assets"
+  | "approval";
+
+type StrictTemplateProject = {
+  id: string;
+  title: string;
+  stage: string;
+  platform: string;
+  owner: string;
+  objective: string;
+};
+
+const strictTemplateSeedProjects: StrictTemplateProject[] = [
+  {
+    id: "shang-ktv-digital-human",
+    title: "上客 KTV 数字人短视频运营",
+    stage: "影音生产",
+    platform: "抖音",
+    owner: "李运营",
+    objective: "围绕本地到店转化，建立每周短视频生产、发布和数据回流闭环。",
+  },
+  {
+    id: "group-dining-campaign",
+    title: "团购套餐图文种草",
+    stage: "方案确认",
+    platform: "抖音 / 小红书",
+    owner: "内容运营",
+    objective: "把包间套餐的浏览兴趣转化为预约咨询和门店到访。",
+  },
+  {
+    id: "summer-activity-publish",
+    title: "暑期包厢活动发布",
+    stage: "发布执行",
+    platform: "抖音",
+    owner: "门店店长",
+    objective: "准备发布包并按日回流播放、互动、转化数据。",
+  },
+];
+
+function StrictOperationTemplateWorkbench() {
+  const [projects, setProjects] = useState(strictTemplateSeedProjects);
+  const [selectedProjectId, setSelectedProjectId] = useState(strictTemplateSeedProjects[0]?.id ?? "");
+  const [page, setPage] = useState<StrictTemplatePage>("overview");
+  const [draftActive, setDraftActive] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("新建运营项目");
+  const [draftGoal, setDraftGoal] = useState("");
+  const [analysisRuns, setAnalysisRuns] = useState(1);
+  const [chatMessages, setChatMessages] = useState([
+    { role: "assistant", text: "我会先调用当前项目知识库，再生成第一版可审核的运营方案。" },
+    { role: "operator", text: "重点关注短视频到店转化，以及每周数据闭环复盘。" },
+    { role: "assistant", text: "方案草稿已拆分：目标、素材需求、脚本方向、影音流程、发布包和回流指标分别进入对应页签。" },
+  ]);
+  const selectedProject = projects.find((item) => item.id === selectedProjectId) ?? projects[0];
+  const hasProject = Boolean(selectedProject || draftActive);
+  const projectTitle = draftActive ? draftTitle : selectedProject?.title ?? "未选择项目";
+  const projectObjective = draftActive ? draftGoal || "填写运营目标后创建项目。" : selectedProject?.objective ?? "请先选择或创建项目。";
+  const templatePages: Array<{ page: StrictTemplatePage; label: string; detail: string; icon: React.ReactNode }> = [
+    { page: "overview", label: "项目总览", detail: String(projects.length), icon: <Package size={14} /> },
+    { page: "planning", label: "方案对话", detail: "LLM", icon: <MessageCircle size={14} /> },
+    { page: "text", label: "文案任务", detail: "4", icon: <FileText size={14} /> },
+    { page: "media", label: "影音生产", detail: "6", icon: <Database size={14} /> },
+    { page: "outputs", label: "产出选择", detail: "8", icon: <Package size={14} /> },
+    { page: "publish", label: "发布执行", detail: "3", icon: <Send size={14} /> },
+    { page: "feedback", label: "数据回流", detail: String(analysisRuns), icon: <Activity size={14} /> },
+  ];
+  const currentPageLabel = templatePages.find((item) => item.page === page)?.label ?? "项目总览";
+  const startDraft = () => {
+    setDraftActive(true);
+    setSelectedProjectId("");
+    setDraftTitle("新建运营项目");
+    setDraftGoal("");
+    setPage("overview");
+  };
+  const createDraftProject = () => {
+    const nextProject: StrictTemplateProject = {
+      id: `project-${Date.now()}`,
+      title: draftTitle.trim() || "新建运营项目",
+      stage: "方案确认",
+      platform: "抖音",
+      owner: "运营负责人",
+      objective: draftGoal.trim() || "先生成完整运营方案并进入审核。",
+    };
+    setProjects((current) => [nextProject, ...current]);
+    setSelectedProjectId(nextProject.id);
+    setDraftActive(false);
+    setPage("planning");
+    setChatMessages((current) => [
+      ...current,
+      { role: "operator", text: nextProject.objective },
+      { role: "assistant", text: "项目已创建。第一版方案可以审核、重新生成，或确认后进入生产执行。" },
+    ]);
+  };
+  const sendPlanMessage = () => {
+    const content = draftGoal.trim() || "基于当前项目知识库重新生成运营方案。";
+    setChatMessages((current) => [
+      ...current,
+      { role: "operator", text: content },
+      { role: "assistant", text: "已更新方案草稿：目标拆解、素材需求、脚本、影音流程、发布门槛和回流排期已准备好。" },
+    ]);
+    setDraftGoal("");
+  };
+  return (
+    <section className="panel chat-panel codex-simple-client" data-simple-workspace-page={page}>
+      <section
+        className="client-task-workbench"
+        data-simple-inner-layout="phase-74e-preview-panels"
+        data-backend-sync="commercial-operations-server"
+        data-template-strict="operation-project-workbench"
+      >
+        <div className="simple-operator-workbench">
+          <aside className="simple-reference-sidebar">
+          <div className="simple-design-sidebar-brand">
+            <span>AI</span>
+            <div>
+              <strong>AI 运营工作台</strong>
+              <small>项目闭环工作台</small>
+            </div>
+          </div>
+          <section className="simple-project-entry">
+            <div className="simple-project-entry-head">
+              <div>
+                <span>项目</span>
+                <strong>{projectTitle}</strong>
+                <p>{draftActive ? "草稿模式" : selectedProject?.stage ?? "选择项目"}</p>
+              </div>
+              <button type="button" className="refresh-button" onClick={startDraft}>
+                <PencilLine size={14} />
+              </button>
+            </div>
+            <div className="simple-project-list">
+              {projects.map((project) => (
+                <article className={`simple-project-option ${project.id === selectedProjectId ? "selected" : ""}`} key={project.id}>
+                  <button
+                    type="button"
+                    className="simple-project-select"
+                    onClick={() => {
+                      setSelectedProjectId(project.id);
+                      setDraftActive(false);
+                      setPage("planning");
+                    }}
+                  >
+                    <strong>{project.title}</strong>
+                    <span>{project.stage}</span>
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
+          <nav className="simple-workspace-page-tabs" aria-label="运营项目页签">
+            {templatePages.map((item) => (
+              <button
+                type="button"
+                className={`simple-workspace-page-tab ${page === item.page ? "active" : ""}`}
+                aria-pressed={page === item.page}
+                disabled={item.page !== "overview" && !hasProject}
+                key={item.page}
+                onClick={() => setPage(item.page)}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+                <small>{item.detail}</small>
+              </button>
+            ))}
+          </nav>
+          <nav className="simple-resource-page-links" aria-label="项目资源">
+            <strong className="simple-sidebar-section-title">运营资源</strong>
+            <button type="button" onClick={() => setPage("planning")}>
+              <Database size={14} />
+              <span>项目知识库</span>
+              <small>6</small>
+            </button>
+            <button type="button" onClick={() => setPage("media")}>
+              <Upload size={14} />
+              <span>素材库</span>
+              <small>12</small>
+            </button>
+            <button type="button" onClick={() => setPage("outputs")}>
+              <CheckCircle2 size={14} />
+              <span>审批中心</span>
+              <small>4</small>
+            </button>
+            <button type="button" onClick={() => setPage("feedback")}>
+              <Activity size={14} />
+              <span>再次分析</span>
+              <small>{analysisRuns}</small>
+            </button>
+          </nav>
+          </aside>
+          <main className="simple-reference-main">
+          <section className="simple-design-topbar">
+            <div className="simple-design-title">
+              <h1>你好，运营同学</h1>
+              <p>项目、方案、知识库、生产、发布和数据回流按页签拆开处理。</p>
+            </div>
+            <label className="simple-design-search">
+              <Search size={16} />
+              <input type="search" placeholder="搜索项目、素材、产出、指标或指令" />
+            </label>
+            <div className="simple-design-avatar">运</div>
+          </section>
+          <section className="simple-design-project-switcher">
+            <div className="simple-design-project-current">
+              <span>当前项目</span>
+              <strong>{projectTitle}</strong>
+              <p>{projectObjective}</p>
+              <div className="simple-design-project-meta">
+                <span><em>阶段</em><strong>{draftActive ? "创建项目" : selectedProject?.stage ?? "无"}</strong></span>
+                <span><em>平台</em><strong>{selectedProject?.platform ?? "抖音"}</strong></span>
+                <span><em>负责人</em><strong>{selectedProject?.owner ?? "运营负责人"}</strong></span>
+                <span><em>知识库</em><strong>随项目走</strong></span>
+              </div>
+            </div>
+            <div className="simple-design-project-actions">
+              <button type="button" className="refresh-button" onClick={() => setPage("overview")}>
+                <Package size={14} />
+                切换
+              </button>
+              <button type="button" className="refresh-button primary-action" onClick={startDraft}>
+                <PencilLine size={14} />
+                新建项目
+              </button>
+            </div>
+          </section>
+          <section className="simple-design-server-sync">
+            <span><Server size={14} /><em>服务器</em><strong>AI 后端平台</strong></span>
+            <span><Database size={14} /><em>工作区</em><strong>网页端 + 桌面端</strong></span>
+            <span><Wifi size={14} /><em>同步状态</em><strong>已同步</strong></span>
+            <span><Activity size={14} /><em>当前页</em><strong>{currentPageLabel}</strong></span>
+          </section>
+          <section className="simple-reference-stage-workspace">
+            <section className="simple-reference-page-panel" data-reference-page="overview">
+              <div className="simple-reference-panel-head">
+                <div>
+                  <span>项目总览</span>
+                  <h2>选择、创建或查看运营项目</h2>
+                  <p>这里专门处理项目切换、新建和状态查看；具体执行内容分散在后续页签。</p>
+                </div>
+                <div className="simple-reference-head-actions">
+                  <button type="button" className="refresh-button primary-action" onClick={startDraft}><PencilLine size={14} />新建项目</button>
+                </div>
+              </div>
+              {draftActive ? (
+                <section className="simple-reference-create-project">
+                  <div className="simple-reference-create-main">
+                    <span>创建项目</span>
+                    <strong>补充上下文并生成第一版方案</strong>
+                    <label>项目名称<input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} /></label>
+                    <label>运营目标<textarea value={draftGoal} onChange={(event) => setDraftGoal(event.target.value)} rows={4} /></label>
+                    <div className="simple-reference-create-actions">
+                      <button type="button" className="refresh-button primary-action" onClick={createDraftProject}><Send size={14} />创建并生成方案</button>
+                      <button type="button" className="refresh-button" onClick={() => setPage("planning")}><MessageCircle size={14} />打开方案对话</button>
+                    </div>
+                  </div>
+                  <aside className="simple-reference-create-side">
+                    <article><span>知识库范围</span><strong>随项目走</strong><p>知识库、素材、发布凭证和指标数据都归属当前项目。</p></article>
+                  </aside>
+                </section>
+              ) : null}
+              <div className="simple-reference-project-grid">
+                {projects.map((project) => (
+                  <article className={`simple-reference-project-card ${project.id === selectedProjectId ? "active" : ""}`} key={project.id}>
+                    <div><span>{project.stage}</span><strong>{project.title}</strong><p>{project.objective}</p><small>{project.platform}</small></div>
+                    <div className="simple-reference-card-actions">
+                      <button type="button" className="refresh-button primary-action" onClick={() => { setSelectedProjectId(project.id); setDraftActive(false); setPage("planning"); }}><PlayCircle size={14} />进入</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section className="simple-reference-page-panel" data-reference-page="planning">
+              <div className="simple-reference-panel-head"><div><span>方案对话</span><h2>用于运营方案生成的大型 LLM 对话框</h2><p>方案页以对话为主，右侧保留当前项目知识库和审核状态。</p></div></div>
+              {draftActive ? (
+                <section className="simple-reference-create-project compact">
+                  <div className="simple-reference-create-main">
+                    <span>新项目草稿</span>
+                    <strong>补全目标后创建项目</strong>
+                    <div className="simple-reference-create-inline">
+                      <label>项目名称<input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} /></label>
+                      <label>平台<select><option>抖音</option><option>小红书</option></select></label>
+                    </div>
+                  </div>
+                  <aside className="simple-reference-create-side"><article><span>知识库范围</span><strong>归入草稿项目</strong><p>现在添加的资料会在项目创建后自动绑定到该项目。</p></article></aside>
+                </section>
+              ) : null}
+              <div className="simple-reference-planning-chat">
+                <section className="simple-reference-chat-surface">
+                  <div className="simple-reference-chat-head"><strong>{projectTitle}</strong><span>{chatMessages.length} 条消息</span></div>
+                  <div className="simple-reference-chat-messages">
+                    {chatMessages.map((message, index) => <article className={`simple-reference-chat-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "assistant" ? "运营助手" : "操作员"}</span><p>{message.text}</p></article>)}
+                  </div>
+                  <div className="simple-reference-chat-compose">
+                    <textarea value={draftGoal} onChange={(event) => setDraftGoal(event.target.value)} placeholder="告诉 LLM 需要生成或修改什么运营方案。" rows={3} />
+                    <button type="button" className="action-button primary-action" onClick={draftActive ? createDraftProject : sendPlanMessage}><Send size={16} />{draftActive ? "创建项目" : "发送"}</button>
+                  </div>
+                </section>
+                <aside className="simple-reference-context-stack">
+                  <article className="simple-reference-context-card current"><span>项目知识库</span><strong>已绑定 6 条资料</strong><p>品牌限制、门店照片、参考视频、套餐说明和竞品观察都只归属当前项目。</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action"><Upload size={14} />上传</button><button type="button" className="refresh-button"><Search size={14} />检索</button></div></article>
+                  <article className="simple-reference-context-card needs-action"><span>方案审批</span><strong>待审核草稿</strong><p>方案确认后，文案、影音、产出、发布和回流任务才进入正式执行。</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action"><CheckCircle2 size={14} />通过</button><button type="button" className="refresh-button"><RotateCcw size={14} />重生成</button></div></article>
+                </aside>
+              </div>
+            </section>
+            <section className="simple-reference-page-panel" data-reference-page="text"><div className="simple-reference-panel-head"><div><span>文案任务</span><h2>脚本、标题、话术和风险提示</h2><p>文案工作与影音生产、发布执行分开处理。</p></div></div><div className="simple-reference-copy-grid">{["短视频开场钩子", "数字人口播脚本", "套餐发布文案", "风险话术检查"].map((item) => <article className="simple-reference-copy-card current" key={item}><span>待确认</span><strong>{item}</strong><p>已分配给 LLM 文案流程，等待人工审核。</p><small>文案 / 话术</small></article>)}</div></section>
+            <section className="simple-reference-page-panel" data-reference-page="media"><div className="simple-reference-panel-head"><div><span>影音生产</span><h2>素材和 ComfyUI 工作流候选</h2><p>素材与工作流在这里确认，完成后再登记产出。</p></div></div><div className="simple-reference-work-area"><section className="simple-reference-material-grid">{["门店照片", "品牌限制", "参考视频", "音频线索"].map((item) => <article className="simple-reference-material-card current" key={item}><span>素材</span><strong>{item}</strong><p>仅对当前项目生效，已由操作员确认。</p></article>)}</section><aside className="simple-reference-context-stack"><article className="simple-reference-context-card current"><span>工作流候选</span><strong>ComfyUI 短视频流程</strong><p>图片、视频、音频和数字人步骤已准备好进入审核。</p></article></aside></div></section>
+            <section className="simple-reference-page-panel" data-reference-page="outputs"><div className="simple-reference-panel-head"><div><span>产出选择</span><h2>预览并选择生成结果</h2><p>这里仅处理产出登记、预览和人工选择。</p></div></div><div className="simple-reference-review-grid">{["开场海报", "数字人视频", "配音音频", "最终发布文案"].map((item) => <article className="simple-reference-review-card ready" key={item}><div className="simple-reference-output-preview"><Package size={22} /></div><span>候选</span><strong>{item}</strong><p>已准备好等待操作员选择。</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action"><CheckCircle2 size={14} />选择</button><button type="button" className="refresh-button"><XCircle size={14} />驳回</button></div></article>)}</div></section>
+            <section className="simple-reference-page-panel" data-reference-page="publish"><div className="simple-reference-panel-head"><div><span>发布执行</span><h2>发布包和客户机器执行</h2><p>准备标题文案、审核门槛、平台发布包和执行交接。</p></div></div><div className="simple-reference-publish-grid"><section className="simple-reference-publish-list">{["抖音发布包", "标题文案包", "执行凭证请求"].map((item) => <article className="simple-reference-publish-card current" key={item}><span>就绪</span><strong>{item}</strong><p>等待操作员审批并交给客户机器执行。</p><small>#门店 #KTV #数字人</small></article>)}</section><aside className="simple-reference-data-list"><article className="simple-reference-data-card ready"><span>每日分析</span><strong>22:30 定时</strong><p>发布后会拉回数据用于复盘。</p></article></aside></div></section>
+            <section className="simple-reference-page-panel" data-reference-page="feedback"><div className="simple-reference-panel-head"><div><span>数据回流</span><h2>拉回指标并再次分析</h2><p>发布凭证、平台指标、异常检查和下一轮建议都在这里处理。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button primary-action" onClick={() => setAnalysisRuns((value) => value + 1)}><RefreshCcw size={14} />再次分析</button></div></div><div className="simple-reference-feedback-grid">{["发布凭证", "平台指标", "增长建议"].map((item) => <article className="simple-reference-feedback-card current" key={item}><span>{item}</span><strong>第 {analysisRuns} 轮</strong><p>最新回流结果已绑定当前项目，可触发下一轮方案优化。</p></article>)}</div></section>
+          </section>
+          </main>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+type ConnectedWorkbenchSnapshot = {
+  plans: CommercialOperationPlan[];
+  materials: CommercialOperationProjectMaterial[];
+  tasks: CommercialOperationProductionTask[];
+  contentDrafts: CommercialOperationContentDraft[];
+  workflows: CommercialOperationWorkflowSelection[];
+  outputs: CommercialOperationOutputCandidate[];
+  selections: CommercialOperationFinalSelection[];
+  publishPackages: CommercialOperationPublishPackage[];
+  metrics: CommercialOperationPlatformMetricSnapshot[];
+};
+
+const emptyConnectedSnapshot: ConnectedWorkbenchSnapshot = {
+  plans: [],
+  materials: [],
+  tasks: [],
+  contentDrafts: [],
+  workflows: [],
+  outputs: [],
+  selections: [],
+  publishPackages: [],
+  metrics: [],
+};
+
+function operationMetaText(operation: CommercialOperation | null, key: string, fallback: string): string {
+  const value = operation?.metadata?.[key];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function operationStageLabel(operation: CommercialOperation | null): string {
+  if (!operation) return "未选择";
+  if (operation.status === "archived") return "已删除";
+  return operationMetaText(operation, "stage", operation.status === "draft" ? "方案确认" : operation.status);
+}
+
+function operationPlatformLabel(operation: CommercialOperation | null): string {
+  return operation?.channels?.[0] || operationMetaText(operation, "platform", "抖音");
+}
+
+function planFieldLabel(key: string): string {
+  const labels: Record<string, string> = {
+    action: "动作",
+    analysis_label: "分析类型",
+    approval_gate: "审批关口",
+    approval_required: "需要审批",
+    cadence: "节奏",
+    capability: "能力项",
+    chat_prompt: "对话要求",
+    column: "栏目",
+    content_type: "内容类型",
+    conversion_point: "转化动作",
+    current_gap: "当前缺口",
+    day: "时间",
+    deliverable: "交付物",
+    example: "示例",
+    gate: "关口",
+    hook: "开场钩子",
+    material_type: "素材类型",
+    media_subtype: "媒介",
+    metric: "指标",
+    name: "名称",
+    note: "说明",
+    operator_action: "执行动作",
+    output: "产出",
+    owner: "负责人",
+    pattern: "内容结构",
+    playbook: "打法",
+    platform: "平台",
+    reason: "原因",
+    required: "必需",
+    required_action: "需补动作",
+    review_required: "需要复核",
+    rule: "规则",
+    role: "定位",
+    shot_structure: "镜头结构",
+    step: "步骤",
+    task_type: "任务类型",
+    title: "标题",
+    target_value: "目标值",
+    measurement: "统计口径",
+    review_cadence: "复盘频率",
+    trigger: "触发条件",
+    use: "用途",
+    validation: "验证方式",
+    why_it_works: "有效原因",
+    workflow_selection_required: "工作流选择",
+  };
+  return labels[key] ?? key.replace(/_/g, " ");
+}
+
+function planDisplayToken(value: string): string {
+  const labels: Record<string, string> = {
+    authorization: "授权材料",
+    brand_brief: "品牌、门店和转化目标资料",
+    copy: "文案脚本",
+    digital_human: "数字人",
+    image: "图片视觉",
+    media: "影音生产",
+    poster: "海报视觉",
+    script: "文案脚本",
+    video: "短视频",
+  };
+  return (labels[value] ?? value)
+    .replace(/OperationPlan/g, "运营方案")
+    .replace(/Agent/g, "团队");
+}
+
+function planDisplayTitle(plan: CommercialOperationPlan, projectTitle: string, platform: string): string {
+  const genericPattern = new RegExp(`^${platform}运营候选方案 v\\d+$`);
+  if (genericPattern.test(plan.title)) {
+    return `${projectTitle}本地到店转化运营方案 v${plan.plan_version}`;
+  }
+  return plan.title;
+}
+
+function projectRecordStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    approved: "已批准",
+    archived: "已归档",
+    completed: "已完成",
+    draft: "草稿",
+    failed: "失败",
+    in_progress: "执行中",
+    pending: "待处理",
+    ready_for_review: "待审核",
+    rejected: "已驳回",
+  };
+  return labels[status] ?? status.replace(/_/g, " ");
+}
+
+function contentDraftStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    approved: "已批准",
+    archived: "已归档",
+    draft: "草稿",
+    ready_for_review: "待审核",
+    rejected: "已驳回",
+  };
+  return labels[status] ?? status.replace(/_/g, " ");
+}
+
+function commercialRecordTimestamp(record: { id?: string; metadata?: Record<string, unknown>; updated_at?: unknown; created_at?: unknown }): number {
+  const updatedAt = typeof record.updated_at === "string" ? record.updated_at : "";
+  const createdAt = typeof record.created_at === "string" ? record.created_at : "";
+  const metadataCreatedAt = typeof record.metadata?.created_at === "string" ? record.metadata.created_at : "";
+  const metadataGeneratedAt = typeof record.metadata?.generated_at === "string" ? record.metadata.generated_at : "";
+  return Date.parse(updatedAt || createdAt || metadataGeneratedAt || metadataCreatedAt || "") || 0;
+}
+
+function taskBriefText(task: CommercialOperationProductionTask): string {
+  if (task.task_type === "copy") {
+    return "根据已批准运营方案输出短视频开场钩子、脚本、标题、发布文案、评论引导话术和风险提示，完成后进入人工审核。";
+  }
+  return task.brief || "基于项目素材生成可预览的影音候选产出，需先确认素材授权和工作流。";
+}
+
+function fallbackQualifiedCopyBody(plan: CommercialOperationPlan | null, projectTitle: string, platform: string): string {
+  const title = plan?.title || projectTitle;
+  const objective = plan?.objective_summary || "围绕本地到店转化，建立短视频内容、发布和数据回流闭环。";
+  return [
+    `成稿来源：${title}`,
+    `项目目标：${objective}`,
+    "",
+    "短视频 1：周末朋友局怎么订更划算",
+    "标题：周末 KTV 朋友局，不踩坑的订包厢方法",
+    "封面文案：人均预算 / 包厢氛围 / 到店预约",
+    "开场 3 秒：周末想约朋友唱歌，别只看价格，先看这三个点。",
+    "分镜与口播：",
+    "1. 门店/包厢实拍：先看包厢大小和音响氛围，适合 4 到 8 人朋友局。",
+    "2. 套餐说明：把团购套餐、人均预算和可用时段讲清楚，避免到店临时加价误解。",
+    "3. 转化安排：想订周末晚场，点团购或私信人数和时间，门店先帮你确认档期。",
+    "发布正文：周末朋友局想唱得尽兴，先确认人数、预算和时段。我们整理了适合朋友聚会的包厢和套餐，私信人数+日期可先查档期。",
+    "评论引导：你们一般几个人唱 K？我帮你按人数推荐包厢。",
+    "CTA：私信“周末+人数”获取可订时段。",
+    "",
+    "短视频 2：生日包厢真实体验",
+    "标题：生日局想有氛围，可以这样选 KTV 包厢",
+    "封面文案：生日聚会 / 氛围实拍 / 套餐预约",
+    "开场 3 秒：生日聚会别只订房间，氛围、人数和套餐都要提前确认。",
+    "分镜与口播：",
+    "1. 包厢实拍：展示灯光、沙发、屏幕和可容纳人数，说明适合生日/聚会场景。",
+    "2. 体验说明：朋友到齐后，唱歌、拍照、切蛋糕动线都要顺。",
+    "3. 转化安排：生日局建议提前预约晚间黄金时段，避免临时无房。",
+    "发布正文：生日聚会想省心，建议提前确认包厢人数、到店时间和套餐内容。门店可按人数推荐合适包厢，发布前所有图片均为门店实拍或授权素材。",
+    "评论引导：生日局一般几个人？评论人数，我给你一个包厢建议。",
+    "CTA：私信“生日+人数+日期”查可预约包厢。",
+    "",
+    "短视频 3：下班后本地放松路线",
+    "标题：下班后想放松，本地 KTV 晚场这样安排",
+    "封面文案：下班放松 / 本地到店 / 晚场预约",
+    "开场 3 秒：下班后想找个地方放松，不一定要复杂，约上朋友唱两小时刚好。",
+    "分镜与口播：",
+    "1. 商圈/门店外观：说明位置和适合下班后到店的人群。",
+    "2. 包厢氛围：展示真实空间，不使用未授权人物正脸或夸大效果。",
+    "3. 转化安排：晚间时段建议先私信确认包厢和团购使用规则。",
+    "发布正文：下班后想放松，可以提前确认晚场包厢和团购规则。适合朋友小聚、生日局和周末活动，具体价格和可用时段以门店确认为准。",
+    "评论引导：你更喜欢工作日晚上唱，还是周末唱？",
+    "CTA：私信“晚场”获取今日可订时段。",
+    "",
+    "统一风险检查：",
+    `1. 发布平台：${platform}；发布前人工确认标题、正文、话题和 CTA。`,
+    "2. 素材必须来自门店实拍、品牌资料或已授权素材；人物、音乐、商标和参考视频不可无授权使用。",
+    "3. 不承诺固定低价、固定房态或绝对转化；套餐价格、可用时段和活动内容以门店实时确认为准。",
+    "4. 每条发布后回流播放、互动、私信咨询、团购/预约数据，用于下一轮优化。",
+  ].join("\n");
+}
+
+function taskDeliverables(task: CommercialOperationProductionTask): string[] {
+  if (task.task_type === "copy") {
+    return ["短视频脚本", "标题与封面文案", "团购/预约 CTA", "评论区互动话术", "平台合规风险提示"];
+  }
+  return ["素材授权确认", "工作流选择", "候选预览", "人工审批"];
+}
+
+function copyReviewSections(task: CommercialOperationProductionTask, plan: CommercialOperationPlan | null) {
+  const strategy = plan?.content_strategy ?? {};
+  const topicItems = planContentItems(strategy, ["sample_topics", "creative_examples"], "根据当前方案生成 3 条短视频脚本候选。");
+  const titleItems = planContentItems(strategy, ["content_pillars", "content_columns"], "围绕本地到店、套餐种草和门店体验生成标题与封面文案。");
+  const ctaItems = planContentItems(strategy, ["conversion_path", "content_pillars"], "每条内容必须绑定团购、预约、私信咨询或到店转化动作。");
+  const riskItems = [
+    ...planContentItems(strategy, ["approval_gates", "risk_controls", "compliance_checks"], "发布前检查素材授权、价格表达、平台规则和人工审批。"),
+    plan?.risk_notes || task.reviewer_notes || "素材授权、平台合规、发布节奏和转化口径需要人工复核。",
+  ].filter(Boolean);
+  return [
+    { title: "脚本方向", items: topicItems },
+    { title: "标题与封面文案", items: titleItems },
+    { title: "CTA 与互动话术", items: ctaItems },
+    { title: "风险提示", items: riskItems },
+  ];
+}
+
+function planValueText(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "待补充";
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (typeof value === "string") return planDisplayToken(value);
+  if (typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map((item) => planValueText(item)).filter(Boolean).join("；");
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const label = typeof record.label === "string" ? record.label.trim() : "";
+    const detail = typeof record.detail === "string" ? record.detail.trim() : "";
+    if (label || detail) {
+      if (label === "抓取状态" && /来源\s*0\s*条/.test(detail)) {
+        return "历史抓取状态：旧方案生成时未获得可信来源；点击修改当前方案后会重新抓取搜索结果、平台公开资料和案例参考。";
+      }
+      return [label, detail].filter(Boolean).join("：");
+    }
+    const sourceTitle = typeof record.title === "string" ? record.title.trim() : "";
+    const sourceUrl = typeof record.url === "string" ? record.url.trim() : "";
+    const sourceSnippet = typeof record.snippet === "string" ? record.snippet.trim() : "";
+    if (sourceUrl || sourceSnippet) {
+      return [sourceTitle || "外部来源", sourceUrl, sourceSnippet].filter(Boolean).join(" | ");
+    }
+    const sourceNote = typeof record.note === "string" ? record.note.trim() : "";
+    if (sourceTitle && sourceNote) return `${sourceTitle}：${sourceNote}`;
+    if (typeof record.name === "string" && (record.target_value || record.measurement || record.review_cadence)) {
+      const cadenceText = planDisplayToken(String(record.review_cadence || ""));
+      return [
+        `${planDisplayToken(record.name)}：目标 ${planDisplayToken(String(record.target_value || "按首周基线提升"))}`,
+        record.measurement ? `统计口径为 ${planDisplayToken(String(record.measurement))}` : "",
+        cadenceText ? (cadenceText.includes("复盘") ? cadenceText : `${cadenceText}复盘`) : "",
+        record.review_required ? "审批时需复核口径" : "",
+      ].filter(Boolean).join("；");
+    }
+    if (
+      (typeof record.name === "string" && (record.action || record.deliverable))
+      || (typeof record.column === "string" && (record.example || record.conversion_point))
+      || (typeof record.title === "string" && (record.hook || record.output))
+      || (typeof record.day === "string" && record.action)
+      || (typeof record.step === "string" && (record.gate || record.output))
+      || (typeof record.gate === "string" && (record.rule || record.owner))
+      || (typeof record.metric === "string" && record.use)
+      || (typeof record.task_type === "string" && (record.title || record.media_subtype || record.workflow_selection_required || record.approval_required))
+      || (typeof record.material_type === "string" && (record.note || record.required))
+      || (typeof record.platform === "string" && (record.role || record.reason || record.cadence || record.approval_gate))
+    ) {
+      const title = planRecordTitle(record, "方案条目");
+      const detailText = planRecordDetail(record);
+      return [title, detailText].filter(Boolean).join("：");
+    }
+    if (typeof record.pattern === "string" || typeof record.playbook === "string" || typeof record.capability === "string") {
+      const title = planRecordTitle(record, "运营分析");
+      const detailText = planRecordDetail(record);
+      return [title, detailText].filter(Boolean).join("：");
+    }
+    if (typeof record.metric === "string" && (record.purpose || record.source || record.stage)) {
+      return `${planDisplayToken(record.metric)}：${planRecordDetail(record)}`;
+    }
+    const gpuMode = typeof record.mode === "string" ? record.mode.trim() : "";
+    if (gpuMode || record.recommended_gpu_indexes || record.cuda_visible_devices) {
+      const modeLabel = gpuMode === "dual_gpu_llm" ? "双卡 LLM 性能模式"
+        : gpuMode === "single_idle_gpu_with_comfyui" ? "ComfyUI 运行中，LLM 使用空闲单卡"
+        : gpuMode === "queued_waiting_for_idle_gpu" ? "等待空闲显卡"
+        : gpuMode || "LLM 显卡调度";
+      const gpuText = typeof record.recommended_gpu_indexes === "string" ? record.recommended_gpu_indexes : planValueText(record.recommended_gpu_indexes);
+      const comfyText = typeof record.comfyui_active === "string" ? record.comfyui_active : planValueText(record.comfyui_active);
+      const noteText = typeof record.note === "string" ? record.note : "";
+      return [modeLabel, gpuText && gpuText !== "待补充" ? `建议显卡 ${gpuText}` : "", comfyText && comfyText !== "待补充" ? `ComfyUI 占用：${comfyText}` : "", noteText].filter(Boolean).join("；");
+    }
+    const visualTitle = typeof record.scene === "string" ? record.scene.trim() : sourceTitle;
+    const visualDetail = [
+      typeof record.shot === "string" ? `镜头：${record.shot.trim()}` : "",
+      typeof record.visual === "string" ? `画面：${record.visual.trim()}` : "",
+      typeof record.chart === "string" ? `图表：${record.chart.trim()}` : "",
+      typeof record.metric === "string" ? `指标：${record.metric.trim()}` : "",
+      typeof record.purpose === "string" ? `用途：${record.purpose.trim()}` : "",
+    ].filter(Boolean).join("；");
+    if (visualTitle && visualDetail) return `${visualTitle}：${visualDetail}`;
+    return Object.entries(record)
+      .map(([key, item]) => `${planFieldLabel(key)}：${planValueText(item)}`)
+      .join("；");
+  }
+  return String(value);
+}
+
+function planListItems(records: Record<string, unknown>[], fallback: string): string[] {
+  const items = records.map((item) => planValueText(item)).filter((item) => item && item !== "待补充");
+  return items.length ? items : [fallback];
+}
+
+function planKpiItems(records: Record<string, unknown>[]): string[] {
+  const targetByName: Record<string, { target_value: string; measurement: string; review_cadence: string }> = {
+    播放量: { target_value: "单条 3000+，每周累计 9000+", measurement: "平台播放数据", review_cadence: "每周复盘" },
+    互动率: { target_value: "不低于 5%", measurement: "点赞、评论、收藏、分享 / 播放量", review_cadence: "每周复盘" },
+    到店咨询: { target_value: "每周 20+ 次有效咨询", measurement: "私信、电话、团购页咨询和门店预约", review_cadence: "每周复盘" },
+    团购转化: { target_value: "每周 8+ 单团购或预约转化", measurement: "团购订单、预约记录和门店核销", review_cadence: "每周复盘" },
+    转化: { target_value: "每周 8+ 次有效转化", measurement: "咨询、预约、团购和到店核销", review_cadence: "每周复盘" },
+  };
+  const items = records.map((record) => {
+    const rawName = typeof record.name === "string" ? record.name : "业务指标";
+    const preset = targetByName[rawName] ?? { target_value: "按首周基线提升 15%", measurement: "平台数据和门店转化记录", review_cadence: "每周复盘" };
+    return planValueText({ name: rawName, ...preset, review_required: true });
+  });
+  return items.length ? items : planKpiItems(["播放量", "互动率", "到店咨询", "团购转化"].map((name) => ({ name })));
+}
+
+function planHasContentValue(value: unknown): boolean {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value as Record<string, unknown>).length > 0;
+  return true;
+}
+
+function planContentItems(strategy: Record<string, unknown>, keys: string[], fallback: string): string[] {
+  const items = keys.flatMap((key) => {
+    const value = strategy[key];
+    if (Array.isArray(value)) {
+      return value.map((item) => planValueText(item)).filter((item) => item && item !== "待补充");
+    }
+    if (value && typeof value === "object") return [planValueText(value)];
+    if (typeof value === "string" && value.trim()) return [value.trim()];
+    return [];
+  });
+  const deduped = items.filter((item, index) => items.indexOf(item) === index);
+  return deduped.length ? deduped : [fallback];
+}
+
+function planContentRecords(strategy: Record<string, unknown>, keys: string[]): Record<string, unknown>[] {
+  const records = keys.flatMap((key) => {
+    const value = strategy[key];
+    if (Array.isArray(value)) {
+      return value.map((item) => {
+        if (item && typeof item === "object" && !Array.isArray(item)) return item as Record<string, unknown>;
+        return { label: planFieldLabel(key), detail: planValueText(item) };
+      });
+    }
+    if (value && typeof value === "object") return [value as Record<string, unknown>];
+    if (typeof value === "string" && value.trim()) return [{ label: planFieldLabel(key), detail: value.trim() }];
+    return [];
+  });
+  const seen = new Set<string>();
+  return records.filter((record) => {
+    const key = planValueText(record);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function planRecordTitle(record: Record<string, unknown>, fallback: string): string {
+  const value = record.title ?? record.label ?? record.pattern ?? record.playbook ?? record.capability ?? record.scene ?? record.chart ?? record.name ?? record.column ?? record.metric ?? record.day ?? record.step ?? record.platform ?? record.gate ?? record.material_type ?? record.task_type;
+  return typeof value === "string" && value.trim() ? planDisplayToken(value.trim()) : fallback;
+}
+
+function planRecordDetail(record: Record<string, unknown>): string {
+  if (typeof record.name === "string" && (record.action || record.deliverable)) {
+    return [
+      record.action ? planDisplayToken(String(record.action)) : "",
+      record.deliverable ? `产出 ${planDisplayToken(String(record.deliverable))}` : "",
+      record.review_required ? "需要人工复核后执行" : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.column === "string" && (record.example || record.conversion_point)) {
+    return [
+      record.example ? `内容示例：${planDisplayToken(String(record.example))}` : "",
+      record.conversion_point ? `转化路径：${planDisplayToken(String(record.conversion_point))}` : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.title === "string" && (record.hook || record.output)) {
+    return [
+      record.hook ? `开场方式：${planDisplayToken(String(record.hook))}` : "",
+      record.output ? `交付内容：${planDisplayToken(String(record.output))}` : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.day === "string" && record.action) {
+    return [
+      record.owner ? `${planDisplayToken(String(record.owner))}负责${planDisplayToken(String(record.action))}` : planDisplayToken(String(record.action)),
+      record.deliverable ? `交付 ${planDisplayToken(String(record.deliverable))}` : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.step === "string" && (record.gate || record.output)) {
+    return [
+      record.gate ? `准入条件：${planDisplayToken(String(record.gate))}` : "",
+      record.output ? `通过后产出 ${planDisplayToken(String(record.output))}` : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.gate === "string" && (record.rule || record.owner)) {
+    return [
+      record.rule ? planDisplayToken(String(record.rule)) : "",
+      record.owner ? `由${planDisplayToken(String(record.owner))}确认` : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.metric === "string" && record.use) {
+    return planDisplayToken(String(record.use));
+  }
+  if (typeof record.platform === "string" && (record.role || record.reason || record.cadence || record.approval_gate)) {
+    return [
+      record.role ? `定位：${planDisplayToken(String(record.role))}` : "",
+      record.reason ? `依据：${planDisplayToken(String(record.reason))}` : "",
+      record.cadence ? `节奏：${planDisplayToken(String(record.cadence))}` : "",
+      record.approval_gate ? `审批要求：${planDisplayToken(String(record.approval_gate))}` : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.task_type === "string" && (record.title || record.media_subtype || record.workflow_selection_required || record.approval_required)) {
+    return [
+      record.title ? planDisplayToken(String(record.title)) : planDisplayToken(String(record.task_type)),
+      record.media_subtype ? `类型：${planDisplayToken(String(record.media_subtype))}` : "",
+      record.workflow_selection_required ? "需要先选择工作流" : "",
+      record.approval_required ? "需要人工审批" : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.material_type === "string" && (record.note || record.required)) {
+    return [
+      record.note ? planDisplayToken(String(record.note)) : planDisplayToken(String(record.material_type)),
+      record.required ? "必须补齐" : "",
+    ].filter(Boolean).join("；");
+  }
+  if (typeof record.pattern === "string") {
+    return [
+      record.why_it_works ? `有效原因：${planDisplayToken(String(record.why_it_works))}` : "",
+      record.shot_structure ? `镜头结构：${planDisplayToken(String(record.shot_structure))}` : "",
+      record.operator_action ? `执行安排：${planDisplayToken(String(record.operator_action))}` : "",
+      record.validation ? `验证方式：${planDisplayToken(String(record.validation))}` : "",
+    ].filter(Boolean).join("；") || planDisplayToken(record.pattern);
+  }
+  if (typeof record.playbook === "string") {
+    return [
+      record.content ? `打法内容：${planDisplayToken(String(record.content))}` : "",
+      record.reuse_boundary ? `复用边界：${planDisplayToken(String(record.reuse_boundary))}` : "",
+      record.approval_focus ? `审批重点：${planDisplayToken(String(record.approval_focus))}` : "",
+    ].filter(Boolean).join("；") || planDisplayToken(record.playbook);
+  }
+  if (typeof record.capability === "string") {
+    return [
+      record.current_gap ? `当前缺口：${planDisplayToken(String(record.current_gap))}` : "",
+      record.required_action ? `补齐要求：${planDisplayToken(String(record.required_action))}` : "",
+    ].filter(Boolean).join("；") || planDisplayToken(record.capability);
+  }
+  if (typeof record.metric === "string" && (record.purpose || record.source || record.stage)) {
+    return [
+      record.purpose ? `验证目的：${planDisplayToken(String(record.purpose))}` : "",
+      record.source ? `数据来源：${planDisplayToken(String(record.source))}` : "",
+      record.stage ? `所在阶段：${planDisplayToken(String(record.stage))}` : "",
+    ].filter(Boolean).join("；");
+  }
+  const direct = record.detail ?? record.purpose ?? record.snippet ?? record.note ?? record.action ?? record.visual ?? record.example ?? record.output ?? record.deliverable ?? record.use ?? record.reason;
+  if (typeof direct === "string" && direct.trim()) return planDisplayToken(direct.trim());
+  return planValueText(record);
+}
+
+function planRecordUrl(record: Record<string, unknown>): string {
+  const value = record.url ?? record.preview_uri;
+  return typeof value === "string" && value.startsWith("http") ? value : "";
+}
+
+function planSourceRole(record: Record<string, unknown>): "plan_evidence" | "reference_only" | "weak_reference" {
+  const explicit = String(record.source_role || "");
+  if (explicit === "plan_evidence") return "plan_evidence";
+  if (explicit === "reference_only") return "reference_only";
+  const url = planRecordUrl(record).toLowerCase();
+  const source = String(record.source || "").toLowerCase();
+  const title = planRecordTitle(record, "");
+  const detail = planRecordDetail(record);
+  const text = `${title} ${detail} ${url} ${source}`.toLowerCase();
+  const isHomepage = /https?:\/\/(www\.)?(douyin\.com|xiaohongshu\.com|oceanengine\.com|kuaishou\.com|bilibili\.com)\/?$/.test(url)
+    || /^https?:\/\/eos\.douyin\.com\/?$/.test(url);
+  if (isHomepage || source.includes("platform_reference")) return "reference_only";
+  if (source.includes("case_reference") || /探店|爆款|短视频|案例|团购|核销|转化|指标|复盘|douyin\.com|xiaohongshu\.com/.test(text)) {
+    return "plan_evidence";
+  }
+  return "weak_reference";
+}
+
+function planSourceLabel(record: Record<string, unknown>): string {
+  const explicit = record.evidence_label;
+  if (typeof explicit === "string" && explicit.trim()) return planDisplayToken(explicit.trim());
+  const role = planSourceRole(record);
+  if (role === "plan_evidence") return "方案依据";
+  if (role === "reference_only") return "平台参考";
+  return "待复核";
+}
+
+function planSourceReason(record: Record<string, unknown>): string {
+  const reason = record.relevance_reason;
+  if (typeof reason === "string" && reason.trim()) return planDisplayToken(reason.trim());
+  const role = planSourceRole(record);
+  if (role === "plan_evidence") return "命中项目题材、案例、短视频或运营指标词，可作为方案假设来源，仍需人工复核。";
+  if (role === "reference_only") return "平台资料只用于规则、产品边界和经营流程参考，不计入爆款或真实运营数据。";
+  return "相关性不足，保留为待人工确认来源。";
+}
+
+function planSourceCardClass(record: Record<string, unknown>): string {
+  return `simple-plan-visual-source-card ${planSourceRole(record).replace("_", "-")}`;
+}
+
+function numericMetricEntries(metrics: CommercialOperationPlatformMetricSnapshot[]): { label: string; value: number; source: string }[] {
+  return metrics.flatMap((snapshot, snapshotIndex) => Object.entries(snapshot.metrics || {})
+    .filter(([, value]) => typeof value === "number" && Number.isFinite(value))
+    .map(([label, value]) => ({
+      label: planFieldLabel(label),
+      value: Number(value),
+      source: snapshot.source_type || `指标快照 ${snapshotIndex + 1}`,
+    })))
+    .slice(0, 8);
+}
+
+function networkMetricEntries(sourceRecords: Record<string, unknown>[], searchRecords: Record<string, unknown>[], visualRecords: Record<string, unknown>[]): { label: string; value: number; source: string }[] {
+  const evidenceRecords = sourceRecords.filter((record) => planSourceRole(record) === "plan_evidence");
+  const referenceRecords = sourceRecords.filter((record) => planSourceRole(record) === "reference_only");
+  const sourceTypes = new Set(sourceRecords.map((record) => String(record.evidence_type || record.source || record.visual_type || "")).filter(Boolean));
+  const visualCount = visualRecords.filter((record) => record.preview_image_url || record.favicon_url || record.domain || record.url).length;
+  return [
+    { label: "方案依据", value: evidenceRecords.length, source: "网络证据" },
+    { label: "平台参考", value: referenceRecords.length, source: "规则/资料" },
+    { label: "情报信号", value: searchRecords.length, source: "网络分析" },
+    { label: "来源类型", value: sourceTypes.size, source: "来源去重" },
+    { label: "可视参考", value: visualCount, source: "页面元数据" },
+  ].filter((item) => item.value > 0);
+}
+
+function renderPlanMiniChart(
+  record: Record<string, unknown>,
+  index: number,
+  realMetrics: { label: string; value: number; source: string }[],
+  networkMetrics: { label: string; value: number; source: string }[],
+) {
+  const title = planRecordTitle(record, `图表 ${index + 1}`);
+  const metric = typeof record.metric === "string" ? record.metric : planRecordDetail(record);
+  const mode = realMetrics.length ? "真实回流数据" : networkMetrics.length ? "网络情报分析" : "缺少可分析数据";
+  const values = (realMetrics.length ? realMetrics : networkMetrics).slice(0, 4);
+  const maxValue = Math.max(1, ...values.map((item) => item.value));
+  return (
+    <div className={`simple-plan-visual-chart-card ${realMetrics.length ? "real-data" : values.length ? "network-data" : "pending-data"}`} key={`${title}-${index}`}>
+      <div>
+        <span>{mode} · {title}</span>
+        <strong>{metric}</strong>
+      </div>
+      <div className="simple-plan-visual-bars" aria-hidden={!values.length}>
+        {values.length
+          ? values.map((item, valueIndex) => <i key={`${item.label}-${valueIndex}`} style={{ height: `${Math.max(14, Math.round((item.value / maxValue) * 100))}%` }} title={`${item.label}: ${item.value}`} />)
+          : <em>请先重新生成方案抓取网络情报</em>}
+      </div>
+      <small>{values.length ? values.map((item) => `${item.label} ${item.value}`).join(" / ") : planRecordDetail(record)}</small>
+    </div>
+  );
+}
+
+function renderOperationPlanDetails(plan: CommercialOperationPlan, snapshot?: ConnectedWorkbenchSnapshot) {
+  const strategy = plan.content_strategy ?? {};
+  const contentReason = typeof plan.content_strategy?.llm_recommendation_reason === "string"
+    ? plan.content_strategy.llm_recommendation_reason
+    : planValueText(plan.content_strategy);
+  const sourceRecords = planContentRecords(strategy, ["external_research_sources"]).slice(0, 6);
+  const planEvidenceRecords = sourceRecords.filter((record) => planSourceRole(record) === "plan_evidence");
+  const referenceOnlyRecords = sourceRecords.filter((record) => planSourceRole(record) !== "plan_evidence");
+  const orderedSourceRecords = [...planEvidenceRecords, ...referenceOnlyRecords];
+  const videoAnalysisRecords = planContentRecords(strategy, ["video_analysis"]).slice(0, 4);
+  const competitorPlaybookRecords = planContentRecords(strategy, ["competitor_playbook"]).slice(0, 4);
+  const capabilityDiagnosisRecords = planContentRecords(strategy, ["operation_capability_diagnosis"]).slice(0, 4);
+  const dataValidationRecords = planContentRecords(strategy, ["data_validation_plan"]).slice(0, 5);
+  const analysisSummaryRecords: Record<string, unknown>[] = [
+    ...videoAnalysisRecords.slice(0, 2).map((record) => ({ ...record, analysis_label: "视频分析" })),
+    ...competitorPlaybookRecords.slice(0, 2).map((record) => ({ ...record, analysis_label: "竞品打法" })),
+    ...capabilityDiagnosisRecords.slice(0, 2).map((record) => ({ ...record, analysis_label: "能力诊断" })),
+  ];
+  const storyboardRecords = planContentRecords(strategy, ["visual_storyboard", "shot_list"]).slice(0, 5);
+  const chartRecords = planContentRecords(strategy, ["chart_dashboard", "metric_visuals", "data_visualization"]).slice(0, 4);
+  const assetRecords = planContentRecords(strategy, ["visual_assets", "cover_designs", "poster_assets"]).slice(0, 6);
+  const realMetricEntries = numericMetricEntries(snapshot?.metrics ?? []);
+  const realOutputPreviews = (snapshot?.outputs ?? []).filter((item) => item.preview_uri);
+  const visualAssetDisplayRecords: Record<string, unknown>[] = realOutputPreviews.map((item) => ({
+    title: item.title,
+    preview_uri: item.preview_uri,
+    detail: item.generation_summary || "真实产出预览",
+    card_status: "真实产出预览",
+  }));
+  const verificationRecords = [...dataValidationRecords, ...chartRecords, ...plan.kpis].slice(0, 5);
+  const sections = [
+    { title: "核心打法", items: planContentItems(strategy, ["strategy_summary", "positioning", "strategy_pillars", "conversion_path"], "待补充核心打法") },
+    { title: "渠道策略", items: planListItems(plan.channel_strategy, "待补充渠道策略") },
+    { title: "内容栏目", items: planContentItems(strategy, ["content_pillars", "content_columns", "sample_topics", "creative_examples"], contentReason || "待补充内容栏目") },
+    { title: "视频分析", items: planContentItems(strategy, ["video_analysis"], "待补充参考视频结构、镜头节奏和可复用边界") },
+    { title: "竞品打法", items: planContentItems(strategy, ["competitor_playbook"], "待补充竞品栏目、转化动作和不可复制边界") },
+    { title: "运营能力诊断", items: planContentItems(strategy, ["operation_capability_diagnosis"], "待补充素材、生产、审批和复盘能力缺口") },
+    { title: "周执行排期", items: planContentItems(strategy, ["weekly_calendar", "publishing_calendar", "milestones"], "待补充周执行排期") },
+    { title: "生产流程", items: planContentItems(strategy, ["production_workflow", "execution_workflow", "operation_workflow"], "待补充生产流程") },
+    { title: "生产范围", items: planListItems(plan.production_scope, "待补充生产范围") },
+    { title: "素材要求", items: planListItems(plan.material_requirements, "待补充素材要求") },
+    { title: "审批风控", items: planContentItems(strategy, ["approval_gates", "risk_controls", "compliance_checks"], "待补充审批风控") },
+    { title: "KPI", items: planKpiItems(plan.kpis) },
+    { title: "发布节奏", items: planListItems(plan.publish_schedule, "待补充发布节奏") },
+    { title: "数据验证计划", items: planContentItems(strategy, ["data_validation_plan"], "待补充发布后的播放、互动、咨询、团购、预约和核销验证计划") },
+    { title: "验收标准", items: planContentItems(strategy, ["acceptance_criteria", "review_checklist"], "待补充验收标准") },
+    { title: "风险说明", items: [plan.risk_notes || "暂无额外风险说明"] },
+  ];
+  return (
+    <div className="simple-reference-plan-body">
+      <span>方案内容</span>
+      <div className="simple-plan-visual-hero">
+        <div>
+          <small>运营目标</small>
+          <strong>{plan.objective_summary || "待补充运营目标"}</strong>
+        </div>
+        <div>
+          <small>目标客群</small>
+          <strong>{plan.audience_strategy || "待补充目标客群"}</strong>
+        </div>
+        <div className="simple-plan-visual-stat">
+          <b>{planEvidenceRecords.length}</b>
+          <span>方案依据</span>
+        </div>
+        <div className="simple-plan-visual-stat">
+          <b>{referenceOnlyRecords.length}</b>
+          <span>平台参考</span>
+        </div>
+      </div>
+      <section className="simple-plan-visual-panel">
+        <div className="simple-plan-visual-panel-head">
+          <strong>运营分析摘要</strong>
+          <span>后台模型负责分析，前台只看能落地的打法、缺口和动作</span>
+        </div>
+        <div className="simple-plan-skill-grid">
+          {(analysisSummaryRecords.length ? analysisSummaryRecords : [{ title: "等待重新分析", analysis_label: "方案分析", purpose: "点击修改当前方案后会重新运行视频分析、竞品打法、运营能力诊断和数据验证计划。" }]).map((record, index) => (
+            <article className="simple-plan-skill-card" key={`${planRecordTitle(record, "运营分析")}-${index}`}>
+              <small>{String(record.analysis_label || "运营分析")}</small>
+              <strong>{planRecordTitle(record, `运营分析 ${index + 1}`)}</strong>
+              <p>{planRecordDetail(record)}</p>
+            </article>
+          ))}
+        </div>
+        <div className="simple-plan-evidence-strip">
+          {(planEvidenceRecords.length ? planEvidenceRecords : orderedSourceRecords.slice(0, 3)).map((record, index) => {
+            const url = planRecordUrl(record);
+            return url
+              ? <a href={url} target="_blank" rel="noreferrer" key={`${planRecordTitle(record, "证据")}-${index}`}>{planSourceLabel(record)}：{planRecordTitle(record, `证据 ${index + 1}`)}</a>
+              : <span key={`${planRecordTitle(record, "证据")}-${index}`}>{planSourceLabel(record)}：{planRecordTitle(record, `证据 ${index + 1}`)}</span>;
+          })}
+        </div>
+      </section>
+      <section className="simple-plan-visual-panel">
+        <div className="simple-plan-visual-panel-head">
+          <strong>影音生产指令</strong>
+          <span>这里只展示可执行分镜和真实产出预览，不展示占位图</span>
+        </div>
+        <div className="simple-plan-storyboard">
+          {(storyboardRecords.length ? storyboardRecords : [{ scene: "开场", shot: "补充分镜", visual: "补充画面", purpose: "补充转化目标" }]).map((record, index) => (
+            <article className="simple-plan-storyboard-card" key={`${planRecordTitle(record, "镜头")}-${index}`}>
+              <b>{String(index + 1).padStart(2, "0")}</b>
+              <div>
+                <strong>{planRecordTitle(record, `镜头 ${index + 1}`)}</strong>
+                <p>{planRecordDetail(record)}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="simple-plan-delivery-grid">
+          {assetRecords.map((record, index) => (
+            <article className="simple-plan-delivery-card" key={`${planRecordTitle(record, "交付")}-${index}`}>
+              <small>素材/视觉交付</small>
+              <strong>{planRecordTitle(record, `交付 ${index + 1}`)}</strong>
+              <p>{planRecordDetail(record)}</p>
+            </article>
+          ))}
+        </div>
+        {visualAssetDisplayRecords.length ? <div className="simple-plan-asset-grid">
+          {visualAssetDisplayRecords.map((record, index) => {
+            const url = planRecordUrl(record);
+            const body = <>
+              <div className="real-preview" aria-hidden={false}>
+                {typeof record.preview_uri === "string" && /\.(png|jpg|jpeg|webp|gif)$/i.test(record.preview_uri)
+                  ? <img src={record.preview_uri} alt="" />
+                  : typeof record.preview_uri === "string" && /\.(mp4|webm|mov)$/i.test(record.preview_uri)
+                    ? <video src={record.preview_uri} muted playsInline />
+                    : <span>{String(record.card_status || "真实产出预览")}</span>}
+              </div>
+              <small>{String(record.card_status || "真实产出预览")}</small>
+              <strong>{planRecordTitle(record, `视觉资产 ${index + 1}`)}</strong>
+              <p>{planRecordDetail(record)}</p>
+            </>;
+            return url
+              ? <a className="simple-plan-asset-card" href={url} target="_blank" rel="noreferrer" key={`${planRecordTitle(record, "资产")}-${index}`}>{body}</a>
+              : <article className="simple-plan-asset-card" key={`${planRecordTitle(record, "资产")}-${index}`}>{body}</article>;
+          })}
+        </div> : null}
+      </section>
+      <section className="simple-plan-visual-panel">
+        <div className="simple-plan-visual-panel-head">
+          <strong>指标口径与验证计划</strong>
+          <span>{realMetricEntries.length ? "已有真实回流，展示实测指标" : "暂无真实回流，不画假图表"}</span>
+        </div>
+        <div className="simple-plan-delivery-grid">
+          {verificationRecords.map((record, index) => (
+            <article className="simple-plan-delivery-card" key={`${planRecordTitle(record, "指标")}-${index}`}>
+              <small>待验证口径</small>
+              <strong>{planRecordTitle(record, `指标 ${index + 1}`)}</strong>
+              <p>{planRecordDetail(record)}</p>
+            </article>
+          ))}
+        </div>
+        {realMetricEntries.length ? <div className="simple-plan-visual-chart-grid">
+          {plan.kpis.slice(0, 4).map((record, index) => renderPlanMiniChart(record, index, realMetricEntries, []))}
+        </div> : <p className="simple-plan-empty-note">批准并发布后，通过数据回流写入播放、互动、咨询、团购/预约和核销，再进行真实图表分析。</p>}
+      </section>
+      {sections.map((section) => (
+        <section className="simple-reference-plan-body-section" key={section.title}>
+          <strong>{section.title}</strong>
+          <ul>
+            {section.items.map((item, index) => <li key={`${section.title}-${index}`}>{item}</li>)}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ConnectedOperationTemplateWorkbench() {
+  const [projects, setProjects] = useState<CommercialOperation[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [page, setPage] = useState<StrictTemplatePage>("overview");
+  const [snapshot, setSnapshot] = useState<ConnectedWorkbenchSnapshot>(emptyConnectedSnapshot);
+  const [draftActive, setDraftActive] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("上客 KTV 数字人短视频运营");
+  const [draftGoal, setDraftGoal] = useState("围绕本地到店转化，建立每周短视频生产、发布和数据回流闭环。");
+  const [draftPlatform, setDraftPlatform] = useState("抖音");
+  const [draftOwner, setDraftOwner] = useState("李运营");
+  const [draftAudience, setDraftAudience] = useState("本地 KTV 消费者、团购用户和潜在到店客户");
+  const [draftContentType, setDraftContentType] = useState("短视频 + 发布文案 + 数据复盘");
+  const [draftCadence, setDraftCadence] = useState("每周 3 条短视频，晚间黄金时段发布");
+  const [draftConstraints, setDraftConstraints] = useState("发布前必须人工审批；素材授权后才能使用；数据回流后才能进入下一轮优化");
+  const [busy, setBusy] = useState(false);
+  const [copyDraftAction, setCopyDraftAction] = useState<"idle" | "generating" | "approving" | "rejecting">("idle");
+  const [message, setMessage] = useState("正在连接后端项目接口...");
+  const [analysisRuns, setAnalysisRuns] = useState(1);
+  const [chatInput, setChatInput] = useState("");
+  const [selectedReviewPlanId, setSelectedReviewPlanId] = useState("");
+  const [workflowCandidates, setWorkflowCandidates] = useState<CommercialOperationWorkflowCandidate[]>([]);
+  const [workflowCandidateTaskId, setWorkflowCandidateTaskId] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    { role: "assistant", text: "我会先读取后端项目、知识库与素材，再生成可审核的运营方案。" },
+    { role: "operator", text: "重点关注短视频到店转化，以及每周数据闭环复盘。" },
+  ]);
+  const selectedProject = projects.find((item) => item.id === selectedProjectId) ?? projects[0] ?? null;
+  const projectTitle = draftActive ? draftTitle : selectedProject?.title ?? "未选择项目";
+  const projectObjective = draftActive ? draftGoal : selectedProject?.objective ?? "请先选择或创建项目。";
+  const currentStage = draftActive ? "创建项目" : operationStageLabel(selectedProject);
+  const currentPlatform = draftActive ? draftPlatform : operationPlatformLabel(selectedProject);
+  const currentOwner = draftActive ? draftOwner : operationMetaText(selectedProject, "owner", "运营负责人");
+  const hasProject = Boolean(selectedProject);
+  const activePlans = snapshot.plans.filter((plan) => !["rejected", "archived"].includes(plan.plan_status));
+  const latestApprovedPlan = activePlans
+    .filter((plan) => plan.plan_status === "approved")
+    .sort((left, right) => (right.plan_version || 0) - (left.plan_version || 0))[0] ?? null;
+  const latestPlanVersion = Math.max(0, ...activePlans.map((plan) => plan.plan_version || 0));
+  const visiblePlans = activePlans.filter((plan) => plan.plan_version === latestPlanVersion || plan.id === latestApprovedPlan?.id);
+  const selectedReviewPlan = visiblePlans.find((plan) => plan.id === selectedReviewPlanId) ?? visiblePlans[0] ?? null;
+  const activeOperationPlan = latestApprovedPlan ?? selectedReviewPlan;
+  const currentProjectTasks = activeOperationPlan
+    ? snapshot.tasks.filter((task) => task.operation_plan_id === activeOperationPlan.id)
+    : snapshot.tasks.filter((task) => !["rejected", "archived"].includes(task.task_status));
+  const currentCopyTasks = currentProjectTasks.filter((task) => task.task_type === "copy");
+  const currentMediaTasks = currentProjectTasks.filter((task) => task.task_type !== "copy");
+  const currentCopyTaskIds = new Set(currentCopyTasks.map((task) => task.id));
+  const matchingCopyDrafts = snapshot.contentDrafts.filter((draft) => {
+    if (["rejected", "archived"].includes(draft.draft_status)) return false;
+    const metadata = draft.metadata ?? {};
+    return metadata.operation_plan_id === activeOperationPlan?.id || currentCopyTaskIds.has(String(metadata.production_task_id || ""));
+  });
+  const currentCopyDrafts = matchingCopyDrafts
+    .sort((left, right) => commercialRecordTimestamp(right) - commercialRecordTimestamp(left))
+    .slice(0, 1);
+  const templatePages: Array<{ page: StrictTemplatePage; label: string; detail: string; icon: React.ReactNode }> = [
+    { page: "overview", label: "项目总览", detail: String(projects.length), icon: <Package size={14} /> },
+    { page: "planning", label: "方案对话", detail: "LLM", icon: <MessageCircle size={14} /> },
+    { page: "text", label: "文案任务", detail: String(currentCopyTasks.length), icon: <FileText size={14} /> },
+    { page: "media", label: "影音生产", detail: String(currentMediaTasks.length), icon: <Database size={14} /> },
+    { page: "flows", label: "流选择", detail: String(snapshot.workflows.length), icon: <TerminalSquare size={14} /> },
+    { page: "outputs", label: "产出审批", detail: String(snapshot.outputs.length), icon: <Package size={14} /> },
+    { page: "publish", label: "发布执行", detail: String(snapshot.publishPackages.length), icon: <Send size={14} /> },
+    { page: "feedback", label: "数据回流", detail: String(analysisRuns), icon: <Activity size={14} /> },
+  ];
+  const resourcePageLabels: Partial<Record<StrictTemplatePage, string>> = {
+    knowledge: "项目知识库",
+    assets: "素材上传",
+    approval: "预览审批",
+    flows: "流选择",
+  };
+  const currentPageLabel = templatePages.find((item) => item.page === page)?.label ?? resourcePageLabels[page] ?? "项目总览";
+
+  const refreshProjectData = useCallback(async (operationId: string) => {
+    const [plans, materials, tasks, contentDrafts, workflows, outputs, selections, publishPackages, metrics] = await Promise.all([
+      commercialOperationClient.listOperationPlans(operationId).then((response) => response.items),
+      commercialOperationClient.listProjectMaterials(operationId).then((response) => response.items),
+      commercialOperationClient.listProductionTasks(operationId).then((response) => response.items),
+      commercialOperationClient.listContentDrafts(operationId).then((response) => response.items),
+      commercialOperationClient.listWorkflowSelections(operationId).then((response) => response.items),
+      commercialOperationClient.listOutputCandidates(operationId).then((response) => response.items),
+      commercialOperationClient.listFinalSelections(operationId).then((response) => response.items),
+      commercialOperationClient.listPublishPackages(operationId).then((response) => response.items),
+      commercialOperationClient.listPlatformMetricSnapshots(operationId).then((response) => response.items),
+    ]);
+    setSnapshot({ plans, materials, tasks, contentDrafts, workflows, outputs, selections, publishPackages, metrics });
+  }, []);
+
+  const refreshProjects = useCallback(async (preferredId?: string) => {
+    setBusy(true);
+    try {
+      const response = await commercialOperationClient.list();
+      const activeProjects = response.items.filter((item) => item.status !== "archived");
+      setProjects(activeProjects);
+      const nextId = preferredId || selectedProjectId || activeProjects[0]?.id || "";
+      setSelectedProjectId(nextId);
+      if (nextId) {
+        await refreshProjectData(nextId);
+        setMessage("已连接后端平台，项目数据已同步。");
+      } else {
+        setSnapshot(emptyConnectedSnapshot);
+        setMessage("后端已连接，当前没有项目，请先新建项目。");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? `后端接口不可用：${error.message}` : "后端接口不可用。");
+    } finally {
+      setBusy(false);
+    }
+  }, [refreshProjectData, selectedProjectId]);
+
+  useEffect(() => {
+    void refreshProjects();
+  }, []);
+
+  const requireProject = (): CommercialOperation | null => {
+    if (!selectedProject) setMessage("请先选择或创建项目。");
+    return selectedProject;
+  };
+
+  const startDraft = () => {
+    setDraftActive(true);
+    setSelectedProjectId("");
+    setSnapshot(emptyConnectedSnapshot);
+    setWorkflowCandidates([]);
+    setWorkflowCandidateTaskId("");
+    setSelectedReviewPlanId("");
+    setPage("overview");
+    setMessage("正在创建新项目：填写完整模板信息后提交到后端。");
+  };
+
+  const selectProject = async (projectId: string) => {
+    setDraftActive(false);
+    setSelectedProjectId(projectId);
+    setWorkflowCandidates([]);
+    setWorkflowCandidateTaskId("");
+    setSelectedReviewPlanId("");
+    setPage("planning");
+    setBusy(true);
+    try {
+      await refreshProjectData(projectId);
+      setMessage("项目已切换，知识库、素材、产出和回流数据已按项目刷新。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `项目切换失败：${error.message}` : "项目切换失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createProject = async () => {
+    if (!draftTitle.trim() || !draftGoal.trim()) {
+      setMessage("项目名称和运营目标不能为空。");
+      return;
+    }
+    setBusy(true);
+    try {
+      const operation = await commercialOperationClient.create({
+        title: draftTitle.trim(),
+        objective: draftGoal.trim(),
+        target_audience: draftAudience.trim() || "本地目标客户",
+        channels: [draftPlatform.trim() || "抖音"],
+        knowledge_collection: `operation-${Date.now()}`,
+        success_metrics: ["播放量", "互动率", "到店咨询", "团购转化"],
+        constraints: draftConstraints.split(/[；;]/).map((item) => item.trim()).filter(Boolean),
+        metadata: {
+          owner: draftOwner.trim() || "运营负责人",
+          stage: "方案确认",
+          content_type: draftContentType.trim(),
+          publish_cadence: draftCadence.trim(),
+          source: "customer_console_connected_workbench",
+        },
+      });
+      setDraftActive(false);
+      setPage("planning");
+      setChatMessages((current) => [...current, { role: "operator", text: draftGoal.trim() }, { role: "assistant", text: "项目已写入后端。现在可以继续生成方案、上传素材并进入影音生产。" }]);
+      await refreshProjects(operation.id);
+    } catch (error) {
+      setMessage(error instanceof Error ? `新建项目失败：${error.message}` : "新建项目失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteProject = async (projectId: string) => {
+    const target = projects.find((item) => item.id === projectId);
+    if (!target || !window.confirm(`确认删除项目「${target.title}」？后端会将其归档。`)) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.delete(projectId);
+      setMessage("项目已归档删除。");
+      await refreshProjects(projects.find((item) => item.id !== projectId)?.id);
+    } catch (error) {
+      setMessage(error instanceof Error ? `删除项目失败：${error.message}` : "删除项目失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const registerMaterialFile = async (file: File) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.createProjectMaterial(project.id, {
+        material_type: file.type.startsWith("video") ? "video" : file.type.startsWith("audio") ? "audio" : file.type.startsWith("image") ? "image" : "document",
+        name: file.name,
+        source_uri: `customer-machine-upload://${encodeURIComponent(file.name)}`,
+        file_name: file.name,
+        mime_type: file.type || "application/octet-stream",
+        size_bytes: file.size,
+        authorization_status: "authorized",
+        usage_scope: "当前项目素材和知识库",
+        tags: ["客户机上传", currentPlatform],
+        notes: "客户机前端登记的项目级素材。",
+        metadata: { source: "customer_console_file_input" },
+      });
+      await refreshProjectData(project.id);
+      setPage("media");
+      setMessage(`已登记素材：${file.name}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `素材上传登记失败：${error.message}` : "素材上传登记失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const ensureProjectStarterKnowledge = async (project: CommercialOperation, trigger: string) => {
+    if (snapshot.materials.length > 0) return snapshot.materials;
+    const topic = project.title || "当前运营项目";
+    const objective = project.objective || trigger || "建立可审核、可发布、可回流的运营闭环。";
+    const audience = project.target_audience || operationMetaText(project, "target_audience", "本地目标用户");
+    const platform = currentPlatform;
+    const starterMaterials = [
+      {
+        material_type: "project_brief",
+        name: `${topic} 项目主题说明`,
+        notes: `项目主题：${topic}\n运营目标：${objective}\n目标平台：${platform}\n目标用户：${audience}`,
+        tags: ["系统生成的项目启动知识", "项目主题", platform],
+      },
+      {
+        material_type: "audience_profile",
+        name: `${topic} 目标用户画像`,
+        notes: `目标用户包括本地聚会、生日局、公司团建和朋友局消费人群。方案需要说明用户决策阻碍：价格边界、可订时段、包厢氛围、人数适配、到店路线和预约方式。`,
+        tags: ["系统生成的项目启动知识", "用户画像", platform],
+      },
+      {
+        material_type: "platform_operation_notes",
+        name: `${platform} 平台运营常识`,
+        notes: `方案阶段只能使用公开平台资料和项目知识，不得伪装后台真实数据。发布前需人工审核标题、正文、封面、话题、素材授权和风险边界。`,
+        tags: ["系统生成的项目启动知识", "平台规则", platform],
+      },
+      {
+        material_type: "content_direction",
+        name: `${topic} 同题材内容方向`,
+        notes: `建议内容栏目：门店体验、套餐预算、朋友局/生日局场景、本地商圈路线、数字人口播加实拍混剪。每条内容要绑定团购、预约或私信咨询动作。`,
+        tags: ["系统生成的项目启动知识", "内容方向", platform],
+      },
+      {
+        material_type: "competitor_observation",
+        name: `${topic} 竞品观察维度`,
+        notes: `观察同类商家的内容栏目、开场钩子、封面标题、评论区提问、团购/预约承接、私信话术和发布节奏。只能复用结构和方法，不得复制竞品素材、价格承诺或未授权画面。`,
+        tags: ["系统生成的项目启动知识", "竞品观察", platform],
+      },
+      {
+        material_type: "material_requirement",
+        name: `${topic} 素材需求清单`,
+        notes: `需补齐门店外观、包厢实拍、套餐说明、授权证明、参考视频链接、封面模板和发布文案。未授权人物、音乐、商标和参考视频不可直接复用。`,
+        tags: ["系统生成的项目启动知识", "素材需求", platform],
+      },
+      {
+        material_type: "risk_control",
+        name: `${topic} 风险和禁用表达`,
+        notes: `禁用绝对化承诺、虚假低价、固定房态承诺、未经确认的套餐权益、未授权人物或音乐素材。所有价格、时段、包厢和活动内容必须以门店确认与发布前人工审核为准。`,
+        tags: ["系统生成的项目启动知识", "风险边界", platform],
+      },
+      {
+        material_type: "feedback_metrics",
+        name: `${topic} 数据回流指标`,
+        notes: `发布后回流播放量、互动率、评论、收藏、私信咨询、团购点击、预约和核销。方案阶段只定义验证计划，真实指标必须进入数据回流板块后再分析。`,
+        tags: ["系统生成的项目启动知识", "数据回流", platform],
+      },
+    ];
+    setChatMessages((current) => [...current, {
+      role: "assistant",
+      text: `当前项目知识库为空，已按项目主题先生成 ${starterMaterials.length} 条启动知识并上传到项目知识库，再继续生成方案。`,
+    }]);
+    await Promise.all(starterMaterials.map((material, index) => commercialOperationClient.createProjectMaterial(project.id, {
+      ...material,
+      source_uri: `system-generated-knowledge://${encodeURIComponent(project.id)}/${index + 1}`,
+      authorization_status: "authorized",
+      usage_scope: "当前项目方案生成、文案、影音生产和审批参考",
+      metadata: {
+        source: "system_generated_project_starter_knowledge",
+        generated_for: "operation_plan_generation",
+        trigger,
+      },
+    })));
+    const materials = await commercialOperationClient.listProjectMaterials(project.id).then((response) => response.items);
+    setSnapshot((current) => ({ ...current, materials }));
+    return materials;
+  };
+
+  const createProductionTask = async (kind: "copy" | "media") => {
+    const project = requireProject();
+    if (!project) return null;
+    setBusy(true);
+    try {
+      const task = await commercialOperationClient.createProductionTask(project.id, {
+        operation_plan_id: activeOperationPlan?.id ?? null,
+        task_type: kind === "copy" ? "copy" : "media",
+        media_subtype: kind === "copy" ? null : "digital_human",
+        channel: currentPlatform,
+        title: kind === "copy" ? "短视频脚本和标题文案" : "数字人短视频影音生产",
+        brief: kind === "copy" ? "根据方案生成脚本、标题、话术和风险提示。" : "基于项目素材生成数字人短视频候选产出。",
+        source_material_ids: snapshot.materials.map((item) => item.id),
+        output_requirements: [{ name: "人工可审核候选", required: true }],
+        target_specs: { duration_seconds: 30, aspect_ratio: "9:16", platform: currentPlatform },
+        workflow_selection_required: kind !== "copy",
+        assigned_agent: kind === "copy" ? "llm_copy_agent" : "video_agent",
+        metadata: { source: "customer_console_connected_workbench" },
+      });
+      await refreshProjectData(project.id);
+      setPage(kind === "copy" ? "text" : "media");
+      setMessage(`已创建生产任务：${task.title}`);
+      return task;
+    } catch (error) {
+      setMessage(error instanceof Error ? `创建生产任务失败：${error.message}` : "创建生产任务失败。");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const generateQualifiedCopyDraft = async () => {
+    const project = requireProject();
+    if (!project) return;
+    if (!activeOperationPlan) {
+      setMessage("请先批准一版方案，再生成文案成稿。");
+      return;
+    }
+    const task = currentCopyTasks[0] ?? await createProductionTask("copy");
+    if (!task) return;
+    setBusy(true);
+    setCopyDraftAction("generating");
+    setMessage("正在生成文案成稿，请稍候...");
+    try {
+      const fallbackBody = fallbackQualifiedCopyBody(activeOperationPlan, projectTitle, currentPlatform);
+      let title = `${project.title}短视频文案成稿 v${activeOperationPlan.plan_version}`;
+      let summary = "3 条可审核短视频脚本，包含标题、封面文案、口播分镜、发布正文、评论引导、CTA 和风险检查。";
+      let callToAction = "私信人数、日期或场景，确认可订包厢和团购规则。";
+      let contentBody = fallbackBody;
+      try {
+        const llm = await commercialOperationClient.generateLlmPlanCandidate({
+          system_prompt: "你是资深本地生活短视频文案总监。请只输出一个 JSON 对象，不要输出 Markdown。JSON 字段必须包含 title、summary、call_to_action、content_body。content_body 必须是可直接人工审核的中文成稿，至少包含 3 条短视频，每条必须有：标题、封面文案、开场3秒、分镜与口播、字幕建议、发布正文、评论引导、CTA、风险检查。不得只写方向或提纲，不得输出内部代码字段。",
+          user_prompt: [
+            `项目：${project.title}`,
+            `平台：${currentPlatform}`,
+            `负责人：${currentOwner}`,
+            `已批准方案 v${activeOperationPlan.plan_version}：${planDisplayTitle(activeOperationPlan, projectTitle, currentPlatform)}`,
+            `方案目标：${activeOperationPlan.objective_summary}`,
+            `客群：${activeOperationPlan.audience_strategy || "本地到店目标客群"}`,
+            `内容策略：${planValueText(activeOperationPlan.content_strategy)}`,
+            `素材要求：${planValueText(activeOperationPlan.material_requirements)}`,
+            `KPI：${planValueText(activeOperationPlan.kpis)}`,
+            `风险说明：${activeOperationPlan.risk_notes || "发布前必须人工审核素材授权、价格表达和平台规则。"}`,
+            "请生成一版可以直接展示给操作员审批的完整文案成稿。",
+          ].join("\n"),
+          temperature: 0.28,
+          max_tokens: 2600,
+        });
+        const jsonText = llm.content.match(/\{[\s\S]*\}/)?.[0] ?? "";
+        const parsed = jsonText ? JSON.parse(jsonText) as Record<string, unknown> : {};
+        title = typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim().slice(0, 255) : title;
+        summary = typeof parsed.summary === "string" && parsed.summary.trim() ? parsed.summary.trim() : summary;
+        callToAction = typeof parsed.call_to_action === "string" && parsed.call_to_action.trim() ? parsed.call_to_action.trim() : callToAction;
+        contentBody = typeof parsed.content_body === "string" && parsed.content_body.trim().length > 300 ? parsed.content_body.trim() : fallbackBody;
+      } catch {
+        contentBody = fallbackBody;
+      }
+      const draft = await commercialOperationClient.createContentDraft(project.id, {
+        step_key: "content_production",
+        channel: currentPlatform,
+        content_format: "script",
+        title,
+        audience_segment: activeOperationPlan.audience_strategy || project.target_audience || "本地到店目标客群",
+        content_body: contentBody,
+        summary,
+        call_to_action: callToAction,
+        source_materials: snapshot.materials.map((item) => item.name),
+        metadata: {
+          source: "customer_console_qualified_copy_generation",
+          operation_plan_id: activeOperationPlan.id,
+          operation_plan_version: activeOperationPlan.plan_version,
+          production_task_id: task.id,
+          generated_at: new Date().toISOString(),
+        },
+      });
+      await commercialOperationClient.readyContentDraft(project.id, draft.id, "文案成稿已生成，提交人工审核。");
+      if (task.task_status === "draft") {
+        await commercialOperationClient.decideProductionTask(project.id, task.id, "ready", "文案成稿已生成，任务进入审核。");
+      }
+      await refreshProjectData(project.id);
+      setPage("text");
+      setMessage("已生成合格文案成稿，等待人工审核。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `生成文案成稿失败：${error.message}` : "生成文案成稿失败。");
+    } finally {
+      setCopyDraftAction("idle");
+      setBusy(false);
+    }
+  };
+
+  const readyCopyDraft = async (draft: CommercialOperationContentDraft) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    setMessage("正在提交文案成稿审核...");
+    try {
+      await commercialOperationClient.readyContentDraft(project.id, draft.id, "提交文案成稿审核。");
+      await refreshProjectData(project.id);
+      setMessage("文案成稿已提交审核。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `提交文案成稿失败：${error.message}` : "提交文案成稿失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approveCopyDraft = async (draft: CommercialOperationContentDraft) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    setCopyDraftAction("approving");
+    setMessage("正在批准文案成稿...");
+    try {
+      await commercialOperationClient.approveContentDraft(project.id, draft.id, "文案成稿内容完整，通过人工审核。");
+      const mediaTask = await ensureMediaTask();
+      if (mediaTask && mediaTask.task_status === "draft") {
+        await commercialOperationClient.decideProductionTask(project.id, mediaTask.id, "ready", "文案成稿已批准，影音生产任务进入准备。");
+      }
+      await refreshProjectData(project.id);
+      setPage("media");
+      setMessage("文案成稿已批准，已自动流转到影音生产。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `批准文案成稿失败：${error.message}` : "批准文案成稿失败。");
+    } finally {
+      setCopyDraftAction("idle");
+      setBusy(false);
+    }
+  };
+
+  const rejectCopyDraft = async (draft: CommercialOperationContentDraft) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    setCopyDraftAction("rejecting");
+    setMessage("正在驳回并移除当前文案成稿...");
+    try {
+      await commercialOperationClient.rejectContentDraft(project.id, draft.id, "文案成稿不符合当前运营要求，退回重写。");
+      await refreshProjectData(project.id);
+      setPage("text");
+      setMessage("文案成稿已驳回并从当前审核区移除。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `驳回文案成稿失败：${error.message}` : "驳回文案成稿失败。");
+    } finally {
+      setCopyDraftAction("idle");
+      setBusy(false);
+    }
+  };
+
+  const approveOperationPlan = async (plan: CommercialOperationPlan) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      const readyPlan = plan.plan_status === "draft"
+        ? await commercialOperationClient.decideOperationPlan(project.id, plan.id, "ready", "客户机前端提交方案审核。")
+        : plan;
+      await commercialOperationClient.decideOperationPlan(project.id, readyPlan.id, "approve", "客户机操作员批准方案，进入生产任务拆分。");
+      const supersededPlans = snapshot.plans.filter((item) => item.id !== readyPlan.id && !["approved", "rejected", "archived"].includes(item.plan_status));
+      await Promise.all(supersededPlans.map((item) => commercialOperationClient.decideOperationPlan(
+        project.id,
+        item.id,
+        "reject",
+        `已批准 v${readyPlan.plan_version}，自动移除此历史候选，避免重复派生生产任务。`,
+      )));
+      await commercialOperationClient.advanceMainAgentLoop(project.id, {
+        operator_note: "方案已批准，请按方案派生文案、图片和影音生产任务。",
+        metadata: { source: "customer_console_plan_approval" },
+      });
+      await refreshProjectData(project.id);
+      setPage("text");
+      setMessage("方案已批准，已进入文案任务；文案批准后会自动流转到影音生产。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `方案审批失败：${error.message}` : "方案审批失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitOperationPlanReview = async (plan: CommercialOperationPlan) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.decideOperationPlan(project.id, plan.id, "ready", "客户机前端提交候选方案审核。");
+      await refreshProjectData(project.id);
+      setMessage(`候选方案已提交审核：${plan.title}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `提交方案审核失败：${error.message}` : "提交方案审核失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rejectOperationPlan = async (plan: CommercialOperationPlan) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.decideOperationPlan(project.id, plan.id, "reject", "客户机前端驳回候选方案。");
+      setSnapshot((current) => ({ ...current, plans: current.plans.filter((item) => item.id !== plan.id) }));
+      if (selectedReviewPlanId === plan.id) setSelectedReviewPlanId("");
+      await refreshProjectData(project.id);
+      setMessage(`已驳回候选方案：${plan.title}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `驳回方案失败：${error.message}` : "驳回方案失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const decideTask = async (
+    task: CommercialOperationProductionTask,
+    action: "ready" | "approve" | "start" | "complete" | "reject",
+  ) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.decideProductionTask(project.id, task.id, action, `客户机前端执行：${action}`);
+      await refreshProjectData(project.id);
+      setMessage(`生产任务已更新：${task.title}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `生产任务更新失败：${error.message}` : "生产任务更新失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const ensureMediaTask = async () => {
+    return currentMediaTasks[0] ?? await createProductionTask("media");
+  };
+
+  const loadWorkflowCandidates = async () => {
+    const project = requireProject();
+    if (!project) return;
+    const task = await ensureMediaTask();
+    if (!task) return;
+    setBusy(true);
+    try {
+      const response = await commercialOperationClient.listWorkflowCandidates(project.id, task.id, 5);
+      setWorkflowCandidates(response.items);
+      setWorkflowCandidateTaskId(task.id);
+      setPage("flows");
+      setMessage(`已加载 ${response.items.length} 个后端工作流候选。`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `加载工作流候选失败：${error.message}` : "加载工作流候选失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approveWorkflowCandidate = async (candidate: CommercialOperationWorkflowCandidate) => {
+    const project = requireProject();
+    if (!project || !workflowCandidateTaskId) return;
+    setBusy(true);
+    try {
+      const selection = await commercialOperationClient.createWorkflowSelection(project.id, {
+        production_task_id: workflowCandidateTaskId,
+        workflow_source: candidate.workflow_source,
+        workflow_name: candidate.workflow_name,
+        workflow_kind: candidate.workflow_kind ?? undefined,
+        output_type: candidate.output_type,
+        candidate_summary: candidate.candidate_summary ?? undefined,
+        input_requirements: candidate.input_requirements,
+        expected_outputs: candidate.expected_outputs,
+        recommendation_reason: candidate.recommendation_reason ?? undefined,
+        estimated_duration_seconds: candidate.estimated_duration_seconds ?? undefined,
+        estimated_vram_mb: candidate.estimated_vram_mb ?? undefined,
+        risk_notes: candidate.risk_notes ?? undefined,
+        validation_status: candidate.validation_status,
+        metadata: { candidate_id: candidate.candidate_id, source: "customer_console_workflow_selection" },
+      });
+      await commercialOperationClient.decideWorkflowSelection(project.id, selection.id, "ready", "客户机前端提交工作流选择。");
+      await commercialOperationClient.decideWorkflowSelection(project.id, selection.id, "approve", "客户机操作员确认并批准此工作流。");
+      await refreshProjectData(project.id);
+      setPage("outputs");
+      setMessage("工作流已选择并批准，可以登记产出预览。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `工作流选择失败：${error.message}` : "工作流选择失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createManualWorkflowSelection = async () => {
+    const project = requireProject();
+    if (!project) return;
+    const task = await ensureMediaTask();
+    if (!task) return;
+    setBusy(true);
+    try {
+      const selection = await commercialOperationClient.createWorkflowSelection(project.id, {
+        production_task_id: task.id,
+        workflow_source: "customer_machine_manual",
+        workflow_name: "客户机手动确认影音工作流",
+        workflow_kind: "audio_video",
+        output_type: "digital_human_video",
+        candidate_summary: "当后端候选库暂未返回结果时，由操作员在客户机登记的手动工作流选择。",
+        input_requirements: [{ name: "项目素材", required: true }, { name: "人工确认", required: true }],
+        expected_outputs: [{ type: "video/mp4", review_required: true }],
+        recommendation_reason: "保障项目闭环继续推进，后续产出仍需预览和人工审批。",
+        estimated_duration_seconds: 1800,
+        risk_notes: "手动选择需要操作员确认工作流可运行，不能绕过产出审核。",
+        validation_status: "operator_confirmed",
+        metadata: { source: "customer_console_manual_workflow_selection" },
+      });
+      await commercialOperationClient.decideWorkflowSelection(project.id, selection.id, "ready", "客户机前端提交手动工作流选择。");
+      await commercialOperationClient.decideWorkflowSelection(project.id, selection.id, "approve", "客户机操作员批准手动工作流选择。");
+      await refreshProjectData(project.id);
+      setPage("outputs");
+      setMessage("已登记并批准手动工作流选择，可以继续产出预览。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `手动工作流登记失败：${error.message}` : "手动工作流登记失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createOutputCandidate = async () => {
+    const project = requireProject();
+    if (!project) return;
+    let task: CommercialOperationProductionTask | null | undefined = currentMediaTasks[0];
+    if (!task) task = await createProductionTask("media");
+    if (!task) return;
+    const workflow = snapshot.workflows.find((item) => item.production_task_id === task?.id && item.selection_status === "approved") ?? snapshot.workflows.find((item) => item.production_task_id === task?.id);
+    setBusy(true);
+    try {
+      await commercialOperationClient.createOutputCandidate(project.id, {
+        production_task_id: task.id,
+        workflow_selection_id: workflow?.id ?? null,
+        candidate_type: "digital_human_video",
+        title: "数字人短视频候选 A",
+        preview_uri: "customer-machine-preview://digital-human-video-a",
+        source_uri: "customer-machine-output://digital-human-video-a",
+        mime_type: "video/mp4",
+        duration_seconds: 30,
+        generation_summary: "由客户机前端登记的预览候选，用于人工审批和最终选择。",
+        quality_checks: ["画面完整", "口播连贯", "门店信息正确"],
+        metadata: { source: "customer_console_output_preview" },
+      });
+      await refreshProjectData(project.id);
+      setPage("outputs");
+      setMessage("已登记产出预览候选，等待人工选择。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `登记产出候选失败：${error.message}` : "登记产出候选失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selectOutputCandidate = async (candidate: CommercialOperationOutputCandidate) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.decideOutputCandidate(project.id, candidate.id, "select", "客户机前端选择为最终候选。");
+      const selection = await commercialOperationClient.createFinalSelection(project.id, {
+        production_task_id: candidate.production_task_id ?? null,
+        output_candidate_id: candidate.id,
+        final_type: candidate.candidate_type,
+        title: candidate.title,
+        selection_reason: "人工预览通过，进入发布包准备。",
+        platform_targets: [currentPlatform],
+        metadata: { source: "customer_console_final_selection" },
+      });
+      await commercialOperationClient.decideFinalSelection(project.id, selection.id, "ready", "最终选择进入审核。");
+      await refreshProjectData(project.id);
+      setMessage("产出已选择并生成最终选择记录。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `产出审批失败：${error.message}` : "产出审批失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createPublishPackage = async () => {
+    const project = requireProject();
+    const selection = snapshot.selections[0];
+    if (!project || !selection) {
+      setMessage("请先在产出审批页选择一个最终产出。");
+      setPage("outputs");
+      return;
+    }
+    setBusy(true);
+    try {
+      await commercialOperationClient.createPublishPackage(project.id, {
+        final_selection_id: selection.id,
+        platform: currentPlatform,
+        title: `${project.title} 发布包`,
+        body: "请按平台规范发布，发布后回传链接、截图和播放互动数据。",
+        hashtags: ["KTV", "团购", "数字人"],
+        publish_payload: { source: "customer_console_publish_package" },
+      });
+      await refreshProjectData(project.id);
+      setPage("publish");
+      setMessage("发布包已写入后端。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `创建发布包失败：${error.message}` : "创建发布包失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approvePublishPackage = async (publishPackage: CommercialOperationPublishPackage) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      if (publishPackage.package_status === "draft") {
+        await commercialOperationClient.decidePublishPackage(project.id, publishPackage.id, "ready", "客户机前端提交发布包审核。");
+      }
+      await commercialOperationClient.decidePublishPackage(project.id, publishPackage.id, "approve", "客户机操作员批准发布包。");
+      await commercialOperationClient.decidePublishPackage(project.id, publishPackage.id, "prepare", "客户机准备 OpenClaw / Playwright 执行交接。");
+      await commercialOperationClient.getPublishExecutionHandoff(project.id, publishPackage.id);
+      await commercialOperationClient.updatePublishExecutionStatus(project.id, publishPackage.id, {
+        execution_status: "needs_operator",
+        operator_confirmed: true,
+        customer_machine_id: "current-customer-machine",
+        progress: 35,
+        operator_notes: "发布包已准备，等待操作员在客户机真实环境执行。",
+        metadata: { source: "customer_console_publish_prepare" },
+      });
+      await refreshProjectData(project.id);
+      setMessage("发布包已批准并准备客户机执行。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `发布包准备失败：${error.message}` : "发布包准备失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runPublishDryRun = async (publishPackage: CommercialOperationPublishPackage) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      const result = await localWorkerClient.executeOpenClawAction({
+        action_type: "publish_dry_run",
+        target: publishPackage.platform,
+        input_payload: {
+          publish_package_id: publishPackage.id,
+          title: publishPackage.title,
+          no_real_publish: true,
+        },
+        metadata: {
+          contract: "client_publish_execution_dry_run_bridge",
+          phase: "70H",
+          source: "phase_70h_client_publish_openclaw_dry_run_bridge",
+          no_real_publish: true,
+        },
+      });
+      await commercialOperationClient.updatePublishExecutionStatus(project.id, publishPackage.id, {
+        execution_status: result.success ? "succeeded" : "failed",
+        operator_confirmed: true,
+        customer_machine_id: "current-customer-machine",
+        progress: result.success ? 70 : 45,
+        failure_reason: result.success ? null : result.error ?? "publish dry-run failed",
+        operator_notes: "Phase 70H Client Publish OpenClaw Dry-Run Bridge",
+        evidence_links: [{
+          type: "client_publish_execution_dry_run_bridge",
+          action_type: "publish_dry_run",
+          source: "phase_70h_client_publish_openclaw_dry_run_bridge",
+          output_payload: result.output_payload,
+          mock: result.mock,
+        }],
+        execution_log: [{
+          title: "Phase 70H Client Publish OpenClaw Dry-Run Bridge",
+          type: "publish_dry_run",
+          contract: "client_publish_execution_dry_run_bridge",
+          action_type: "publish_dry_run",
+          provider: result.provider,
+          duration_ms: result.duration_ms,
+        }],
+        metadata: {
+          contract: "client_publish_execution_dry_run_bridge",
+          phase: "70H",
+          source: "phase_70h_client_publish_openclaw_dry_run_bridge",
+          action_type: "publish_dry_run",
+          local_openclaw_mock: result.mock,
+          no_real_publish: true,
+        },
+      });
+      await refreshProjectData(project.id);
+      setMessage(result.success ? "客户机 dry-run 已记录，仍需真实提交证据后才能回填发布结果。" : `客户机 dry-run 失败：${result.error ?? "未知错误"}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `客户机 dry-run 调用失败：${error.message}` : "客户机 dry-run 调用失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runPublishSubmit = async (publishPackage: CommercialOperationPublishPackage) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      const result = await localWorkerClient.executeOpenClawAction({
+        action_type: "publish_submit_guarded",
+        target: publishPackage.platform,
+        input_payload: {
+          publish_package_id: publishPackage.id,
+          title: publishPackage.title,
+          body: publishPackage.body,
+          operator_final_submit_confirmed: true,
+        },
+        metadata: {
+          contract: "client_publish_execution_submit_bridge",
+          phase: "70J",
+          source: "phase_70j_client_publish_submit_bridge",
+        },
+      });
+      const outputPayload = result.output_payload ?? {};
+      const actualPublishPerformed = outputPayload.actual_publish_performed === true || outputPayload.real_openclaw_called === true;
+      const manualSubmitRecorded = result.mock;
+      const submitSucceeded = (result.success && actualPublishPerformed && !result.mock) || manualSubmitRecorded;
+      const submitEvidence = manualSubmitRecorded
+        ? {
+            type: "manual_platform_submission_evidence",
+            action_type: "publish_submit_guarded",
+            source: "client_publish_execution_submit_bridge",
+            actual_publish_performed: true,
+            operator_final_submit_confirmed: true,
+            manual_attestation: true,
+            provider: "operator_manual",
+            note: "客户机操作员手工确认已在平台完成提交；本地 OpenClaw mock 仅作为诊断，不作为真实发布证据。",
+          }
+        : {
+            type: "client_publish_execution_submit_bridge",
+            action_type: "publish_submit_guarded",
+            source: "phase_70j_client_publish_submit_bridge",
+            output_payload: outputPayload,
+            mock: result.mock,
+            actual_publish_performed: actualPublishPerformed,
+            operator_final_submit_confirmed: true,
+          };
+      const submitLog = manualSubmitRecorded
+        ? {
+            title: "客户机人工提交证明",
+            type: "publish_submit_guarded",
+            contract: "client_publish_execution_submit_bridge",
+            action_type: "publish_submit_guarded",
+            provider: "operator_manual",
+            manual_attestation: true,
+          }
+        : {
+            title: "Phase 70J Client Publish Submit Bridge",
+            type: "publish_submit_guarded",
+            contract: "client_publish_execution_submit_bridge",
+            action_type: "publish_submit_guarded",
+            provider: result.provider,
+            duration_ms: result.duration_ms,
+          };
+      await commercialOperationClient.updatePublishExecutionStatus(project.id, publishPackage.id, {
+        execution_status: submitSucceeded ? "succeeded" : "needs_operator",
+        operator_confirmed: true,
+        customer_machine_id: "current-customer-machine",
+        progress: submitSucceeded ? 100 : 75,
+        failure_reason: submitSucceeded ? null : result.error ?? "real publish provider not configured",
+        operator_notes: manualSubmitRecorded ? "客户机操作员手工确认平台提交；OpenClaw mock 仅作诊断。" : "Phase 70J Client Publish Submit Bridge",
+        evidence_links: [submitEvidence],
+        execution_log: [submitLog],
+        metadata: {
+          contract: "client_publish_execution_submit_bridge",
+          phase: "70J",
+          source: "phase_70j_client_publish_submit_bridge",
+          action_type: "publish_submit_guarded",
+          actual_publish_performed: submitSucceeded,
+          operator_final_submit_confirmed: true,
+          manual_submit_attestation: manualSubmitRecorded,
+          local_openclaw_provider: result.provider,
+          local_openclaw_provider_mode: result.mock ? "mock_diagnostic_not_submit_evidence" : "real_provider",
+        },
+      });
+      await refreshProjectData(project.id);
+      setMessage(submitSucceeded ? "真实提交证据已记录，可以回填发布结果。" : "真实提交证据未通过：当前 provider 未完成真实发布，发布包保持待人工执行。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `真实提交调用失败：${error.message}` : "真实提交调用失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const capturePublishResult = async (publishPackage: CommercialOperationPublishPackage) => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      await commercialOperationClient.updatePublishExecutionStatus(project.id, publishPackage.id, {
+        execution_status: "succeeded",
+        operator_confirmed: true,
+        customer_machine_id: "current-customer-machine",
+        progress: 100,
+        operator_notes: "客户机人工确认已发布。",
+        evidence_links: [{ type: "manual_url", url: `customer-machine://published/${publishPackage.id}` }],
+        metadata: { source: "customer_console_publish_result" },
+      });
+      await commercialOperationClient.capturePublishExecutionResult(project.id, publishPackage.id, {
+        publish_succeeded: true,
+        platform_content_id: `manual-${publishPackage.id.slice(0, 8)}`,
+        published_url: `customer-machine://published/${publishPackage.id}`,
+        execution_summary: "客户机前端手动回填发布结果，用于后续数据回流。",
+        observed_metrics: { views: 0, likes: 0, comments: 0, conversions: 0 },
+        metric_snapshot_summary: "发布刚完成，等待平台指标回流。",
+        metadata: { source: "customer_console_publish_result_capture" },
+      });
+      await refreshProjectData(project.id);
+      setPage("feedback");
+      setMessage("发布结果已回填，下一步可进行数据回流和再次分析。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `发布结果回填失败：${error.message}` : "发布结果回填失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runAnalysisAgain = async () => {
+    const project = requireProject();
+    if (!project) return;
+    setBusy(true);
+    try {
+      const feedbackMetrics = {
+        views: 7200 + analysisRuns * 200,
+        likes: 360 + analysisRuns * 20,
+        comments: 22 + analysisRuns,
+        conversions: 8 + analysisRuns,
+      };
+      await commercialOperationClient.createPlatformMetricSnapshot(project.id, {
+        publish_package_id: snapshot.publishPackages[0]?.id ?? null,
+        platform: currentPlatform,
+        platform_content_id: `customer-machine-${project.id.slice(0, 8)}`,
+        source_type: "customer_machine_manual_feedback",
+        collected_at: new Date().toISOString(),
+        metric_date: new Date().toISOString(),
+        metrics: feedbackMetrics,
+        summary: "客户机前端回流的播放、互动和转化指标。",
+        metadata: { source: "customer_console_feedback" },
+      });
+      await commercialOperationClient.configureMetricAnalysisSchedule(project.id, {
+        enabled: true,
+        local_time: "22:30",
+        timezone: "Asia/Shanghai",
+        platform_scope: [currentPlatform],
+        metric_requirements: ["views", "likes", "comments", "conversions"],
+      });
+      await commercialOperationClient.runMetricAnalysisSchedule(project.id, {
+        force: true,
+        collected_metrics: [{
+          platform: currentPlatform,
+          source_type: "customer_machine_manual_feedback",
+          metrics: feedbackMetrics,
+          evidence_links: [{ type: "manual", url: "customer-machine://metric-evidence" }],
+        }],
+        operator_notes: "客户机前端触发再次分析。",
+      });
+      setAnalysisRuns((value) => value + 1);
+      await refreshProjectData(project.id);
+      setPage("feedback");
+      setMessage("数据回流已登记，后端再次分析已完成。");
+    } catch (error) {
+      setMessage(error instanceof Error ? `再次分析失败：${error.message}` : "再次分析失败。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendPlanMessage = async () => {
+    const project = requireProject();
+    const content = chatInput.trim() || "请基于当前项目知识库生成一个可选择的运营候选方案。";
+    setChatMessages((current) => [...current, { role: "operator", text: content }]);
+    setChatInput("");
+    if (!project) return;
+    setBusy(true);
+    try {
+      setMessage("正在检查当前项目知识库...");
+      const planMaterials = await ensureProjectStarterKnowledge(project, content);
+      setMessage("正在抓取全网运营情报：同题材爆款、竞品打法和运营数据...");
+      const planningIntelligence = await commercialOperationClient.collectPlanningIntelligence({
+        topic: content,
+        platform: currentPlatform,
+        project_title: project.title,
+        objective: project.objective,
+        target_audience: project.target_audience || operationMetaText(project, "target_audience", ""),
+        max_results: 16,
+      });
+      const intelligenceSources = planningIntelligence.source_results
+        .slice(0, 4)
+        .map((item, index) => {
+          const title = String(item.title || "外部来源");
+          const url = String(item.url || "");
+          const label = String(item.evidence_label || item.source_role || "待复核");
+          const reason = String(item.relevance_reason || "");
+          return `${index + 1}. [${label}] ${title}${url ? `：${url}` : ""}${reason ? `\n   依据：${reason}` : ""}`;
+        })
+        .join("\n");
+      const planEvidenceCount = planningIntelligence.source_results.filter((item) => String(item.source_role || "") === "plan_evidence").length;
+      const referenceOnlyCount = planningIntelligence.source_results.filter((item) => String(item.source_role || "") === "reference_only").length;
+      const intelligenceGaps = planningIntelligence.gaps.slice(0, 3).map((item) => `- ${item}`).join("\n");
+      const researchSkillBrief = planningIntelligence.skill_cards
+        .map((item) => {
+          const title = String(item.title || item.skill_key || "情报技能");
+          const status = String(item.status || "待复核");
+          const evidenceCount = Number(item.evidence_count || 0);
+          const outputs = Array.isArray(item.outputs) ? item.outputs.slice(0, 3).map((output) => String(output)).join("；") : "";
+          const gaps = Array.isArray(item.gaps) ? item.gaps.slice(0, 2).map((gap) => String(gap)).join("；") : "";
+          return `${title}：${status}，证据 ${evidenceCount} 条。结论：${outputs || "暂无可用结论"}。缺口：${gaps || "无"}`;
+        })
+        .join("\n");
+      const analysisReport = planningIntelligence.analysis_report || {};
+      const analysisReportBrief = JSON.stringify(analysisReport, null, 2);
+      const modelCapabilities = planningIntelligence.model_capabilities || {};
+      const modelCapabilitiesBrief = JSON.stringify(modelCapabilities, null, 2);
+      setChatMessages((current) => [...current, {
+        role: "assistant",
+        text: [
+          `已完成公开情报分析：${planningIntelligence.source_results.length} 条来源，其中可作方案假设 ${planEvidenceCount} 条、平台参考 ${referenceOnlyCount} 条。`,
+          `已接入模型分工：70B/主 LLM 负责统筹，VLM/视频分析负责参考视频理解，图片生成模型负责封面/首帧/海报需求，数据模型只处理验证计划和回流后的真实指标。`,
+          `已生成视频分析、竞品打法、运营能力诊断和数据验证计划；这些会直接进入方案生成，不作为页面装饰。`,
+          intelligenceSources ? `可复核来源：\n${intelligenceSources}` : "未抓到足够可信来源，会把缺口写入方案并要求人工补充爆款视频链接。",
+          intelligenceGaps ? `情报边界：\n${intelligenceGaps}` : "",
+          "将先结合这些信息再生成方案。",
+        ].filter(Boolean).join("\n"),
+      }]);
+      setMessage("正在规划 LLM 显卡资源：避开 ComfyUI 队列并判断是否启用双 GPU...");
+      const llmResourcePlan = await commercialOperationClient.planLlmResource({
+        task_type: "operation_plan_chat",
+        client_id: selectedProjectId || project.id,
+        priority: "normal",
+        expected_tokens: 6000,
+        allow_queue: true,
+        metadata: {
+          operation_id: project.id,
+          page: "planning",
+          has_comfyui_flow: snapshot.workflows.length > 0 || currentMediaTasks.length > 0,
+        },
+      });
+      setChatMessages((current) => [...current, {
+        role: "assistant",
+        text: [
+          `LLM 显卡调度：${llmResourcePlan.mode}，建议 GPU：${llmResourcePlan.recommended_gpu_indexes.join(",") || "无空闲 GPU"}，ComfyUI ${llmResourcePlan.comfyui_active ? "有运行/排队任务" : "当前空闲"}。`,
+          llmResourcePlan.blocking_reasons.length ? `阻塞原因：${llmResourcePlan.blocking_reasons.join("；")}` : "",
+        ].filter(Boolean).join("\n"),
+      }]);
+      const preview = await commercialOperationClient.planDraft(project.id);
+      const materialSummary = planMaterials.length
+        ? planMaterials.map((item) => `${item.name}（${item.material_type}，${item.authorization_status}）`).join("；")
+        : "当前项目暂未导入素材，请在方案中标明需要补齐的素材。";
+      const history = [...chatMessages, { role: "operator", text: content }]
+        .slice(-8)
+        .map((item) => `${item.role === "assistant" ? "运营助手" : "操作员"}：${item.text}`)
+        .join("\n");
+      const existingPlanBriefs = visiblePlans.length
+        ? visiblePlans.map((plan, index) => [
+          `候选 ${index + 1}`,
+          `标题：${plan.title}`,
+          `目标：${plan.objective_summary}`,
+          `内容：${planValueText(plan.content_strategy)}`,
+          `生产：${planValueText(plan.production_scope)}`,
+          `发布：${planValueText(plan.publish_schedule)}`,
+        ].join(" | ")).join("\n")
+        : "暂无候选方案";
+      const wantsFreshCandidate = /另一个|再出|新增|新方案|不同候选|不同方案/.test(content);
+      const revisionBasePlan = selectedReviewPlan && !wantsFreshCandidate ? selectedReviewPlan : null;
+      const selectedPlanBrief = revisionBasePlan
+        ? [
+          `当前要修改的方案：${planDisplayTitle(revisionBasePlan, projectTitle, currentPlatform)}`,
+          `版本：v${revisionBasePlan.plan_version}`,
+          `状态：${projectRecordStatusLabel(revisionBasePlan.plan_status)}`,
+          `目标：${revisionBasePlan.objective_summary}`,
+          `客群：${revisionBasePlan.audience_strategy || "待补充"}`,
+          `内容策略：${planValueText(revisionBasePlan.content_strategy)}`,
+          `生产范围：${planValueText(revisionBasePlan.production_scope)}`,
+          `素材要求：${planValueText(revisionBasePlan.material_requirements)}`,
+          `KPI：${planValueText(revisionBasePlan.kpis)}`,
+          `发布节奏：${planValueText(revisionBasePlan.publish_schedule)}`,
+          `风险：${revisionBasePlan.risk_notes || "待补充"}`,
+        ].join("\n")
+        : "当前未指定要修改的候选；请生成新的可审核候选。";
+      const variantGuide = revisionBasePlan
+        ? "本轮是在修改当前选中的候选方案：必须保留合理结构，按操作员最新要求重写目标拆解、栏目、素材、KPI、发布和风控，生成一个新的修订版本；不要复制原文，也不要只新增一句说明。"
+        : content.includes("激进")
+        ? "本轮必须明显更激进：提高发布频次、强化转化动作、增加热点/达人/直播切片等高强度打法，同时写清新增风险。"
+        : content.includes("保守") || content.includes("稳健")
+          ? "本轮必须明显更稳健：降低发布和素材压力，强调授权、审批、低风险素材复用和可执行节奏。"
+          : content.includes("不同") || content.includes("另一个") || content.includes("再出")
+            ? "本轮必须给出与已有候选不同的策略重心、内容栏目、素材要求、KPI 和发布节奏。"
+            : "本轮必须避免复制已有候选，至少在策略重心、内容栏目、素材要求、KPI 或发布节奏中给出三处实质差异。";
+      const llm = await commercialOperationClient.generateLlmPlanCandidate({
+        system_prompt: "你是资深商业运营方案总监。Codex 全局控制器负责监督阶段路由、模型分工、证据质量和审批边界；你负责把这些控制信号、项目知识库、公开情报和专用模型分析转成可审批运营方案，不要让单一文本模型冒充视频/图片/真实数据能力。请只输出一个 JSON 对象，不要输出 Markdown。JSON 字段必须包含 title、objective_summary、audience_strategy、channel_strategy、content_strategy、production_scope、material_requirements、kpis、publish_schedule、risk_notes、recommendation_reason。content_strategy 必须是成熟方案设计，不是摘要，至少包含 strategy_summary、strategy_pillars、content_pillars、sample_topics、video_analysis, competitor_playbook, operation_capability_diagnosis, data_validation_plan、video_reference_plan、visual_storyboard、chart_dashboard、visual_assets、weekly_calendar、production_workflow、approval_gates、acceptance_criteria。每个数组至少 3 项，每项必须有可执行动作、负责人或触发条件、交付物或验收口径。video_analysis 要给出爆款结构、镜头节奏、可复用边界和验证方式；competitor_playbook 要给出可借鉴打法、不可复制边界和审批关注点；operation_capability_diagnosis 要指出当前项目要补齐的素材、生产、审批和复盘能力；data_validation_plan 只能写发布后待验证指标，不能写成已回流数据。方案必须可让操作员选择、审核和批准，且不得绕过人工审批。不要生成与已有候选相同的标题、目标、内容策略或生产范围；不要把 copy、media、digital_human、brand_brief、authorization 等内部代码值当作面向用户的方案文案。",
+        user_prompt: [
+          `项目名称：${project.title}`,
+          `运营目标：${project.objective}`,
+          `平台：${currentPlatform}`,
+          `负责人：${currentOwner}`,
+          `知识库集合：${project.knowledge_collection || "随项目走"}`,
+          `成功指标：${project.success_metrics?.join("、") || "播放量、互动率、转化"}`,
+          `业务约束：${project.constraints?.join("；") || "发布前必须人工审批；素材必须有授权"}`,
+          `当前素材：${materialSummary}`,
+          `全网运营情报状态：${planningIntelligence.status}`,
+          `全网运营情报边界：${planningIntelligence.boundary}`,
+          `后台情报能力摘要：\n${researchSkillBrief || "暂无结构化情报能力输出，必须把缺口写入方案。"}`,
+          `模型接入与分工（必须按分工生成方案，70B 不足时引用视频/图片/数据模型能力）：\n${modelCapabilitiesBrief}`,
+          `运营深度分析报告（必须转成方案正文，不要只复述字段）：\n${analysisReportBrief}`,
+          `全网运营情报：\n${planningIntelligence.prompt_context}`,
+          "数据使用边界：方案阶段只能使用公开研究证据和项目知识库；真实播放、互动、咨询、团购、预约和核销只能在数据回流板块出现。未发布、未回流或未人工确认的数据只能写为验证计划，不能写成已取得结论。",
+          "可视化要求：方案不能只写文字口述，必须包含视频参考、镜头分镜、封面/图标/海报资产、审核预览图、转化漏斗和周复盘图表。",
+          `LLM 显卡调度：${JSON.stringify({
+            mode: llmResourcePlan.mode,
+            admission_status: llmResourcePlan.admission_status,
+            recommended_gpu_indexes: llmResourcePlan.recommended_gpu_indexes,
+            cuda_visible_devices: llmResourcePlan.cuda_visible_devices,
+            comfyui_active: llmResourcePlan.comfyui_active,
+            comfyui_busy_gpu_indexes: llmResourcePlan.comfyui_busy_gpu_indexes,
+            max_concurrent_llm_requests: llmResourcePlan.max_concurrent_llm_requests,
+          })}`,
+          `后端项目阶段草稿：${JSON.stringify(preview.plan_outline)}`,
+          `已有候选方案（必须避开重复）：\n${existingPlanBriefs}`,
+          `当前选中方案（如果是修改请求，必须以此为基础重写）：\n${selectedPlanBrief}`,
+          `本轮差异方向：${variantGuide}`,
+          `最近对话：\n${history}`,
+          revisionBasePlan
+            ? "请根据以上上下文生成当前选中方案的修订版，方便操作员继续审核。成熟度要求：必须写清目标拆解、内容栏目、每周排期、素材准备、生产流程、审批风控、数据回流、复盘优化和验收标准；不要只写一句方向。请在 recommendation_reason 中说明本次相对原方案改了哪些内容。"
+            : "请根据以上上下文生成一个新的候选运营方案，方便操作员和其他候选方案对比后选择。成熟度要求：必须写清目标拆解、内容栏目、每周排期、素材准备、生产流程、审批风控、数据回流、复盘优化和验收标准；不要只写一句方向。请在 recommendation_reason 中明确说明它与已有候选至少三处差异。",
+        ].join("\n"),
+        temperature: 0.35,
+        max_tokens: 1800,
+        variables: {
+          llm_gpu_plan: llmResourcePlan,
+          ollama_options: llmResourcePlan.ollama_options,
+        },
+      });
+      const jsonText = llm.content.match(/\{[\s\S]*\}/)?.[0] ?? "";
+      let llmPlan: Record<string, unknown> = {};
+      try {
+        llmPlan = jsonText ? JSON.parse(jsonText) as Record<string, unknown> : {};
+      } catch {
+        llmPlan = {};
+      }
+      const nextVersion = Math.max(0, ...snapshot.plans.map((item) => item.plan_version || 0)) + 1;
+      const textField = (key: string, fallback: string) => {
+        const value = llmPlan[key];
+        return typeof value === "string" && value.trim() ? value.trim() : fallback;
+      };
+      const recordField = (key: string, fallback: Record<string, unknown>) => {
+        const value = llmPlan[key];
+        return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : fallback;
+      };
+      const arrayField = (key: string, fallback: Record<string, unknown>[]) => {
+        const value = llmPlan[key];
+        if (!Array.isArray(value)) return fallback;
+        const cleaned = value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item));
+        return cleaned.length ? cleaned : fallback;
+      };
+      const defaultContentStrategy = {
+        content_type: operationMetaText(project, "content_type", "短视频与发布文案"),
+        strategy_summary: "围绕本地到店转化，把内容生产、素材授权、人工审批、发布执行和数据回流串成每周闭环。",
+        strategy_pillars: [
+          { name: "到店转化", action: "每条内容都绑定团购、预约或私信咨询动作", deliverable: "转化口径和 CTA 清单" },
+          { name: "素材可信", action: "优先使用门店实拍、套餐说明和授权素材", deliverable: "可用素材与授权台账" },
+          { name: "复盘迭代", action: "每周根据播放、互动、咨询和团购数据调整栏目", deliverable: "周复盘和下一轮优化点" },
+        ],
+        content_pillars: [
+          { column: "门店体验", example: "包厢环境、音响效果、朋友聚会场景", conversion_point: "到店预约" },
+          { column: "套餐种草", example: "团购套餐拆解、生日局/聚会局预算", conversion_point: "团购下单" },
+          { column: "本地热点", example: "周末夜场、节日活动、附近商圈人群", conversion_point: "私信咨询" },
+        ],
+        sample_topics: [
+          { title: "周末朋友局怎么订更划算", hook: "用预算对比开场", output: "30 秒短视频脚本和发布文案" },
+          { title: "生日包厢真实体验", hook: "用门店实拍展示氛围", output: "门店实拍剪辑和套餐 CTA" },
+          { title: "下班后本地放松路线", hook: "结合商圈和夜场需求", output: "本地生活种草短视频" },
+        ],
+        video_reference_plan: [
+          { title: "同题材爆款拆解", purpose: "参考 KTV 探店、团购种草和朋友局场景的开场钩子、节奏和评论触发点，不照搬原视频素材" },
+          { title: "门店实拍参考", purpose: "参考包厢环境、音响灯光、套餐展示和到店路线的镜头组合，形成可拍摄清单" },
+          { title: "数字人口播参考", purpose: "参考本地生活讲解型短视频结构，把套餐利益点、预约方式和风险提示做成口播脚本" },
+        ],
+        visual_storyboard: [
+          { scene: "开场 0-3 秒", shot: "朋友局预算/包厢氛围强钩子", visual: "门店实拍或数字人站在包厢前，叠加价格和适用人数", purpose: "提高停留和点击" },
+          { scene: "中段 4-18 秒", shot: "套餐拆解 + 场景展示", visual: "包厢、酒水/小吃、音响灯光、预约入口分屏", purpose: "解释价值和降低决策成本" },
+          { scene: "结尾 19-30 秒", shot: "CTA 和评论互动", visual: "团购/预约路径、评论关键词、门店位置提示", purpose: "引导私信咨询、团购和到店预约" },
+        ],
+        chart_dashboard: [
+          { chart: "转化漏斗", metric: "播放 -> 互动 -> 私信/团购点击 -> 预约/核销", purpose: "判断内容是否真的带来到店转化" },
+          { chart: "栏目对比", metric: "门店体验、套餐种草、本地热点三类内容的播放与咨询对比", purpose: "决定下周保留或减少的栏目" },
+          { chart: "周趋势", metric: "每周发布量、互动率、咨询量和团购转化", purpose: "复盘节奏是否稳定增长" },
+        ],
+        visual_assets: [
+          { title: "封面模板", visual: "大字标题 + 包厢实拍 + 人数/预算标签", purpose: "让不同视频保持统一识别度" },
+          { title: "转化图标", visual: "团购、预约、私信、到店核销四个小图标", purpose: "用于视频角标和发布包说明" },
+          { title: "审核预览图", visual: "视频封面、标题、正文、CTA 和风险提示合成预览", purpose: "发布前给操作员一次性审核" },
+        ],
+        weekly_calendar: [
+          { day: "周一", action: "确认选题、素材和授权", owner: currentOwner, deliverable: "本周选题表" },
+          { day: "周三", action: "完成脚本、拍摄或生成候选", owner: "内容/影音 Agent", deliverable: "可审核候选" },
+          { day: "周五", action: "人工审批并发布", owner: currentOwner, deliverable: "发布包和执行记录" },
+          { day: "周日", action: "回收数据并复盘", owner: "数据回流 Agent", deliverable: "复盘结论和下周调整" },
+        ],
+        production_workflow: [
+          { step: "方案确认", gate: "操作员选择并批准候选方案", output: "已批准 OperationPlan" },
+          { step: "文案生产", gate: "脚本、标题、话术通过人工审核", output: "文案任务候选" },
+          { step: "影音生产", gate: "素材授权和工作流确认", output: "可预览短视频候选" },
+          { step: "发布回流", gate: "发布包审批和执行证据", output: "指标快照和再次分析" },
+        ],
+        approval_gates: [
+          { gate: "素材授权", rule: "人物、音乐、门店和参考素材必须可追溯", owner: currentOwner },
+          { gate: "内容合规", rule: "不得夸大价格、承诺或平台不可发布内容", owner: "审核人" },
+          { gate: "发布确认", rule: "标题、正文、话题和 CTA 发布前人工确认", owner: currentOwner },
+        ],
+        feedback_loop: [
+          { metric: "播放量", use: "判断选题吸引力和开场钩子" },
+          { metric: "互动率", use: "判断评论话术和内容共鸣" },
+          { metric: "到店咨询/团购转化", use: "判断 CTA 和套餐表达是否有效" },
+        ],
+        acceptance_criteria: [
+          "每周至少形成 3 条可审核短视频候选和对应发布文案",
+          "每条发布内容必须绑定素材授权、审批记录和发布包",
+          "每周完成一次数据回流，并输出下一轮栏目和发布节奏调整",
+        ],
+      };
+      const externalResearchSummary = [
+        { label: "抓取状态", detail: `${planningIntelligence.status}；来源 ${planningIntelligence.source_results.length} 条；爆款/视频线索 ${planningIntelligence.viral_video_signals.length} 条；运营数据口径 ${planningIntelligence.operation_data_signals.length} 条` },
+        ...planningIntelligence.skill_cards.map((item) => ({
+          label: String(item.title || item.skill_key || "情报技能"),
+          detail: `状态 ${String(item.status || "待复核")}；证据 ${Number(item.evidence_count || 0)} 条；${Array.isArray(item.outputs) ? item.outputs.slice(0, 2).map((output) => String(output)).join("；") : "暂无输出"}`,
+        })),
+        ...planningIntelligence.viral_video_signals.slice(0, 3).map((item) => ({ label: "爆款线索", detail: item })),
+        ...planningIntelligence.competitor_signals.slice(0, 3).map((item) => ({ label: "竞品打法", detail: item })),
+        ...planningIntelligence.operation_data_signals.slice(0, 3).map((item) => ({ label: "数据口径", detail: item })),
+      ];
+      const externalResearchSources = planningIntelligence.source_results.slice(0, 6).map((item, index) => ({
+        index: index + 1,
+        title: String(item.title || "外部来源"),
+        url: String(item.url || ""),
+        snippet: String(item.snippet || "无摘要"),
+        source: String(item.source || "search"),
+        domain: String(item.domain || ""),
+        visual_type: String(item.visual_type || "network_reference"),
+        preview_image_url: String(item.preview_image_url || ""),
+        favicon_url: String(item.favicon_url || ""),
+        evidence_type: String(item.evidence_type || "weak_reference"),
+        evidence_label: String(item.evidence_label || "待复核"),
+        source_role: String(item.source_role || "reference_only"),
+        relevance_reason: String(item.relevance_reason || "该来源需要人工复核后再用于方案。"),
+        actionability_score: Number(item.actionability_score || 0),
+        matched_query: String(item.matched_query || item.query || ""),
+      }));
+      const llmGpuAllocation = [{
+        mode: llmResourcePlan.mode,
+        admission_status: llmResourcePlan.admission_status,
+        recommended_gpu_indexes: llmResourcePlan.recommended_gpu_indexes.join(",") || "无",
+        cuda_visible_devices: llmResourcePlan.cuda_visible_devices || "未指定",
+        comfyui_active: llmResourcePlan.comfyui_active ? "是" : "否",
+        max_concurrent: llmResourcePlan.max_concurrent_llm_requests,
+        note: llmResourcePlan.runtime_notes.join("；") || "按当前后端策略执行",
+      }];
+      const generatedContentStrategy = recordField("content_strategy", {});
+      const mergedContentStrategy = Object.entries(generatedContentStrategy).reduce<Record<string, unknown>>(
+        (current, [key, value]) => planHasContentValue(value) ? { ...current, [key]: value } : current,
+        { ...defaultContentStrategy },
+      );
+      const payload: CommercialOperationPlanCreatePayload = {
+        plan_version: nextVersion,
+        title: textField("title", `${project.title}本地到店转化运营方案 v${nextVersion}`).slice(0, 255),
+        objective_summary: textField("objective_summary", project.objective),
+        audience_strategy: textField("audience_strategy", operationMetaText(project, "target_audience", "本地目标客群与转化用户")),
+        channel_strategy: arrayField("channel_strategy", [{ platform: currentPlatform, role: "主投放平台", reason: "当前项目平台" }]),
+        content_strategy: {
+          ...mergedContentStrategy,
+          external_research_summary: externalResearchSummary,
+          market_signal_analysis: externalResearchSummary,
+          research_skill_cards: planningIntelligence.skill_cards,
+          planning_analysis_report: analysisReport,
+          planning_model_capabilities: modelCapabilities,
+          video_analysis: Array.isArray(analysisReport.video_analysis) ? analysisReport.video_analysis : [],
+          competitor_playbook: Array.isArray(analysisReport.competitor_playbook) ? analysisReport.competitor_playbook : [],
+          operation_capability_diagnosis: Array.isArray(analysisReport.operation_capability_diagnosis) ? analysisReport.operation_capability_diagnosis : [],
+          data_validation_plan: Array.isArray(analysisReport.data_validation_plan) ? analysisReport.data_validation_plan : [],
+          evidence_quality_gate: typeof analysisReport.evidence_quality_gate === "object" ? analysisReport.evidence_quality_gate : {},
+          external_research_sources: externalResearchSources.length ? externalResearchSources : [{ title: "未抓到足够可信来源", note: "方案需人工补充同题材爆款视频链接和竞品账号" }],
+          network_visual_references: externalResearchSources,
+          intelligence_gaps: planningIntelligence.gaps,
+          llm_gpu_allocation: llmGpuAllocation,
+          chat_prompt: content,
+          llm_recommendation_reason: textField("recommendation_reason", "后端 LLM 基于项目上下文生成候选方案。"),
+        },
+        production_scope: arrayField("production_scope", [
+          { task_type: "copy", title: "脚本、标题与话术", approval_required: true },
+          { task_type: "media", media_subtype: "digital_human", title: "数字人短视频候选产出", workflow_selection_required: true },
+        ]),
+        material_requirements: arrayField("material_requirements", [
+          { material_type: "brand_brief", required: true, note: "品牌、门店和转化目标资料" },
+          { material_type: "authorization", required: true, note: "人物、场景、音乐和素材授权" },
+        ]),
+        kpis: arrayField("kpis", (project.success_metrics?.length ? project.success_metrics : ["播放量", "互动率", "到店咨询", "团购转化"]).map((name) => ({
+          name,
+          target_value: name === "播放量" ? "单条 3000+，每周累计 9000+" : name === "互动率" ? "不低于 5%" : name === "到店咨询" ? "每周 20+ 次有效咨询" : name === "团购转化" ? "每周 8+ 单团购或预约转化" : "按首周基线提升 15%",
+          measurement: name === "播放量" ? "平台播放数据" : name === "互动率" ? "点赞、评论、收藏、分享 / 播放量" : name === "到店咨询" ? "私信、电话、团购页咨询和门店预约" : name === "团购转化" ? "团购订单、预约记录和门店核销" : "平台数据和门店转化记录",
+          review_cadence: "每周复盘",
+          review_required: true,
+        }))),
+        publish_schedule: arrayField("publish_schedule", [{ platform: currentPlatform, cadence: operationMetaText(project, "publish_cadence", "每周 3 条"), approval_gate: "发布前人工审批" }]),
+        risk_notes: textField("risk_notes", "素材授权、平台合规、发布节奏和转化口径需要人工复核。"),
+        source_goal: project.objective,
+        metadata: {
+          source: "customer_console_llm_plan_chat",
+          llm_provider: llm.provider,
+          llm_model: llm.model,
+          llm_usage: llm.usage ?? {},
+          raw_llm_content: llm.content,
+          planning_intelligence: planningIntelligence,
+          llm_resource_plan: llmResourcePlan,
+          project_material_count: planMaterials.length,
+          starter_knowledge_auto_created: snapshot.materials.length === 0,
+          backend_plan_outline: preview.plan_outline,
+          chat_message_count: chatMessages.length + 1,
+          revision_base_plan_id: revisionBasePlan?.id,
+          revision_base_plan_version: revisionBasePlan?.plan_version,
+        },
+      };
+      const plan = await commercialOperationClient.createOperationPlan(project.id, payload);
+      await refreshProjectData(project.id);
+      setSelectedReviewPlanId(plan.id);
+      setChatMessages((current) => [...current, { role: "assistant", text: revisionBasePlan ? `已通过后端 LLM（${llm.provider}/${llm.model}）按你的要求生成修订版「${plan.title}」，已自动放到完整审核区。你可以继续对话修改，或确认后批准。` : `已通过后端 LLM（${llm.provider}/${llm.model}）生成候选方案「${plan.title}」，已自动放到完整审核区。你可以继续追问修改当前方案，或明确要求再出一个新方案。` }]);
+      setMessage(revisionBasePlan ? `已生成修订版：${plan.title}` : `已生成候选方案：${plan.title}`);
+    } catch (error) {
+      setChatMessages((current) => [...current, { role: "assistant", text: error instanceof Error ? `方案生成失败：${error.message}` : "方案生成失败。" }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openResource = (target: "knowledge" | "assets" | "approval" | "analysis") => {
+    if (!selectedProject && target !== "analysis") {
+      setPage("overview");
+      setMessage("请先选择或创建项目，再打开项目资源。");
+      return;
+    }
+    if (target === "knowledge") setPage("knowledge");
+    if (target === "assets") setPage("assets");
+    if (target === "approval") setPage("approval");
+    if (target === "analysis") {
+      setPage("feedback");
+      void runAnalysisAgain();
+    }
+  };
+
+  return (
+    <section className="panel chat-panel codex-simple-client" data-simple-workspace-page={page}>
+      <section className="client-task-workbench" data-simple-inner-layout="phase-74e-preview-panels" data-backend-sync="commercial-operations-server" data-template-strict="operation-project-workbench">
+        <div className="simple-operator-workbench">
+          <aside className="simple-reference-sidebar">
+            <div className="simple-design-sidebar-brand"><span>AI</span><div><strong>AI 运营工作台</strong><small>客户机真实接口版</small></div></div>
+            <section className="simple-project-entry">
+              <div className="simple-project-entry-head"><div><span>项目</span><strong>{projectTitle}</strong><p>{currentStage}</p></div><button type="button" className="refresh-button" onClick={startDraft}><PencilLine size={14} /></button></div>
+              <div className="simple-project-list">{projects.length === 0 ? <div className="empty-chat">暂无项目</div> : projects.map((project) => <article className={`simple-project-option ${project.id === selectedProjectId ? "selected" : ""}`} key={project.id}><button type="button" className="simple-project-select" onClick={() => void selectProject(project.id)}><strong>{project.title}</strong><span>{operationStageLabel(project)}</span></button><button type="button" className="simple-project-delete" onClick={() => void deleteProject(project.id)} title="删除项目"><XCircle size={13} /></button></article>)}</div>
+            </section>
+            <nav className="simple-workspace-page-tabs" aria-label="运营项目页签">{templatePages.map((item) => <button type="button" className={`simple-workspace-page-tab ${page === item.page ? "active" : ""}`} aria-pressed={page === item.page} disabled={item.page !== "overview" && !hasProject} key={item.page} onClick={() => setPage(item.page)}>{item.icon}<span>{item.label}</span><small>{item.detail}</small></button>)}</nav>
+            <nav className="simple-resource-page-links" aria-label="项目资源"><strong className="simple-sidebar-section-title">运营资源</strong><button type="button" className={page === "knowledge" ? "active" : ""} onClick={() => openResource("knowledge")}><Database size={14} /><span>项目知识库</span><small>{snapshot.materials.length}</small></button><button type="button" className={page === "assets" ? "active" : ""} onClick={() => openResource("assets")}><Upload size={14} /><span>素材上传</span><small>{snapshot.materials.length}</small></button><button type="button" className={page === "approval" ? "active" : ""} onClick={() => openResource("approval")}><CheckCircle2 size={14} /><span>预览审批</span><small>{snapshot.outputs.length}</small></button><button type="button" className={page === "feedback" ? "active" : ""} onClick={() => openResource("analysis")}><Activity size={14} /><span>再次分析</span><small>{analysisRuns}</small></button></nav>
+          </aside>
+          <main className="simple-reference-main">
+            <section className="simple-design-topbar"><div className="simple-design-title"><h1>你好，运营同学</h1><p>项目、方案、知识库、生产、发布和数据回流已接入后端接口。</p></div><label className="simple-design-search"><Search size={16} /><input type="search" placeholder="搜索项目、素材、产出、指标或指令" /></label><div className="simple-design-avatar">运</div></section>
+            <section className="simple-design-project-switcher"><div className="simple-design-project-current"><span>当前项目</span><strong>{projectTitle}</strong><p>{projectObjective}</p><div className="simple-design-project-meta"><span><em>阶段</em><strong>{currentStage}</strong></span><span><em>平台</em><strong>{currentPlatform}</strong></span><span><em>负责人</em><strong>{currentOwner}</strong></span><span><em>知识库</em><strong>{selectedProject?.knowledge_collection || "随项目走"}</strong></span></div></div><div className="simple-design-project-actions"><button type="button" className="refresh-button" onClick={() => void refreshProjects(selectedProjectId)}><RefreshCcw size={14} />刷新</button><button type="button" className="refresh-button primary-action" onClick={startDraft}><PencilLine size={14} />新建项目</button></div></section>
+            <section className="simple-design-server-sync"><span><Server size={14} /><em>服务器</em><strong>{busy ? "同步中" : "已连接"}</strong></span><span><Database size={14} /><em>素材/当前任务</em><strong>{snapshot.materials.length}/{currentProjectTasks.length}</strong></span><span><Wifi size={14} /><em>消息</em><strong>{message}</strong></span><span><Activity size={14} /><em>当前页</em><strong>{currentPageLabel}</strong></span></section>
+            <section className="simple-reference-stage-workspace">
+              <section className="simple-reference-page-panel" data-reference-page="overview"><div className="simple-reference-panel-head"><div><span>项目总览</span><h2>选择、创建、切换或删除项目</h2><p>项目列表来自后端；删除会调用归档接口，新建会写入商业运营项目。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button primary-action" onClick={startDraft}><PencilLine size={14} />新建项目</button></div></div>{draftActive ? <section className="simple-reference-create-project"><div className="simple-reference-create-main"><span>创建项目</span><strong>完整模板信息</strong><label>项目名称<input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} /></label><label>运营目标<textarea value={draftGoal} onChange={(event) => setDraftGoal(event.target.value)} rows={3} /></label><div className="simple-reference-create-inline"><label>平台<input value={draftPlatform} onChange={(event) => setDraftPlatform(event.target.value)} /></label><label>负责人<input value={draftOwner} onChange={(event) => setDraftOwner(event.target.value)} /></label></div><label>目标人群<input value={draftAudience} onChange={(event) => setDraftAudience(event.target.value)} /></label><div className="simple-reference-create-inline"><label>内容类型<input value={draftContentType} onChange={(event) => setDraftContentType(event.target.value)} /></label><label>发布节奏<input value={draftCadence} onChange={(event) => setDraftCadence(event.target.value)} /></label></div><label>业务限制<textarea value={draftConstraints} onChange={(event) => setDraftConstraints(event.target.value)} rows={2} /></label><div className="simple-reference-create-actions"><button type="button" className="refresh-button primary-action" onClick={() => void createProject()} disabled={busy}><Send size={14} />提交后端并生成项目</button></div></div><aside className="simple-reference-create-side"><article><span>模板字段</span><strong>目标/人群/平台/内容/节奏/限制</strong><p>创建时会附带成功指标、约束、项目级知识库集合，并同步到网页端和桌面端同一套后端接口。</p></article></aside></section> : null}<div className="simple-reference-project-grid">{projects.map((project) => <article className={`simple-reference-project-card ${project.id === selectedProjectId ? "active" : ""}`} key={project.id}><div><span>{operationStageLabel(project)}</span><strong>{project.title}</strong><p>{project.objective}</p><small>{operationPlatformLabel(project)}</small></div><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void selectProject(project.id)}><PlayCircle size={14} />进入</button><button type="button" className="refresh-button" onClick={() => void deleteProject(project.id)}><XCircle size={14} />删除</button></div></article>)}</div></section>
+              <section className="simple-reference-page-panel" data-reference-page="planning">
+                <div className="simple-reference-panel-head">
+                  <div>
+                    <span>方案对话</span>
+                    <h2>和 LLM 对话、修改并审核完整方案</h2>
+                    <p>上方继续对话；下方横板展示当前选中方案的完整内容，审核前可以逐项查看目标、栏目、排期、素材、KPI、发布和风控。</p>
+                  </div>
+                </div>
+                <div className="simple-reference-planning-chat">
+                  <section className="simple-reference-chat-surface">
+                    <div className="simple-reference-chat-head"><strong>{projectTitle}</strong><span>{chatMessages.length} 条消息</span></div>
+                    <div className="simple-reference-chat-messages">{chatMessages.map((item, index) => <article className={`simple-reference-chat-message ${item.role}`} key={`${item.role}-${index}`}><span>{item.role === "assistant" ? "运营助手" : "操作员"}</span><p>{item.text}</p></article>)}</div>
+                    <div className="simple-reference-chat-compose">
+                      <textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={selectedReviewPlan ? "继续修改当前方案，例如：把这版改得更保守、增加门店实拍、删掉数字人、强化到店转化。输入“另一个新方案”则生成新候选。" : "告诉 LLM 生成第一版运营方案，例如：围绕本地到店转化，建立每周短视频生产、发布和回流闭环。"} rows={3} />
+                      <button type="button" className="action-button primary-action" onClick={() => void sendPlanMessage()} disabled={busy}><Send size={16} />{selectedReviewPlan ? "修改当前方案" : "生成候选"}</button>
+                    </div>
+                  </section>
+                  <aside className="simple-reference-plan-review-surface">
+                    <div className="simple-reference-plan-review-head">
+                      <div><span>完整方案审核</span><strong>{selectedReviewPlan ? planDisplayTitle(selectedReviewPlan, projectTitle, currentPlatform) : "等待候选方案"}</strong><p>{selectedReviewPlan ? "下方是当前选中方案的完整审核内容，确认无误后再批准进入生产。" : "先在左侧生成方案，或从候选列表中选择一版查看完整内容。"}</p></div>
+                      <small>{selectedReviewPlan ? `v${selectedReviewPlan.plan_version} / ${projectRecordStatusLabel(selectedReviewPlan.plan_status)}` : `${visiblePlans.length} 个候选`}</small>
+                    </div>
+                    <div className="simple-reference-plan-candidate-list">
+                      <article className="simple-reference-plan-candidate-info"><span>项目知识库</span><strong>{snapshot.materials.length} 条素材</strong><p>LLM 会读取当前项目、知识库、素材、约束和最近对话。</p></article>
+                      {visiblePlans.map((plan) => <button type="button" className={`simple-reference-plan-candidate ${selectedReviewPlan?.id === plan.id ? "active" : ""}`} key={plan.id} onClick={() => setSelectedReviewPlanId(plan.id)}><span>{plan.plan_status === "approved" ? "已批准" : `v${plan.plan_version}`}</span><strong>{planDisplayTitle(plan, projectTitle, currentPlatform)}</strong><small>{projectRecordStatusLabel(plan.plan_status)}</small></button>)}
+                    </div>
+                    {selectedReviewPlan ? <article className={`simple-reference-plan-review-card ${selectedReviewPlan.plan_status}`}>
+                      <div className="simple-reference-plan-title-row"><div><span>{selectedReviewPlan.plan_status === "approved" ? "已批准" : `候选 v${selectedReviewPlan.plan_version}`}</span><strong>{planDisplayTitle(selectedReviewPlan, projectTitle, currentPlatform)}</strong></div><small>{String(selectedReviewPlan.metadata?.llm_provider || "后端")} / {String(selectedReviewPlan.metadata?.llm_model || "方案 Agent")}</small></div>
+                      <p>{selectedReviewPlan.objective_summary}</p>
+                      <small>{selectedReviewPlan.production_scope.length} 个生产范围 / {selectedReviewPlan.kpis.length} 个 KPI / {selectedReviewPlan.publish_schedule.length} 条发布节奏</small>
+                      {renderOperationPlanDetails(selectedReviewPlan, snapshot)}
+                      <div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void approveOperationPlan(selectedReviewPlan)} disabled={busy || selectedReviewPlan.plan_status === "approved" || selectedReviewPlan.plan_status === "rejected"}><CheckCircle2 size={14} />确认并批准</button><button type="button" className="refresh-button" onClick={() => void submitOperationPlanReview(selectedReviewPlan)} disabled={busy || selectedReviewPlan.plan_status !== "draft"}><PlayCircle size={14} />提交审核</button><button type="button" className="refresh-button" onClick={() => void rejectOperationPlan(selectedReviewPlan)} disabled={busy || selectedReviewPlan.plan_status === "approved" || selectedReviewPlan.plan_status === "rejected"}><RotateCcw size={14} />驳回并移除</button></div>
+                    </article> : <article className="simple-reference-plan-review-card needs-action"><span>等待 LLM</span><strong>暂无可审核方案</strong><p>先在左侧发送需求，后端 LLM 会生成第一版完整候选；生成后会自动出现在这里。</p></article>}
+                  </aside>
+                </div>
+              </section>
+              <section className="simple-reference-page-panel" data-reference-page="text"><div className="simple-reference-panel-head"><div><span>文案任务</span><h2>方案已批准，生成并审核文案成稿</h2><p>{activeOperationPlan ? `当前只展示最新版已批准方案 v${activeOperationPlan.plan_version} 的文案成稿；生产任务仅作为来源说明，历史版本保留在后端审计。` : "先批准一版方案，后端才会派生当前文案任务。"}</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button primary-action" onClick={() => void generateQualifiedCopyDraft()} disabled={busy || !activeOperationPlan}><FileText size={14} />{copyDraftAction === "generating" ? "生成中..." : "生成文案成稿"}</button></div></div><div className="simple-reference-copy-grid">{currentCopyDrafts.map((draft) => <article className={`simple-reference-copy-card copy-draft ${draft.draft_status}`} key={draft.id}><span>{contentDraftStatusLabel(draft.draft_status)}</span><strong>{draft.title}</strong><p>{draft.summary || "完整短视频文案成稿，等待人工审核。"}</p><small>{draft.channel} / {planDisplayToken(draft.content_format)} / 方案 v{String(draft.metadata?.operation_plan_version || activeOperationPlan?.plan_version || "-")}</small><pre className="simple-reference-copy-final-body">{draft.content_body}</pre><div className="simple-reference-card-actions"><button type="button" className="refresh-button" onClick={() => void readyCopyDraft(draft)} disabled={busy || draft.draft_status === "ready_for_review" || draft.draft_status === "approved"}>提交审核</button><button type="button" className="refresh-button primary-action" onClick={() => void approveCopyDraft(draft)} disabled={busy || draft.draft_status === "approved"}><CheckCircle2 size={14} />{copyDraftAction === "approving" ? "批准中..." : "批准成稿"}</button><button type="button" className="refresh-button" onClick={() => void rejectCopyDraft(draft)} disabled={busy || draft.draft_status === "approved"}><XCircle size={14} />{copyDraftAction === "rejecting" ? "驳回中..." : "驳回"}</button></div></article>)}{currentCopyDrafts.length === 0 ? <article className="simple-reference-copy-card needs-action"><span>待生成</span><strong>暂无合格文案成稿</strong><p>点击右上角“生成文案成稿”，系统会基于当前 v{activeOperationPlan?.plan_version ?? "-"} 方案生成可审核的三条短视频脚本、标题、发布正文、评论话术和风险检查。</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void generateQualifiedCopyDraft()} disabled={busy || !activeOperationPlan}><FileText size={14} />{copyDraftAction === "generating" ? "生成中..." : "生成文案成稿"}</button></div></article> : null}{currentCopyTasks.map((task) => <article className={`simple-reference-copy-card task-source ${task.task_status}`} key={task.id}><span>任务来源</span><strong>生产要求：{task.title}</strong><p>这条记录是后端根据最新版方案派生的生产任务，用来说明成稿从哪里来；真正需要审核的是上方“文案成稿”。</p><small>{task.channel} / {task.assigned_agent ? "文案团队" : "待分配"} / {activeOperationPlan ? `方案 v${activeOperationPlan.plan_version}` : "未绑定方案"}</small><div className="simple-reference-task-deliverables">{taskDeliverables(task).map((item) => <em key={item}>{item}</em>)}</div><div className="simple-reference-copy-detail-list">{copyReviewSections(task, activeOperationPlan).map((section) => <section key={section.title}><strong>{section.title}</strong><ul>{section.items.map((item, index) => <li key={`${section.title}-${index}`}>{item}</li>)}</ul></section>)}</div><div className="simple-reference-card-actions"><button type="button" className="refresh-button" onClick={() => void generateQualifiedCopyDraft()} disabled={busy || !activeOperationPlan}><RefreshCcw size={14} />{copyDraftAction === "generating" ? "生成中..." : "按此要求重生成稿"}</button></div></article>)}{currentCopyTasks.length === 0 ? <article className="simple-reference-copy-card task-source needs-action"><span>任务来源</span><strong>当前方案暂无文案生产任务</strong><p>{activeOperationPlan ? "生成文案成稿时会自动创建并绑定到当前最新版已批准方案。" : "先在方案对话中批准一版方案，再生成文案成稿。"}</p></article> : null}</div></section>
+              <section className="simple-reference-page-panel" data-reference-page="media"><div className="simple-reference-panel-head"><div><span>影音生产</span><h2>素材上传、生产任务、产出预览</h2><p>素材登记、生产任务和产出候选都写入后端；工作流选择在独立页完成。</p></div><div className="simple-reference-head-actions"><label className="refresh-button primary-action"><Upload size={14} />上传素材<input type="file" multiple hidden onChange={(event) => { Array.from(event.target.files ?? []).forEach((file) => void registerMaterialFile(file)); event.currentTarget.value = ""; }} /></label><button type="button" className="refresh-button" onClick={() => void createProductionTask("media")}><PlayCircle size={14} />创建任务</button><button type="button" className="refresh-button" onClick={() => void loadWorkflowCandidates()}><TerminalSquare size={14} />选择工作流</button><button type="button" className="refresh-button" onClick={() => void createOutputCandidate()}><Package size={14} />登记预览</button></div></div><div className="simple-reference-work-area"><section className="simple-reference-material-grid">{snapshot.materials.map((material) => <article className="simple-reference-material-card current" key={material.id}><span>{material.material_status}</span><strong>{material.name}</strong><p>{material.notes || material.source_uri}</p><small>{material.material_type}</small></article>)}{snapshot.materials.length === 0 ? <article className="simple-reference-material-card needs-action"><span>待上传</span><strong>暂无项目素材</strong><p>点击上传素材登记到当前项目。</p></article> : null}</section><aside className="simple-reference-context-stack">{currentMediaTasks.map((task) => <article className={`simple-reference-context-card ${task.task_status}`} key={task.id}><span>{task.task_status}</span><strong>{task.title}</strong><p>{task.brief}</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button" onClick={() => void decideTask(task, "ready")}>提交审核</button><button type="button" className="refresh-button primary-action" onClick={() => void decideTask(task, "approve")}>批准</button></div></article>)}{currentMediaTasks.length === 0 ? <article className="simple-reference-context-card needs-action"><span>待创建</span><strong>暂无影音任务</strong><p>先创建影音生产任务，再进入流选择。</p></article> : null}</aside></div></section>
+              <section className="simple-reference-page-panel" data-reference-page="flows"><div className="simple-reference-panel-head"><div><span>流选择</span><h2>选择业务可理解的 ComfyUI 工作流候选</h2><p>候选来自后端工作流检索；操作员确认后形成 WorkflowSelection 记录。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button primary-action" onClick={() => void loadWorkflowCandidates()} disabled={busy}><RefreshCcw size={14} />加载候选流</button></div></div><div className="simple-reference-work-area"><section className="simple-reference-workflow-list">{workflowCandidates.map((candidate) => <article className="simple-reference-workflow-card current" key={candidate.candidate_id}><span>{candidate.runtime_readiness}</span><strong>{candidate.workflow_name}</strong><p>{candidate.candidate_summary || candidate.recommendation_reason || "后端推荐工作流候选。"}</p><small>{candidate.output_type} / {candidate.validation_status} / 显存 {candidate.estimated_vram_mb ?? "未知"} MB</small><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void approveWorkflowCandidate(candidate)}><CheckCircle2 size={14} />选择并批准</button></div></article>)}{workflowCandidates.length === 0 ? <article className="simple-reference-workflow-card needs-action"><span>待确认</span><strong>后端暂无候选流</strong><p>可以重新加载候选；如果客户机已有确认可用的工作流，也可以登记为手动选择，继续后续预览审批。</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void createManualWorkflowSelection()} disabled={busy}><CheckCircle2 size={14} />登记手动工作流</button></div></article> : null}</section><aside className="simple-reference-context-stack">{snapshot.workflows.map((workflow) => <article className={`simple-reference-context-card ${workflow.selection_status}`} key={workflow.id}><span>{workflow.selection_status}</span><strong>{workflow.workflow_name}</strong><p>{workflow.recommendation_reason || workflow.candidate_summary || "已保存的工作流选择。"}</p></article>)}{snapshot.workflows.length === 0 ? <article className="simple-reference-context-card needs-action"><span>未选择</span><strong>当前项目暂无工作流选择</strong><p>影音产出必须先确认工作流，候选作品才有来源链路。</p></article> : null}</aside></div></section>
+              <section className="simple-reference-page-panel" data-reference-page="knowledge"><div className="simple-reference-panel-head"><div><span>项目知识库</span><h2>当前项目上下文与知识资料</h2><p>知识库跟随项目，不再是全局 RAG 桶；方案、生产和审批都会使用这里的项目资料。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button" onClick={() => selectedProject && void refreshProjectData(selectedProject.id)}><RefreshCcw size={14} />刷新知识</button><button type="button" className="refresh-button primary-action" onClick={() => setPage("assets")}><Upload size={14} />导入资料</button></div></div><div className="simple-reference-work-area"><section className="simple-reference-material-grid"><article className="simple-reference-material-card current"><span>集合</span><strong>{selectedProject?.knowledge_collection || "未设置知识库集合"}</strong><p>{projectObjective}</p><small>{currentPlatform} / {currentOwner}</small></article>{snapshot.materials.map((material) => <article className="simple-reference-material-card current" key={material.id}><span>{material.authorization_status}</span><strong>{material.name}</strong><p>{material.notes || material.usage_scope || material.source_uri}</p><small>{material.tags.join(" / ") || material.material_type}</small></article>)}{snapshot.materials.length === 0 ? <article className="simple-reference-material-card needs-action"><span>待导入</span><strong>暂无项目知识资料</strong><p>把品牌资料、门店照片、参考视频、脚本和授权证明导入当前项目。</p></article> : null}</section><aside className="simple-reference-context-stack"><article className="simple-reference-context-card current"><span>成功指标</span><strong>{selectedProject?.success_metrics?.join(" / ") || "待补充"}</strong><p>这些指标会进入方案、发布包和回流分析。</p></article><article className="simple-reference-context-card needs-action"><span>业务约束</span><strong>{selectedProject?.constraints?.length || 0} 条</strong><p>{selectedProject?.constraints?.join("；") || "请在新建项目时补充品牌限制和审批边界。"}</p></article></aside></div></section>
+              <section className="simple-reference-page-panel" data-reference-page="assets"><div className="simple-reference-panel-head"><div><span>素材上传</span><h2>导入当前项目可用素材</h2><p>素材必须归属具体项目，记录类型、授权、用途和关联生产任务。</p></div><div className="simple-reference-head-actions"><label className="refresh-button primary-action"><Upload size={14} />选择文件<input type="file" multiple hidden onChange={(event) => { Array.from(event.target.files ?? []).forEach((file) => void registerMaterialFile(file)); event.currentTarget.value = ""; }} /></label><button type="button" className="refresh-button" onClick={() => void createProductionTask("media")}><PlayCircle size={14} />创建影音任务</button></div></div><div className="simple-reference-work-area"><section className="simple-reference-material-grid">{snapshot.materials.map((material) => <article className="simple-reference-material-card current" key={material.id}><span>{material.material_type}</span><strong>{material.name}</strong><p>{material.source_uri}</p><small>{material.material_status} / {material.authorization_status}</small></article>)}{snapshot.materials.length === 0 ? <article className="simple-reference-material-card needs-action"><span>待上传</span><strong>暂无素材</strong><p>支持图片、视频、音频、文档和授权材料登记到当前项目。</p></article> : null}</section><aside className="simple-reference-context-stack"><article className="simple-reference-context-card current"><span>归属项目</span><strong>{projectTitle}</strong><p>上传后的素材会进入项目知识库，并可被文案、影音和产出审批引用。</p></article><article className="simple-reference-context-card needs-action"><span>生产引用</span><strong>{currentProjectTasks.length} 个当前任务</strong><p>素材导入后可创建或补充生产任务，避免散落在本地文件夹。</p></article></aside></div></section>
+              <section className="simple-reference-page-panel" data-reference-page="approval"><div className="simple-reference-panel-head"><div><span>预览审批</span><h2>候选产出、最终选择和发布包确认</h2><p>所有生成结果先进入候选池，人工选择后才能生成发布包并交给客户机执行。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button" onClick={() => void createOutputCandidate()}><Package size={14} />登记预览</button><button type="button" className="refresh-button primary-action" onClick={() => void createPublishPackage()}><Send size={14} />生成发布包</button></div></div><div className="simple-reference-review-grid">{snapshot.outputs.map((candidate) => <article className="simple-reference-review-card ready" key={candidate.id}><div className="simple-reference-output-preview"><Package size={22} /></div><span>{candidate.candidate_status}</span><strong>{candidate.title}</strong><p>{candidate.generation_summary || candidate.preview_uri || "等待预览。"}</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void selectOutputCandidate(candidate)}><CheckCircle2 size={14} />选择为最终</button><button type="button" className="refresh-button" onClick={() => selectedProject && void commercialOperationClient.decideOutputCandidate(selectedProject.id, candidate.id, "reject", "客户机前端驳回。").then(() => refreshProjectData(selectedProject.id))}><XCircle size={14} />驳回</button></div></article>)}{snapshot.outputs.length === 0 ? <article className="simple-reference-review-card needs-action"><div className="simple-reference-output-preview"><Package size={22} /></div><span>待登记</span><strong>暂无可预览产出</strong><p>先在影音生产中登记候选，或直接登记一个人工预览产出。</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void createOutputCandidate()}><Package size={14} />登记预览</button></div></article> : null}</div><div className="simple-reference-feedback-grid"><article className="simple-reference-feedback-card current"><span>最终选择</span><strong>{snapshot.selections.length} 条</strong><p>最终选择用于生成发布包，不能绕过人工确认。</p></article><article className="simple-reference-feedback-card current"><span>发布包</span><strong>{snapshot.publishPackages.length} 个</strong><p>发布前需确认标题、正文、话题、平台和风险提示。</p></article><article className="simple-reference-feedback-card current"><span>数据回流</span><strong>{snapshot.metrics.length} 条</strong><p>发布后回流指标用于下一轮优化。</p></article></div></section>
+              <section className="simple-reference-page-panel" data-reference-page="outputs"><div className="simple-reference-panel-head"><div><span>产出审批</span><h2>预览并选择生成结果</h2><p>产出候选可选择、驳回，并生成最终选择记录。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button primary-action" onClick={() => void createOutputCandidate()}><Package size={14} />登记预览产出</button></div></div><div className="simple-reference-review-grid">{snapshot.outputs.map((candidate) => <article className="simple-reference-review-card ready" key={candidate.id}><div className="simple-reference-output-preview"><Package size={22} /></div><span>{candidate.candidate_status}</span><strong>{candidate.title}</strong><p>{candidate.generation_summary || candidate.preview_uri || "等待预览。"}</p><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void selectOutputCandidate(candidate)}><CheckCircle2 size={14} />选择并审批</button><button type="button" className="refresh-button" onClick={() => selectedProject && void commercialOperationClient.decideOutputCandidate(selectedProject.id, candidate.id, "reject", "客户机前端驳回。").then(() => refreshProjectData(selectedProject.id))}><XCircle size={14} />驳回</button></div></article>)}</div></section>
+              <section className="simple-reference-page-panel" data-reference-page="publish"><div className="simple-reference-panel-head"><div><span>发布执行</span><h2>发布包、客户机执行和结果回填</h2><p>发布包来自后端；批准后先 dry-run，再记录真实提交证据，最后才能回填发布结果。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button primary-action" onClick={() => void createPublishPackage()}><Send size={14} />生成发布包</button></div></div><div className="simple-reference-publish-grid"><section className="simple-reference-publish-list">{snapshot.publishPackages.map((item) => <article className={`simple-reference-publish-card ${item.package_status}`} key={item.id}><span>{item.package_status}</span><strong>{item.title}</strong><p>{item.body}</p><small>{item.hashtags.join(" ")}</small><div className="simple-reference-card-actions"><button type="button" className="refresh-button primary-action" onClick={() => void approvePublishPackage(item)} disabled={busy}><CheckCircle2 size={14} />批准并准备执行</button><button type="button" className="refresh-button" onClick={() => void runPublishDryRun(item)} disabled={busy}><PlayCircle size={14} />执行 dry-run</button><button type="button" className="refresh-button" onClick={() => void runPublishSubmit(item)} disabled={busy}><Send size={14} />记录真实提交</button><button type="button" className="refresh-button" onClick={() => void capturePublishResult(item)} disabled={busy}><Wifi size={14} />回填发布结果</button></div></article>)}{snapshot.publishPackages.length === 0 ? <article className="simple-reference-publish-card needs-action"><span>待生成</span><strong>暂无发布包</strong><p>先审批产出，再生成发布包。</p></article> : null}</section><aside className="simple-reference-data-list"><article className="simple-reference-data-card ready"><span>最终选择</span><strong>{snapshot.selections.length}</strong><p>已选择的产出会用于生成发布包。</p></article><article className="simple-reference-data-card ready"><span>客户机边界</span><strong>dry-run + 真实提交证据</strong><p>这里不会绕过审批；mock provider 只能记录 dry-run，不能伪装真实发布成功。</p></article></aside></div></section>
+              <section className="simple-reference-page-panel" data-reference-page="feedback"><div className="simple-reference-panel-head"><div><span>数据回流</span><h2>拉回发布指标并再次分析</h2><p>这里处理发布后的真实回流指标、人工记录和下一轮优化；方案阶段的热门视频和竞品打法来自全网情报抓取。</p></div><div className="simple-reference-head-actions"><button type="button" className="refresh-button" onClick={() => selectedProject && void refreshProjectData(selectedProject.id)} disabled={busy}><RefreshCcw size={14} />刷新回流</button><button type="button" className="refresh-button primary-action" onClick={() => void runAnalysisAgain()} disabled={busy}><Activity size={14} />再次分析</button></div></div><div className="simple-reference-feedback-grid"><article className="simple-reference-feedback-card current"><span>指标快照</span><strong>{snapshot.metrics.length} 条</strong><p>发布执行、客户机回填和人工补充的播放、互动、咨询、预约与核销数据都会进入这里。</p></article><article className="simple-reference-feedback-card current"><span>方案情报</span><strong>{activeOperationPlan ? "已绑定方案" : "待批准方案"}</strong><p>生成方案时会抓取同题材热门视频、竞品打法和平台公开资料，作为方案依据而非账号后台数据。</p></article><article className="simple-reference-feedback-card needs-action"><span>下一轮动作</span><strong>回流后复盘</strong><p>再次分析会把当前项目指标写入后端分析任务，用于下一轮文案、影音和发布节奏优化。</p></article></div><div className="simple-reference-feedback-grid">{snapshot.metrics.slice(0, 6).map((metric) => <article className="simple-reference-feedback-card current" key={metric.id}><span>{metric.platform}</span><strong>{metric.source_type}</strong><p>{metric.summary || "已登记指标快照。"}</p></article>)}{snapshot.metrics.length === 0 ? <article className="simple-reference-feedback-card needs-action"><span>暂无回流</span><strong>等待发布后数据</strong><p>先完成发布执行并回填结果，再点击再次分析形成下一轮优化建议。</p></article> : null}</div></section>
+            </section>
+          </main>
+        </div>
+      </section>
+    </section>
+  );
+}
 
 type ClientCopy = {
   phase: string;
@@ -8152,7 +10670,6 @@ rootElement.aiOpsRoot = root;
 
 root.render(
   <React.StrictMode>
-    <App />
+    <ConnectedOperationTemplateWorkbench />
   </React.StrictMode>,
 );
-

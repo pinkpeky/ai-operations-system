@@ -54,3 +54,23 @@ class OpenClawCapabilitiesResponse(BaseModel):
     capabilities: dict[str, Any] = Field(default_factory=dict)
     actions: list[str] = Field(default_factory=list)
     error: str | None = None
+
+
+class OpenClawProviderDiagnosticsResponse(BaseModel):
+    """OpenClaw provider configuration diagnostics without exposing secrets."""
+
+    success: bool
+    provider: str
+    enabled: bool
+    mock: bool
+    configured: bool
+    readiness_status: str
+    base_url_configured: bool = False
+    api_key_configured: bool = False
+    timeout_seconds: float | None = None
+    paths: dict[str, str] = Field(default_factory=dict)
+    missing_config: list[str] = Field(default_factory=list)
+    required_env: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    secret_fields_redacted: list[str] = Field(default_factory=list)
+    contract: str = "openclaw_provider_configuration_preflight"

@@ -29,6 +29,6 @@ def test_worker_console_chat_env_examples_document_ai_server() -> None:
 
     for relative in ("worker_console/.env.example", "worker_console_desktop/.env.example"):
         text = (ROOT / relative).read_text(encoding="utf-8")
-        assert "VITE_AI_SERVER_API=http://localhost:8000" in text
-        assert "VITE_WORKSPACE_ID=demo-workspace" in text
-        assert "VITE_USER_ID=demo-user" in text
+        assert "VITE_AI_SERVER_API=http://127.0.0.1:8000" in text
+        assert "VITE_WORKSPACE_ID=production-workspace" in text
+        assert "VITE_USER_ID=production-operator" in text

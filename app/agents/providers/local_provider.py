@@ -34,11 +34,13 @@ class LocalProvider(BaseLLMProvider):
         base_url: str,
         model: str,
         timeout_seconds: float,
+        num_ctx: int | None = None,
         http_client: AsyncHTTPClient | None = None,
     ) -> None:
         super().__init__(model=model)
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self.num_ctx = num_ctx
         self._http_client = http_client
 
     async def generate(self, request: LLMRequest, prompt: LLMPrompt) -> LLMResponse:
@@ -55,6 +57,14 @@ class LocalProvider(BaseLLMProvider):
                 options["temperature"] = request.temperature
             if request.max_tokens is not None:
                 options["num_predict"] = request.max_tokens
+            if self.num_ctx is not None:
+                options["num_ctx"] = self.num_ctx
+            runtime_options = request.variables.get("ollama_options") if isinstance(request.variables, dict) else None
+            if isinstance(runtime_options, dict):
+                for key in ("num_gpu", "main_gpu", "num_thread", "num_batch"):
+                    value = runtime_options.get(key)
+                    if isinstance(value, int):
+                        options[key] = value
             if options:
                 payload["options"] = options
 
@@ -76,6 +86,11 @@ class LocalProvider(BaseLLMProvider):
                     "base_url": self.base_url,
                     "done": data.get("done"),
                     "total_duration": data.get("total_duration"),
+                    "runtime_options": {
+                        key: options[key]
+                        for key in ("num_gpu", "main_gpu", "num_thread", "num_batch")
+                        if key in options
+                    },
                 },
             )
         except Exception as exc:
@@ -128,7 +143,7 @@ class LocalProvider(BaseLLMProvider):
             return await self._http_client.post(url, json=payload or {})
 
         timeout = httpx.Timeout(self.timeout_seconds)
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
             if method == "GET":
                 return await client.get(url)
             return await client.post(url, json=payload or {})

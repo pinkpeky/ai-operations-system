@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Body, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.browser.remote.services.browser_worker_auth_service import BrowserWorkerAuthService
@@ -37,6 +37,7 @@ from worker_client.openclaw import (
     OpenClawActionResponse,
     OpenClawCapabilitiesResponse,
     OpenClawHealthResponse,
+    OpenClawProviderDiagnosticsResponse,
     OpenClawRuntime,
 )
 
@@ -80,6 +81,7 @@ def create_worker_client_app(
     openclaw_runtime = OpenClawRuntime(
         provider_name=config.openclaw_provider,
         enabled=config.openclaw_enabled,
+        provider_config=config.openclaw,
     )
     runtime_manager = manager
     if runtime_manager is None:
@@ -106,7 +108,20 @@ def create_worker_client_app(
     app = FastAPI(title="AI Ops Customer Machine Worker", version="30.0.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+            "http://localhost:5180",
+            "http://127.0.0.1:5180",
+            "http://localhost:5181",
+            "http://127.0.0.1:5181",
+            "http://localhost:5182",
+            "http://127.0.0.1:5182",
+            "http://localhost:5184",
+            "http://127.0.0.1:5184",
+        ],
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
@@ -177,6 +192,12 @@ def create_worker_client_app(
 
         return await openclaw_runtime.capabilities()
 
+    @app.get("/openclaw/provider-diagnostics", response_model=OpenClawProviderDiagnosticsResponse)
+    async def openclaw_provider_diagnostics() -> OpenClawProviderDiagnosticsResponse:
+        """Return OpenClaw provider configuration preflight without exposing secrets."""
+
+        return openclaw_runtime.provider_diagnostics()
+
     @app.post("/openclaw/actions", response_model=OpenClawActionResponse)
     async def execute_openclaw_action(
         request: OpenClawActionRequest,
@@ -232,6 +253,51 @@ def create_worker_client_app(
 
         log_event("local api heartbeat stop requested")
         return safe_local_payload(runtime_manager.stop_heartbeat())
+
+    @app.get("/local/metric-dispatch-scheduler")
+    async def local_metric_dispatch_scheduler_status() -> dict[str, Any]:
+        """Return the local metric dispatch scheduler state."""
+
+        return safe_local_payload(runtime_manager.metric_dispatch_scheduler_state())
+
+    @app.post("/local/metric-dispatch-scheduler/configure")
+    async def local_metric_dispatch_scheduler_configure(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Persist the server-issued metric dispatch scheduler payload."""
+
+        log_event("local api metric dispatch scheduler configure requested")
+        try:
+            return safe_local_payload(runtime_manager.configure_metric_dispatch_scheduler(payload))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/local/metric-dispatch-scheduler/tick")
+    async def local_metric_dispatch_scheduler_tick(payload: dict[str, Any] | None = Body(default=None)) -> dict[str, Any]:
+        """Run one local metric dispatch scheduler tick."""
+
+        force = bool((payload or {}).get("force")) if isinstance(payload, dict) else False
+        log_event("local api metric dispatch scheduler tick requested", extra={"force": force})
+        return safe_local_payload(await runtime_manager.tick_metric_dispatch_scheduler(force=force))
+
+    @app.post("/local/metric-dispatch-scheduler/start")
+    async def local_metric_dispatch_scheduler_start() -> dict[str, Any]:
+        """Start the local metric dispatch scheduler loop."""
+
+        log_event("local api metric dispatch scheduler start requested")
+        return safe_local_payload(runtime_manager.start_metric_dispatch_scheduler())
+
+    @app.post("/local/metric-dispatch-scheduler/stop")
+    async def local_metric_dispatch_scheduler_stop() -> dict[str, Any]:
+        """Stop the local metric dispatch scheduler loop."""
+
+        log_event("local api metric dispatch scheduler stop requested")
+        return safe_local_payload(runtime_manager.stop_metric_dispatch_scheduler())
+
+    @app.post("/local/metric-dispatch-scheduler/clear")
+    async def local_metric_dispatch_scheduler_clear() -> dict[str, Any]:
+        """Clear local metric dispatch scheduler state."""
+
+        log_event("local api metric dispatch scheduler clear requested")
+        return safe_local_payload(runtime_manager.clear_metric_dispatch_scheduler())
 
     @app.get("/local/logs")
     async def local_logs(lines: int = 100) -> dict[str, Any]:

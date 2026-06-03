@@ -179,6 +179,31 @@ async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -
                 "monitor_recover",
             ]
 
+            delete_target = await client.post(
+                "/api/v1/commercial-operations",
+                headers=headers,
+                json={
+                    "title": "Delete from project picker",
+                    "objective": "Temporary operation for archive-delete coverage.",
+                    "channels": ["douyin"],
+                },
+            )
+            assert delete_target.status_code == 201
+            delete_target_id = delete_target.json()["id"]
+            deleted_operation = await client.delete(
+                f"/api/v1/commercial-operations/{delete_target_id}",
+                headers=headers,
+            )
+            assert deleted_operation.status_code == 200
+            assert deleted_operation.json()["status"] == "archived"
+            assert deleted_operation.json()["metadata"]["archive_reason"] == "operator_deleted_from_project_workspace"
+            default_operation_list = await client.get("/api/v1/commercial-operations", headers=headers)
+            assert default_operation_list.status_code == 200
+            assert delete_target_id not in {item["id"] for item in default_operation_list.json()["items"]}
+            archived_operation_list = await client.get("/api/v1/commercial-operations?status=archived", headers=headers)
+            assert archived_operation_list.status_code == 200
+            assert delete_target_id in {item["id"] for item in archived_operation_list.json()["items"]}
+
             plan = await client.post(f"/api/v1/commercial-operations/{operation_id}/plan-draft", headers=headers)
             assert plan.status_code == 200
             assert plan.json()["operation_id"] == operation_id
@@ -191,9 +216,9 @@ async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -
             assert initial_loop.status_code == 200
             initial_loop_body = initial_loop.json()
             assert initial_loop_body["operation_id"] == operation_id
-            assert initial_loop_body["loop_status"] == "in_progress"
-            assert initial_loop_body["current_stage_key"] == "knowledge_context"
-            assert initial_loop_body["completion_ratio"] == 0.2
+            assert initial_loop_body["loop_status"] == "missing"
+            assert initial_loop_body["current_stage_key"] == "task_planning"
+            assert initial_loop_body["completion_ratio"] == 0.1
             assert [stage["stage_key"] for stage in initial_loop_body["stages"]] == [
                 "operation_topic",
                 "task_planning",
@@ -220,15 +245,13 @@ async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -
             agent_skill_body = agent_skill.json()
             assert agent_skill_body["operation_id"] == operation_id
             assert agent_skill_body["controller_agent"]["agent_name"] == "commercial_operation_agent"
-            assert agent_skill_body["controller_agent"]["uses_existing_agents"] == [
-                "rag_agent",
-                "content_agent",
-                "review_agent",
-                "client_execution_agent",
-                "analytics_agent",
-            ]
-            assert agent_skill_body["orchestration_status"] == "active"
-            assert agent_skill_body["next_skill_key"] == "knowledge_retrieval_skill"
+            assert "rag_agent" in agent_skill_body["controller_agent"]["uses_existing_agents"]
+            assert "text_content_agent" in agent_skill_body["controller_agent"]["uses_existing_agents"]
+            assert "video_content_agent" in agent_skill_body["controller_agent"]["uses_existing_agents"]
+            assert "workflow_selection_agent" in agent_skill_body["controller_agent"]["uses_existing_agents"]
+            assert "client_execution_agent" in agent_skill_body["controller_agent"]["uses_existing_agents"]
+            assert agent_skill_body["orchestration_status"] == "waiting"
+            assert agent_skill_body["next_skill_key"] == "task_planning_skill"
             assert [skill["skill_key"] for skill in agent_skill_body["skills"]] == [
                 "operation_intake_skill",
                 "task_planning_skill",
@@ -241,8 +264,22 @@ async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -
                 "analysis_improvement_skill",
                 "next_cycle_content_skill",
             ]
+            assert agent_skill_body["skills"][1]["owner_agent"] == "commercial_operation_agent"
             assert agent_skill_body["skills"][2]["owner_agent"] == "rag_agent"
             assert agent_skill_body["skills"][5]["tool_name"] == "openclaw_tool"
+            assert agent_skill_body["routing_decision"]["controller_agent"] == "commercial_operation_agent"
+            assert agent_skill_body["routing_decision"]["recommended_track"] == "operation_strategy"
+            assert agent_skill_body["routing_decision"]["selected_skill_key"] == "task_planning_skill"
+            assert agent_skill_body["routing_decision"]["next_executable_contract"]["track"] == "operation_strategy"
+            assert agent_skill_body["routing_decision"]["next_executable_contract"]["execution_boundary"] == (
+                "metadata_only_review_required"
+            )
+            assert "operation_strategy_agent" in agent_skill_body["routing_decision"]["selected_agents"]
+            assert [track["track_key"] for track in agent_skill_body["specialist_tracks"]]
+            assert any(track["track_key"] == "knowledge_retrieval" for track in agent_skill_body["specialist_tracks"])
+            assert any(track["track_key"] == "content_strategy" for track in agent_skill_body["specialist_tracks"])
+            assert any(track["track_key"] == "video_content" for track in agent_skill_body["specialist_tracks"])
+            assert any(track["track_key"] == "workflow_selection" for track in agent_skill_body["specialist_tracks"])
             assert any(decision["decision_key"] == "client_runtime_boundary" for decision in agent_skill_body["decisions"])
             assert any("metadata-only" in boundary for boundary in agent_skill_body["boundaries"])
 
@@ -251,7 +288,8 @@ async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -
                 headers=headers,
             )
             assert refreshed_agent_skill.status_code == 200
-            assert refreshed_agent_skill.json()["next_skill_key"] == "knowledge_retrieval_skill"
+            assert refreshed_agent_skill.json()["next_skill_key"] == "task_planning_skill"
+            assert refreshed_agent_skill.json()["routing_decision"]["recommended_track"] == "operation_strategy"
 
             hidden_loop = await client.get(
                 f"/api/v1/commercial-operations/{operation_id}/operation-loop",
@@ -429,6 +467,46 @@ async def test_commercial_operations_api_flow(monkeypatch: pytest.MonkeyPatch) -
             assert generated_content_body["metadata"]["search_mode"] == "keyword"
             assert generated_content_body["metadata"]["rag_result_count"] == 1
             assert "no automatic approval" in generated_content_body["metadata"]["forbidden_actions"]
+
+            video_agent_orchestration = await client.post(
+                f"/api/v1/commercial-operations/{operation_id}/video-agent-orchestration",
+                headers=headers,
+                json={
+                    "channel": "short_video",
+                    "style": "realistic business operator vlog",
+                    "scene_image_uri": "file:///D:/ai-operations-system/douyin_frames/frame_004.jpg",
+                    "target_channels": ["douyin"],
+                    "query": "buyer education content draft",
+                    "knowledge_collection": "ai_knowledge_base",
+                    "search_mode": "keyword",
+                    "final_top_k": 3,
+                    "create_digital_human_job": False,
+                    "metadata": {"phase": "67G"},
+                },
+            )
+            assert video_agent_orchestration.status_code == 200
+            video_agent_body = video_agent_orchestration.json()
+            assert video_agent_body["controller_agent"]["agent_name"] == "commercial_video_main_agent"
+            assert video_agent_body["route_decision"]["route"] == "digital_human_video"
+            assert video_agent_body["rag_context"]["used_retrieval"] is True
+            assert video_agent_body["rag_context"]["rag_result_count"] == 1
+            assert video_agent_body["digital_human_job"] is None
+            assert video_agent_body["digital_human_request"]["llm_planning_enabled"] is True
+            assert video_agent_body["digital_human_request"]["planning_context"]["rag_context"]["rag_result_count"] == 1
+            assert video_agent_body["video_agent_plan"]["content_mode"] == "scene_to_ai_virtual_host_video"
+            assert video_agent_body["workflow_selection"]["candidate_count"] >= 100
+            assert video_agent_body["execution_package"]["status"] == "ready_for_review"
+            assert (
+                video_agent_body["video_agent_plan"]["source_understanding"]["primary_character_source"]
+                == "ai_generated_fictional_host"
+            )
+            assert [agent["agent_name"] for agent in video_agent_body["sub_agents"]][:4] == [
+                "commercial_video_main_agent",
+                "rag_agent",
+                "creative_director_agent",
+                "digital_human_video_agent",
+            ]
+            assert any("fictional AI virtual-host identity" in action for action in video_agent_body["next_actions"])
 
             asset_request = await client.post(
                 f"/api/v1/commercial-operations/{operation_id}/asset-requests",

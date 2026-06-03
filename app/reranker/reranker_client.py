@@ -75,5 +75,6 @@ class RerankerClient:
                 base_url=settings.local_reranker_base_url,
                 model=settings.local_reranker_model,
                 timeout_seconds=settings.llm_timeout_seconds,
+                allow_fallback=settings.local_reranker_allow_fallback,
             )
         raise ValueError(f"Unsupported reranker provider: {settings.reranker_provider}")

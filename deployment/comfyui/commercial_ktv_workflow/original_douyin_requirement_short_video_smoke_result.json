@@ -1,0 +1,30 @@
+{
+  "status": "success",
+  "prompt_id": "b9aac859-326a-494c-8aca-98ba1fad7a5f",
+  "video_path": "E:\\ComfyUI_cu130\\ComfyUI\\output\\aiops\\original_douyin_requirement_short_video_safetensors\\digital_human_i2v\\Wan2.1_I2V_InfiniteTalk__KJ_00001-audio.mp4",
+  "video_exists": true,
+  "video_size_bytes": 260604,
+  "duration_seconds": 2.041667,
+  "width": 368,
+  "height": 640,
+  "frames": 49,
+  "fps": 24,
+  "preflight_report": "deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_short_video_preflight_safetensors.json",
+  "submit_report": "deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_short_video_submit_safetensors.json",
+  "history_report": "deployment\\comfyui\\commercial_ktv_workflow\\original_douyin_requirement_short_video_history_safetensors.json",
+  "contact_sheet": "D:/ai-operations-system/deployment/comfyui/commercial_ktv_workflow/original_douyin_requirement_short_video_contact.jpg",
+  "runtime_assets": [
+    "E:/ComfyUI_cu130/ComfyUI/input/scene_ai_virtual_host_seed.png",
+    "E:/ComfyUI_cu130/ComfyUI/input/voiceover.wav"
+  ],
+  "model_overrides": {
+    "122": {
+      "model": "Wan\\Wan2.1-I2V_14B_480p_fp8_e4m3fn_scaled_KJ.safetensors"
+    },
+    "120": {
+      "model": "Wan\\Wan2_1-InfiniteTalk-Single_fp8_e4m3fn_scaled_KJ.safetensors"
+    }
+  },
+  "source_workflow_was_not_overwritten": true,
+  "note": "49-frame smoke only; not final commercial-quality render."
+}

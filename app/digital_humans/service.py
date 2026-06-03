@@ -15,9 +15,11 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.llm_client import LLMClient
 from app.comfyui_runtime import ComfyUIRuntimeService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
+from app.digital_humans.creative_planner import DigitalHumanCreativePlanner
 from app.models.comfyui_runtime import ComfyUIRuntimeVideoJob
 from app.models.digital_human import DigitalHumanAsset, DigitalHumanVideoJob
 from app.schemas.digital_human import (
@@ -179,8 +181,16 @@ DIGITAL_HUMAN_WORKFLOW_TEMPLATES: list[dict[str, Any]] = [
 class DigitalHumanService:
     """Workspace-scoped digital human asset and video job service."""
 
-    def __init__(self, *, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        settings: Settings | None = None,
+        llm_client: LLMClient | None = None,
+        creative_planner: DigitalHumanCreativePlanner | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
+        self.llm_client = llm_client
+        self.creative_planner = creative_planner
 
     def capabilities(self, *, workspace_id: str | None = None) -> DigitalHumanCapabilitiesResponse:
         """Return provider readiness and safety boundary without external calls."""
@@ -339,6 +349,8 @@ class DigitalHumanService:
         voice_profile: Mapping[str, object] | None = None,
         aspect_ratio: str = "9:16",
         duration_seconds: float | None = None,
+        llm_planning_enabled: bool = False,
+        planning_context: Mapping[str, object] | None = None,
         operator_note: str | None = None,
         metadata: Mapping[str, object] | None = None,
     ) -> DigitalHumanVideoJobResponse:
@@ -353,13 +365,44 @@ class DigitalHumanService:
         consent_status = avatar_asset.consent_status if avatar_asset else "missing"
         job_status = self._initial_job_status(provider=normalized_provider, avatar_asset=avatar_asset)
         provider_calls_enabled = self._provider_calls_enabled(normalized_provider)
-        scene_plan = self._build_scene_plan(
+        material_assets_for_plan: list[DigitalHumanAsset] = []
+        reference_assets_for_plan: list[DigitalHumanAsset] = []
+        creative_plan: dict[str, Any] | None = None
+        base_scene_plan = self._build_scene_plan(
             status=job_status,
             provider=normalized_provider,
             has_avatar=avatar_asset is not None,
             material_count=len(material_ids),
             reference_count=len(reference_ids),
         )
+        scene_plan = base_scene_plan
+        if llm_planning_enabled:
+            material_assets_for_plan = await self._load_assets_by_ids(
+                session,
+                workspace_id=workspace_id,
+                asset_ids=material_ids,
+            )
+            reference_assets_for_plan = await self._load_assets_by_ids(
+                session,
+                workspace_id=workspace_id,
+                asset_ids=reference_ids,
+            )
+            creative_plan = await self._get_creative_planner().generate_plan(
+                objective=objective.strip(),
+                script=script.strip(),
+                avatar_asset=avatar_asset,
+                material_assets=material_assets_for_plan,
+                reference_assets=reference_assets_for_plan,
+                target_channels=list(target_channels or []),
+                voice_profile=dict(voice_profile or {}),
+                aspect_ratio=aspect_ratio,
+                duration_seconds=duration_seconds,
+                planning_context=planning_context,
+            )
+            scene_plan = self._build_llm_scene_plan(
+                creative_plan=creative_plan,
+                fallback_scene_plan=base_scene_plan,
+            )
         provider_request = {
             "provider": normalized_provider,
             "objective": objective.strip(),
@@ -371,8 +414,24 @@ class DigitalHumanService:
             "voice_profile": dict(voice_profile or {}),
             "aspect_ratio": aspect_ratio,
             "duration_seconds": duration_seconds,
+            "llm_planning_enabled": llm_planning_enabled,
+            "planning_context": dict(planning_context or {}),
+            "creative_plan": creative_plan,
             "pipeline": ["script", "tts", "avatar_motion", "broll", "ffmpeg_compose", "human_review"],
         }
+        provider_response = self._provider_response_stub(status=job_status, provider=normalized_provider)
+        if creative_plan:
+            llm_info = creative_plan.get("llm_planning") if isinstance(creative_plan.get("llm_planning"), Mapping) else {}
+            provider_response = {
+                **provider_response,
+                "creative_planning": {
+                    "enabled": True,
+                    "status": llm_info.get("status", "generated"),
+                    "provider": llm_info.get("provider"),
+                    "model": llm_info.get("model"),
+                    "shot_count": len(creative_plan.get("shot_plan", [])) if isinstance(creative_plan.get("shot_plan"), list) else 0,
+                },
+            }
         job = DigitalHumanVideoJob(
             workspace_id=workspace_id,
             user_id=user_id,
@@ -390,7 +449,7 @@ class DigitalHumanService:
             duration_seconds=duration_seconds,
             scene_plan=scene_plan,
             provider_request=provider_request,
-            provider_response=self._provider_response_stub(status=job_status, provider=normalized_provider),
+            provider_response=provider_response,
             outputs=[],
             approval_status="pending",
             consent_required=True,
@@ -404,6 +463,9 @@ class DigitalHumanService:
                 **dict(metadata or {}),
                 "phase": "67A",
                 "source": "digital_human_video_job",
+                "llm_planning_enabled": llm_planning_enabled,
+                "planning_context": dict(planning_context or {}),
+                **({"llm_creative_plan": creative_plan} if creative_plan else {}),
             },
         )
         session.add(job)
@@ -441,6 +503,104 @@ class DigitalHumanService:
         """Return one digital human video job by id."""
 
         job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        return DigitalHumanVideoJobResponse.from_model(job)
+
+    async def prepare_shot_execution_plan(
+        self,
+        session: AsyncSession,
+        *,
+        workspace_id: str,
+        job_id: UUID,
+        template_id: str = "wan-i2v-reference-avatar",
+        resource_profile: str = "production",
+        width: int = 1080,
+        height: int = 1920,
+        fps: float = 24.0,
+        quality_profile: str = "production",
+        operator_note: str | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> DigitalHumanVideoJobResponse:
+        """Convert an LLM creative plan into per-shot render contracts."""
+
+        job = await self._get_video_job_model(session, workspace_id=workspace_id, job_id=job_id)
+        if job.job_status in {"completed", "failed", "cancelled", "archived"}:
+            raise AppError("Terminal digital human jobs cannot prepare a shot execution plan", status_code=400)
+        template = self._workflow_template(template_id)
+        avatar_asset = await self._get_asset_model(session, workspace_id=workspace_id, asset_id=job.avatar_asset_id) if job.avatar_asset_id else None
+        material_assets = await self._load_assets_by_ids(
+            session,
+            workspace_id=workspace_id,
+            asset_ids=job.material_asset_ids or [],
+        )
+        reference_assets = await self._load_assets_by_ids(
+            session,
+            workspace_id=workspace_id,
+            asset_ids=job.reference_asset_ids or [],
+        )
+        creative_plan = self._creative_plan_from_job(job)
+        shot_execution_plan = self._build_shot_execution_plan(
+            job=job,
+            template=template,
+            creative_plan=creative_plan,
+            avatar_asset=avatar_asset,
+            material_assets=material_assets,
+            reference_assets=reference_assets,
+            resource_profile=resource_profile,
+            width=width,
+            height=height,
+            fps=fps,
+            quality_profile=quality_profile,
+            operator_note=operator_note,
+            metadata=metadata,
+        )
+        output_record = {
+            "output_type": "digital_human_shot_execution_plan",
+            "media_type": "video",
+            "status": shot_execution_plan["status"],
+            "template_id": shot_execution_plan["template_id"],
+            "shot_count": len(shot_execution_plan["shots"]),
+            "quality_profile": shot_execution_plan["quality_profile"],
+            "prompt_contract": shot_execution_plan["prompt_contract"],
+            "workflow_contract": shot_execution_plan["workflow_contract"],
+            "shot_execution_plan": shot_execution_plan,
+            "created_at": shot_execution_plan["created_at"],
+        }
+        job.outputs = self._upsert_output(
+            job.outputs or [],
+            output_record,
+            key="output_type",
+            value="digital_human_shot_execution_plan",
+        )
+        job.provider_request = {
+            **(job.provider_request or {}),
+            "shot_execution_plan": {
+                "status": shot_execution_plan["status"],
+                "template_id": shot_execution_plan["template_id"],
+                "shot_count": len(shot_execution_plan["shots"]),
+                "quality_profile": shot_execution_plan["quality_profile"],
+            },
+        }
+        job.provider_response = {
+            **(job.provider_response or {}),
+            "shot_execution_plan": {
+                "status": shot_execution_plan["status"],
+                "phase": shot_execution_plan["phase"],
+                "template_id": shot_execution_plan["template_id"],
+                "shot_count": len(shot_execution_plan["shots"]),
+                "external_request_attempted": False,
+            },
+        }
+        job.job_metadata = {
+            **(job.job_metadata or {}),
+            **dict(metadata or {}),
+            "phase": "67F",
+            "shot_execution_plan": shot_execution_plan,
+            "shot_execution_plan_status": shot_execution_plan["status"],
+        }
+        job.result_summary = "LLM shot execution plan is ready for guarded ComfyUI rendering."
+        job.operator_note = operator_note or job.operator_note
+        await session.commit()
+        await session.refresh(job)
         return DigitalHumanVideoJobResponse.from_model(job)
 
     async def bind_comfyui_workflow(
@@ -552,12 +712,18 @@ class DigitalHumanService:
             "workflow_binding_status": binding["status"],
             "selected_workflow_template_id": binding["template_id"],
         }
-        job.scene_plan = self._build_scene_plan(
+        base_scene_plan = self._build_scene_plan(
             status=job.job_status,
             provider=job.provider,
             has_avatar=True,
             material_count=len(material_ids),
             reference_count=len(reference_ids),
+        )
+        creative_plan = self._creative_plan_from_job(job)
+        job.scene_plan = (
+            self._build_llm_scene_plan(creative_plan=creative_plan, fallback_scene_plan=base_scene_plan)
+            if creative_plan
+            else base_scene_plan
         )
         await session.commit()
         await session.refresh(job)
@@ -1129,11 +1295,24 @@ class DigitalHumanService:
         now = datetime.now(timezone.utc)
         workflow_binding = self._workflow_binding_from_job(job)
         workflow_readiness = self._workflow_readiness_from_job(job)
+        shot_execution_plan = self._shot_execution_from_job(job)
         handoff_phase = "67D" if workflow_readiness else ("67C" if workflow_binding else "67B")
+        if shot_execution_plan:
+            handoff_phase = str(shot_execution_plan.get("phase") or "67F")
         binding_resource_plan = workflow_binding.get("resource_plan") if isinstance(workflow_binding.get("resource_plan"), Mapping) else {}
         supplied_prompt = bool(prompt)
-        prompt_payload = dict(prompt or workflow_binding.get("prompt") or self._build_comfyui_handoff_prompt(job))
-        workflow_payload = dict(workflow or workflow_binding.get("workflow") or self._build_comfyui_handoff_workflow(job))
+        prompt_payload = dict(
+            prompt
+            or shot_execution_plan.get("prompt_contract")
+            or workflow_binding.get("prompt")
+            or self._build_comfyui_handoff_prompt(job)
+        )
+        workflow_payload = dict(
+            workflow
+            or shot_execution_plan.get("workflow_contract")
+            or workflow_binding.get("workflow")
+            or self._build_comfyui_handoff_workflow(job)
+        )
         effective_submit = bool(submit_immediately and supplied_prompt)
         if workflow_binding and effective_submit and workflow_readiness.get("status") != "ready_for_guarded_comfyui_execution":
             raise AppError("Bound ComfyUI workflow needs a ready workflow-readiness check before prompt submission", status_code=400)
@@ -1161,8 +1340,11 @@ class DigitalHumanService:
                     "workflow_template_id": workflow_binding.get("template_id"),
                     "workflow_binding_status": workflow_binding.get("status"),
                     "workflow_readiness_status": workflow_readiness.get("status"),
+                    "shot_execution_plan_status": shot_execution_plan.get("status"),
+                    "shot_count": len(shot_execution_plan.get("shots", [])) if isinstance(shot_execution_plan.get("shots"), list) else None,
                 },
                 "aiops_digital_human_handoff": True,
+                "aiops_digital_human_shot_execution": bool(shot_execution_plan),
             },
             client_id=f"digital-human-{job.id}",
             resource_profile=str(handoff_resource_profile),
@@ -1184,6 +1366,7 @@ class DigitalHumanService:
                 "workflow_template_id": workflow_binding.get("template_id"),
                 "workflow_binding_status": workflow_binding.get("status"),
                 "workflow_readiness_status": workflow_readiness.get("status"),
+                "shot_execution_plan_status": shot_execution_plan.get("status"),
                 **dict(metadata or {}),
             },
         )
@@ -1204,6 +1387,7 @@ class DigitalHumanService:
             "workflow_template_id": workflow_binding.get("template_id"),
             "workflow_binding_status": workflow_binding.get("status"),
             "workflow_readiness_status": workflow_readiness.get("status"),
+            "shot_execution_plan_status": shot_execution_plan.get("status"),
             "created_at": now.isoformat(),
         }
         job.execution_mode = "comfyui_handoff"
@@ -1228,6 +1412,7 @@ class DigitalHumanService:
             "workflow_template_id": workflow_binding.get("template_id"),
             "workflow_binding_status": workflow_binding.get("status"),
             "workflow_readiness_status": workflow_readiness.get("status"),
+            "shot_execution_plan_status": shot_execution_plan.get("status"),
         }
         job.external_request_attempted = comfyui_job.external_request_attempted
         job.failure_reason = comfyui_job.failure_reason or self._comfyui_resource_block_reason(comfyui_job.resource_plan)
@@ -1242,6 +1427,7 @@ class DigitalHumanService:
             "selected_workflow_template_id": workflow_binding.get("template_id"),
             "workflow_binding_status": workflow_binding.get("status"),
             "workflow_readiness_status": workflow_readiness.get("status"),
+            "shot_execution_plan_status": shot_execution_plan.get("status"),
             "progress_percent": 60 if job.job_status == "queued_for_comfyui" else 75,
             "current_stage": "comfyui_video_queue" if job.job_status == "queued_for_comfyui" else "video_rendering",
             "last_execution_at": now.isoformat(),
@@ -1884,9 +2070,9 @@ class DigitalHumanService:
             if not isinstance(slot, Mapping) or not slot.get("required"):
                 continue
             slot_name = str(slot.get("slot") or "")
-            if slot_name == "script_text":
+            if slot_name in {"script_text", "script_direction"}:
                 if not job.script.strip():
-                    missing.append("script_text")
+                    missing.append(slot_name)
                 continue
             if not any(str(asset.get("slot")) == slot_name for asset in input_assets):
                 missing.append(slot_name)
@@ -2139,6 +2325,358 @@ class DigitalHumanService:
     def _truncate_text(self, value: str, limit: int) -> str:
         normalized = " ".join(str(value or "").split()).strip()
         return normalized[:limit] if normalized else "digital human output"
+
+    def _get_creative_planner(self) -> DigitalHumanCreativePlanner:
+        if self.creative_planner is None:
+            self.creative_planner = DigitalHumanCreativePlanner(llm_client=self.llm_client)
+        return self.creative_planner
+
+    def _creative_plan_from_job(self, job: DigitalHumanVideoJob) -> dict[str, Any]:
+        metadata_plan = (job.job_metadata or {}).get("llm_creative_plan")
+        if isinstance(metadata_plan, Mapping):
+            return dict(metadata_plan)
+        request_plan = (job.provider_request or {}).get("creative_plan")
+        if isinstance(request_plan, Mapping):
+            return dict(request_plan)
+        return {
+            "production_intent": {
+                "positioning": job.objective,
+                "narrative_angle": job.objective,
+                "value_proposition": job.objective,
+            },
+            "voiceover": {"final_script": job.script},
+            "shot_plan": [
+                {
+                    "shot_id": f"S{index:02d}",
+                    "duration_seconds": step.get("duration_seconds") or 3.0,
+                    "scene_goal": step.get("detail") or step.get("label") or step.get("step"),
+                    "camera": step.get("camera") or "stable vertical commercial camera",
+                    "visual_prompt": step.get("visual_prompt") or job.objective,
+                    "negative_prompt": step.get("negative_prompt") or "raw montage, identity drift, low quality",
+                    "reference_asset_usage": step.get("reference_asset_usage") or "Use bound assets as references only.",
+                    "character_continuity": step.get("character_continuity") or "Keep one consistent avatar identity.",
+                    "audio_line": step.get("audio_line") or "",
+                    "quality_checks": step.get("quality_checks", []),
+                }
+                for index, step in enumerate(job.scene_plan or [], start=1)
+                if isinstance(step, Mapping)
+            ],
+            "quality_gates": ["identity_consistency", "scene_continuity", "premium_realism", "voice_naturalness"],
+            "asset_strategy": {
+                "material_reference_policy": "Use materials as references for scene, lighting, and identity; do not create a raw montage.",
+            },
+        }
+
+    def _shot_execution_from_job(self, job: DigitalHumanVideoJob) -> dict[str, Any]:
+        metadata_plan = (job.job_metadata or {}).get("shot_execution_plan")
+        if isinstance(metadata_plan, Mapping):
+            return dict(metadata_plan)
+        for output in reversed(job.outputs or []):
+            if isinstance(output, Mapping) and output.get("output_type") == "digital_human_shot_execution_plan":
+                nested = output.get("shot_execution_plan")
+                if isinstance(nested, Mapping):
+                    return dict(nested)
+        return {}
+
+    def _build_shot_execution_plan(
+        self,
+        *,
+        job: DigitalHumanVideoJob,
+        template: Mapping[str, Any],
+        creative_plan: Mapping[str, Any],
+        avatar_asset: DigitalHumanAsset | None,
+        material_assets: Sequence[DigitalHumanAsset],
+        reference_assets: Sequence[DigitalHumanAsset],
+        resource_profile: str,
+        width: int,
+        height: int,
+        fps: float,
+        quality_profile: str,
+        operator_note: str | None,
+        metadata: Mapping[str, object] | None,
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        shots = creative_plan.get("shot_plan") if isinstance(creative_plan.get("shot_plan"), list) else []
+        normalized_shots = [
+            self._build_shot_render_contract(
+                job=job,
+                raw_shot=shot,
+                index=index,
+                avatar_asset=avatar_asset,
+                material_assets=material_assets,
+                reference_assets=reference_assets,
+                width=width,
+                height=height,
+                fps=fps,
+                quality_profile=quality_profile,
+                global_quality_gates=creative_plan.get("quality_gates", []),
+            )
+            for index, shot in enumerate(shots, start=1)
+            if isinstance(shot, Mapping)
+        ]
+        if not normalized_shots:
+            normalized_shots = [
+                self._build_shot_render_contract(
+                    job=job,
+                    raw_shot={
+                        "shot_id": "S01",
+                        "duration_seconds": job.duration_seconds or 6.0,
+                        "scene_goal": job.objective,
+                        "visual_prompt": job.objective,
+                        "negative_prompt": "raw montage, identity drift, low quality",
+                        "audio_line": job.script,
+                    },
+                    index=1,
+                    avatar_asset=avatar_asset,
+                    material_assets=material_assets,
+                    reference_assets=reference_assets,
+                    width=width,
+                    height=height,
+                    fps=fps,
+                    quality_profile=quality_profile,
+                    global_quality_gates=creative_plan.get("quality_gates", []),
+                )
+            ]
+        prompt_contract = {
+            "aiops_digital_human_shot_execution_plan": {
+                "class_type": "AIOpsDigitalHumanShotExecutionPlan",
+                "inputs": {
+                    "job_id": str(job.id),
+                    "objective": job.objective,
+                    "template_id": template["template_id"],
+                    "quality_profile": quality_profile,
+                    "aspect_ratio": job.aspect_ratio,
+                    "width": width,
+                    "height": height,
+                    "fps": fps,
+                    "shots": normalized_shots,
+                    "submission_note": "Replace each shot contract with the reviewed real ComfyUI graph before enabling prompt submission.",
+                },
+            }
+        }
+        workflow_contract = {
+            "name": f"aiops_{template['template_id']}_shot_execution",
+            "phase": "67F",
+            "source": "digital_human_shot_execution_plan",
+            "media_type": "video",
+            "job_id": str(job.id),
+            "template_id": template["template_id"],
+            "resource_profile": resource_profile,
+            "quality_profile": quality_profile,
+            "width": width,
+            "height": height,
+            "fps": fps,
+            "shot_count": len(normalized_shots),
+            "shots": [
+                {
+                    "shot_id": shot["shot_id"],
+                    "render_mode": shot["render_mode"],
+                    "duration_seconds": shot["duration_seconds"],
+                    "frame_count": shot["frame_count"],
+                    "quality_gates": shot["quality_gates"],
+                }
+                for shot in normalized_shots
+            ],
+            "required_nodes": list(template.get("required_nodes", [])),
+            "required_models": list(template.get("required_models", [])),
+            "execution_boundary": "Per-shot render contracts only; real node graph substitution, prompt submission, and publishing remain gated.",
+        }
+        return {
+            "phase": "67F",
+            "status": "ready_for_operator_review",
+            "created_at": now.isoformat(),
+            "template_id": str(template["template_id"]),
+            "template_name": str(template["name"]),
+            "resource_profile": resource_profile,
+            "quality_profile": quality_profile,
+            "operator_note": operator_note,
+            "metadata": dict(metadata or {}),
+            "creative_plan_source": "llm_creative_plan" if (job.job_metadata or {}).get("llm_creative_plan") else "job_scene_plan",
+            "shots": normalized_shots,
+            "prompt_contract": prompt_contract,
+            "workflow_contract": workflow_contract,
+            "quality_gates": self._clean_string_list(creative_plan.get("quality_gates")),
+            "asset_strategy": creative_plan.get("asset_strategy") if isinstance(creative_plan.get("asset_strategy"), Mapping) else {},
+        }
+
+    def _build_shot_render_contract(
+        self,
+        *,
+        job: DigitalHumanVideoJob,
+        raw_shot: Mapping[str, Any],
+        index: int,
+        avatar_asset: DigitalHumanAsset | None,
+        material_assets: Sequence[DigitalHumanAsset],
+        reference_assets: Sequence[DigitalHumanAsset],
+        width: int,
+        height: int,
+        fps: float,
+        quality_profile: str,
+        global_quality_gates: Any,
+    ) -> dict[str, Any]:
+        shot_id = str(raw_shot.get("shot_id") or f"S{index:02d}").strip() or f"S{index:02d}"
+        try:
+            duration_seconds = max(0.5, min(float(raw_shot.get("duration_seconds") or 3.0), 120.0))
+        except (TypeError, ValueError):
+            duration_seconds = 3.0
+        frame_count = max(1, int(round(duration_seconds * max(float(fps), 1.0))))
+        audio_line = str(raw_shot.get("audio_line") or "").strip()
+        render_mode = self._shot_render_mode(raw_shot=raw_shot, audio_line=audio_line)
+        quality_gates = self._shot_quality_gates(
+            raw_shot=raw_shot,
+            global_quality_gates=global_quality_gates,
+            render_mode=render_mode,
+            quality_profile=quality_profile,
+        )
+        reference_assets = self._shot_reference_assets(
+            avatar_asset=avatar_asset,
+            material_assets=material_assets,
+            reference_assets=reference_assets,
+            include_avatar=render_mode in {"avatar_performance", "avatar_scene_i2v"},
+        )
+        positive_prompt = str(raw_shot.get("visual_prompt") or raw_shot.get("scene_goal") or job.objective).strip()
+        negative_prompt = str(raw_shot.get("negative_prompt") or "").strip() or "raw montage, identity drift, inconsistent host, low quality, text artifacts, flicker"
+        return {
+            "shot_id": shot_id,
+            "sequence_index": index,
+            "render_mode": render_mode,
+            "duration_seconds": duration_seconds,
+            "frame_count": frame_count,
+            "fps": fps,
+            "width": width,
+            "height": height,
+            "scene_goal": str(raw_shot.get("scene_goal") or "").strip(),
+            "camera": str(raw_shot.get("camera") or "stable cinematic vertical camera").strip(),
+            "positive_prompt": positive_prompt,
+            "negative_prompt": negative_prompt,
+            "reference_asset_usage": str(raw_shot.get("reference_asset_usage") or "").strip(),
+            "character_continuity": str(raw_shot.get("character_continuity") or "").strip(),
+            "audio_line": audio_line,
+            "reference_assets": reference_assets,
+            "quality_gates": quality_gates,
+            "prompt_contract": {
+                "class_type": "AIOpsDigitalHumanShotRenderContract",
+                "inputs": {
+                    "shot_id": shot_id,
+                    "render_mode": render_mode,
+                    "positive_prompt": positive_prompt,
+                    "negative_prompt": negative_prompt,
+                    "reference_assets": reference_assets,
+                    "audio_line": audio_line,
+                    "duration_seconds": duration_seconds,
+                    "frame_count": frame_count,
+                    "fps": fps,
+                    "width": width,
+                    "height": height,
+                    "quality_gates": quality_gates,
+                },
+            },
+        }
+
+    def _shot_render_mode(self, *, raw_shot: Mapping[str, Any], audio_line: str) -> str:
+        text = " ".join(
+            str(raw_shot.get(key) or "")
+            for key in ("scene_goal", "visual_prompt", "reference_asset_usage", "character_continuity")
+        ).lower()
+        if audio_line:
+            return "avatar_performance"
+        if any(token in text for token in ("avatar", "host", "operator", "person", "owner", "老板", "人物", "数字人")):
+            return "avatar_scene_i2v"
+        return "scene_i2v"
+
+    def _shot_quality_gates(
+        self,
+        *,
+        raw_shot: Mapping[str, Any],
+        global_quality_gates: Any,
+        render_mode: str,
+        quality_profile: str,
+    ) -> list[str]:
+        gates: list[str] = []
+        for source in (global_quality_gates, raw_shot.get("quality_checks")):
+            if isinstance(source, list):
+                gates.extend(str(item) for item in source if str(item).strip())
+        gates.extend(["no_raw_montage", "scene_continuity", "premium_realism"])
+        if render_mode in {"avatar_performance", "avatar_scene_i2v"}:
+            gates.extend(["identity_consistency", "wardrobe_consistency", "natural_face_motion"])
+        if quality_profile == "production":
+            gates.extend(["1080x1920_delivery_candidate", "no_text_artifacts", "stable_camera_motion"])
+        return list(dict.fromkeys(gates))
+
+    def _shot_reference_assets(
+        self,
+        *,
+        avatar_asset: DigitalHumanAsset | None,
+        material_assets: Sequence[DigitalHumanAsset],
+        reference_assets: Sequence[DigitalHumanAsset],
+        include_avatar: bool,
+    ) -> list[dict[str, Any]]:
+        assets: list[dict[str, Any]] = []
+        if include_avatar and avatar_asset is not None:
+            assets.append(self._asset_execution_record(avatar_asset, role="identity_reference"))
+        for asset in [*material_assets, *reference_assets][:8]:
+            assets.append(self._asset_execution_record(asset, role="scene_or_material_reference"))
+        return assets
+
+    def _asset_execution_record(self, asset: DigitalHumanAsset, *, role: str) -> dict[str, Any]:
+        return {
+            "asset_id": str(asset.id),
+            "asset_type": asset.asset_type,
+            "role": role,
+            "name": asset.name,
+            "file_name": asset.file_name,
+            "mime_type": asset.mime_type,
+            "source_uri": asset.source_uri,
+            "consent_status": asset.consent_status,
+        }
+
+    def _clean_string_list(self, values: Any) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        return [str(value).strip() for value in values if str(value).strip()]
+
+    def _build_llm_scene_plan(
+        self,
+        *,
+        creative_plan: Mapping[str, Any],
+        fallback_scene_plan: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        intent = creative_plan.get("production_intent") if isinstance(creative_plan.get("production_intent"), Mapping) else {}
+        voiceover = creative_plan.get("voiceover") if isinstance(creative_plan.get("voiceover"), Mapping) else {}
+        shot_plan = creative_plan.get("shot_plan") if isinstance(creative_plan.get("shot_plan"), list) else []
+        scenes: list[dict[str, Any]] = [
+            {
+                "step": "llm_creative_direction",
+                "label": "LLM creative director plan",
+                "status": "planned",
+                "detail": str(intent.get("narrative_angle") or intent.get("positioning") or "LLM-generated video direction"),
+                "value_proposition": intent.get("value_proposition"),
+                "final_voiceover": voiceover.get("final_script"),
+                "shot_count": len(shot_plan),
+            }
+        ]
+        for index, raw_shot in enumerate(shot_plan, start=1):
+            if not isinstance(raw_shot, Mapping):
+                continue
+            shot_id = str(raw_shot.get("shot_id") or f"S{index:02d}").strip() or f"S{index:02d}"
+            scenes.append(
+                {
+                    "step": f"llm_shot_{shot_id.lower()}",
+                    "label": f"{shot_id} - {str(raw_shot.get('scene_goal') or 'planned shot')[:96]}",
+                    "status": "planned",
+                    "duration_seconds": raw_shot.get("duration_seconds"),
+                    "detail": raw_shot.get("scene_goal"),
+                    "camera": raw_shot.get("camera"),
+                    "visual_prompt": raw_shot.get("visual_prompt"),
+                    "negative_prompt": raw_shot.get("negative_prompt"),
+                    "reference_asset_usage": raw_shot.get("reference_asset_usage"),
+                    "character_continuity": raw_shot.get("character_continuity"),
+                    "audio_line": raw_shot.get("audio_line"),
+                    "quality_checks": raw_shot.get("quality_checks", []),
+                }
+            )
+        scenes.extend(dict(step) for step in fallback_scene_plan)
+        return scenes
 
     def _build_scene_plan(
         self,

@@ -127,6 +127,8 @@ class DigitalHumanVideoJobCreateRequest(BaseModel):
     voice_profile: dict[str, Any] = Field(default_factory=dict)
     aspect_ratio: str = Field(default="9:16", max_length=32)
     duration_seconds: float | None = Field(default=None, ge=1.0, le=3600.0)
+    llm_planning_enabled: bool = False
+    planning_context: dict[str, Any] = Field(default_factory=dict)
     operator_note: str | None = Field(default=None, max_length=2000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -186,6 +188,19 @@ class DigitalHumanComfyUIWorkflowReadinessRequest(BaseModel):
     gpu_name: str | None = Field(default=None, max_length=255)
     free_vram_mb: int | None = Field(default=None, ge=0, le=262144)
     queue_depth: int | None = Field(default=None, ge=0, le=100000)
+    operator_note: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DigitalHumanShotExecutionPlanRequest(BaseModel):
+    """Prepare per-shot render contracts from an LLM creative plan."""
+
+    template_id: str = Field(default="wan-i2v-reference-avatar", max_length=128)
+    resource_profile: str = Field(default="production", max_length=64)
+    width: int = Field(default=1080, ge=64, le=8192)
+    height: int = Field(default=1920, ge=64, le=8192)
+    fps: float = Field(default=24.0, ge=1.0, le=240.0)
+    quality_profile: str = Field(default="production", max_length=64)
     operator_note: str | None = Field(default=None, max_length=2000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -250,6 +265,8 @@ class DigitalHumanVideoJobResponse(BaseModel):
     workflow_output_watch_status: str | None = None
     workflow_missing_nodes: list[str] = Field(default_factory=list)
     workflow_missing_models: list[str] = Field(default_factory=list)
+    shot_execution_plan_status: str | None = None
+    shot_execution_plan_count: int = 0
     comfyui_output_ingestion_status: str | None = None
     delivery_asset_id: str | None = None
     delivery_asset_status: str | None = None
@@ -301,6 +318,8 @@ class DigitalHumanVideoJobResponse(BaseModel):
             workflow_output_watch_status=_workflow_output_watch_status(job.job_metadata or {}),
             workflow_missing_nodes=_workflow_missing_items(job.job_metadata or {}, "missing_nodes"),
             workflow_missing_models=_workflow_missing_items(job.job_metadata or {}, "missing_models"),
+            shot_execution_plan_status=_shot_execution_plan_status(job.job_metadata or {}, job.outputs or []),
+            shot_execution_plan_count=_shot_execution_plan_count(job.job_metadata or {}, job.outputs or []),
             comfyui_output_ingestion_status=_comfyui_output_ingestion_status(job.job_metadata or {}, job.outputs or []),
             delivery_asset_id=_delivery_output_field(job.outputs or [], "asset_id"),
             delivery_asset_status=_delivery_output_field(job.outputs or [], "status"),
@@ -435,6 +454,34 @@ def _workflow_missing_items(metadata: dict[str, Any], key: str) -> list[str]:
     if not isinstance(items, list):
         return []
     return [str(item) for item in items if str(item).strip()]
+
+
+def _shot_execution_plan(metadata: dict[str, Any], outputs: list[dict[str, Any]]) -> dict[str, Any]:
+    plan = metadata.get("shot_execution_plan")
+    if isinstance(plan, dict):
+        return plan
+    for output in reversed(outputs):
+        if output.get("output_type") == "digital_human_shot_execution_plan":
+            nested = output.get("shot_execution_plan")
+            return nested if isinstance(nested, dict) else output
+    return {}
+
+
+def _shot_execution_plan_status(metadata: dict[str, Any], outputs: list[dict[str, Any]]) -> str | None:
+    plan = _shot_execution_plan(metadata, outputs)
+    status = plan.get("status")
+    if isinstance(status, str) and status.strip():
+        return status.strip()
+    return None
+
+
+def _shot_execution_plan_count(metadata: dict[str, Any], outputs: list[dict[str, Any]]) -> int:
+    plan = _shot_execution_plan(metadata, outputs)
+    shots = plan.get("shots")
+    if isinstance(shots, list):
+        return len(shots)
+    count = plan.get("shot_count")
+    return count if isinstance(count, int) else 0
 
 
 def _delivery_output(outputs: list[dict[str, Any]]) -> dict[str, Any]:

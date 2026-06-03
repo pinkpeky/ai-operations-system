@@ -14,9 +14,13 @@ from worker.main import create_app, get_runtime
 async def test_browser_worker_service_executes_basic_flow(fake_playwright, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     """Worker service should create a real runtime session and execute safe actions."""
 
-    settings = WorkerSettings(WORKER_SCREENSHOT_DIR=str(tmp_path))
+    settings = WorkerSettings(
+        WORKER_SCREENSHOT_DIR=str(tmp_path),
+        browser_worker_auth_enabled=False,
+        browser_worker_auth_strict=False,
+    )
     runtime = PlaywrightBrowserWorkerRuntime(settings=settings)
-    app = create_app()
+    app = create_app(settings=settings)
     app.dependency_overrides[get_runtime] = lambda: runtime
 
     transport = httpx.ASGITransport(app=app)
@@ -79,8 +83,13 @@ async def test_browser_worker_service_executes_basic_flow(fake_playwright, tmp_p
 async def test_browser_worker_rejects_unsafe_navigation(fake_playwright, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     """Worker safety boundary should reject unsupported external domains."""
 
-    runtime = PlaywrightBrowserWorkerRuntime(settings=WorkerSettings(WORKER_SCREENSHOT_DIR=str(tmp_path)))
-    app = create_app()
+    settings = WorkerSettings(
+        WORKER_SCREENSHOT_DIR=str(tmp_path),
+        browser_worker_auth_enabled=False,
+        browser_worker_auth_strict=False,
+    )
+    runtime = PlaywrightBrowserWorkerRuntime(settings=settings)
+    app = create_app(settings=settings)
     app.dependency_overrides[get_runtime] = lambda: runtime
 
     transport = httpx.ASGITransport(app=app)

@@ -108,6 +108,10 @@ class WorkerClientConfig:
         data["state_path"] = str(self.state_path)
         if data.get("worker_secret"):
             data["worker_secret"] = "***"
+        openclaw = dict(data.get("openclaw") or {})
+        if openclaw.get("api_key"):
+            openclaw["api_key"] = "***"
+        data["openclaw"] = openclaw
         return data
 
     def validate_server_url(self) -> None:
@@ -190,6 +194,18 @@ def load_worker_client_config(config_path: str | Path | None = None) -> WorkerCl
         openclaw["enabled"] = _to_bool(_env("OPENCLAW_ENABLED"), True)
     if _env("OPENCLAW_PROVIDER") is not None:
         openclaw["provider"] = _env("OPENCLAW_PROVIDER")
+    if _env("OPENCLAW_BASE_URL") is not None:
+        openclaw["base_url"] = _env("OPENCLAW_BASE_URL")
+    if _env("OPENCLAW_API_KEY") is not None:
+        openclaw["api_key"] = _env("OPENCLAW_API_KEY")
+    if _env("OPENCLAW_TIMEOUT_SECONDS") is not None:
+        openclaw["timeout_seconds"] = float(_env("OPENCLAW_TIMEOUT_SECONDS") or 60.0)
+    if _env("OPENCLAW_HEALTH_PATH") is not None:
+        openclaw["health_path"] = _env("OPENCLAW_HEALTH_PATH")
+    if _env("OPENCLAW_CAPABILITIES_PATH") is not None:
+        openclaw["capabilities_path"] = _env("OPENCLAW_CAPABILITIES_PATH")
+    if _env("OPENCLAW_ACTION_PATH") is not None:
+        openclaw["action_path"] = _env("OPENCLAW_ACTION_PATH")
 
     state_path = Path(_env("STATE_PATH") or raw.get("state_path") or DEFAULT_STATE_PATH)
     config = WorkerClientConfig(

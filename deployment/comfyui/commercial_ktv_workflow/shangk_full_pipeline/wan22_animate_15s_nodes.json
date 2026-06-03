@@ -1,0 +1,3320 @@
+{
+  "workflow": {
+    "audit_source": "docs\\COMFYUI_CU130_RUNTIME_MODEL_AUDIT.md",
+    "capabilities": [
+      "motion_transfer",
+      "segmentation"
+    ],
+    "category": "6-动作迁移：人物替换-动作模仿迁移",
+    "knowledge_type": "comfyui_runtime_workflow",
+    "missing_executable_node_types": [],
+    "model_refs_found": [
+      "clip_vision_h.safetensors",
+      "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+      "sam3.pt",
+      "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "vitpose_h_wholebody_model.onnx",
+      "Wan2.2-Animate_relight_lora_fp16.safetensors",
+      "Wan2.2_Animate_14B_Q6_K.gguf",
+      "Wan2_1_VAE_bf16.safetensors",
+      "wan_2.1_vae.safetensors",
+      "WanAnimate_relight_lora_fp16.safetensors",
+      "yolov10m.onnx"
+    ],
+    "model_refs_missing": [],
+    "node_count": 120,
+    "relative_path": "6-动作迁移：人物替换-动作模仿迁移/Wan2.2_Animate_SAM3_人物遮罩替换(15秒长视频).json",
+    "requires_prompt_validation": true,
+    "runtime_project": "comfyui_cu130",
+    "runtime_readiness": "needs_prompt_validation",
+    "workflow_name": "Wan2.2_Animate_SAM3_人物遮罩替换(15秒长视频).json",
+    "workflow_path": "E:/ComfyUI_cu130/ComfyUI/user/default/workflows/6-动作迁移：人物替换-动作模仿迁移/Wan2.2_Animate_SAM3_人物遮罩替换(15秒长视频).json"
+  },
+  "nodes": [
+    {
+      "id": 159,
+      "type": "PrimitiveInt",
+      "title": "Width",
+      "mode": 0,
+      "order": 0,
+      "inputs": [
+        "value"
+      ],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        480,
+        "fixed"
+      ]
+    },
+    {
+      "id": 160,
+      "type": "PrimitiveInt",
+      "title": "Height",
+      "mode": 0,
+      "order": 1,
+      "inputs": [
+        "value"
+      ],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        832,
+        "fixed"
+      ]
+    },
+    {
+      "id": 162,
+      "type": "SetNode",
+      "title": "Set_INT",
+      "mode": 0,
+      "order": 63,
+      "inputs": [
+        "INT"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "width"
+      ]
+    },
+    {
+      "id": 163,
+      "type": "SetNode",
+      "title": "Set_INT",
+      "mode": 0,
+      "order": 64,
+      "inputs": [
+        "INT"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "height"
+      ]
+    },
+    {
+      "id": 188,
+      "type": "SetNode",
+      "title": "Set_VAE",
+      "mode": 0,
+      "order": 79,
+      "inputs": [
+        "VAE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "vae"
+      ]
+    },
+    {
+      "id": 346,
+      "type": "ImageResizeKJv2",
+      "title": null,
+      "mode": 0,
+      "order": 75,
+      "inputs": [
+        "image",
+        "mask",
+        "width",
+        "height",
+        "upscale_method",
+        "keep_proportion",
+        "pad_color",
+        "crop_position",
+        "divisible_by",
+        "device"
+      ],
+      "outputs": [
+        "IMAGE",
+        "width",
+        "height",
+        "mask"
+      ],
+      "widgets": [
+        512,
+        512,
+        "lanczos",
+        "crop",
+        "0, 0, 0",
+        "center",
+        16,
+        "cpu"
+      ]
+    },
+    {
+      "id": 337,
+      "type": "SetNode",
+      "title": "Set_AUDIO",
+      "mode": 0,
+      "order": 76,
+      "inputs": [
+        "AUDIO"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "audio"
+      ]
+    },
+    {
+      "id": 366,
+      "type": "GetImageSizeAndCount",
+      "title": null,
+      "mode": 0,
+      "order": 65,
+      "inputs": [
+        "image"
+      ],
+      "outputs": [
+        "image",
+        "width",
+        "height",
+        "count"
+      ],
+      "widgets": []
+    },
+    {
+      "id": 420,
+      "type": "easy sam3ModelLoader",
+      "title": null,
+      "mode": 0,
+      "order": 2,
+      "inputs": [
+        "model",
+        "segmentor",
+        "device",
+        "precision"
+      ],
+      "outputs": [
+        "sam3_model"
+      ],
+      "widgets": [
+        "sam3.pt",
+        "video",
+        "cuda",
+        "fp16"
+      ]
+    },
+    {
+      "id": 425,
+      "type": "GetNode",
+      "title": "Get_input_video",
+      "mode": 0,
+      "order": 3,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "input_video"
+      ]
+    },
+    {
+      "id": 369,
+      "type": "GrowMaskWithBlur",
+      "title": null,
+      "mode": 0,
+      "order": 81,
+      "inputs": [
+        "mask",
+        "expand",
+        "incremental_expandrate",
+        "tapered_corners",
+        "flip_input",
+        "blur_radius",
+        "lerp_alpha",
+        "decay_factor",
+        "fill_holes"
+      ],
+      "outputs": [
+        "mask",
+        "mask_inverted"
+      ],
+      "widgets": [
+        5,
+        0,
+        true,
+        false,
+        0,
+        1,
+        1,
+        false
+      ]
+    },
+    {
+      "id": 370,
+      "type": "DrawMaskOnImage",
+      "title": null,
+      "mode": 0,
+      "order": 95,
+      "inputs": [
+        "image",
+        "mask",
+        "color",
+        "device"
+      ],
+      "outputs": [
+        "images"
+      ],
+      "widgets": [
+        "255,255,255",
+        "cpu"
+      ]
+    },
+    {
+      "id": 419,
+      "type": "easy sam3VideoSegmentation",
+      "title": null,
+      "mode": 0,
+      "order": 66,
+      "inputs": [
+        "sam3_model",
+        "video_frames",
+        "session_id",
+        "extra_config",
+        "positive_coords",
+        "negative_coords",
+        "bbox",
+        "prompt",
+        "frame_index",
+        "object_id",
+        "score_threshold_detection",
+        "new_det_thresh",
+        "propagation_direction",
+        "start_frame_index",
+        "max_frames_to_track",
+        "close_after_propagation",
+        "keep_model_loaded"
+      ],
+      "outputs": [
+        "masks",
+        "session_id",
+        "objects",
+        "obj_masks"
+      ],
+      "widgets": [
+        "human",
+        0,
+        1,
+        0.20000000000000004,
+        0.5000000000000001,
+        "both",
+        0,
+        -1,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 375,
+      "type": "OnnxDetectionModelLoader",
+      "title": null,
+      "mode": 0,
+      "order": 4,
+      "inputs": [
+        "vitpose_model",
+        "yolo_model",
+        "onnx_device"
+      ],
+      "outputs": [
+        "model"
+      ],
+      "widgets": [
+        "vitpose_h_wholebody_model.onnx",
+        "yolov10m.onnx",
+        "CUDAExecutionProvider"
+      ]
+    },
+    {
+      "id": 99,
+      "type": "LoraLoaderModelOnly",
+      "title": null,
+      "mode": 0,
+      "order": 80,
+      "inputs": [
+        "model",
+        "lora_name",
+        "strength_model"
+      ],
+      "outputs": [
+        "MODEL"
+      ],
+      "widgets": [
+        "Wan\\Wan2.2-Animate_relight_lora_fp16.safetensors",
+        1
+      ]
+    },
+    {
+      "id": 320,
+      "type": "SetNode",
+      "title": "Set_CLIP",
+      "mode": 0,
+      "order": 67,
+      "inputs": [
+        "CLIP"
+      ],
+      "outputs": [
+        "CLIP"
+      ],
+      "widgets": [
+        "clip"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "CLIPTextEncode",
+      "title": null,
+      "mode": 0,
+      "order": 84,
+      "inputs": [
+        "clip",
+        "text"
+      ],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
+      ]
+    },
+    {
+      "id": 191,
+      "type": "SetNode",
+      "title": "Set_CONDITIONING",
+      "mode": 0,
+      "order": 98,
+      "inputs": [
+        "CONDITIONING"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "positive"
+      ]
+    },
+    {
+      "id": 192,
+      "type": "SetNode",
+      "title": "Set_CONDITIONING",
+      "mode": 0,
+      "order": 99,
+      "inputs": [
+        "CONDITIONING"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "negative"
+      ]
+    },
+    {
+      "id": 21,
+      "type": "CLIPTextEncode",
+      "title": null,
+      "mode": 0,
+      "order": 83,
+      "inputs": [
+        "clip",
+        "text"
+      ],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "The character is moving"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "title": null,
+      "mode": 0,
+      "order": 5,
+      "inputs": [
+        "clip_name",
+        "type",
+        "device"
+      ],
+      "outputs": [
+        "CLIP"
+      ],
+      "widgets": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "wan",
+        "default"
+      ]
+    },
+    {
+      "id": 185,
+      "type": "SetNode",
+      "title": "Set_IMAGE",
+      "mode": 0,
+      "order": 73,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "reference_image"
+      ]
+    },
+    {
+      "id": 18,
+      "type": "LoraLoaderModelOnly",
+      "title": null,
+      "mode": 0,
+      "order": 93,
+      "inputs": [
+        "model",
+        "lora_name",
+        "strength_model"
+      ],
+      "outputs": [
+        "MODEL"
+      ],
+      "widgets": [
+        "Wan\\lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors",
+        1
+      ]
+    },
+    {
+      "id": 197,
+      "type": "SetNode",
+      "title": "Set_MODEL",
+      "mode": 0,
+      "order": 104,
+      "inputs": [
+        "MODEL"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "model"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CLIPVisionLoader",
+      "title": null,
+      "mode": 0,
+      "order": 6,
+      "inputs": [
+        "clip_name"
+      ],
+      "outputs": [
+        "CLIP_VISION"
+      ],
+      "widgets": [
+        "clip_vision_h.safetensors"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "CLIPVisionEncode",
+      "title": null,
+      "mode": 0,
+      "order": 72,
+      "inputs": [
+        "clip_vision",
+        "image",
+        "crop"
+      ],
+      "outputs": [
+        "CLIP_VISION_OUTPUT"
+      ],
+      "widgets": [
+        "none"
+      ]
+    },
+    {
+      "id": 201,
+      "type": "SetNode",
+      "title": "Set_CLIP_VISION_OUTPUT",
+      "mode": 0,
+      "order": 88,
+      "inputs": [
+        "CLIP_VISION_OUTPUT"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "clip_vision_output"
+      ]
+    },
+    {
+      "id": 426,
+      "type": "SetNode",
+      "title": "Set_original_fps",
+      "mode": 0,
+      "order": 90,
+      "inputs": [
+        "FLOAT"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "original_fps"
+      ]
+    },
+    {
+      "id": 339,
+      "type": "GetNode",
+      "title": "Get_width",
+      "mode": 0,
+      "order": 7,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "width"
+      ]
+    },
+    {
+      "id": 340,
+      "type": "GetNode",
+      "title": "Get_height",
+      "mode": 0,
+      "order": 8,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "height"
+      ]
+    },
+    {
+      "id": 335,
+      "type": "SetNode",
+      "title": "Set_IMAGE",
+      "mode": 0,
+      "order": 89,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "input_video"
+      ]
+    },
+    {
+      "id": 407,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 68,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "paused": true,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "AnimateDiff_00001.mp4",
+            "workflow": "AnimateDiff_00001.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\AnimateDiff_00001.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "label": "Normal",
+            "type": "temp",
+            "frame_rate": 16
+          }
+        }
+      }
+    },
+    {
+      "id": 422,
+      "type": "easy sam3Visualization",
+      "title": null,
+      "mode": 0,
+      "order": 82,
+      "inputs": [
+        "image",
+        "obj_masks",
+        "scores",
+        "alpha",
+        "stroke_width",
+        "font_size"
+      ],
+      "outputs": [
+        "visualization"
+      ],
+      "widgets": [
+        0.5,
+        2,
+        24
+      ]
+    },
+    {
+      "id": 372,
+      "type": "DrawViTPose",
+      "title": null,
+      "mode": 0,
+      "order": 113,
+      "inputs": [
+        "pose_data",
+        "width",
+        "height",
+        "retarget_padding",
+        "body_stick_width",
+        "hand_stick_width",
+        "draw_head"
+      ],
+      "outputs": [
+        "pose_images"
+      ],
+      "widgets": [
+        832,
+        480,
+        16,
+        -1,
+        -1,
+        "True"
+      ]
+    },
+    {
+      "id": 454,
+      "type": "SetNode",
+      "title": "Set_人形分割遮罩",
+      "mode": 0,
+      "order": 97,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "人形分割遮罩图像"
+      ]
+    },
+    {
+      "id": 458,
+      "type": "SetNode",
+      "title": "Set_character_mask",
+      "mode": 0,
+      "order": 106,
+      "inputs": [
+        "MASK"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "character_mask"
+      ]
+    },
+    {
+      "id": 459,
+      "type": "SetNode",
+      "title": "Set_background_video",
+      "mode": 0,
+      "order": 112,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "background_video"
+      ]
+    },
+    {
+      "id": 332,
+      "type": "DrawMaskOnImage",
+      "title": null,
+      "mode": 0,
+      "order": 105,
+      "inputs": [
+        "image",
+        "mask",
+        "color",
+        "device"
+      ],
+      "outputs": [
+        "images"
+      ],
+      "widgets": [
+        "0, 0, 0",
+        "cpu"
+      ]
+    },
+    {
+      "id": 460,
+      "type": "GetNode",
+      "title": "Get_人形分割遮罩图像",
+      "mode": 0,
+      "order": 9,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "人形分割遮罩图像"
+      ]
+    },
+    {
+      "id": 412,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 70,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "paused": true,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "AnimateDiff_00002.mp4",
+            "workflow": "AnimateDiff_00002.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\AnimateDiff_00002.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "label": "Normal",
+            "type": "temp",
+            "frame_rate": 16
+          }
+        }
+      }
+    },
+    {
+      "id": 410,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 69,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "paused": true,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "AnimateDiff_00003.mp4",
+            "workflow": "AnimateDiff_00003.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\AnimateDiff_00003.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "label": "Normal",
+            "type": "temp",
+            "frame_rate": 16
+          }
+        }
+      }
+    },
+    {
+      "id": 453,
+      "type": "GetNode",
+      "title": "Get_块遮罩与姿势骨架",
+      "mode": 0,
+      "order": 10,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "块遮罩与姿势骨架"
+      ]
+    },
+    {
+      "id": 451,
+      "type": "GetNode",
+      "title": "Get_face_video",
+      "mode": 0,
+      "order": 11,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "face_video"
+      ]
+    },
+    {
+      "id": 427,
+      "type": "GetNode",
+      "title": "Get_original_fps",
+      "mode": 0,
+      "order": 12,
+      "inputs": [],
+      "outputs": [
+        "FLOAT"
+      ],
+      "widgets": [
+        "original_fps"
+      ]
+    },
+    {
+      "id": 202,
+      "type": "GetNode",
+      "title": "Get_clip_vision_output",
+      "mode": 0,
+      "order": 13,
+      "inputs": [],
+      "outputs": [
+        "CLIP_VISION_OUTPUT"
+      ],
+      "widgets": [
+        "clip_vision_output"
+      ]
+    },
+    {
+      "id": 186,
+      "type": "GetNode",
+      "title": "Get_reference_image",
+      "mode": 0,
+      "order": 14,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "reference_image"
+      ]
+    },
+    {
+      "id": 439,
+      "type": "GetNode",
+      "title": "Get_face_video",
+      "mode": 0,
+      "order": 15,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "face_video"
+      ]
+    },
+    {
+      "id": 440,
+      "type": "GetNode",
+      "title": "Get_pose_video",
+      "mode": 0,
+      "order": 16,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "pose_video"
+      ]
+    },
+    {
+      "id": 250,
+      "type": "GetNode",
+      "title": "Get_background_video",
+      "mode": 0,
+      "order": 17,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "background_video"
+      ]
+    },
+    {
+      "id": 249,
+      "type": "GetNode",
+      "title": "Get_character_mask",
+      "mode": 0,
+      "order": 18,
+      "inputs": [],
+      "outputs": [
+        "MASK"
+      ],
+      "widgets": [
+        "character_mask"
+      ]
+    },
+    {
+      "id": 180,
+      "type": "GetNode",
+      "title": "Get_width",
+      "mode": 0,
+      "order": 19,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "width"
+      ]
+    },
+    {
+      "id": 181,
+      "type": "GetNode",
+      "title": "Get_height",
+      "mode": 0,
+      "order": 20,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "height"
+      ]
+    },
+    {
+      "id": 462,
+      "type": "GetNode",
+      "title": "Get_length",
+      "mode": 0,
+      "order": 21,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "length"
+      ]
+    },
+    {
+      "id": 203,
+      "type": "GetNode",
+      "title": "Get_model",
+      "mode": 0,
+      "order": 22,
+      "inputs": [],
+      "outputs": [
+        "MODEL"
+      ],
+      "widgets": [
+        "model"
+      ]
+    },
+    {
+      "id": 194,
+      "type": "GetNode",
+      "title": "Get_negative",
+      "mode": 0,
+      "order": 23,
+      "inputs": [],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "negative"
+      ]
+    },
+    {
+      "id": 193,
+      "type": "GetNode",
+      "title": "Get_positive",
+      "mode": 0,
+      "order": 24,
+      "inputs": [],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "positive"
+      ]
+    },
+    {
+      "id": 190,
+      "type": "GetNode",
+      "title": "Get_vae",
+      "mode": 0,
+      "order": 25,
+      "inputs": [],
+      "outputs": [
+        "VAE"
+      ],
+      "widgets": [
+        "vae"
+      ]
+    },
+    {
+      "id": 468,
+      "type": "GetNode",
+      "title": "Get_clip_vision_output",
+      "mode": 0,
+      "order": 26,
+      "inputs": [],
+      "outputs": [
+        "CLIP_VISION_OUTPUT"
+      ],
+      "widgets": [
+        "clip_vision_output"
+      ]
+    },
+    {
+      "id": 469,
+      "type": "GetNode",
+      "title": "Get_reference_image",
+      "mode": 0,
+      "order": 27,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "reference_image"
+      ]
+    },
+    {
+      "id": 470,
+      "type": "GetNode",
+      "title": "Get_face_video",
+      "mode": 0,
+      "order": 28,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "face_video"
+      ]
+    },
+    {
+      "id": 471,
+      "type": "GetNode",
+      "title": "Get_pose_video",
+      "mode": 0,
+      "order": 29,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "pose_video"
+      ]
+    },
+    {
+      "id": 472,
+      "type": "GetNode",
+      "title": "Get_background_video",
+      "mode": 0,
+      "order": 30,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "background_video"
+      ]
+    },
+    {
+      "id": 473,
+      "type": "GetNode",
+      "title": "Get_character_mask",
+      "mode": 0,
+      "order": 31,
+      "inputs": [],
+      "outputs": [
+        "MASK"
+      ],
+      "widgets": [
+        "character_mask"
+      ]
+    },
+    {
+      "id": 474,
+      "type": "GetNode",
+      "title": "Get_width",
+      "mode": 0,
+      "order": 32,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "width"
+      ]
+    },
+    {
+      "id": 475,
+      "type": "GetNode",
+      "title": "Get_height",
+      "mode": 0,
+      "order": 33,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "height"
+      ]
+    },
+    {
+      "id": 476,
+      "type": "GetNode",
+      "title": "Get_length",
+      "mode": 0,
+      "order": 34,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "length"
+      ]
+    },
+    {
+      "id": 477,
+      "type": "GetNode",
+      "title": "Get_model",
+      "mode": 0,
+      "order": 35,
+      "inputs": [],
+      "outputs": [
+        "MODEL"
+      ],
+      "widgets": [
+        "model"
+      ]
+    },
+    {
+      "id": 478,
+      "type": "GetNode",
+      "title": "Get_negative",
+      "mode": 0,
+      "order": 36,
+      "inputs": [],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "negative"
+      ]
+    },
+    {
+      "id": 479,
+      "type": "GetNode",
+      "title": "Get_positive",
+      "mode": 0,
+      "order": 37,
+      "inputs": [],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "positive"
+      ]
+    },
+    {
+      "id": 480,
+      "type": "GetNode",
+      "title": "Get_vae",
+      "mode": 0,
+      "order": 38,
+      "inputs": [],
+      "outputs": [
+        "VAE"
+      ],
+      "widgets": [
+        "vae"
+      ]
+    },
+    {
+      "id": 417,
+      "type": "LoadImage",
+      "title": null,
+      "mode": 0,
+      "order": 39,
+      "inputs": [
+        "image",
+        "upload"
+      ],
+      "outputs": [
+        "IMAGE",
+        "MASK"
+      ],
+      "widgets": [
+        "ComfyUI_00031_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 485,
+      "type": "GetNode",
+      "title": "Get_clip_vision_output",
+      "mode": 0,
+      "order": 40,
+      "inputs": [],
+      "outputs": [
+        "CLIP_VISION_OUTPUT"
+      ],
+      "widgets": [
+        "clip_vision_output"
+      ]
+    },
+    {
+      "id": 486,
+      "type": "GetNode",
+      "title": "Get_reference_image",
+      "mode": 0,
+      "order": 41,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "reference_image"
+      ]
+    },
+    {
+      "id": 487,
+      "type": "GetNode",
+      "title": "Get_face_video",
+      "mode": 0,
+      "order": 42,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "face_video"
+      ]
+    },
+    {
+      "id": 488,
+      "type": "GetNode",
+      "title": "Get_pose_video",
+      "mode": 0,
+      "order": 43,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "pose_video"
+      ]
+    },
+    {
+      "id": 489,
+      "type": "GetNode",
+      "title": "Get_background_video",
+      "mode": 0,
+      "order": 44,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "background_video"
+      ]
+    },
+    {
+      "id": 490,
+      "type": "GetNode",
+      "title": "Get_character_mask",
+      "mode": 0,
+      "order": 45,
+      "inputs": [],
+      "outputs": [
+        "MASK"
+      ],
+      "widgets": [
+        "character_mask"
+      ]
+    },
+    {
+      "id": 491,
+      "type": "GetNode",
+      "title": "Get_width",
+      "mode": 0,
+      "order": 46,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "width"
+      ]
+    },
+    {
+      "id": 492,
+      "type": "GetNode",
+      "title": "Get_height",
+      "mode": 0,
+      "order": 47,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "height"
+      ]
+    },
+    {
+      "id": 493,
+      "type": "GetNode",
+      "title": "Get_length",
+      "mode": 0,
+      "order": 48,
+      "inputs": [],
+      "outputs": [
+        "INT"
+      ],
+      "widgets": [
+        "length"
+      ]
+    },
+    {
+      "id": 494,
+      "type": "GetNode",
+      "title": "Get_model",
+      "mode": 0,
+      "order": 49,
+      "inputs": [],
+      "outputs": [
+        "MODEL"
+      ],
+      "widgets": [
+        "model"
+      ]
+    },
+    {
+      "id": 495,
+      "type": "GetNode",
+      "title": "Get_negative",
+      "mode": 0,
+      "order": 50,
+      "inputs": [],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "negative"
+      ]
+    },
+    {
+      "id": 496,
+      "type": "GetNode",
+      "title": "Get_positive",
+      "mode": 0,
+      "order": 51,
+      "inputs": [],
+      "outputs": [
+        "CONDITIONING"
+      ],
+      "widgets": [
+        "positive"
+      ]
+    },
+    {
+      "id": 497,
+      "type": "GetNode",
+      "title": "Get_vae",
+      "mode": 0,
+      "order": 52,
+      "inputs": [],
+      "outputs": [
+        "VAE"
+      ],
+      "widgets": [
+        "vae"
+      ]
+    },
+    {
+      "id": 413,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "title": null,
+      "mode": 0,
+      "order": 53,
+      "inputs": [],
+      "outputs": [
+        "OPT_CONNECTION"
+      ],
+      "widgets": null
+    },
+    {
+      "id": 500,
+      "type": "Note",
+      "title": null,
+      "mode": 0,
+      "order": 54,
+      "inputs": [],
+      "outputs": [],
+      "widgets": [
+        "每个Video Extend处理帧长81帧，即5秒，如果处理长视频，则每增加5秒，复制一个Video Extend组"
+      ]
+    },
+    {
+      "id": 484,
+      "type": "SetNode",
+      "title": "Set_length",
+      "mode": 0,
+      "order": 74,
+      "inputs": [
+        "INT"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "length"
+      ]
+    },
+    {
+      "id": 373,
+      "type": "PoseAndFaceDetection",
+      "title": null,
+      "mode": 0,
+      "order": 107,
+      "inputs": [
+        "model",
+        "images",
+        "retarget_image",
+        "width",
+        "height"
+      ],
+      "outputs": [
+        "pose_data",
+        "face_images",
+        "key_frame_body_points",
+        "bboxes",
+        "face_bboxes"
+      ],
+      "widgets": [
+        832,
+        480
+      ]
+    },
+    {
+      "id": 437,
+      "type": "GetNode",
+      "title": "Get_audio",
+      "mode": 0,
+      "order": 55,
+      "inputs": [],
+      "outputs": [
+        "AUDIO"
+      ],
+      "widgets": [
+        "audio"
+      ]
+    },
+    {
+      "id": 342,
+      "type": "VHS_VideoInfoLoaded",
+      "title": null,
+      "mode": 0,
+      "order": 77,
+      "inputs": [
+        "video_info"
+      ],
+      "outputs": [
+        "fps🟦",
+        "frame_count🟦",
+        "duration🟦",
+        "width🟦",
+        "height🟦"
+      ],
+      "widgets": {}
+    },
+    {
+      "id": 506,
+      "type": "easy showAnything",
+      "title": null,
+      "mode": 0,
+      "order": 91,
+      "inputs": [
+        "anything"
+      ],
+      "outputs": [
+        "output"
+      ],
+      "widgets": [
+        "16.0"
+      ]
+    },
+    {
+      "id": 345,
+      "type": "easy showAnything",
+      "title": null,
+      "mode": 0,
+      "order": 92,
+      "inputs": [
+        "anything"
+      ],
+      "outputs": [
+        "output"
+      ],
+      "widgets": [
+        "241"
+      ]
+    },
+    {
+      "id": 501,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 85,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "hidden": false,
+          "paused": true,
+          "params": {
+            "filename": "AnimateDiff_00007.mp4",
+            "subfolder": "",
+            "type": "temp",
+            "format": "video/h264-mp4",
+            "frame_rate": 16,
+            "workflow": "AnimateDiff_00007.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\AnimateDiff_00007.mp4"
+          }
+        }
+      }
+    },
+    {
+      "id": 448,
+      "type": "ImageBlend",
+      "title": null,
+      "mode": 0,
+      "order": 116,
+      "inputs": [
+        "image1",
+        "image2",
+        "blend_factor",
+        "blend_mode"
+      ],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        0.5,
+        "normal"
+      ]
+    },
+    {
+      "id": 515,
+      "type": "LayerUtility: PurgeVRAM V2",
+      "title": null,
+      "mode": 0,
+      "order": 119,
+      "inputs": [
+        "anything",
+        "purge_cache",
+        "purge_models"
+      ],
+      "outputs": [
+        "any"
+      ],
+      "widgets": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": 452,
+      "type": "SetNode",
+      "title": "Set_块遮罩与姿势骨架",
+      "mode": 0,
+      "order": 118,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "块遮罩与姿势骨架"
+      ]
+    },
+    {
+      "id": 456,
+      "type": "SetNode",
+      "title": "Set_pose_video",
+      "mode": 0,
+      "order": 117,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "pose_video"
+      ]
+    },
+    {
+      "id": 457,
+      "type": "SetNode",
+      "title": "Set_face_video",
+      "mode": 0,
+      "order": 114,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "face_video"
+      ]
+    },
+    {
+      "id": 447,
+      "type": "GetNode",
+      "title": "Get_input_video",
+      "mode": 0,
+      "order": 56,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "input_video"
+      ]
+    },
+    {
+      "id": 445,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 115,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 24,
+        "loop_count": 0,
+        "filename_prefix": "video/WanAnimate",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": false,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "WanAnimate_00002-audio.mp4",
+            "workflow": "WanAnimate_00002.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\video\\WanAnimate_00002-audio.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "video",
+            "label": "Normal",
+            "type": "temp",
+            "frame_rate": 16
+          },
+          "muted": true
+        }
+      }
+    },
+    {
+      "id": 483,
+      "type": "INTConstant",
+      "title": "每批处理数量",
+      "mode": 0,
+      "order": 57,
+      "inputs": [
+        "value"
+      ],
+      "outputs": [
+        "value"
+      ],
+      "widgets": [
+        81
+      ]
+    },
+    {
+      "id": 408,
+      "type": "VHS_LoadVideo",
+      "title": null,
+      "mode": 0,
+      "order": 58,
+      "inputs": [
+        "meta_batch",
+        "vae",
+        "video",
+        "force_rate",
+        "custom_width",
+        "custom_height",
+        "frame_load_cap",
+        "skip_first_frames",
+        "select_every_nth",
+        "format"
+      ],
+      "outputs": [
+        "IMAGE",
+        "frame_count",
+        "audio",
+        "video_info"
+      ],
+      "widgets": {
+        "video": "@宸荨樱桃 我就是 总一个人从午夜到清晨～ 2K.mp4",
+        "force_rate": 16,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 20,
+        "select_every_nth": 1,
+        "format": "Wan",
+        "videopreview": {
+          "paused": true,
+          "hidden": false,
+          "params": {
+            "custom_height": 832,
+            "filename": "@宸荨樱桃 我就是 总一个人从午夜到清晨～ 2K.mp4",
+            "force_rate": 16,
+            "custom_width": 480,
+            "select_every_nth": 1,
+            "frame_load_cap": 0,
+            "format": "video/mp4",
+            "skip_first_frames": 20,
+            "type": "input"
+          },
+          "muted": true
+        }
+      }
+    },
+    {
+      "id": 499,
+      "type": "SetNode",
+      "title": "Set_video",
+      "mode": 0,
+      "order": 111,
+      "inputs": [
+        "IMAGE"
+      ],
+      "outputs": [
+        "*"
+      ],
+      "widgets": [
+        "video"
+      ]
+    },
+    {
+      "id": 505,
+      "type": "LayerUtility: PurgeVRAM V2",
+      "title": null,
+      "mode": 0,
+      "order": 86,
+      "inputs": [
+        "anything",
+        "purge_cache",
+        "purge_models"
+      ],
+      "outputs": [
+        "any"
+      ],
+      "widgets": [
+        true,
+        false
+      ]
+    },
+    {
+      "id": 504,
+      "type": "LayerUtility: PurgeVRAM V2",
+      "title": null,
+      "mode": 0,
+      "order": 101,
+      "inputs": [
+        "anything",
+        "purge_cache",
+        "purge_models"
+      ],
+      "outputs": [
+        "any"
+      ],
+      "widgets": [
+        true,
+        false
+      ]
+    },
+    {
+      "id": 503,
+      "type": "LayerUtility: PurgeVRAM V2",
+      "title": null,
+      "mode": 0,
+      "order": 110,
+      "inputs": [
+        "anything",
+        "purge_cache",
+        "purge_models"
+      ],
+      "outputs": [
+        "any"
+      ],
+      "widgets": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": 428,
+      "type": "LayerUtility: PurgeVRAM",
+      "title": null,
+      "mode": 0,
+      "order": 96,
+      "inputs": [
+        "anything",
+        "purge_cache",
+        "purge_models"
+      ],
+      "outputs": [],
+      "widgets": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": 450,
+      "type": "GetNode",
+      "title": "Get_video",
+      "mode": 0,
+      "order": 59,
+      "inputs": [],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "video"
+      ]
+    },
+    {
+      "id": 438,
+      "type": "GetNode",
+      "title": "Get_original_fps",
+      "mode": 0,
+      "order": 60,
+      "inputs": [],
+      "outputs": [
+        "FLOAT"
+      ],
+      "widgets": [
+        "original_fps"
+      ]
+    },
+    {
+      "id": 444,
+      "type": "ImageConcanate",
+      "title": null,
+      "mode": 0,
+      "order": 109,
+      "inputs": [
+        "image1",
+        "image2",
+        "direction",
+        "match_image_size"
+      ],
+      "outputs": [
+        "IMAGE"
+      ],
+      "widgets": [
+        "right",
+        true
+      ]
+    },
+    {
+      "id": 519,
+      "type": "ImageBatchMulti",
+      "title": null,
+      "mode": 0,
+      "order": 102,
+      "inputs": [
+        "image_1",
+        "image_2",
+        "inputcount",
+        "image_3"
+      ],
+      "outputs": [
+        "images"
+      ],
+      "widgets": [
+        3,
+        null
+      ]
+    },
+    {
+      "id": 466,
+      "type": "76554463-04c9-455f-acbb-6b2da57eef9b",
+      "title": null,
+      "mode": 0,
+      "order": 71,
+      "inputs": [
+        "model",
+        "vae",
+        "positive",
+        "negative",
+        "clip_vision_output",
+        "reference_image",
+        "face_video",
+        "pose_video",
+        "background_video",
+        "character_mask",
+        "width",
+        "height",
+        "length"
+      ],
+      "outputs": [
+        "IMAGE",
+        "video_frame_offset"
+      ],
+      "widgets": []
+    },
+    {
+      "id": 481,
+      "type": "9c4c2906-8773-415b-857e-cbf26fea5a1d",
+      "title": null,
+      "mode": 0,
+      "order": 87,
+      "inputs": [
+        "model",
+        "vae",
+        "positive",
+        "negative",
+        "clip_vision_output",
+        "reference_image",
+        "face_video",
+        "pose_video",
+        "background_video",
+        "character_mask",
+        "width",
+        "height",
+        "length",
+        "continue_motion",
+        "video_frame_offset"
+      ],
+      "outputs": [
+        "IMAGE",
+        "video_frame_offset"
+      ],
+      "widgets": []
+    },
+    {
+      "id": 498,
+      "type": "6f81d651-4a47-433c-8e71-50e442089389",
+      "title": null,
+      "mode": 0,
+      "order": 103,
+      "inputs": [
+        "model",
+        "vae",
+        "positive",
+        "negative",
+        "clip_vision_output",
+        "reference_image",
+        "face_video",
+        "pose_video",
+        "background_video",
+        "character_mask",
+        "width",
+        "height",
+        "length",
+        "continue_motion",
+        "video_frame_offset"
+      ],
+      "outputs": [
+        "IMAGE",
+        "video_frame_offset"
+      ],
+      "widgets": []
+    },
+    {
+      "id": 371,
+      "type": "BlockifyMask",
+      "title": null,
+      "mode": 0,
+      "order": 94,
+      "inputs": [
+        "masks",
+        "block_size",
+        "device"
+      ],
+      "outputs": [
+        "mask"
+      ],
+      "widgets": [
+        32,
+        "cpu"
+      ]
+    },
+    {
+      "id": 525,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 108,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "video/WanAnimate",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00017.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16,
+            "workflow": "AnimateDiff_00017.png",
+            "fullpath": "E:\\ComfyUI-Data\\output\\AnimateDiff_00017.mp4"
+          }
+        }
+      }
+    },
+    {
+      "id": 526,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 78,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "hidden": false,
+          "paused": true,
+          "params": {
+            "filename": "AnimateDiff_00009.mp4",
+            "subfolder": "",
+            "type": "temp",
+            "format": "video/h264-mp4",
+            "frame_rate": 16,
+            "workflow": "AnimateDiff_00009.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\AnimateDiff_00009.mp4"
+          }
+        }
+      }
+    },
+    {
+      "id": 502,
+      "type": "VHS_VideoCombine",
+      "title": null,
+      "mode": 0,
+      "order": 100,
+      "inputs": [
+        "images",
+        "audio",
+        "meta_batch",
+        "vae",
+        "frame_rate",
+        "loop_count",
+        "filename_prefix",
+        "format",
+        "pingpong",
+        "save_output",
+        "pix_fmt",
+        "crf",
+        "save_metadata",
+        "trim_to_audio"
+      ],
+      "outputs": [
+        "Filenames"
+      ],
+      "widgets": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "hidden": false,
+          "paused": true,
+          "params": {
+            "filename": "AnimateDiff_00008.mp4",
+            "subfolder": "",
+            "type": "temp",
+            "format": "video/h264-mp4",
+            "frame_rate": 16,
+            "workflow": "AnimateDiff_00008.png",
+            "fullpath": "D:\\AI\\ComfyUI_cu128\\ComfyUI\\temp\\AnimateDiff_00008.mp4"
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "title": null,
+      "mode": 0,
+      "order": 61,
+      "inputs": [
+        "vae_name"
+      ],
+      "outputs": [
+        "VAE"
+      ],
+      "widgets": [
+        "Wan2_1_VAE_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 424,
+      "type": "UnetLoaderGGUF",
+      "title": null,
+      "mode": 0,
+      "order": 62,
+      "inputs": [
+        "unet_name"
+      ],
+      "outputs": [
+        "MODEL"
+      ],
+      "widgets": [
+        "Wan\\Wan2.2_Animate_14B_Q6_K.gguf"
+      ]
+    }
+  ],
+  "links": [
+    [
+      4,
+      4,
+      0,
+      9,
+      0,
+      "CLIP_VISION"
+    ],
+    [
+      356,
+      159,
+      0,
+      162,
+      0,
+      "*"
+    ],
+    [
+      380,
+      160,
+      0,
+      163,
+      0,
+      "*"
+    ],
+    [
+      385,
+      3,
+      0,
+      188,
+      0,
+      "*"
+    ],
+    [
+      388,
+      21,
+      0,
+      191,
+      0,
+      "*"
+    ],
+    [
+      389,
+      1,
+      0,
+      192,
+      0,
+      "*"
+    ],
+    [
+      397,
+      9,
+      0,
+      201,
+      0,
+      "*"
+    ],
+    [
+      606,
+      2,
+      0,
+      320,
+      0,
+      "*"
+    ],
+    [
+      607,
+      320,
+      0,
+      21,
+      0,
+      "CLIP"
+    ],
+    [
+      608,
+      320,
+      0,
+      1,
+      0,
+      "CLIP"
+    ],
+    [
+      629,
+      346,
+      0,
+      335,
+      0,
+      "*"
+    ],
+    [
+      635,
+      342,
+      1,
+      345,
+      0,
+      "*"
+    ],
+    [
+      637,
+      339,
+      0,
+      346,
+      2,
+      "INT"
+    ],
+    [
+      638,
+      340,
+      0,
+      346,
+      3,
+      "INT"
+    ],
+    [
+      677,
+      366,
+      0,
+      370,
+      0,
+      "IMAGE"
+    ],
+    [
+      678,
+      369,
+      1,
+      370,
+      1,
+      "MASK"
+    ],
+    [
+      679,
+      369,
+      0,
+      371,
+      0,
+      "MASK"
+    ],
+    [
+      681,
+      366,
+      1,
+      372,
+      1,
+      "INT"
+    ],
+    [
+      682,
+      366,
+      2,
+      372,
+      2,
+      "INT"
+    ],
+    [
+      683,
+      375,
+      0,
+      373,
+      0,
+      "POSEMODEL"
+    ],
+    [
+      684,
+      370,
+      0,
+      373,
+      1,
+      "IMAGE"
+    ],
+    [
+      685,
+      366,
+      1,
+      373,
+      3,
+      "INT"
+    ],
+    [
+      686,
+      366,
+      2,
+      373,
+      4,
+      "INT"
+    ],
+    [
+      689,
+      366,
+      0,
+      332,
+      0,
+      "IMAGE"
+    ],
+    [
+      743,
+      408,
+      2,
+      337,
+      0,
+      "AUDIO"
+    ],
+    [
+      744,
+      408,
+      3,
+      342,
+      0,
+      "VHS_VIDEOINFO"
+    ],
+    [
+      745,
+      408,
+      0,
+      346,
+      0,
+      "IMAGE"
+    ],
+    [
+      758,
+      99,
+      0,
+      18,
+      0,
+      "MODEL"
+    ],
+    [
+      762,
+      18,
+      0,
+      197,
+      0,
+      "MODEL"
+    ],
+    [
+      775,
+      373,
+      0,
+      372,
+      0,
+      "POSEDATA"
+    ],
+    [
+      777,
+      417,
+      0,
+      9,
+      1,
+      "IMAGE"
+    ],
+    [
+      778,
+      417,
+      0,
+      185,
+      0,
+      "IMAGE"
+    ],
+    [
+      783,
+      420,
+      0,
+      419,
+      0,
+      "EASY_SAM3_MODEL"
+    ],
+    [
+      786,
+      419,
+      3,
+      422,
+      1,
+      "MASK"
+    ],
+    [
+      787,
+      419,
+      0,
+      369,
+      0,
+      "MASK"
+    ],
+    [
+      791,
+      424,
+      0,
+      99,
+      0,
+      "MODEL"
+    ],
+    [
+      792,
+      425,
+      0,
+      366,
+      0,
+      "IMAGE"
+    ],
+    [
+      794,
+      342,
+      0,
+      426,
+      0,
+      "FLOAT"
+    ],
+    [
+      800,
+      425,
+      0,
+      422,
+      0,
+      "IMAGE"
+    ],
+    [
+      801,
+      425,
+      0,
+      419,
+      1,
+      "IMAGE"
+    ],
+    [
+      802,
+      427,
+      0,
+      407,
+      4,
+      "FLOAT"
+    ],
+    [
+      803,
+      427,
+      0,
+      410,
+      4,
+      "FLOAT"
+    ],
+    [
+      805,
+      427,
+      0,
+      412,
+      4,
+      "FLOAT"
+    ],
+    [
+      807,
+      422,
+      0,
+      428,
+      0,
+      "IMAGE"
+    ],
+    [
+      821,
+      444,
+      0,
+      445,
+      0,
+      "IMAGE"
+    ],
+    [
+      825,
+      447,
+      0,
+      444,
+      0,
+      "IMAGE"
+    ],
+    [
+      829,
+      438,
+      0,
+      445,
+      4,
+      "FLOAT"
+    ],
+    [
+      830,
+      437,
+      0,
+      445,
+      1,
+      "AUDIO"
+    ],
+    [
+      831,
+      372,
+      0,
+      448,
+      1,
+      "IMAGE"
+    ],
+    [
+      833,
+      332,
+      0,
+      448,
+      0,
+      "IMAGE"
+    ],
+    [
+      834,
+      371,
+      0,
+      332,
+      1,
+      "MASK"
+    ],
+    [
+      838,
+      451,
+      0,
+      412,
+      0,
+      "IMAGE"
+    ],
+    [
+      839,
+      448,
+      0,
+      452,
+      0,
+      "IMAGE"
+    ],
+    [
+      840,
+      453,
+      0,
+      410,
+      0,
+      "IMAGE"
+    ],
+    [
+      841,
+      422,
+      0,
+      454,
+      0,
+      "IMAGE"
+    ],
+    [
+      843,
+      372,
+      0,
+      456,
+      0,
+      "IMAGE"
+    ],
+    [
+      844,
+      373,
+      1,
+      457,
+      0,
+      "IMAGE"
+    ],
+    [
+      845,
+      371,
+      0,
+      458,
+      0,
+      "MASK"
+    ],
+    [
+      846,
+      332,
+      0,
+      459,
+      0,
+      "IMAGE"
+    ],
+    [
+      847,
+      460,
+      0,
+      407,
+      0,
+      "IMAGE"
+    ],
+    [
+      852,
+      203,
+      0,
+      466,
+      0,
+      "MODEL"
+    ],
+    [
+      853,
+      190,
+      0,
+      466,
+      1,
+      "VAE"
+    ],
+    [
+      854,
+      193,
+      0,
+      466,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      855,
+      194,
+      0,
+      466,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      856,
+      202,
+      0,
+      466,
+      4,
+      "CLIP_VISION_OUTPUT"
+    ],
+    [
+      857,
+      186,
+      0,
+      466,
+      5,
+      "IMAGE"
+    ],
+    [
+      858,
+      439,
+      0,
+      466,
+      6,
+      "IMAGE"
+    ],
+    [
+      859,
+      440,
+      0,
+      466,
+      7,
+      "IMAGE"
+    ],
+    [
+      860,
+      250,
+      0,
+      466,
+      8,
+      "IMAGE"
+    ],
+    [
+      861,
+      249,
+      0,
+      466,
+      9,
+      "MASK"
+    ],
+    [
+      862,
+      180,
+      0,
+      466,
+      10,
+      "INT"
+    ],
+    [
+      863,
+      181,
+      0,
+      466,
+      11,
+      "INT"
+    ],
+    [
+      864,
+      462,
+      0,
+      466,
+      12,
+      "INT"
+    ],
+    [
+      866,
+      477,
+      0,
+      481,
+      0,
+      "MODEL"
+    ],
+    [
+      867,
+      480,
+      0,
+      481,
+      1,
+      "VAE"
+    ],
+    [
+      868,
+      479,
+      0,
+      481,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      869,
+      478,
+      0,
+      481,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      870,
+      468,
+      0,
+      481,
+      4,
+      "CLIP_VISION_OUTPUT"
+    ],
+    [
+      871,
+      469,
+      0,
+      481,
+      5,
+      "IMAGE"
+    ],
+    [
+      872,
+      470,
+      0,
+      481,
+      6,
+      "IMAGE"
+    ],
+    [
+      873,
+      471,
+      0,
+      481,
+      7,
+      "IMAGE"
+    ],
+    [
+      874,
+      472,
+      0,
+      481,
+      8,
+      "IMAGE"
+    ],
+    [
+      875,
+      473,
+      0,
+      481,
+      9,
+      "MASK"
+    ],
+    [
+      876,
+      474,
+      0,
+      481,
+      10,
+      "INT"
+    ],
+    [
+      877,
+      475,
+      0,
+      481,
+      11,
+      "INT"
+    ],
+    [
+      878,
+      476,
+      0,
+      481,
+      12,
+      "INT"
+    ],
+    [
+      880,
+      466,
+      1,
+      481,
+      14,
+      "INT"
+    ],
+    [
+      881,
+      466,
+      0,
+      481,
+      13,
+      "IMAGE"
+    ],
+    [
+      882,
+      483,
+      0,
+      484,
+      0,
+      "INT"
+    ],
+    [
+      883,
+      494,
+      0,
+      498,
+      0,
+      "MODEL"
+    ],
+    [
+      884,
+      497,
+      0,
+      498,
+      1,
+      "VAE"
+    ],
+    [
+      885,
+      496,
+      0,
+      498,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      886,
+      495,
+      0,
+      498,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      887,
+      485,
+      0,
+      498,
+      4,
+      "CLIP_VISION_OUTPUT"
+    ],
+    [
+      888,
+      486,
+      0,
+      498,
+      5,
+      "IMAGE"
+    ],
+    [
+      889,
+      487,
+      0,
+      498,
+      6,
+      "IMAGE"
+    ],
+    [
+      890,
+      488,
+      0,
+      498,
+      7,
+      "IMAGE"
+    ],
+    [
+      891,
+      489,
+      0,
+      498,
+      8,
+      "IMAGE"
+    ],
+    [
+      892,
+      490,
+      0,
+      498,
+      9,
+      "MASK"
+    ],
+    [
+      893,
+      491,
+      0,
+      498,
+      10,
+      "INT"
+    ],
+    [
+      894,
+      492,
+      0,
+      498,
+      11,
+      "INT"
+    ],
+    [
+      895,
+      493,
+      0,
+      498,
+      12,
+      "INT"
+    ],
+    [
+      897,
+      481,
+      0,
+      498,
+      13,
+      "IMAGE"
+    ],
+    [
+      899,
+      466,
+      0,
+      501,
+      0,
+      "IMAGE"
+    ],
+    [
+      900,
+      481,
+      0,
+      502,
+      0,
+      "IMAGE"
+    ],
+    [
+      901,
+      498,
+      0,
+      503,
+      0,
+      "IMAGE"
+    ],
+    [
+      902,
+      481,
+      0,
+      504,
+      0,
+      "IMAGE"
+    ],
+    [
+      903,
+      466,
+      0,
+      505,
+      0,
+      "IMAGE"
+    ],
+    [
+      904,
+      342,
+      0,
+      506,
+      0,
+      "FLOAT"
+    ],
+    [
+      911,
+      448,
+      0,
+      515,
+      0,
+      "IMAGE"
+    ],
+    [
+      920,
+      519,
+      0,
+      525,
+      0,
+      "IMAGE"
+    ],
+    [
+      921,
+      450,
+      0,
+      526,
+      0,
+      "IMAGE"
+    ],
+    [
+      924,
+      519,
+      0,
+      444,
+      1,
+      "IMAGE"
+    ],
+    [
+      925,
+      438,
+      0,
+      526,
+      4,
+      "FLOAT"
+    ],
+    [
+      927,
+      498,
+      0,
+      499,
+      0,
+      "IMAGE"
+    ],
+    [
+      928,
+      481,
+      1,
+      498,
+      14,
+      "INT"
+    ],
+    [
+      930,
+      466,
+      0,
+      519,
+      0,
+      "IMAGE"
+    ],
+    [
+      931,
+      481,
+      0,
+      519,
+      1,
+      "IMAGE"
+    ],
+    [
+      932,
+      450,
+      0,
+      519,
+      3,
+      "IMAGE"
+    ]
+  ]
+}

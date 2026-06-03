@@ -46,3 +46,38 @@ class LLMHealthResponse(BaseModel):
     model: str
     reachable: bool
     error: str | None = None
+
+
+class LLMResourcePlanRequest(BaseModel):
+    """Plan GPU admission for one LLM conversation request."""
+
+    task_type: str = Field(default="planning_chat", max_length=64)
+    client_id: str | None = Field(default=None, max_length=128)
+    priority: str = Field(default="normal", max_length=32)
+    expected_tokens: int | None = Field(default=None, ge=1, le=262144)
+    allow_queue: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class LLMResourcePlanResponse(BaseModel):
+    """GPU and concurrency plan for one LLM request."""
+
+    success: bool = True
+    provider: str
+    model: str
+    workspace_id: str | None = None
+    strategy_enabled: bool = True
+    mode: str
+    admission_status: str
+    should_run_now: bool
+    recommended_gpu_indexes: list[int] = Field(default_factory=list)
+    cuda_visible_devices: str | None = None
+    max_concurrent_llm_requests: int
+    comfyui_active: bool = False
+    comfyui_busy_gpu_indexes: list[int] = Field(default_factory=list)
+    available_gpu_indexes: list[int] = Field(default_factory=list)
+    ollama_options: dict[str, Any] = Field(default_factory=dict)
+    runtime_notes: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    comfyui_resource_plan: dict[str, Any] = Field(default_factory=dict)

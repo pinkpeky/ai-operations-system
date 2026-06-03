@@ -1,0 +1,161 @@
+{
+  "source_video": "E:\\ComfyUI_cu130\\ComfyUI\\output\\video\\WanVideo_InfiniteTalk_00001-audio.mp4",
+  "prompt_path": "D:\\ai-operations-system\\deployment\\comfyui\\commercial_ktv_workflow\\shangk_infinite_talk\\user_good_sample.prompt.json",
+  "workflow_path": "D:\\ai-operations-system\\deployment\\comfyui\\commercial_ktv_workflow\\shangk_infinite_talk\\user_good_sample.workflow.json",
+  "node_count": 28,
+  "workflow_node_count": 55,
+  "models": {
+    "120": {
+      "class_type": "MultiTalkModelLoader",
+      "model": "Wan\\Wan2_1-InfiniteTalk_Single_Q6_K.gguf"
+    },
+    "122": {
+      "class_type": "WanVideoModelLoader",
+      "model": "Wan\\Wan2.1_I2V_14B_480p_AniWan_New_Q5_K_M.gguf",
+      "base_precision": "fp16",
+      "quantization": "disabled",
+      "load_device": "offload_device",
+      "attention_mode": "sageattn",
+      "rms_norm_function": "default"
+    },
+    "129": {
+      "class_type": "WanVideoVAELoader",
+      "model_name": "Wan2_1_VAE_bf16.safetensors",
+      "precision": "bf16",
+      "use_cpu_cache": false,
+      "verbose": false
+    },
+    "238": {
+      "class_type": "CLIPVisionLoader",
+      "clip_name": "clip_vision_h.safetensors"
+    },
+    "300": {
+      "class_type": "Wav2VecModelLoader",
+      "model": "wav2vec2-chinese-base_fp16.safetensors",
+      "base_precision": "fp16",
+      "load_device": "main_device"
+    },
+    "301": {
+      "class_type": "MelBandRoFormerModelLoader",
+      "model_name": "MelBandRoformer_fp16.safetensors"
+    },
+    "319": {
+      "class_type": "LoadWanVideoT5TextEncoder",
+      "model_name": "umt5-xxl-enc-fp8_e4m3fn.safetensors",
+      "precision": "bf16",
+      "load_device": "offload_device",
+      "quantization": "disabled"
+    }
+  },
+  "inputs": {
+    "125": {
+      "class_type": "LoadAudio",
+      "audio": "shangk_reference_audio.wav",
+      "audioUI": "/api/view?filename=shangk_reference_audio.wav&type=input&subfolder=&rand=0.3008504452058506"
+    },
+    "128": {
+      "class_type": "WanVideoSampler",
+      "steps": 4,
+      "cfg": 1.0000000000000002,
+      "shift": 11.000000000000002,
+      "seed": 178064833986090,
+      "force_offload": true,
+      "scheduler": "dpm++_sde",
+      "riflex_freq_index": 0,
+      "denoise_strength": 1.0,
+      "batched_cfg": false,
+      "rope_function": "comfy",
+      "start_step": 0,
+      "end_step": -1,
+      "add_noise_to_samples": true
+    },
+    "131": {
+      "class_type": "VHS_VideoCombine",
+      "loop_count": 0,
+      "filename_prefix": "video/WanVideo_InfiniteTalk",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true
+    },
+    "192": {
+      "class_type": "WanVideoImageToVideoMultiTalk",
+      "frame_window_size": 49,
+      "motion_frame": 9,
+      "force_offload": false,
+      "colormatch": "disabled",
+      "tiled_vae": false,
+      "mode": "infinitetalk",
+      "output_path": ""
+    },
+    "284": {
+      "class_type": "LoadImage",
+      "image": "shangk_standing_mic_first_frame.png"
+    },
+    "317": {
+      "class_type": "WanVideoTextEncode",
+      "negative_prompt": "bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards",
+      "force_offload": true,
+      "use_disk_cache": true,
+      "device": "gpu"
+    },
+    "347": {
+      "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+      "aspect_ratio": "original",
+      "proportional_width": 351,
+      "proportional_height": 1,
+      "fit": "letterbox",
+      "method": "lanczos",
+      "round_to_multiple": "16",
+      "scale_to_side": "longest",
+      "background_color": "#000000"
+    },
+    "355": {
+      "class_type": "CR Prompt Text",
+      "prompt": "对着观众唱歌并摇摆身体跳舞"
+    }
+  },
+  "generation": {
+    "128": {
+      "class_type": "WanVideoSampler",
+      "steps": 4,
+      "cfg": 1.0000000000000002,
+      "shift": 11.000000000000002,
+      "seed": 178064833986090,
+      "force_offload": true,
+      "scheduler": "dpm++_sde",
+      "riflex_freq_index": 0,
+      "denoise_strength": 1.0,
+      "batched_cfg": false,
+      "rope_function": "comfy",
+      "start_step": 0,
+      "end_step": -1,
+      "add_noise_to_samples": true
+    },
+    "131": {
+      "class_type": "VHS_VideoCombine",
+      "loop_count": 0,
+      "filename_prefix": "video/WanVideo_InfiniteTalk",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true
+    },
+    "192": {
+      "class_type": "WanVideoImageToVideoMultiTalk",
+      "frame_window_size": 49,
+      "motion_frame": 9,
+      "force_offload": false,
+      "colormatch": "disabled",
+      "tiled_vae": false,
+      "mode": "infinitetalk",
+      "output_path": ""
+    }
+  }
+}

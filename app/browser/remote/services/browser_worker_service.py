@@ -51,7 +51,8 @@ class BrowserWorkerService:
         """
 
         try:
-            worker_secret = self.auth.generate_worker_secret() if generate_secret else None
+            configured_secret = self.settings.browser_worker_shared_secret.strip()
+            worker_secret = configured_secret if generate_secret and configured_secret else (self.auth.generate_worker_secret() if generate_secret else None)
             worker_secret_hash = self.auth.hash_secret(worker_secret) if worker_secret else None
             worker = await self.repository.register_worker(
                 workspace_id=workspace_id,

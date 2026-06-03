@@ -422,7 +422,7 @@ ALLOWED_FILE_TYPES=pdf,docx,txt,md,csv
 ## Experimental
 
 - Local Ollama LLM and embedding providers.
-- Local reranker provider placeholder.
+- Local semantic reranker worker backed by Ollama embeddings.
 - RAG eval trace and manual scoring without automatic metrics.
 
 ## Planned
@@ -499,7 +499,7 @@ Phase 27 explicitly does not implement OpenClaw integration, TikTok / YouTube / 
 - PDF parsing only extracts embedded text. No OCR.
 - PPTX, XLSX, and image parsing are not supported.
 - Keyword retrieval uses PostgreSQL `ILIKE` and simple scoring.
-- Local reranker is still a placeholder.
+- Local semantic reranker worker exists; production use still requires the configured embedding model to be downloaded and reachable.
 - No Elasticsearch, OpenSearch, or real BM25.
 - No full authentication system.
 - No frontend dashboard.

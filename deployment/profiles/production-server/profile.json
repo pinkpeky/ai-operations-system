@@ -1,0 +1,30 @@
+{
+  "profile_key": "production-server",
+  "name": "Production Server",
+  "scenario": "Formal single-server production runtime with real local model providers, guarded ComfyUI execution, strict worker authentication, and explicit browser domain policy.",
+  "recommended_for": ["real server operation", "formal deployment checklist", "closed-loop production validation"],
+  "not_for": ["mock-only demos", "production-like rehearsal", "unrestricted browser automation"],
+  "required_env": [
+    "APP_ENV",
+    "PRODUCTION_CONFIG_STRICT",
+    "POSTGRES_PASSWORD",
+    "REDIS_PASSWORD",
+    "QDRANT_API_KEY",
+    "LLM_PROVIDER",
+    "EMBEDDING_PROVIDER",
+    "RERANKER_PROVIDER",
+    "LOCAL_RERANKER_ALLOW_FALLBACK",
+    "RERANKER_RUNTIME_ENGINE",
+    "RERANKER_RUNTIME_EMBEDDING_MODEL",
+    "BROWSER_PROVIDER",
+    "BROWSER_WORKER_AUTH_STRICT",
+    "BROWSER_WORKER_SHARED_SECRET",
+    "OPENCLAW_PROVIDER",
+    "WORKER_CLIENT_OPENCLAW_PROVIDER",
+    "WORKER_CLIENT_OPENCLAW_BASE_URL",
+    "WORKER_CLIENT_OPENCLAW_API_KEY",
+    "COMFYUI_RUNTIME_PROVIDER",
+    "DIGITAL_HUMAN_PROVIDER"
+  ],
+  "notes": "Replace every placeholder secret outside Git, then run scripts/check_production_config.py before starting the API."
+}

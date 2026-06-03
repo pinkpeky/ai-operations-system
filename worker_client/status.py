@@ -56,8 +56,13 @@ def get_status(path: str | Path = DEFAULT_STATUS_PATH) -> dict[str, Any]:
     with _STATUS_LOCK:
         if not status_path.exists():
             return _default_status()
-        with status_path.open("r", encoding="utf-8") as file:
-            raw = json.load(file)
+        try:
+            with status_path.open("r", encoding="utf-8") as file:
+                raw = json.load(file)
+        except (OSError, json.JSONDecodeError) as exc:
+            status = _default_status()
+            status["last_error"] = f"status file unreadable: {exc.__class__.__name__}"
+            return status
     if not isinstance(raw, dict):
         return _default_status()
     status = _default_status()

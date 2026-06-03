@@ -121,10 +121,16 @@ export type ConversationPlaybookRun = {
   updated_at: string;
 };
 
+const defaultAiServerUrl =
+  import.meta.env.VITE_AI_SERVER_API ??
+  (typeof window !== "undefined" && window.location.protocol.startsWith("http")
+    ? window.location.origin
+    : "http://127.0.0.1:8000");
+
 export const defaultConversationSettings: ConversationSettings = {
-  aiServerUrl: import.meta.env.VITE_AI_SERVER_API ?? "http://localhost:8000",
-  workspaceId: import.meta.env.VITE_WORKSPACE_ID ?? "demo-workspace",
-  userId: import.meta.env.VITE_USER_ID ?? "demo-user",
+  aiServerUrl: defaultAiServerUrl,
+  workspaceId: import.meta.env.VITE_WORKSPACE_ID ?? "production-workspace",
+  userId: import.meta.env.VITE_USER_ID ?? "production-operator",
 };
 
 function normalizeApiBase(rawBase: string): string {

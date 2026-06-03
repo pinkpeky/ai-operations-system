@@ -39,6 +39,29 @@ class MockOpenClawProvider(BaseOpenClawProvider):
         """返回稳定的 mock action 结果。"""
 
         started = time.perf_counter()
+        if request.action_type in {"publish_submit", "publish_submit_guarded"}:
+            output = {
+                "message": "mock openclaw cannot perform real publish submit",
+                "target": request.target,
+                "profile_id": request.profile_id,
+                "browser_session_id": request.browser_session_id,
+                "input_payload": request.input_payload,
+                "metadata": request.metadata,
+                "real_openclaw_called": False,
+                "actual_publish_performed": False,
+                "requires_real_openclaw_provider": True,
+                "operator_final_submit_confirmed": bool(request.metadata.get("operator_final_submit_confirmed")),
+            }
+            duration_ms = max(0, int((time.perf_counter() - started) * 1000))
+            return OpenClawActionResponse(
+                success=False,
+                action_type=request.action_type,
+                output_payload=output,
+                error="real_publish_provider_not_configured",
+                duration_ms=duration_ms,
+                provider=self.provider_name,
+                mock=True,
+            )
         output = {
             "message": "mock openclaw action success",
             "target": request.target,
@@ -47,7 +70,11 @@ class MockOpenClawProvider(BaseOpenClawProvider):
             "input_payload": request.input_payload,
             "metadata": request.metadata,
             "real_openclaw_called": False,
+            "actual_publish_performed": False,
         }
+        if request.action_type == "publish_dry_run":
+            output["dry_run_completed"] = True
+            output["no_real_publish"] = True
         duration_ms = max(0, int((time.perf_counter() - started) * 1000))
         return OpenClawActionResponse(
             success=True,
@@ -71,9 +98,18 @@ class MockOpenClawProvider(BaseOpenClawProvider):
                 "provider": self.provider_name,
                 "real_openclaw": False,
                 "platform_automation": False,
+                "publish_dry_run": True,
+                "publish_submit_guarded": True,
+                "real_publish_submit": False,
                 "browser_worker_adapter": True,
             },
-            actions=["health_check", "list_capabilities", "execute_action"],
+            actions=[
+                "health_check",
+                "list_capabilities",
+                "execute_action",
+                "publish_dry_run",
+                "publish_submit_guarded",
+            ],
             error=None,
         )
 

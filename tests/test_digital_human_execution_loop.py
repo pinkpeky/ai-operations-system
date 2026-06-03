@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.api.router import create_api_router
+from app.commercial_operations.service import CommercialOperationService
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError, app_error_handler
 from app.db.base import Base
@@ -65,6 +66,7 @@ async def test_digital_human_mock_execution_creates_delivery_asset(
         settings=Settings(
             DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
             DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+            COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=False,
         )
     )
     _, approved = await _create_approved_job(
@@ -107,6 +109,7 @@ async def test_digital_human_comfyui_handoff_creates_guarded_video_job(
         settings=Settings(
             DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
             DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+            COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=False,
         )
     )
     _, approved = await _create_approved_job(
@@ -140,6 +143,57 @@ async def test_digital_human_comfyui_handoff_creates_guarded_video_job(
     assert executed.outputs[0]["resource_plan"]["admission_status"] == "blocked"
     assert comfyui_job.job_status == "resource_blocked"
     assert comfyui_job.external_request_attempted is False
+    assert comfyui_job.prompt_submission_enabled is False
+
+
+@pytest.mark.asyncio
+async def test_digital_human_comfyui_handoff_prefers_shot_execution_plan(
+    session: AsyncSession,
+    tmp_path: Path,
+) -> None:
+    service = DigitalHumanService(
+        settings=Settings(
+            DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
+            DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+            COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=False,
+        )
+    )
+    _, approved = await _create_approved_job(
+        session,
+        service,
+        workspace_id="workspace-digital-human-shot-handoff",
+    )
+    planned = await service.prepare_shot_execution_plan(
+        session,
+        workspace_id="workspace-digital-human-shot-handoff",
+        job_id=approved.id,
+        template_id="wan-i2v-reference-avatar",
+        width=1080,
+        height=1920,
+        fps=24,
+    )
+
+    executed = await service.execute_video_job(
+        session,
+        workspace_id="workspace-digital-human-shot-handoff",
+        job_id=planned.id,
+        execution_mode="comfyui_handoff",
+        submit_immediately=True,
+        metadata={"commercial_operation_id": "operation-shot-handoff"},
+    )
+    result = await session.execute(
+        select(ComfyUIRuntimeVideoJob).where(
+            ComfyUIRuntimeVideoJob.workspace_id == "workspace-digital-human-shot-handoff"
+        )
+    )
+    comfyui_job = result.scalar_one()
+    handoff_output = next(item for item in executed.outputs if item["output_type"] == "comfyui_video_job")
+
+    assert handoff_output["shot_execution_plan_status"] == "ready_for_operator_review"
+    assert comfyui_job.prompt["aiops_digital_human_shot_execution_plan"]["inputs"]["template_id"] == "wan-i2v-reference-avatar"
+    assert comfyui_job.workflow["source"] == "digital_human_shot_execution_plan"
+    assert comfyui_job.extra_data["aiops_digital_human_shot_execution"] is True
+    assert comfyui_job.extra_data["digital_human"]["shot_count"] == planned.shot_execution_plan_count
     assert comfyui_job.prompt_submission_enabled is False
 
 
@@ -255,6 +309,122 @@ async def test_digital_human_comfyui_output_ingestion_waits_for_outputs(
     assert ingested.delivery_asset_id is None
     assert ingested.provider_response["output_count"] == 0
     assert ingested.outputs[-1]["output_type"] == "digital_human_comfyui_output_ingestion"
+
+
+@pytest.mark.asyncio
+async def test_digital_human_delivery_asset_links_into_commercial_deliverable(
+    session: AsyncSession,
+    tmp_path: Path,
+) -> None:
+    workspace_id = "workspace-digital-human-commercial-link"
+    commercial_service = CommercialOperationService(session)
+    digital_service = DigitalHumanService(
+        settings=Settings(
+            DIGITAL_HUMAN_ASSET_DIR=str(tmp_path / "assets"),
+            DIGITAL_HUMAN_OUTPUT_DIR=str(tmp_path / "outputs"),
+            COMFYUI_RUNTIME_PROMPT_SUBMISSION_ENABLED=False,
+        )
+    )
+    operation = await commercial_service.create_operation(
+        workspace_id=workspace_id,
+        user_id="operator-commercial",
+        title="KTV short-video operation",
+        objective="Produce a reviewable digital-human short video for Douyin.",
+        channels=["douyin"],
+    )
+    draft = await commercial_service.create_content_draft(
+        workspace_id=workspace_id,
+        operation_id=operation.id,
+        step_key="content_production",
+        channel="douyin",
+        content_format="script",
+        title="Approved KTV short-video script",
+        content_body="Singer enters the room, performs with a microphone, and invites booking.",
+        summary="Standing AI host performance script.",
+        created_by="operator-commercial",
+    )
+    ready_draft = await commercial_service.mark_content_draft_ready(
+        workspace_id=workspace_id,
+        operation_id=operation.id,
+        draft_id=draft.id,
+        updated_by="operator-commercial",
+    )
+    approved_draft = await commercial_service.approve_content_draft(
+        workspace_id=workspace_id,
+        operation_id=operation.id,
+        draft_id=ready_draft.id,
+        approved_by="operator-commercial",
+    )
+    _, approved_job = await _create_approved_job(
+        session,
+        digital_service,
+        workspace_id=workspace_id,
+    )
+    handed_off = await digital_service.execute_video_job(
+        session,
+        workspace_id=workspace_id,
+        job_id=approved_job.id,
+        execution_mode="comfyui_handoff",
+        submit_immediately=False,
+        metadata={"commercial_operation_id": str(operation.id)},
+    )
+    result = await session.execute(
+        select(ComfyUIRuntimeVideoJob).where(ComfyUIRuntimeVideoJob.workspace_id == workspace_id)
+    )
+    comfyui_job = result.scalar_one()
+    comfyui_job.job_status = "output_ready"
+    comfyui_job.runtime_base_url = "http://127.0.0.1:8188"
+    comfyui_job.runtime_prompt_id = "prompt-commercial-link"
+    comfyui_job.outputs = [
+        {
+            "node_id": "9",
+            "kind": "videos",
+            "filename": "ktv-digital-human.mp4",
+            "subfolder": "commercial",
+            "type": "output",
+        }
+    ]
+    await session.commit()
+
+    ingested = await digital_service.ingest_comfyui_output(
+        session,
+        workspace_id=workspace_id,
+        job_id=handed_off.id,
+        refresh_comfyui_job=False,
+        asset_name="KTV digital human final clip",
+        metadata={"commercial_operation_id": str(operation.id)},
+    )
+    linked = await commercial_service.link_digital_human_delivery_asset(
+        workspace_id=workspace_id,
+        operation_id=operation.id,
+        digital_human_video_job_id=handed_off.id,
+        content_draft_id=approved_draft.id,
+        actor_user_id="operator-commercial",
+        metadata={"test_case": "digital_human_commercial_delivery_link"},
+    )
+    asset_request = linked["asset_request"]
+    deliverable = await commercial_service.create_deliverable(
+        workspace_id=workspace_id,
+        operation_id=operation.id,
+        step_key=approved_draft.step_key,
+        content_draft_id=approved_draft.id,
+        asset_request_ids=[asset_request.id],
+        deliverable_type="content_package",
+        title="KTV digital human delivery package",
+        created_by="operator-commercial",
+    )
+
+    assert ingested.delivery_asset_id is not None
+    assert linked["link_status"] == "created"
+    assert linked["deliverable_ready"] is True
+    assert asset_request.request_status == "prepared"
+    assert asset_request.content_draft_id == approved_draft.id
+    assert asset_request.asset_type == "video"
+    assert asset_request.asset_metadata["phase"] == "68A"
+    assert asset_request.asset_metadata["digital_human_delivery_asset_id"] == ingested.delivery_asset_id
+    assert asset_request.handoff_payload["digital_human_delivery_asset"]["source_uri"] == ingested.delivery_source_uri
+    assert str(asset_request.id) in deliverable.asset_request_ids
+    assert deliverable.package_payload["asset_requests"][0]["handoff_payload"]["digital_human_delivery_asset"]["asset_id"] == ingested.delivery_asset_id
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,10 @@ htmlcov/
 # Browser screenshots
 /screenshots/*
 !/screenshots/.gitkeep
+/artifacts/
+/douyin_frames/
+/douyin_*.mp4
+/douyin_contact_sheet.jpg
 /storage/browser_screenshots/*
 !/storage/browser_screenshots/.gitkeep
 /storage/browser_runtime_snapshots/*
@@ -80,6 +84,8 @@ htmlcov/
 !/storage/digital_human_assets/.gitkeep
 /storage/digital_human_outputs/*
 !/storage/digital_human_outputs/.gitkeep
+/storage/comfyui_materialized_workflows/*
+!/storage/comfyui_materialized_workflows/.gitkeep
 /storage/output_artifacts/*
 !/storage/output_artifacts/.gitkeep
 /storage/output_packages/*
@@ -92,6 +98,7 @@ htmlcov/
 # Customer machine worker local secrets/state
 /worker_client/worker_config.yaml
 /worker_client/worker_state.json
+/worker_client/metric_dispatch_scheduler.json
 /worker_client/runtime_state/
 /worker_client/logs/
 worker_state.json

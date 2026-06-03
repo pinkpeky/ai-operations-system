@@ -38,12 +38,14 @@ class LocalRerankerProvider(BaseRerankerProvider):
         base_url: str,
         model: str,
         timeout_seconds: float,
+        allow_fallback: bool = True,
         http_client: AsyncHTTPClient | None = None,
         fallback_provider: MockRerankerProvider | None = None,
     ) -> None:
         super().__init__(model=model, enabled=True)
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self.allow_fallback = allow_fallback
         self._http_client = http_client
         self._fallback_provider = fallback_provider or MockRerankerProvider()
 
@@ -63,6 +65,7 @@ class LocalRerankerProvider(BaseRerankerProvider):
                     "model": self.model,
                     "query": query,
                     "documents": [chunk.text for chunk in chunks],
+                    "top_n": top_n,
                 },
             )
             scores = data.get("scores")
@@ -87,6 +90,9 @@ class LocalRerankerProvider(BaseRerankerProvider):
             logger.info("Local reranker completed", extra={"model": self.model, "top_n": top_n})
             return reranked[:top_n]
         except Exception as exc:
+            if not self.allow_fallback:
+                logger.exception("Local reranker unavailable and fallback is disabled")
+                raise RuntimeError(f"Local reranker unavailable: {exc}") from exc
             logger.warning("Local reranker unavailable, falling back to mock", extra={"error": str(exc)})
             return await self._fallback_provider.rerank(query=query, chunks=chunks, top_n=top_n)
 
@@ -94,22 +100,24 @@ class LocalRerankerProvider(BaseRerankerProvider):
         """检查预留本地 reranker 服务；Ollama 无原生接口时返回清晰不可达状态。"""
 
         try:
-            await self._get_json("/api/tags")
+            data = await self._get_json("/health")
+            error = data.get("error")
             return RerankerHealthResponse(
                 provider=self.provider_name,
-                model=self.model,
-                reachable=False,
-                enabled=self.enabled,
-                error="Local Ollama is reachable, but native reranker API is not enabled; mock fallback will be used.",
+                model=str(data.get("model") or self.model),
+                reachable=bool(data.get("reachable", data.get("success", False))),
+                enabled=bool(data.get("enabled", self.enabled)),
+                error=str(error) if error else None,
             )
         except Exception as exc:
             logger.warning("Local reranker health check failed", extra={"error": str(exc)})
+            suffix = "; mock fallback will be used." if self.allow_fallback else "; fallback disabled."
             return RerankerHealthResponse(
                 provider=self.provider_name,
                 model=self.model,
                 reachable=False,
                 enabled=self.enabled,
-                error=f"{exc}; mock fallback will be used.",
+                error=f"{exc}{suffix}",
             )
 
     async def _get_json(self, path: str) -> dict[str, Any]:

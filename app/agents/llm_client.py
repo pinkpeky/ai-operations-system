@@ -91,6 +91,7 @@ class LLMClient:
                     base_url=settings.local_llm_base_url,
                     model=settings.local_llm_model,
                     timeout_seconds=settings.llm_timeout_seconds,
+                    num_ctx=settings.local_llm_num_ctx,
                 )
             if provider_name == "server":
                 return ServerProvider(

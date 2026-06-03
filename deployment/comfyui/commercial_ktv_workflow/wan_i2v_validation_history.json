@@ -1,0 +1,251 @@
+{
+  "prompt": [
+    10,
+    "df987959-75eb-4f6f-a759-48ec85a93e1f",
+    {
+      "1": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "scene_4_virtual_host_keyframe.png"
+        }
+      },
+      "2": {
+        "class_type": "WanVideoVAELoader",
+        "inputs": {
+          "model_name": "wan2.2_vae.safetensors",
+          "precision": "bf16",
+          "use_cpu_cache": false,
+          "verbose": false
+        }
+      },
+      "3": {
+        "class_type": "WanVideoEncode",
+        "inputs": {
+          "vae": [
+            "2",
+            0
+          ],
+          "image": [
+            "1",
+            0
+          ],
+          "enable_vae_tiling": false,
+          "tile_x": 272,
+          "tile_y": 272,
+          "tile_stride_x": 144,
+          "tile_stride_y": 128,
+          "noise_aug_strength": 0.018,
+          "latent_strength": 0.94
+        }
+      },
+      "4": {
+        "class_type": "WanVideoEmptyEmbeds",
+        "inputs": {
+          "width": 480,
+          "height": 832,
+          "num_frames": 33,
+          "extra_latents": [
+            "3",
+            0
+          ]
+        }
+      },
+      "5": {
+        "class_type": "WanVideoTextEncodeCached",
+        "inputs": {
+          "model_name": "umt5-xxl-enc-bf16.safetensors",
+          "precision": "bf16",
+          "positive_prompt": "A fictional AI female KTV host in the same luxury private room gently moves, slight breathing, subtle hand gesture with microphone, stable face, stable outfit, cinematic commercial lighting.",
+          "negative_prompt": "low quality, blurry, flicker, jitter, distorted face, bad hands, extra fingers, extra limbs, duplicate person, warped room, changed layout, text, logo, watermark, cartoon, anime, plastic skin, overexposed, oversaturated",
+          "quantization": "disabled",
+          "use_disk_cache": true,
+          "device": "gpu"
+        }
+      },
+      "6": {
+        "class_type": "WanVideoBlockSwap",
+        "inputs": {
+          "blocks_to_swap": 18,
+          "offload_img_emb": false,
+          "offload_txt_emb": false,
+          "use_non_blocking": true,
+          "vace_blocks_to_swap": 0,
+          "prefetch_blocks": 1,
+          "block_swap_debug": false
+        }
+      },
+      "7": {
+        "class_type": "WanVideoModelLoader",
+        "inputs": {
+          "model": "Wan2.2\\wan2.2_ti2v_5B_fp16.safetensors",
+          "base_precision": "fp16_fast",
+          "quantization": "disabled",
+          "load_device": "offload_device",
+          "attention_mode": "sdpa",
+          "block_swap_args": [
+            "6",
+            0
+          ],
+          "rms_norm_function": "default"
+        }
+      },
+      "8": {
+        "class_type": "WanVideoEasyCache",
+        "inputs": {
+          "easycache_thresh": 0.015,
+          "start_step": 8,
+          "end_step": -1,
+          "cache_device": "offload_device"
+        }
+      },
+      "9": {
+        "class_type": "WanVideoSLG",
+        "inputs": {
+          "blocks": "7,8,9",
+          "start_percent": 0.1,
+          "end_percent": 0.7
+        }
+      },
+      "10": {
+        "class_type": "WanVideoSampler",
+        "inputs": {
+          "model": [
+            "7",
+            0
+          ],
+          "image_embeds": [
+            "4",
+            0
+          ],
+          "text_embeds": [
+            "5",
+            0
+          ],
+          "steps": 24,
+          "cfg": 4.5,
+          "shift": 8.0,
+          "seed": 2026052741,
+          "force_offload": true,
+          "scheduler": "flowmatch_pusa",
+          "riflex_freq_index": 0,
+          "cache_args": [
+            "8",
+            0
+          ],
+          "slg_args": [
+            "9",
+            0
+          ],
+          "denoise_strength": 1.0,
+          "batched_cfg": false,
+          "rope_function": "comfy",
+          "start_step": 0,
+          "end_step": -1,
+          "add_noise_to_samples": false
+        }
+      },
+      "11": {
+        "class_type": "WanVideoDecode",
+        "inputs": {
+          "vae": [
+            "2",
+            0
+          ],
+          "samples": [
+            "10",
+            0
+          ],
+          "enable_vae_tiling": true,
+          "tile_x": 272,
+          "tile_y": 272,
+          "tile_stride_x": 144,
+          "tile_stride_y": 128,
+          "normalization": "default"
+        }
+      },
+      "12": {
+        "class_type": "VHS_VideoCombine",
+        "inputs": {
+          "images": [
+            "11",
+            0
+          ],
+          "frame_rate": 16.0,
+          "loop_count": 0,
+          "filename_prefix": "aiops_virtual_host_wan_i2v",
+          "format": "video/h264-mp4",
+          "pix_fmt": "yuv420p",
+          "crf": 19,
+          "save_metadata": true,
+          "trim_to_audio": false,
+          "pingpong": false,
+          "save_output": true
+        }
+      }
+    },
+    {
+      "client_id": "aiops-wan-i2v-validation",
+      "create_time": 1779889569273
+    },
+    [
+      "12"
+    ]
+  ],
+  "outputs": {
+    "12": {
+      "gifs": [
+        {
+          "filename": "aiops_virtual_host_wan_i2v_00001.mp4",
+          "subfolder": "",
+          "type": "output",
+          "format": "video/h264-mp4",
+          "frame_rate": 16.0,
+          "workflow": "aiops_virtual_host_wan_i2v_00001.png",
+          "fullpath": "E:\\ComfyUI\\output\\aiops_virtual_host_wan_i2v_00001.mp4"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "df987959-75eb-4f6f-a759-48ec85a93e1f",
+          "timestamp": 1779889569275
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "2",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "prompt_id": "df987959-75eb-4f6f-a759-48ec85a93e1f",
+          "timestamp": 1779889569283
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "df987959-75eb-4f6f-a759-48ec85a93e1f",
+          "timestamp": 1779889603931
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "12": {
+      "node_id": "12",
+      "display_node": "12",
+      "parent_node": null,
+      "real_node_id": "12"
+    }
+  }
+}

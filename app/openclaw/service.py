@@ -181,7 +181,7 @@ class OpenClawService:
     def _client(self, worker: BrowserWorker) -> OpenClawWorkerClient:
         """构造指向 worker base_url 的 OpenClaw client。"""
 
-        secret = BrowserWorkerAuthService.get_cached_secret(worker.id)
+        secret = BrowserWorkerAuthService.get_cached_secret(worker.id) or self.settings.browser_worker_shared_secret
         return OpenClawWorkerClient(
             base_url=worker.base_url,
             timeout_seconds=self.settings.openclaw_action_timeout_seconds,

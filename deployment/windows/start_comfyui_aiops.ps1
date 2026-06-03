@@ -1,9 +1,10 @@
 param(
-    [string]$ComfyRoot = "E:\ComfyUI",
+    [string]$ComfyRoot = "E:\ComfyUI_cu130\ComfyUI",
     [string]$Listen = "127.0.0.1",
     [int]$Port = 8188,
     [int]$CudaDevice = 0,
     [string]$FfmpegDir = "",
+    [string[]]$ExtraArgs = @("--preview-method", "auto", "--use-sage-attention", "--cuda-malloc", "--enable-manager"),
     [switch]$Force
 )
 
@@ -29,7 +30,6 @@ function Resolve-FfmpegDirectory {
     return $null
 }
 
-$pythonExe = Join-Path $ComfyRoot "venv\Scripts\python.exe"
 $logDir = Join-Path $ComfyRoot "logs"
 $stdoutLog = Join-Path $logDir "comfyui_stdout.log"
 $stderrLog = Join-Path $logDir "comfyui_stderr.log"
@@ -37,8 +37,14 @@ $stderrLog = Join-Path $logDir "comfyui_stderr.log"
 if (!(Test-Path $ComfyRoot)) {
     throw "ComfyUI root does not exist: $ComfyRoot"
 }
-if (!(Test-Path $pythonExe)) {
-    throw "ComfyUI virtualenv Python does not exist: $pythonExe"
+
+$pythonCandidates = @(
+    (Join-Path $ComfyRoot "venv\Scripts\python.exe"),
+    (Join-Path (Split-Path -Parent $ComfyRoot) "python\python.exe")
+)
+$pythonExe = $pythonCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (!$pythonExe) {
+    throw "ComfyUI Python does not exist. Checked: $($pythonCandidates -join ', ')"
 }
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -65,7 +71,7 @@ Set-Location $ComfyRoot
 
 $process = Start-Process `
     -FilePath $pythonExe `
-    -ArgumentList @("main.py", "--listen", $Listen, "--port", "$Port", "--disable-auto-launch", "--cuda-device", "$CudaDevice") `
+    -ArgumentList (@("main.py", "--listen", $Listen, "--port", "$Port", "--disable-auto-launch", "--cuda-device", "$CudaDevice") + $ExtraArgs) `
     -WorkingDirectory $ComfyRoot `
     -RedirectStandardOutput $stdoutLog `
     -RedirectStandardError $stderrLog `

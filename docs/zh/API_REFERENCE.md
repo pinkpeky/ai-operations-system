@@ -3900,3 +3900,19 @@ Status: production output ingestion / provider execution disabled by default. Ph
 Response fields include `comfyui_output_ingestion_status`, `delivery_asset_id`, `delivery_asset_status`, `delivery_asset_name`, `delivery_source_uri`, and `delivery_output_count`. When outputs exist, the job stores `digital_human_comfyui_delivery_asset` and `digital_human_comfyui_output_ingestion` records and becomes `completed`; otherwise it records waiting or blocked status for recovery.
 
 Boundary: no automatic ComfyUI upload, workflow install, model download, publishing, account control, approval bypass, runtime config mutation, service restart, or package rebuild is performed.
+
+## Phase 68A Digital Human Commercial Delivery Link
+
+Status: commercial-loop handoff for generated digital-human video assets. Phase 68A adds `POST /api/v1/commercial-operations/{operation_id}/digital-human-delivery-link`.
+
+Request fields:
+- `digital_human_video_job_id`: required completed digital-human video job.
+- `delivery_asset_id`: optional generated delivery asset. If omitted, the service reads it from the job delivery output.
+- `content_draft_id`: optional approved content draft. If omitted, the service uses the first approved draft when available.
+- `step_key`, `channel`, `title`, `purpose`, `metadata`: optional commercial asset-request shaping fields.
+
+Response fields include `link_status`, `digital_human_video_job_id`, `delivery_asset_id`, `deliverable_ready`, `asset_request`, `next_actions`, and `boundaries`.
+
+The endpoint creates or reuses a prepared commercial `video` asset request. Its metadata and handoff payload include `digital_human_delivery_asset_id`, `delivery_source_uri`, `delivery_output_count`, the source digital-human job, and explicit forbidden actions. When an approved content draft is linked, the normal deliverable APIs and `advance_main_agent_loop` can include this generated video in the package.
+
+Boundary: this endpoint does not mutate ComfyUI workflows, resubmit prompts, upload files, download models, install workflows, publish, control accounts, run OpenClaw/Playwright, bypass approval, mutate runtime config, restart services, or rebuild client packages.
